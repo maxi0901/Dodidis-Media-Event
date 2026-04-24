@@ -1,8 +1,10 @@
 <?php
 declare(strict_types=1);
 
-$dbPath = __DIR__ . '/tracking.sqlite';
+$landingpageSlug = 'gutshof-maifest-2026';
+$dataFile = __DIR__ . '/data/tracking.json';
 $errorMessage = '';
+$events = [];
 
 $totals = [
     'page_views' => 0,
@@ -13,71 +15,98 @@ $totals = [
 $lastSevenDays = [];
 
 try {
-    $pdo = new PDO('sqlite:' . $dbPath, null, null, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
+    if (!file_exists($dataFile)) {
+        $events = [];
+    } else {
+        $handle = fopen($dataFile, 'rb');
+        if ($handle === false) {
+            throw new RuntimeException('tracking.json konnte nicht geöffnet werden.');
+        }
 
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS landingpage_tracking (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            landingpage_slug TEXT NOT NULL,
-            event_type TEXT NOT NULL,
-            source TEXT,
-            campaign TEXT,
-            ip_hash TEXT NOT NULL,
-            user_agent_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT (datetime("now"))
-        )'
-    );
+        try {
+            if (!flock($handle, LOCK_SH)) {
+                throw new RuntimeException('Datei-Lock für tracking.json fehlgeschlagen.');
+            }
 
-    $stmtTotals = $pdo->query(
-        "SELECT
-            SUM(CASE WHEN event_type = 'page_view' THEN 1 ELSE 0 END) AS page_views,
-            SUM(CASE WHEN event_type = 'calendar_click' THEN 1 ELSE 0 END) AS calendar_clicks,
-            SUM(CASE WHEN event_type = 'page_view' AND date(created_at) = date('now') THEN 1 ELSE 0 END) AS today_page_views,
-            SUM(CASE WHEN event_type = 'calendar_click' AND date(created_at) = date('now') THEN 1 ELSE 0 END) AS today_calendar_clicks
-         FROM landingpage_tracking
-         WHERE landingpage_slug = 'gutshof-maifest-2026'"
-    );
+            $content = stream_get_contents($handle);
+            $decoded = json_decode($content !== false ? $content : '[]', true);
+            $events = is_array($decoded) ? $decoded : [];
 
-    $resultTotals = $stmtTotals->fetch() ?: [];
-    $totals = array_merge($totals, array_map(static fn($value): int => (int) $value, $resultTotals));
-
-    $stmtDays = $pdo->query(
-        "SELECT date(created_at) AS day,
-            SUM(CASE WHEN event_type = 'page_view' THEN 1 ELSE 0 END) AS page_views,
-            SUM(CASE WHEN event_type = 'calendar_click' THEN 1 ELSE 0 END) AS calendar_clicks
-         FROM landingpage_tracking
-         WHERE landingpage_slug = 'gutshof-maifest-2026'
-           AND date(created_at) >= date('now', '-6 days')
-         GROUP BY date(created_at)
-         ORDER BY day DESC"
-    );
-
-    $daysRaw = $stmtDays->fetchAll();
-    $indexByDay = [];
-    foreach ($daysRaw as $row) {
-        $indexByDay[$row['day']] = [
-            'page_views' => (int) ($row['page_views'] ?? 0),
-            'calendar_clicks' => (int) ($row['calendar_clicks'] ?? 0),
-        ];
+            flock($handle, LOCK_UN);
+        } finally {
+            fclose($handle);
+        }
     }
 
+    $tz = new DateTimeZone('Europe/Berlin');
+    $today = (new DateTimeImmutable('now', $tz))->format('Y-m-d');
+    $daysMap = [];
+
     for ($i = 0; $i < 7; $i++) {
-        $day = (new DateTimeImmutable('today -' . $i . ' days'))->format('Y-m-d');
-        $dayData = $indexByDay[$day] ?? ['page_views' => 0, 'calendar_clicks' => 0];
-        $dayConversion = $dayData['page_views'] > 0 ? ($dayData['calendar_clicks'] / $dayData['page_views']) * 100 : 0;
+        $day = (new DateTimeImmutable('today', $tz))->modify('-' . $i . ' days')->format('Y-m-d');
+        $daysMap[$day] = ['page_views' => 0, 'calendar_clicks' => 0];
+    }
+
+    foreach ($events as $event) {
+        if (!is_array($event)) {
+            continue;
+        }
+
+        $eventSlug = (string)($event['landingpage_slug'] ?? $landingpageSlug);
+        $eventType = (string)($event['event_type'] ?? '');
+
+        if ($eventSlug !== $landingpageSlug || ($eventType !== 'page_view' && $eventType !== 'calendar_click')) {
+            continue;
+        }
+
+        if ($eventType === 'page_view') {
+            $totals['page_views']++;
+        }
+        if ($eventType === 'calendar_click') {
+            $totals['calendar_clicks']++;
+        }
+
+        $createdAt = (string)($event['created_at'] ?? '');
+        $eventDay = '';
+        if ($createdAt !== '') {
+            try {
+                $eventDay = (new DateTimeImmutable($createdAt))->setTimezone($tz)->format('Y-m-d');
+            } catch (Throwable $dateError) {
+                $eventDay = '';
+            }
+        }
+
+        if ($eventDay === $today) {
+            if ($eventType === 'page_view') {
+                $totals['today_page_views']++;
+            } elseif ($eventType === 'calendar_click') {
+                $totals['today_calendar_clicks']++;
+            }
+        }
+
+        if ($eventDay !== '' && array_key_exists($eventDay, $daysMap)) {
+            if ($eventType === 'page_view') {
+                $daysMap[$eventDay]['page_views']++;
+            } elseif ($eventType === 'calendar_click') {
+                $daysMap[$eventDay]['calendar_clicks']++;
+            }
+        }
+    }
+
+    foreach ($daysMap as $day => $counts) {
+        $conversion = $counts['page_views'] > 0
+            ? ($counts['calendar_clicks'] / $counts['page_views']) * 100
+            : 0;
 
         $lastSevenDays[] = [
             'day' => $day,
-            'page_views' => $dayData['page_views'],
-            'calendar_clicks' => $dayData['calendar_clicks'],
-            'conversion' => $dayConversion,
+            'page_views' => $counts['page_views'],
+            'calendar_clicks' => $counts['calendar_clicks'],
+            'conversion' => $conversion,
         ];
     }
-} catch (Throwable $e) {
-    error_log('Stats error: ' . $e->getMessage());
+} catch (Throwable $exception) {
+    error_log('Stats error: ' . $exception->getMessage());
     $errorMessage = 'Statistiken sind aktuell nicht verfügbar. Bitte später erneut versuchen.';
 }
 
@@ -89,6 +118,7 @@ $todayConversion = $totals['today_page_views'] > 0 ? ($totals['today_calendar_cl
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
     <title>Stats · Maifest Gutshof Kassel</title>
     <link rel="stylesheet" href="assets/style.css">
 </head>
