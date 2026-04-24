@@ -1,14 +1,8 @@
 <?php
 declare(strict_types=1);
 
-$slug = 'gutshof-maifest-2026';
 $utmSource = isset($_GET['utm_source']) ? trim((string) $_GET['utm_source']) : '';
 $utmCampaign = isset($_GET['utm_campaign']) ? trim((string) $_GET['utm_campaign']) : '';
-
-$trackParams = http_build_query([
-    'utm_source' => $utmSource,
-    'utm_campaign' => $utmCampaign,
-]);
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -40,7 +34,7 @@ $trackParams = http_build_query([
             <p><span>📍</span> Wilhelmshöher Allee 347A, Kassel</p>
         </div>
 
-        <a id="calendarCta" class="btn btn-primary" href="maifest-gutshof-kassel.ics">📅 1. Mai vormerken</a>
+        <a id="calendarCta" class="btn btn-primary track-calendar-cta" href="maifest-gutshof-kassel.ics">📅 1. Mai vormerken</a>
     </section>
 
     <section class="editorial-grid" aria-label="Editorial Highlights">
@@ -71,11 +65,12 @@ $trackParams = http_build_query([
     <section class="infos">
         <h2>Event Infos</h2>
         <p><strong>Eintritt:</strong> 5€ · <strong>Kinder bis 14:</strong> frei</p>
+        <a id="finalCta" class="btn btn-primary track-calendar-cta" href="maifest-gutshof-kassel.ics">📅 Jetzt in Kalender speichern</a>
         <a class="btn btn-secondary" target="_blank" rel="noopener noreferrer" href="https://maps.google.com/?q=Wilhelmsh%C3%B6her%20Allee%20347A%2C%20Kassel">Route in Google Maps</a>
     </section>
 </main>
 
-<a id="stickyCta" class="btn btn-primary sticky-cta" href="maifest-gutshof-kassel.ics">📅 1. Mai vormerken</a>
+<a id="stickyCta" class="btn btn-primary sticky-cta track-calendar-cta" href="maifest-gutshof-kassel.ics">📅 1. Mai vormerken</a>
 
 <footer>
     <p>Wir erfassen anonymisierte Klicks zur Erfolgsmessung.</p>
@@ -83,45 +78,74 @@ $trackParams = http_build_query([
 
 <script>
 (function () {
-    const slug = <?php echo json_encode($slug, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
-    const trackingQuery = <?php echo json_encode($trackParams, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+    const utmSource = <?php echo json_encode($utmSource, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+    const utmCampaign = <?php echo json_encode($utmCampaign, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
 
-    function track(eventType) {
-        const query = trackingQuery ? '&' + trackingQuery : '';
-        const url = 'track.php?event=' + encodeURIComponent(eventType) + query + '&slug=' + encodeURIComponent(slug);
-
-        if (navigator.sendBeacon) {
-            return navigator.sendBeacon(url, '');
+    function buildTrackUrl(eventType) {
+        const params = new URLSearchParams();
+        params.set('event', eventType);
+        if (utmSource) {
+            params.set('source', utmSource);
         }
-
-        return fetch(url, { method: 'GET', credentials: 'same-origin', keepalive: true })
-            .then(() => true)
-            .catch(() => false);
+        if (utmCampaign) {
+            params.set('campaign', utmCampaign);
+        }
+        return 'track.php?' + params.toString();
     }
 
-    track('page_view');
+    function trackEvent(eventType) {
+        const url = buildTrackUrl(eventType);
+
+        if (navigator.sendBeacon) {
+            const queued = navigator.sendBeacon(url);
+            if (queued) {
+                return Promise.resolve(true);
+            }
+        }
+
+        return fetch(url, {
+            method: 'GET',
+            credentials: 'same-origin',
+            keepalive: true,
+            cache: 'no-store'
+        }).then(function () {
+            return true;
+        }).catch(function () {
+            return false;
+        });
+    }
+
+    trackEvent('page_view');
 
     function handleCalendarClick(event) {
         event.preventDefault();
-        const targetHref = event.currentTarget.getAttribute('href') || 'maifest-gutshof-kassel.ics';
 
-        Promise.resolve(track('calendar_click'))
-            .catch(() => false)
-            .finally(() => {
-                window.location.href = targetHref;
+        const targetHref = event.currentTarget.getAttribute('href') || 'maifest-gutshof-kassel.ics';
+        let didNavigate = false;
+
+        function navigateToIcs() {
+            if (didNavigate) {
+                return;
+            }
+            didNavigate = true;
+            window.location.href = targetHref;
+        }
+
+        const timeoutId = window.setTimeout(navigateToIcs, 300);
+
+        Promise.resolve(trackEvent('calendar_click'))
+            .catch(function () {
+                return false;
+            })
+            .finally(function () {
+                window.clearTimeout(timeoutId);
+                navigateToIcs();
             });
     }
 
-    const calendarCta = document.getElementById('calendarCta');
-    const stickyCta = document.getElementById('stickyCta');
-
-    if (calendarCta) {
-        calendarCta.addEventListener('click', handleCalendarClick);
-    }
-
-    if (stickyCta) {
-        stickyCta.addEventListener('click', handleCalendarClick);
-    }
+    document.querySelectorAll('.track-calendar-cta').forEach(function (ctaButton) {
+        ctaButton.addEventListener('click', handleCalendarClick, { passive: false });
+    });
 })();
 </script>
 </body>
