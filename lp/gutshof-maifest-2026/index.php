@@ -45,8 +45,8 @@ $utmCampaign = isset($_GET['utm_campaign']) ? trim((string) $_GET['utm_campaign'
         </article>
         <article class="editorial-card">
             <p class="editorial-label">Highlight</p>
-            <h2>Live Painting & Custom Art</h2>
-            <p>Künstler Shary, bekannt aus den Medien, fertigt vor Ort individuelle Designs auf Handyhüllen &amp; Accessoires.</p>
+            <h2>S-ART Community-Kunstwerk</h2>
+            <p>Shary gestaltet mit euch live ein Community-Kunstwerk – mit der Chance auf ein originales S-ART.</p>
         </article>
     </section>
 
@@ -57,7 +57,7 @@ $utmCampaign = isset($_GET['utm_campaign']) ? trim((string) $_GET['utm_campaign'
             <article class="highlight-card"><p class="icon">🍷</p><h3>Weinbar &amp; Maibowle</h3><p>Frisch gemixt und perfekt für den Frühlingsstart.</p></article>
             <article class="highlight-card"><p class="icon">🌮</p><h3>Tacos</h3><p>Frisch, würzig und mit Liebe zubereitet.</p></article>
             <article class="highlight-card"><p class="icon">🔥</p><h3>Wildschwein-Bratwurst</h3><p>Regional inspiriert und herzhaft vom Grill.</p></article>
-            <article class="highlight-card"><p class="icon">🎨</p><h3>Live Painting</h3><p>Vor Ort entstehen persönliche Custom-Motive.</p></article>
+            <article class="highlight-card"><p class="icon">🎨</p><h3>S-ART Live Session</h3><p>Gemeinsam mit Shary entsteht ein Community-Artwork mit Gewinnchance auf ein Original.</p></article>
             <article class="highlight-card"><p class="icon">🧒</p><h3>Kinderprogramm</h3><p>Spiel, Spaß und kreative Aktivitäten den ganzen Tag.</p></article>
         </div>
     </section>
