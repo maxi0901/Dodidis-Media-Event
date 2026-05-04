@@ -142,24 +142,9 @@ body {
     margin-top: 0.15rem;
 }
 
-.stats {
-    display: flex;
-    gap: 1.1rem;
-    flex-wrap: wrap;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-}
 
-.stats span {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 0.3rem;
-}
-
-.stats strong {
-    color: #fff;
-    font-weight: 700;
-    font-size: 0.95rem;
+[hidden] {
+    display: none !important;
 }
 
 /* ===== Main ===== */
