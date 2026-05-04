@@ -425,11 +425,11 @@ footer a:hover {
 
 :root { --brand-primary: #358F81; }
 .container{max-width:1440px;margin:0 auto;padding-inline:clamp(20px,5vw,80px)}
-.site-header-sticky{position:sticky;top:0;z-index:50;padding:0.9rem 0;background:rgba(8,12,20,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.08)}
+.site-header-sticky{position:sticky;top:0;z-index:50;padding:calc(.75rem + env(safe-area-inset-top,0px)) 0 .75rem;background:rgba(8,12,20,.9);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.08)}
 .nav-wrap{display:flex;align-items:center;justify-content:space-between;gap:1rem}
 .brand{font-weight:800;color:#fff;text-decoration:none;letter-spacing:.03em}
 .top-nav{display:flex;flex-wrap:wrap;gap:.5rem 1.2rem}.top-nav a{text-decoration:none;color:var(--text-dim);font-weight:600}.top-nav a.active,.top-nav a:hover{color:#fff}
-.page-main{padding-top:2.25rem;padding-bottom:3rem}
+.page-main{padding-top:3rem;padding-bottom:3rem}
 .glass{background:linear-gradient(180deg,rgba(30,40,60,.34),rgba(18,24,38,.46));border:1px solid rgba(255,255,255,.12);box-shadow:0 20px 50px rgba(0,0,0,.45),0 0 0 1px rgba(53,143,129,.15) inset;border-radius:22px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .service-grid,.details,.project-grid,.about-grid{display:grid;gap:1rem;grid-template-columns:repeat(1,minmax(0,1fr));margin-top:1rem}
 .service-card,.detail-card,.case-study,.team-minimal,.contact-layout article,.contact-form{padding:1.25rem}
