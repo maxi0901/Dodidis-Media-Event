@@ -45,16 +45,16 @@
         </p>
     </section>
 
-    <section aria-label="Aktuelle Events" class="events">
+    <section aria-label="Aktuelle Events" class="events" id="eventsSection">
         <div class="events-head">
             <h2>Laufende Events</h2>
             <span class="pulse-dot" aria-hidden="true"></span>
-            <span class="events-status">live</span>
+            <span class="events-status" id="eventsStatus">live</span>
         </div>
 
-        <div class="event-grid">
+        <div class="event-grid" id="eventGrid">
 
-            <a class="event-card" href="lp/gutshof-maifest-2026/">
+            <a class="event-card" data-event-date="2026-05-01" href="lp/gutshof-maifest-2026/">
                 <div class="event-media" aria-hidden="true">
                     <span class="event-emoji">🌿</span>
                     <span class="event-pill">Frühlingsevent 2026</span>
@@ -74,11 +74,37 @@
             </a>
 
         </div>
+
+        <p id="noEventsMessage" hidden>Aktuell keine Events.</p>
     </section>
 </main>
 
 <footer>
     <p>© Dodidis Media Event · <a href="https://dodidis-media.de">dodidis-media.de</a></p>
 </footer>
+
+<script>
+    (function updateEventListDaily() {
+        const eventCards = Array.from(document.querySelectorAll('.event-card[data-event-date]'));
+        const noEventsMessage = document.getElementById('noEventsMessage');
+        const eventsStatus = document.getElementById('eventsStatus');
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        eventCards.forEach((card) => {
+            const eventDateValue = card.getAttribute('data-event-date');
+            const eventDate = new Date(`${eventDateValue}T00:00:00`);
+            const isActive = eventDate >= today;
+            card.hidden = !isActive;
+        });
+
+        const visibleEvents = eventCards.filter((card) => !card.hidden);
+        const hasEvents = visibleEvents.length > 0;
+
+        noEventsMessage.hidden = hasEvents;
+        eventsStatus.textContent = hasEvents ? 'live' : 'keine laufenden Events';
+    })();
+</script>
 </body>
 </html>
