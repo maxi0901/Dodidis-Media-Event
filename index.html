@@ -27,9 +27,6 @@
                 <span class="bio-line bio-strong">wir liefern Ergebnisse.</span>
                 <span class="bio-line bio-tag">🚀 Social Media Marketing &amp; Events</span>
             </p>
-            <div class="stats">
-                <span><strong>110</strong>Follower</span>
-            </div>
         </div>
     </div>
 </header>
@@ -54,7 +51,7 @@
 
         <div class="event-grid" id="eventGrid">
 
-            <a class="event-card" data-event-date="2026-05-01" href="lp/gutshof-maifest-2026/">
+            <a class="event-card" data-event-start-date="2026-05-01" data-event-end-date="2026-05-01" href="lp/gutshof-maifest-2026/">
                 <div class="event-media" aria-hidden="true">
                     <span class="event-emoji">🌿</span>
                     <span class="event-pill">Frühlingsevent 2026</span>
@@ -85,17 +82,30 @@
 
 <script>
     (function updateEventListDaily() {
-        const eventCards = Array.from(document.querySelectorAll('.event-card[data-event-date]'));
+        const eventCards = Array.from(document.querySelectorAll('.event-card[data-event-start-date]'));
         const noEventsMessage = document.getElementById('noEventsMessage');
         const eventsStatus = document.getElementById('eventsStatus');
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
+        const parseDate = (value) => {
+            if (!value) return null;
+            const [year, month, day] = value.split('-').map(Number);
+            if (!year || !month || !day) return null;
+            return new Date(year, month - 1, day);
+        };
+
         eventCards.forEach((card) => {
-            const eventDateValue = card.getAttribute('data-event-date');
-            const eventDate = new Date(`${eventDateValue}T00:00:00`);
-            const isActive = eventDate >= today;
+            const startDate = parseDate(card.getAttribute('data-event-start-date'));
+            const endDate = parseDate(card.getAttribute('data-event-end-date')) || startDate;
+
+            if (!startDate || !endDate) {
+                card.hidden = true;
+                return;
+            }
+
+            const isActive = startDate <= today && endDate >= today;
             card.hidden = !isActive;
         });
 
