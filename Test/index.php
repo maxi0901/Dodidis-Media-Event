@@ -1274,17 +1274,6 @@ $year = date('Y');
                     </a>
                 </div>
 
-                <div class="trust-row">
-                    <div class="avatars" aria-hidden="true">
-                        <span class="av">D</span>
-                        <span class="av">M</span>
-                        <span class="av">B</span>
-                    </div>
-                    <p class="trust-text">
-                        Gemeinsam stark im Background.<br>
-                        <strong>Kooperation mit</strong> <span class="accent-text">blockfilms</span>
-                    </p>
-                </div>
             </div>
 
             <div class="hero-visual" aria-hidden="true">
@@ -1293,21 +1282,6 @@ $year = date('Y');
                 <span class="monitor"></span>
                 <span class="silhouette"></span>
 
-                <div class="coop-card">
-                    <div class="coop-info">
-                        <div class="coop-eyebrow">Kooperation</div>
-                        <div class="coop-brand">
-                            <span class="link-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1 1"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1-1"/></svg>
-                            </span>
-                            blockfilms
-                        </div>
-                        <div class="coop-text">Gemeinsam für starken Content.</div>
-                    </div>
-                    <span class="icon-btn" aria-hidden="true">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
-                    </span>
-                </div>
             </div>
         </div>
     </section>
