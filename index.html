@@ -3,45 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="description" content="Aktuelle Event-Landingpages von Dodidis Media Event – alle laufenden Veranstaltungen auf einen Blick.">
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="description" content="Dodidis Media Event – aktuelle Events & Landingpages. Wir machen keine Videos, wir liefern Ergebnisse.">
     <title>Dodidis Media Event | Aktuelle Events</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 <header class="site-header">
-    <div class="brand" aria-label="Dodidis Media Event">
-        <span class="brand-top">DODIDIS</span>
-        <span class="brand-bottom">Media&nbsp;Event</span>
+    <div class="profile">
+        <div class="avatar" aria-label="Dodidis Media Event">
+            <span class="avatar-mark">DM</span>
+        </div>
+        <div class="profile-info">
+            <div class="profile-handle">
+                <span class="handle">dodidis.media</span>
+                <span class="verified" aria-label="Verifiziert">✓</span>
+            </div>
+            <p class="bio">
+                <span class="bio-line">📈 Wir machen keine Videos —</span>
+                <span class="bio-line bio-strong">wir liefern Ergebnisse.</span>
+                <span class="bio-line bio-tag">🚀 Social Media Marketing &amp; Events</span>
+            </p>
+            <div class="stats">
+                <span><strong id="stat-events">1</strong>Event</span>
+                <span><strong>110</strong>Follower</span>
+                <span><strong>10</strong>Beiträge</span>
+            </div>
+        </div>
     </div>
 </header>
 
 <main>
     <section class="hero">
-        <p class="eyebrow">Event-Portal</p>
-        <h1>Aktuelle Events &amp; Landingpages</h1>
+        <p class="eyebrow">// Event-Portal</p>
+        <h1>Aktuelle Events<br><span class="hero-accent">&amp; Landingpages.</span></h1>
         <p class="subheadline">
-            Hier findest du eine Übersicht aller aktuell laufenden Veranstaltungen, die wir betreuen.
-            Jedes Event hat seine eigene Landingpage mit Programm, Infos zum Ablauf und einer
-            Möglichkeit, den Termin direkt in den Kalender zu speichern.
+            Hier findest du alle laufenden Veranstaltungen, die wir betreuen.
+            Jedes Event hat seine eigene Landingpage mit Programm, Ablauf und
+            One-Tap-Kalender-Sync.
         </p>
     </section>
 
-    <section aria-label="Aktuelle Events">
-        <h2>Laufende Events</h2>
+    <section aria-label="Aktuelle Events" class="events">
+        <div class="events-head">
+            <h2>Laufende Events</h2>
+            <span class="pulse-dot" aria-hidden="true"></span>
+            <span class="events-status">live</span>
+        </div>
+
         <div class="event-grid">
 
             <a class="event-card" href="lp/gutshof-maifest-2026/">
-                <p class="event-label">Frühlingsevent 2026</p>
-                <h3>Maifest im Gutshof Kassel</h3>
-                <p class="event-meta">
-                    <span>📅 1. Mai 2026</span>
-                    <span>📍 Wilhelmshöher Allee 347A, Kassel</span>
-                </p>
-                <p class="event-text">
-                    Sonne, Musik, Kulinarik &amp; Kunst – mit DJ, Weinbar, Streetfood,
-                    S-ART Live Session und Kinderprogramm.
-                </p>
-                <span class="event-cta">Zur Eventseite →</span>
+                <div class="event-media" aria-hidden="true">
+                    <span class="event-emoji">🌿</span>
+                    <span class="event-pill">Frühlingsevent 2026</span>
+                </div>
+                <div class="event-body">
+                    <h3>Maifest im Gutshof Kassel</h3>
+                    <p class="event-meta">
+                        <span>📅 1. Mai 2026</span>
+                        <span>📍 Wilhelmshöher Allee 347A, Kassel</span>
+                    </p>
+                    <p class="event-text">
+                        Sonne, Musik, Kulinarik &amp; Kunst – mit DJ, Weinbar, Streetfood,
+                        S-ART Live Session und Kinderprogramm.
+                    </p>
+                    <span class="event-cta">Zur Eventseite <span aria-hidden="true">→</span></span>
+                </div>
             </a>
 
         </div>
@@ -49,7 +80,7 @@
 </main>
 
 <footer>
-    <p>© Dodidis Media Event</p>
+    <p>© Dodidis Media Event · <a href="https://dodidis-media.de">dodidis-media.de</a></p>
 </footer>
 </body>
 </html>
