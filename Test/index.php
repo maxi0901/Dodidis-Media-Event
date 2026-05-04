@@ -1217,20 +1217,20 @@ $year = date('Y');
 
 <div class="nav-wrap">
     <nav class="nav" aria-label="Hauptnavigation">
-        <a class="brand" href="#home" aria-label="Dodidis Media Startseite">
+        <a class="brand" href="index.php" aria-label="Dodidis Media Startseite">
             <span class="brand-mark" aria-hidden="true">DM</span>
             <span class="brand-name">DODIDIS.MEDIA</span>
         </a>
 
         <ul class="nav-links" id="navLinks">
-            <li><a href="#home" class="is-active">Home</a></li>
-            <li><a href="#leistungen">Leistungen</a></li>
-            <li><a href="#projekte">Projekte</a></li>
-            <li><a href="#ueber-uns">Über uns</a></li>
-            <li><a href="#kontakt">Kontakt</a></li>
+            <li><a href="index.php" class="is-active" aria-current="page">Home</a></li>
+            <li><a href="leistungen.html">Leistungen</a></li>
+            <li><a href="projekte.html">Projekte</a></li>
+            <li><a href="ueber-uns.html">Über uns</a></li>
+            <li><a href="kontakt.html">Kontakt</a></li>
         </ul>
 
-        <a class="btn btn-primary nav-cta" href="#kontakt">
+        <a class="btn btn-primary nav-cta" href="kontakt.html">
             Erstgespräch buchen
             <span class="arrow" aria-hidden="true">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
@@ -1260,13 +1260,13 @@ $year = date('Y');
                     Kampagnen, die verkaufen. Für Brands, die mehr wollen.
                 </p>
                 <div class="hero-actions">
-                    <a class="btn btn-primary" href="#kontakt">
+                    <a class="btn btn-primary" href="kontakt.html">
                         Erstgespräch vereinbaren
                         <span class="arrow" aria-hidden="true">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
                         </span>
                     </a>
-                    <a class="btn btn-ghost" href="#leistungen">
+                    <a class="btn btn-ghost" href="leistungen.html">
                         Mehr erfahren
                         <span class="arrow" aria-hidden="true">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
@@ -1393,7 +1393,7 @@ $year = date('Y');
                 <span class="eyebrow">Ausgewählte Projekte</span>
                 <h2>Echte Ergebnisse. Echte Brands.</h2>
             </div>
-            <a class="ghost-link head-action" href="#projekte">
+            <a class="ghost-link head-action" href="projekte.html">
                 Alle Projekte ansehen
                 <span aria-hidden="true">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
@@ -1493,21 +1493,21 @@ $year = date('Y');
             <div class="footer-col">
                 <h4>Navigation</h4>
                 <ul>
-                    <li><a href="#home">Home</a></li>
-                    <li><a href="#leistungen">Leistungen</a></li>
-                    <li><a href="#projekte">Projekte</a></li>
-                    <li><a href="#ueber-uns">Über uns</a></li>
-                    <li><a href="#kontakt">Kontakt</a></li>
+                    <li><a href="index.php">Home</a></li>
+                    <li><a href="leistungen.html">Leistungen</a></li>
+                    <li><a href="projekte.html">Projekte</a></li>
+                    <li><a href="ueber-uns.html">Über uns</a></li>
+                    <li><a href="kontakt.html">Kontakt</a></li>
                 </ul>
             </div>
 
             <div class="footer-col">
                 <h4>Leistungen</h4>
                 <ul>
-                    <li><a href="#leistungen">Strategie</a></li>
-                    <li><a href="#leistungen">Content Creation</a></li>
-                    <li><a href="#leistungen">Social Media Management</a></li>
-                    <li><a href="#leistungen">Performance Marketing</a></li>
+                    <li><a href="leistungen.html">Strategie</a></li>
+                    <li><a href="leistungen.html">Content Creation</a></li>
+                    <li><a href="leistungen.html">Social Media Management</a></li>
+                    <li><a href="leistungen.html">Performance Marketing</a></li>
                 </ul>
             </div>
 
