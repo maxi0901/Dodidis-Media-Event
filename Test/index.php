@@ -18,8 +18,12 @@ $year = date('Y');
             --bg-secondary: #121821;
             --glass-bg: rgba(53, 143, 129, 0.12);
             --glass-bg-strong: rgba(53, 143, 129, 0.18);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --glass-border-strong: rgba(255, 255, 255, 0.16);
+            --glass-border: rgba(255, 255, 255, 0.12);
+            --glass-border-strong: rgba(255, 255, 255, 0.22);
+            --glass-sheen: linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 38%, rgba(255,255,255,0) 70%);
+            --glass-surface: linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 55%, rgba(255,255,255,0.06) 100%);
+            --glass-surface-dark: linear-gradient(135deg, rgba(28,38,48,0.55) 0%, rgba(14,20,28,0.45) 60%, rgba(20,30,40,0.55) 100%);
+            --glass-inset: inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(255,255,255,0.04);
             --accent: #358F81;
             --accent-hover: #46A99A;
             --accent-soft: rgba(53, 143, 129, 0.18);
@@ -52,10 +56,53 @@ $year = date('Y');
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             background-image:
-                radial-gradient(900px 600px at 85% -5%, rgba(53, 143, 129, 0.18), transparent 60%),
-                radial-gradient(700px 500px at -10% 35%, rgba(53, 143, 129, 0.10), transparent 60%),
-                radial-gradient(800px 600px at 50% 110%, rgba(53, 143, 129, 0.12), transparent 60%);
+                radial-gradient(900px 600px at 85% -5%, rgba(53, 143, 129, 0.22), transparent 60%),
+                radial-gradient(700px 500px at -10% 35%, rgba(70, 169, 154, 0.14), transparent 60%),
+                radial-gradient(800px 600px at 50% 110%, rgba(53, 143, 129, 0.14), transparent 60%);
             background-attachment: fixed;
+            position: relative;
+        }
+
+        /* ===== Ambient glass orbs ===== */
+        .ambient {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .ambient .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.55;
+            mix-blend-mode: screen;
+            animation: float 18s ease-in-out infinite;
+        }
+
+        .ambient .orb-1 {
+            width: 520px; height: 520px;
+            top: -120px; left: -120px;
+            background: radial-gradient(circle, rgba(70,169,154,0.55), transparent 70%);
+        }
+        .ambient .orb-2 {
+            width: 460px; height: 460px;
+            top: 35%; right: -140px;
+            background: radial-gradient(circle, rgba(53,143,129,0.48), transparent 70%);
+            animation-delay: -6s;
+        }
+        .ambient .orb-3 {
+            width: 600px; height: 600px;
+            bottom: -180px; left: 30%;
+            background: radial-gradient(circle, rgba(70,169,154,0.35), transparent 70%);
+            animation-delay: -12s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33%      { transform: translate(40px, -30px) scale(1.06); }
+            66%      { transform: translate(-30px, 25px) scale(0.96); }
         }
 
         a { color: inherit; text-decoration: none; }
@@ -67,11 +114,24 @@ $year = date('Y');
         }
 
         .glass {
-            background: var(--glass-bg);
-            backdrop-filter: blur(24px) saturate(140%);
-            -webkit-backdrop-filter: blur(24px) saturate(140%);
+            position: relative;
+            background: var(--glass-surface);
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
             border: 1px solid var(--glass-border);
             border-radius: var(--radius-lg);
+            box-shadow: var(--glass-inset), 0 18px 48px rgba(0,0,0,0.4);
+        }
+
+        /* Glass sheen helper – wird auf Karten via ::before angewendet */
+        .glass-sheen::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: var(--glass-sheen);
+            pointer-events: none;
+            opacity: 0.85;
         }
 
         .eyebrow {
@@ -143,14 +203,19 @@ $year = date('Y');
         }
 
         .btn-ghost {
-            background: transparent;
+            background: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
+            backdrop-filter: blur(18px) saturate(160%);
+            -webkit-backdrop-filter: blur(18px) saturate(160%);
             color: var(--text-primary);
             border-color: var(--glass-border-strong);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
         }
 
         .btn-ghost:hover {
+            background: linear-gradient(135deg, rgba(255,255,255,0.14), rgba(53,143,129,0.10));
             border-color: var(--accent);
             transform: translateY(-2px);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 12px 28px rgba(53,143,129,0.22);
         }
 
         .btn .arrow {
@@ -168,17 +233,21 @@ $year = date('Y');
             border-radius: 999px;
             display: inline-grid;
             place-items: center;
-            background: rgba(255,255,255,0.04);
+            background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02));
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
             border: 1px solid var(--glass-border-strong);
             color: var(--text-primary);
             cursor: pointer;
-            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.20);
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
         }
 
         .icon-btn:hover {
             border-color: var(--accent);
-            background: var(--accent-soft);
+            background: linear-gradient(135deg, rgba(53,143,129,0.28), rgba(53,143,129,0.08));
             transform: translateY(-2px);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 10px 22px rgba(53,143,129,0.25);
         }
 
         /* ===== Navbar ===== */
@@ -190,6 +259,7 @@ $year = date('Y');
         }
 
         .nav {
+            position: relative;
             max-width: 1240px;
             margin: 0 auto;
             display: flex;
@@ -197,12 +267,29 @@ $year = date('Y');
             gap: 1rem;
             padding: 0.75rem 0.85rem 0.75rem 1.4rem;
             border-radius: var(--radius-pill);
-            background: rgba(11, 15, 20, 0.55);
-            backdrop-filter: blur(28px) saturate(160%);
-            -webkit-backdrop-filter: blur(28px) saturate(160%);
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.06) 100%),
+                rgba(11, 15, 20, 0.45);
+            backdrop-filter: blur(34px) saturate(180%);
+            -webkit-backdrop-filter: blur(34px) saturate(180%);
             border: 1px solid var(--glass-border);
-            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.22),
+                inset 0 -1px 0 rgba(255,255,255,0.04),
+                0 18px 48px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
         }
+
+        .nav::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 55%);
+            pointer-events: none;
+        }
+
+        .nav > * { position: relative; z-index: 1; }
 
         .brand {
             display: flex;
@@ -364,12 +451,15 @@ $year = date('Y');
             aspect-ratio: 5 / 4;
             border-radius: var(--radius-lg);
             overflow: hidden;
-            border: 1px solid var(--glass-border);
+            border: 1px solid var(--glass-border-strong);
             background:
-                radial-gradient(circle at 30% 25%, rgba(53,143,129,0.18), transparent 55%),
-                radial-gradient(circle at 80% 35%, rgba(70, 169, 154, 0.10), transparent 55%),
+                radial-gradient(circle at 30% 25%, rgba(53,143,129,0.22), transparent 55%),
+                radial-gradient(circle at 80% 35%, rgba(70, 169, 154, 0.14), transparent 55%),
                 linear-gradient(135deg, #1a2128 0%, #0e1318 60%, #0a0f14 100%);
-            box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.18),
+                inset 0 -1px 0 rgba(255,255,255,0.04),
+                0 30px 80px rgba(0,0,0,0.55);
         }
 
         /* simulated studio: two vertical light bars + soft grain */
@@ -461,13 +551,31 @@ $year = date('Y');
             align-items: center;
             gap: 1rem;
             padding: 1.1rem 1.2rem;
-            background: rgba(11, 15, 20, 0.65);
-            backdrop-filter: blur(28px) saturate(160%);
-            -webkit-backdrop-filter: blur(28px) saturate(160%);
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 55%, rgba(255,255,255,0.08) 100%),
+                rgba(11, 15, 20, 0.45);
+            backdrop-filter: blur(34px) saturate(180%);
+            -webkit-backdrop-filter: blur(34px) saturate(180%);
             border: 1px solid var(--glass-border-strong);
             border-radius: var(--radius-md);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.22),
+                inset 0 -1px 0 rgba(255,255,255,0.05),
+                0 16px 40px rgba(0,0,0,0.45);
+            overflow: hidden;
             transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
+
+        .coop-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0) 55%);
+            pointer-events: none;
+        }
+
+        .coop-card > * { position: relative; z-index: 1; }
 
         .coop-card:hover {
             transform: translateY(-3px);
@@ -548,30 +656,76 @@ $year = date('Y');
         .service-card {
             position: relative;
             padding: 1.6rem 1.5rem 1.4rem;
-            background: rgba(18, 24, 33, 0.55);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0.06) 100%),
+                rgba(18, 24, 33, 0.40);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
             border: 1px solid var(--glass-border);
             border-radius: var(--radius-md);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.18),
+                inset 0 -1px 0 rgba(255,255,255,0.04),
+                0 14px 36px rgba(0,0,0,0.35);
             display: flex;
             flex-direction: column;
             gap: 1rem;
+            overflow: hidden;
+            isolation: isolate;
             transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
         }
+
+        .service-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .service-card::after {
+            content: "";
+            position: absolute;
+            top: -40%;
+            left: -20%;
+            width: 80%;
+            height: 80%;
+            background: radial-gradient(closest-side, rgba(70,169,154,0.35), transparent 70%);
+            filter: blur(40px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .service-card > * { position: relative; z-index: 1; }
 
         .service-card:hover {
             transform: translateY(-4px);
             border-color: var(--accent);
-            background: rgba(53, 143, 129, 0.08);
-            box-shadow: 0 20px 48px rgba(53,143,129,0.18);
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(53,143,129,0.10) 60%, rgba(70,169,154,0.08) 100%),
+                rgba(18, 24, 33, 0.40);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.25),
+                0 24px 56px rgba(53,143,129,0.28);
         }
+
+        .service-card:hover::after { opacity: 1; }
 
         .service-icon {
             width: 46px;
             height: 46px;
             border-radius: 12px;
-            background: var(--accent-soft);
-            border: 1px solid var(--glass-border);
+            background:
+                linear-gradient(135deg, rgba(70,169,154,0.30), rgba(53,143,129,0.10)),
+                rgba(255,255,255,0.04);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid var(--glass-border-strong);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 6px 18px rgba(53,143,129,0.18);
             display: grid;
             place-items: center;
             color: var(--accent);
@@ -593,16 +747,35 @@ $year = date('Y');
 
         /* ===== Stats ===== */
         .stats {
+            position: relative;
             margin-top: 2rem;
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
             padding: 1.6rem 0.75rem;
-            background: rgba(18, 24, 33, 0.55);
-            backdrop-filter: blur(22px);
-            -webkit-backdrop-filter: blur(22px);
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0.06) 100%),
+                rgba(18, 24, 33, 0.40);
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
             border: 1px solid var(--glass-border);
             border-radius: var(--radius-md);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.20),
+                inset 0 -1px 0 rgba(255,255,255,0.04),
+                0 18px 44px rgba(0,0,0,0.4);
+            overflow: hidden;
         }
+
+        .stats::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0) 55%);
+            pointer-events: none;
+        }
+
+        .stats > * { position: relative; z-index: 1; }
 
         .stat {
             display: flex;
@@ -626,7 +799,11 @@ $year = date('Y');
             width: 44px;
             height: 44px;
             border-radius: 999px;
-            background: var(--accent-soft);
+            background:
+                linear-gradient(135deg, rgba(70,169,154,0.32), rgba(53,143,129,0.10)),
+                rgba(255,255,255,0.04);
+            border: 1px solid var(--glass-border-strong);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.20), 0 6px 18px rgba(53,143,129,0.20);
             color: var(--accent);
             display: grid;
             place-items: center;
@@ -696,12 +873,15 @@ $year = date('Y');
             position: absolute;
             left: 0.95rem;
             bottom: 0.95rem;
-            padding: 0.45rem 0.9rem;
+            padding: 0.5rem 0.95rem;
             border-radius: 999px;
-            background: rgba(11, 15, 20, 0.7);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.04)),
+                rgba(11, 15, 20, 0.45);
+            backdrop-filter: blur(22px) saturate(180%);
+            -webkit-backdrop-filter: blur(22px) saturate(180%);
             border: 1px solid var(--glass-border-strong);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.25);
             font-size: 0.7rem;
             font-weight: 700;
             letter-spacing: 0.14em;
@@ -738,11 +918,17 @@ $year = date('Y');
             font-size: 0.7rem;
             font-weight: 800;
             letter-spacing: 0.14em;
-            color: rgba(255,255,255,0.7);
-            background: rgba(11,15,20,0.5);
-            padding: 0.3rem 0.55rem;
-            border-radius: 6px;
-            border: 1px solid var(--glass-border);
+            color: rgba(255,255,255,0.85);
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04)),
+                rgba(11,15,20,0.4);
+            backdrop-filter: blur(18px) saturate(170%);
+            -webkit-backdrop-filter: blur(18px) saturate(170%);
+            padding: 0.32rem 0.6rem;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border-strong);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.20);
+            z-index: 2;
         }
 
         .projects-nav {
@@ -755,17 +941,36 @@ $year = date('Y');
 
         /* ===== Testimonial ===== */
         .testimonial {
+            position: relative;
             padding: 2.6rem 2.4rem;
-            background: rgba(18, 24, 33, 0.55);
-            backdrop-filter: blur(22px);
-            -webkit-backdrop-filter: blur(22px);
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0.06) 100%),
+                rgba(18, 24, 33, 0.40);
+            backdrop-filter: blur(34px) saturate(180%);
+            -webkit-backdrop-filter: blur(34px) saturate(180%);
             border: 1px solid var(--glass-border);
             border-radius: var(--radius-lg);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.22),
+                inset 0 -1px 0 rgba(255,255,255,0.04),
+                0 24px 60px rgba(0,0,0,0.45);
             display: grid;
             grid-template-columns: 1fr 2fr;
             gap: 2.5rem;
             align-items: center;
+            overflow: hidden;
         }
+
+        .testimonial::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0) 55%);
+            pointer-events: none;
+        }
+
+        .testimonial > * { position: relative; z-index: 1; }
 
         .quote-mark {
             font-family: Georgia, "Times New Roman", serif;
@@ -823,16 +1028,35 @@ $year = date('Y');
         footer { padding: 4rem 0 2rem; }
 
         .footer-grid {
+            position: relative;
             display: grid;
             grid-template-columns: 1.4fr 1fr 1.1fr 1.3fr;
             gap: 2.5rem;
             padding: 2.4rem 2.2rem;
-            background: rgba(18, 24, 33, 0.5);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0.06) 100%),
+                rgba(18, 24, 33, 0.38);
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
             border: 1px solid var(--glass-border);
             border-radius: var(--radius-lg);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.20),
+                inset 0 -1px 0 rgba(255,255,255,0.04),
+                0 22px 56px rgba(0,0,0,0.4);
+            overflow: hidden;
         }
+
+        .footer-grid::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0) 55%);
+            pointer-events: none;
+        }
+
+        .footer-grid > * { position: relative; z-index: 1; }
 
         .footer-brand p {
             color: var(--text-secondary);
@@ -853,17 +1077,21 @@ $year = date('Y');
             display: grid;
             place-items: center;
             border-radius: 10px;
-            background: rgba(255,255,255,0.04);
+            background: linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--glass-border);
             color: var(--text-secondary);
-            transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
+            transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
         }
 
         .socials a:hover {
             color: var(--accent);
             border-color: var(--accent);
-            background: var(--accent-soft);
+            background: linear-gradient(135deg, rgba(53,143,129,0.30), rgba(53,143,129,0.06));
             transform: translateY(-2px);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 10px 22px rgba(53,143,129,0.25);
         }
 
         .footer-col h4 {
@@ -980,6 +1208,12 @@ $year = date('Y');
     </style>
 </head>
 <body>
+
+<div class="ambient" aria-hidden="true">
+    <span class="orb orb-1"></span>
+    <span class="orb orb-2"></span>
+    <span class="orb orb-3"></span>
+</div>
 
 <div class="nav-wrap">
     <nav class="nav" aria-label="Hauptnavigation">
