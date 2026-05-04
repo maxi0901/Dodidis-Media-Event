@@ -7,7 +7,7 @@
 <a class="project-card glass" href="#"><span class="project-image p3"></span><span class="project-overlay">Projekt ansehen</span><div class="project-body"><p class="project-cat">Reels</p><h3>Restaurant Story Series</h3></div></a>
 <a class="project-card glass" href="#"><span class="project-image p4"></span><span class="project-overlay">Projekt ansehen</span><div class="project-body"><p class="project-cat">Campaign</p><h3>E-Commerce Q4 Scale</h3></div></a>
 </section>
-<section class="glass case-study reveal"><h2>Case Study</h2><p><strong>Problem:</strong> Unklare Botschaft und sinkende Performance.</p><p><strong>Lösung:</strong> Neue Positionierung, 12 Reels/Monat + datenbasierte Ad-Struktur.</p><p><strong>Ergebnis:</strong> +168% Reichweite, +42% Leads in 8 Wochen.</p></section>
+<section class="glass case-study reveal"><h2>Case Study</h2><p><strong>Problem:</strong> Unklare Botschaft und sinkende Performance.</p><p><strong>Lösung:</strong> Neue Positionierung, 8 Reels pro Monat + datengetriebene Ad-Strategie.</p><p><strong>Ergebnis:</strong> Klare Verbesserung der Markenwahrnehmung und eine spürbar stärkere Lead-Generierung innerhalb kurzer Zeit.</p></section>
 </main>
 <?php include __DIR__ . '/includes/footer.php'; ?>
 <script src="assets/site.js"></script></body></html>
