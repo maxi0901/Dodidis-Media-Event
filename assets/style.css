@@ -422,3 +422,26 @@ footer a:hover {
     .pulse-dot { animation: none; }
     .event-card { transition: none; }
 }
+
+:root { --brand-primary: #358F81; }
+.container{max-width:1440px;margin:0 auto;padding-inline:clamp(20px,5vw,80px)}
+.site-header-sticky{position:sticky;top:0;z-index:50;padding:0.9rem 0;background:rgba(8,12,20,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.08)}
+.nav-wrap{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.brand{font-weight:800;color:#fff;text-decoration:none;letter-spacing:.03em}
+.top-nav{display:flex;flex-wrap:wrap;gap:.5rem 1.2rem}.top-nav a{text-decoration:none;color:var(--text-dim);font-weight:600}.top-nav a.active,.top-nav a:hover{color:#fff}
+.page-main{padding-top:2.25rem;padding-bottom:3rem}
+.glass{background:linear-gradient(180deg,rgba(30,40,60,.34),rgba(18,24,38,.46));border:1px solid rgba(255,255,255,.12);box-shadow:0 20px 50px rgba(0,0,0,.45),0 0 0 1px rgba(53,143,129,.15) inset;border-radius:22px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.service-grid,.details,.project-grid,.about-grid{display:grid;gap:1rem;grid-template-columns:repeat(1,minmax(0,1fr));margin-top:1rem}
+.service-card,.detail-card,.case-study,.team-minimal,.contact-layout article,.contact-form{padding:1.25rem}
+.service-card:hover,.project-card:hover{transform:translateY(-3px);transition:.2s ease}
+.detail-card ul,.about-grid ul{margin:.7rem 0 0 1.1rem;color:var(--text-dim)}
+.cta-band{margin-top:1rem;padding:1.5rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
+.primary-btn{background:var(--brand-primary);color:#fff;padding:.78rem 1.2rem;border-radius:999px;text-decoration:none;border:none;font-weight:700;display:inline-block}
+.project-card{position:relative;overflow:hidden;text-decoration:none;color:inherit;display:block}.project-image{height:220px;display:block}.p1{background:linear-gradient(135deg,#1b2738,#0e1722),radial-gradient(circle at 30% 20%,rgba(53,143,129,.42),transparent 45%)}.p2{background:linear-gradient(135deg,#211827,#111827)}.p3{background:linear-gradient(135deg,#152132,#0d121d)}.p4{background:linear-gradient(135deg,#1d1b2f,#0d1020)}
+.project-overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(5,10,18,.5);opacity:0;transition:.25s ease;font-weight:700}.project-card:hover .project-overlay{opacity:1}.project-card:hover .project-image{transform:scale(1.04);transition:.25s ease}
+.project-body{padding:1rem 1.1rem}.project-cat{color:var(--brand-primary);font-size:.8rem;text-transform:uppercase;letter-spacing:.12em;margin:0 0 .25rem}
+.contact-layout{display:grid;grid-template-columns:1fr;gap:1rem}.contact-form label{display:flex;flex-direction:column;gap:.4rem;color:var(--text-dim);font-weight:600;margin-bottom:.8rem}.contact-form input,.contact-form textarea{background:rgba(12,17,28,.75);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:.72rem;color:#fff}
+.contact-meta{color:var(--text-dim)}
+.reveal{opacity:0;transform:translateY(12px);animation:fadeIn .65s ease forwards}
+@keyframes fadeIn{to{opacity:1;transform:none}}
+@media (min-width:780px){.service-grid,.details,.project-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.about-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.contact-layout{grid-template-columns:1fr 1fr}}
