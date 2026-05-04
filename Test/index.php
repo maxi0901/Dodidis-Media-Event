@@ -44,7 +44,7 @@ $year = date('Y');
 
         html {
             scroll-behavior: smooth;
-            scroll-padding-top: 110px;
+            scroll-padding-top: 96px;
         }
 
         body {
@@ -108,9 +108,9 @@ $year = date('Y');
         a { color: inherit; text-decoration: none; }
 
         .container {
-            max-width: 1240px;
+            max-width: 1440px;
             margin: 0 auto;
-            padding: 0 1.25rem;
+            padding-inline: clamp(20px, 5vw, 80px);
         }
 
         .glass {
@@ -152,7 +152,7 @@ $year = date('Y');
         }
 
         h1 {
-            font-size: clamp(2.2rem, 5.4vw, 4rem);
+            font-size: clamp(2rem, 5vw, 4rem);
             line-height: 1.05;
             font-weight: 800;
             text-wrap: balance;
@@ -253,19 +253,19 @@ $year = date('Y');
         /* ===== Navbar ===== */
         .nav-wrap {
             position: sticky;
-            top: 1rem;
+            top: 0.5rem;
             z-index: 50;
-            padding: 0 1.25rem;
+            padding-inline: clamp(20px, 5vw, 80px);
         }
 
         .nav {
             position: relative;
-            max-width: 1240px;
+            max-width: 1440px;
             margin: 0 auto;
             display: flex;
             align-items: center;
             gap: 1rem;
-            padding: 0.75rem 0.85rem 0.75rem 1.4rem;
+            padding: 0.62rem 0.8rem 0.62rem 1.05rem;
             border-radius: var(--radius-pill);
             background:
                 linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.06) 100%),
@@ -374,10 +374,11 @@ $year = date('Y');
         .nav-toggle svg { display: block; }
 
         /* ===== Hero ===== */
-        main { padding-top: 2rem; }
+        main { padding-top: 1.25rem; }
 
         .hero {
-            padding: 3rem 0 4rem;
+            padding: clamp(2.4rem, 6vw, 4rem) 0 clamp(3rem, 5vw, 4.5rem);
+            scroll-margin-top: 96px;
         }
 
         .hero-grid {
@@ -615,7 +616,8 @@ $year = date('Y');
         }
 
         /* ===== Section heads ===== */
-        .section { padding: 4rem 0; }
+        .section { padding: clamp(3.4rem, 6vw, 5.2rem) 0;
+            scroll-margin-top: 96px; }
 
         .section-head {
             display: grid;
@@ -748,10 +750,10 @@ $year = date('Y');
         /* ===== Stats ===== */
         .stats {
             position: relative;
-            margin-top: 2rem;
+            margin-top: 1.5rem;
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            padding: 1.6rem 0.75rem;
+            padding: 1.1rem 0.5rem;
             background:
                 linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0.06) 100%),
                 rgba(18, 24, 33, 0.40);
@@ -811,11 +813,11 @@ $year = date('Y');
         }
 
         .stat-num {
-            font-size: 1.7rem;
+            font-size: 1.2rem;
             font-weight: 800;
             color: var(--accent);
             letter-spacing: -0.02em;
-            text-shadow: 0 0 22px rgba(53,143,129,0.35);
+            text-shadow: 0 0 10px rgba(53,143,129,0.2);
             line-height: 1;
         }
 
@@ -862,6 +864,17 @@ $year = date('Y');
             filter: brightness(1.05);
         }
 
+        .project .img::before {
+            content: "";
+            position: absolute;
+            inset: 10% 10% auto;
+            height: 45%;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+        }
+
         .project .img::after {
             content: "";
             position: absolute;
@@ -889,6 +902,11 @@ $year = date('Y');
             color: var(--text-primary);
             z-index: 2;
         }
+
+        .project-1 .img::before { content:"REEL\A HIGHLIGHTS"; white-space:pre; display:grid; place-items:center; color:rgba(255,255,255,.85); font-size:.78rem; letter-spacing:.12em; }
+        .project-2 .img::before { content:"EVENT\A THUMBNAIL"; white-space:pre; display:grid; place-items:center; color:rgba(255,255,255,.85); font-size:.78rem; letter-spacing:.12em; }
+        .project-3 .img::before { content:"VIDEO\A MOCKUP"; white-space:pre; display:grid; place-items:center; color:rgba(255,255,255,.85); font-size:.78rem; letter-spacing:.12em; }
+        .project-4 .img::before { content:"ADS\A DASHBOARD"; white-space:pre; display:grid; place-items:center; color:rgba(255,255,255,.85); font-size:.78rem; letter-spacing:.12em; }
 
         .project-1 .img {
             background:
@@ -933,7 +951,7 @@ $year = date('Y');
 
         .projects-nav {
             position: absolute;
-            right: -1.4rem;
+            right: -0.4rem;
             top: 50%;
             transform: translateY(-50%);
             z-index: 3;
@@ -1025,14 +1043,15 @@ $year = date('Y');
         }
 
         /* ===== Footer ===== */
-        footer { padding: 4rem 0 2rem; }
+        footer { padding: 3rem 0 1.7rem;
+            scroll-margin-top: 96px; }
 
         .footer-grid {
             position: relative;
             display: grid;
             grid-template-columns: 1.4fr 1fr 1.1fr 1.3fr;
             gap: 2.5rem;
-            padding: 2.4rem 2.2rem;
+            padding: 1.9rem 1.8rem;
             background:
                 linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0.06) 100%),
                 rgba(18, 24, 33, 0.38);
@@ -1143,7 +1162,7 @@ $year = date('Y');
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1.6rem 0.4rem 0;
+            padding: 1.2rem 0.2rem 0;
             color: var(--text-muted);
             font-size: 0.85rem;
         }
@@ -1164,8 +1183,18 @@ $year = date('Y');
             .projects-nav { display: none; }
         }
 
+        
+        @media (max-width: 1024px) {
+            .nav { border-radius: 20px; padding: 0.52rem 0.65rem 0.52rem 0.85rem; }
+            .brand-mark { width: 34px; height: 34px; }
+            .nav-links { gap: 1rem; }
+            .hero-headline br { display: none; }
+            .services-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .projects-nav { right: 0.2rem; }
+        }
+
         @media (max-width: 860px) {
-            .nav-links { display: none; position: absolute; top: 70px; left: 1.25rem; right: 1.25rem; flex-direction: column; gap: 0.4rem; padding: 1rem; background: rgba(11,15,20,0.85); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border: 1px solid var(--glass-border); border-radius: var(--radius-md); }
+            .nav-links { display: none; position: absolute; top: calc(100% + 0.45rem); left: 0; right: 0; flex-direction: column; gap: 0.4rem; padding: 1rem; background: rgba(11,15,20,0.85); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px); border: 1px solid var(--glass-border); border-radius: var(--radius-md); }
             .nav-links.open { display: flex; }
             .nav-links a { padding: 0.7rem 0.4rem; }
             .nav-cta { display: none; }
@@ -1181,6 +1210,7 @@ $year = date('Y');
 
             .testimonial { grid-template-columns: 1fr; padding: 2rem 1.4rem; gap: 1.4rem; }
             .testimonial-row { flex-direction: column; align-items: flex-start; gap: 1.2rem; }
+            .testimonial-controls { width: 100%; justify-content: flex-start; }
             .testimonial-author { margin-left: 0; }
 
             .footer-grid { grid-template-columns: 1fr; gap: 1.8rem; padding: 1.8rem 1.4rem; }
@@ -1189,13 +1219,16 @@ $year = date('Y');
         }
 
         @media (max-width: 540px) {
+            html { scroll-padding-top: 84px; }
             .services-grid { grid-template-columns: 1fr; }
             .projects-grid { grid-template-columns: 1fr; }
             .hero { padding: 2rem 0 3rem; }
             .section { padding: 3rem 0; }
-            .nav { padding: 0.55rem 0.55rem 0.55rem 0.85rem; }
+            .nav { padding: 0.5rem 0.5rem 0.5rem 0.72rem; border-radius: 14px; }
             .brand-name { display: none; }
-            h1 { font-size: 2.2rem; }
+            h1 { font-size: clamp(1.9rem, 8.8vw, 2.2rem); }
+            .hero-actions .btn { width: 100%; }
+            .socials { padding-bottom: 0.2rem; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -1378,8 +1411,8 @@ $year = date('Y');
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
                 </span>
                 <div>
-                    <div class="stat-num">30+</div>
-                    <div class="stat-label">Projekte<br>abgeschlossen</div>
+                    <div class="stat-num">Fokus</div>
+                    <div class="stat-label">Content-<br>Projekte</div>
                 </div>
             </div>
             <div class="stat">
@@ -1387,8 +1420,8 @@ $year = date('Y');
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
                 </span>
                 <div>
-                    <div class="stat-num">15+</div>
-                    <div class="stat-label">zufriedene<br>Kunden</div>
+                    <div class="stat-num">Netzwerk</div>
+                    <div class="stat-label">Kunden &amp;<br>Partner</div>
                 </div>
             </div>
             <div class="stat">
@@ -1396,8 +1429,8 @@ $year = date('Y');
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </span>
                 <div>
-                    <div class="stat-num">2.5M+</div>
-                    <div class="stat-label">erreichte<br>Konten</div>
+                    <div class="stat-num">Impact</div>
+                    <div class="stat-label">Reichweiten-<br>orientiert</div>
                 </div>
             </div>
             <div class="stat">
@@ -1405,8 +1438,8 @@ $year = date('Y');
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 </span>
                 <div>
-                    <div class="stat-num">98%</div>
-                    <div class="stat-label">Kunden<br>zufriedenheit</div>
+                    <div class="stat-num">Methode</div>
+                    <div class="stat-label">Strategie +<br>Umsetzung</div>
                 </div>
             </div>
         </div>
@@ -1461,16 +1494,15 @@ $year = date('Y');
             </div>
             <div>
                 <p class="testimonial-quote">
-                    „Die Zusammenarbeit mit Dodidis.Media hat unseren Social Media Auftritt
-                    auf ein neues Level gebracht. Kreativ, zuverlässig und immer einen
-                    Schritt voraus."
+                    „Aus laufenden Projekten sammeln wir aktuell belastbares Feedback für öffentliche Referenzen.
+                    Bis dahin arbeiten wir weiterhin diskret und performance-orientiert im Hintergrund.“
                 </p>
                 <div class="testimonial-row">
                     <div class="testimonial-author">
-                        <div class="author-pic" aria-hidden="true">M</div>
+                        <div class="author-pic" aria-hidden="true">DM</div>
                         <div class="author-meta">
-                            <div class="author-name">Marvin Becker</div>
-                            <div class="author-role">Gründer von Becker Fitness</div>
+                            <div class="author-name">Referenz in Vorbereitung</div>
+                            <div class="author-role">Verifizierte Kundenstimme folgt</div>
                         </div>
                     </div>
                     <div class="testimonial-controls">
