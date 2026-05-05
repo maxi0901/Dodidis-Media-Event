@@ -1476,8 +1476,10 @@ main { padding-top: 2rem; }
             visibility 0.32s;
         overflow-y: auto;
         z-index: 1; /* below the .nav (and X-button) within nav-wrap’s stacking context */
+        pointer-events: none;
     }
     .nav-links.open {
+        pointer-events: auto;
         opacity: 1;
         visibility: visible;
         transform: translateY(0);
