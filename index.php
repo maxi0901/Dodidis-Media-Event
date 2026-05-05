@@ -21,7 +21,7 @@
     <!-- ===== HERO ===== -->
     <section class="hero container">
         <div class="hero-grid">
-            <div class="hero-text">
+            <div class="hero-text" data-reveal-stagger>
                 <span class="eyebrow">Social Media Marketing Agentur</span>
                 <h1 class="hero-headline">
                     Wir produzieren<br>
@@ -48,7 +48,7 @@
                 </div>
             </div>
 
-            <div class="hero-visual" aria-hidden="true">
+            <div class="hero-visual" data-reveal aria-hidden="true">
                 <span class="scene"></span>
                 <span class="desk"></span>
                 <span class="monitor"></span>
@@ -59,7 +59,7 @@
 
     <!-- ===== LEISTUNGEN ===== -->
     <section class="section container" id="leistungen">
-        <div class="section-head">
+        <div class="section-head" data-reveal>
             <div class="lead">
                 <span class="eyebrow">Unsere Leistungen</span>
                 <h2>Alles aus einer Hand.</h2>
@@ -70,7 +70,7 @@
             </p>
         </div>
 
-        <div class="services-grid">
+        <div class="services-grid" data-reveal-stagger>
             <a class="service-card" href="leistungen.php#strategie">
                 <div class="service-icon">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
@@ -117,7 +117,7 @@
         </div>
 
         <!-- Stats -->
-        <div class="stats" aria-label="Unsere Zahlen">
+        <div class="stats" aria-label="Unsere Zahlen" data-reveal-stagger>
             <div class="stat">
                 <span class="stat-icon">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
@@ -159,7 +159,7 @@
 
     <!-- ===== PROJEKTE ===== -->
     <section class="section container" id="projekte">
-        <div class="section-head">
+        <div class="section-head" data-reveal>
             <div class="lead">
                 <span class="eyebrow">Ausgewählte Projekte</span>
                 <h2>Echte Ergebnisse. Echte Brands.</h2>
@@ -172,7 +172,7 @@
             </a>
         </div>
 
-        <div class="projects-grid">
+        <div class="projects-grid" data-reveal-stagger>
             <a class="project project-1" href="projekte.php#launch-night-kassel">
                 <div class="img" aria-hidden="true"></div>
                 <span class="label">Social Media &amp; Reels</span>
@@ -199,7 +199,7 @@
 
     <!-- ===== TESTIMONIAL ===== -->
     <section class="section container" id="ueber-uns">
-        <div class="testimonial">
+        <div class="testimonial" data-reveal>
             <div>
                 <div class="quote-mark" aria-hidden="true">&ldquo;</div>
                 <h2>Das sagen<br>unsere Kunden.</h2>
