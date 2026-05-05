@@ -109,6 +109,141 @@
     }
 
     /* ============================================================
+       Agency phone — scroll-progress driven transforms
+       Uses requestAnimationFrame, transforms only, sticky-section
+       progress in the [0..1] range.
+       ============================================================ */
+    (function () {
+        var stage   = document.querySelector('[data-phone-stage]');
+        var mockup  = document.querySelector('[data-phone-mockup]');
+        var content = document.querySelector('[data-phone-content]');
+        if (!stage || !mockup || !content) return;
+        if (prefersReduced) return;
+
+        var section = stage.closest('.agency-phone-section') || stage.parentElement;
+        if (!section) return;
+
+        // Skip on mobile — sticky disabled, animation would be jumpy
+        var mqMobile = window.matchMedia('(max-width: 860px)');
+        var isMobile = mqMobile.matches;
+
+        var ticking = false;
+        var lastProgress = -1;
+        var contentScrollMax = 0;
+
+        function measureContentMax() {
+            var screen = mockup.querySelector('.agency-phone-screen');
+            if (!screen) { contentScrollMax = 0; return; }
+            var diff = content.scrollHeight - screen.clientHeight;
+            contentScrollMax = diff > 0 ? Math.min(diff, 220) : 0;
+        }
+
+        function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+        function update() {
+            ticking = false;
+            if (isMobile) return;
+
+            var rect = section.getBoundingClientRect();
+            var vh = window.innerHeight || document.documentElement.clientHeight;
+
+            // Progress: 0 when section just appears at the bottom of viewport,
+            // 1 when the section's bottom leaves the top.
+            var totalRange = rect.height + vh;
+            var travelled = vh - rect.top;
+            var p = clamp(travelled / totalRange, 0, 1);
+
+            if (Math.abs(p - lastProgress) < 0.0015) return;
+            lastProgress = p;
+
+            // Smooth easing — keep changes subtle
+            var eased = p; // linear is fine for sticky-driven motion
+
+            var translateY = (eased - 0.5) * 24;          // -12px .. +12px
+            var scale = 0.96 + eased * 0.07;              // 0.96 .. 1.03
+            var rotate = (eased - 0.5) * 3.2;             // -1.6deg .. +1.6deg (well under 4°)
+            var screenY = -eased * contentScrollMax;      // counter-scroll
+
+            mockup.style.setProperty('--phone-y', translateY.toFixed(2) + 'px');
+            mockup.style.setProperty('--phone-scale', scale.toFixed(3));
+            mockup.style.setProperty('--phone-rot', rotate.toFixed(2) + 'deg');
+            content.style.setProperty('--screen-y', screenY.toFixed(2) + 'px');
+        }
+
+        function onScroll() {
+            if (ticking) return;
+            ticking = true;
+            window.requestAnimationFrame(update);
+        }
+
+        function onResize() {
+            isMobile = mqMobile.matches;
+            if (isMobile) {
+                // reset transforms cleanly
+                mockup.style.setProperty('--phone-y', '0px');
+                mockup.style.setProperty('--phone-scale', '1');
+                mockup.style.setProperty('--phone-rot', '0deg');
+                content.style.setProperty('--screen-y', '0px');
+            }
+            measureContentMax();
+            lastProgress = -1;
+            onScroll();
+        }
+
+        measureContentMax();
+        update();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', onResize);
+        if (mqMobile.addEventListener) {
+            mqMobile.addEventListener('change', onResize);
+        } else if (mqMobile.addListener) {
+            mqMobile.addListener(onResize);
+        }
+    })();
+
+    /* ============================================================
+       Reveal-scale helper — uses the same observer pattern
+       ============================================================ */
+    (function () {
+        var scaleTargets = document.querySelectorAll('[data-reveal-scale]');
+        if (!scaleTargets.length) return;
+        if (prefersReduced || !('IntersectionObserver' in window)) {
+            scaleTargets.forEach(function (el) { el.classList.add('is-visible'); });
+            return;
+        }
+        var io = new IntersectionObserver(function (entries, obs) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                    obs.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.18, rootMargin: '0px 0px -6% 0px' });
+        scaleTargets.forEach(function (el) { io.observe(el); });
+    })();
+
+    /* ============================================================
+       FAQ accordion — uses native <details> if present,
+       single-open behaviour within a [data-faq] group.
+       ============================================================ */
+    (function () {
+        var groups = document.querySelectorAll('[data-faq]');
+        if (!groups.length) return;
+        groups.forEach(function (group) {
+            var items = group.querySelectorAll('details.faq-item');
+            items.forEach(function (item) {
+                item.addEventListener('toggle', function () {
+                    if (item.open) {
+                        items.forEach(function (other) {
+                            if (other !== item && other.open) other.open = false;
+                        });
+                    }
+                });
+            });
+        });
+    })();
+
+    /* ============================================================
        Contact form (mailto fallback)
        ============================================================ */
     var form = document.querySelector('.contact-form-card form');
