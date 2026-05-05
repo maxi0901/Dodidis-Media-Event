@@ -1,8 +1,13 @@
+<?php
+if (!isset($navBase)) {
+    $navBase = (isset($activePage) && $activePage === 'home') ? '' : 'index.php';
+}
+?>
 <footer class="site-footer" id="kontakt-footer">
     <div class="container">
         <div class="footer-grid">
             <div class="footer-brand">
-                <a class="brand" href="index.php">
+                <a class="brand" href="<?= $navBase === '' ? '#home' : 'index.php' ?>">
                     <span class="brand-mark" aria-hidden="true">DM</span>
                     <span class="brand-name">DODIDIS.MEDIA</span>
                 </a>
@@ -29,21 +34,21 @@
             <div class="footer-col">
                 <h4>Navigation</h4>
                 <ul>
-                    <li><a href="index.php">Home</a></li>
-                    <li><a href="leistungen.php">Leistungen</a></li>
-                    <li><a href="projekte.php">Projekte</a></li>
-                    <li><a href="ueber-uns.php">Über uns</a></li>
-                    <li><a href="kontakt.php">Kontakt</a></li>
+                    <li><a href="<?= $navBase === '' ? '#home' : 'index.php' ?>">Home</a></li>
+                    <li><a href="<?= $navBase ?>#leistungen">Leistungen</a></li>
+                    <li><a href="<?= $navBase ?>#projekte">Projekte</a></li>
+                    <li><a href="<?= $navBase ?>#ueber-uns">Über uns</a></li>
+                    <li><a href="<?= $navBase ?>#kontakt">Kontakt</a></li>
                 </ul>
             </div>
 
             <div class="footer-col">
                 <h4>Leistungen</h4>
                 <ul>
-                    <li><a href="leistungen.php#strategie">Strategie</a></li>
-                    <li><a href="leistungen.php#content">Content Creation</a></li>
-                    <li><a href="leistungen.php#smm">Social Media Management</a></li>
-                    <li><a href="leistungen.php#performance">Performance Marketing</a></li>
+                    <li><a href="<?= $navBase ?>#strategie">Strategie</a></li>
+                    <li><a href="<?= $navBase ?>#content">Content Creation</a></li>
+                    <li><a href="<?= $navBase ?>#smm">Social Media Management</a></li>
+                    <li><a href="<?= $navBase ?>#performance">Performance Marketing</a></li>
                 </ul>
             </div>
 
