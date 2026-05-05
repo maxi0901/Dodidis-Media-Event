@@ -57,6 +57,168 @@
         </div>
     </section>
 
+    <!-- ===== AGENCY PHONE SHOWCASE ===== -->
+    <section class="section agency-phone-section container" id="showcase">
+        <div class="section-head" data-reveal>
+            <div class="lead">
+                <span class="eyebrow">Content im Feed</span>
+                <h2>So sieht <span class="accent-text">Performance</span> aus.</h2>
+            </div>
+            <p>
+                Wir denken Social Media von der Plattform her: vom ersten Frame, der den Daumen
+                stoppt, bis zur Conversion. Hier ein Blick in die Praxis.
+            </p>
+        </div>
+
+        <div class="agency-phone-grid">
+            <div class="agency-phone-stage" data-phone-stage aria-hidden="true">
+                <div class="agency-phone-glow"></div>
+                <div class="agency-phone-mockup" data-phone-mockup>
+                    <div class="agency-phone-frame">
+                        <span class="agency-phone-side"></span>
+                        <span class="agency-phone-side agency-phone-side-2"></span>
+                        <span class="agency-phone-notch"></span>
+                        <div class="agency-phone-screen">
+                            <div class="agency-phone-content" data-phone-content>
+                                <div class="agency-phone-status">
+                                    <span>9:41</span>
+                                    <span class="status-icons">
+                                        <span class="status-dot"></span>
+                                        <span class="status-dot"></span>
+                                        <span class="status-dot"></span>
+                                    </span>
+                                </div>
+
+                                <div class="agency-phone-header">
+                                    <span class="ph-brand">
+                                        <span class="ph-brand-mark">DM</span>
+                                        dodidis.media
+                                    </span>
+                                    <span class="ph-actions">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                                    </span>
+                                </div>
+
+                                <div class="agency-phone-stories">
+                                    <div class="agency-phone-story">
+                                        <div class="story-ring"><div class="story-inner">DM</div></div>
+                                        <span>live</span>
+                                    </div>
+                                    <div class="agency-phone-story">
+                                        <div class="story-ring"><div class="story-inner">RE</div></div>
+                                        <span>reels</span>
+                                    </div>
+                                    <div class="agency-phone-story">
+                                        <div class="story-ring"><div class="story-inner">EV</div></div>
+                                        <span>event</span>
+                                    </div>
+                                    <div class="agency-phone-story">
+                                        <div class="story-ring"><div class="story-inner">BR</div></div>
+                                        <span>brand</span>
+                                    </div>
+                                </div>
+
+                                <div class="agency-phone-post">
+                                    <div class="post-head">
+                                        <span class="post-avatar"></span>
+                                        <span>dodidis.media</span>
+                                        <span class="post-meta">vor 2 Std.</span>
+                                    </div>
+                                    <div class="post-media">
+                                        <span class="play"></span>
+                                    </div>
+                                    <div class="post-stats">
+                                        <span>12.4K Views</span>
+                                        <span>1.8K Likes</span>
+                                    </div>
+                                </div>
+
+                                <div class="agency-phone-metric-row">
+                                    <div class="agency-phone-metric">
+                                        <div class="metric-num">+168%</div>
+                                        <div class="metric-label">Reichweite</div>
+                                    </div>
+                                    <div class="agency-phone-metric">
+                                        <div class="metric-num">+42%</div>
+                                        <div class="metric-label">Leads</div>
+                                    </div>
+                                    <div class="agency-phone-metric">
+                                        <div class="metric-num">98%</div>
+                                        <div class="metric-label">Retention</div>
+                                    </div>
+                                </div>
+
+                                <div class="agency-phone-card-cta">
+                                    <span>Erstgespräch buchen</span>
+                                    <span class="cta-arrow">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
+                                    </span>
+                                </div>
+
+                                <div class="agency-phone-post">
+                                    <div class="post-head">
+                                        <span class="post-avatar"></span>
+                                        <span>event.series</span>
+                                        <span class="post-meta">heute</span>
+                                    </div>
+                                    <div class="post-media">
+                                        <span class="play"></span>
+                                    </div>
+                                    <div class="post-stats">
+                                        <span>8.9K Views</span>
+                                        <span>720 Saves</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="agency-phone-copy" data-reveal-stagger>
+                <article class="glass-card hover-lift">
+                    <div class="feat-head">
+                        <div class="feat-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        </div>
+                        <h3>Reels &amp; Short-Form, die stoppen</h3>
+                    </div>
+                    <p>Wir produzieren Content mit Hook, Pacing und Story – formatgerecht für Instagram, TikTok &amp; YouTube Shorts.</p>
+                </article>
+
+                <article class="glass-card hover-lift">
+                    <div class="feat-head">
+                        <div class="feat-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+                        </div>
+                        <h3>Datengetriebene Strategie</h3>
+                    </div>
+                    <p>Jeder Post hat ein Ziel: Reichweite, Engagement oder Conversion. Wir messen, lernen und skalieren das, was wirkt.</p>
+                </article>
+
+                <article class="glass-card hover-lift">
+                    <div class="feat-head">
+                        <div class="feat-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        </div>
+                        <h3>Verlässlicher Output</h3>
+                    </div>
+                    <p>Konstanter Content-Flow ohne Reibungsverluste – damit dein Auftritt wächst, statt zu verstauben.</p>
+                </article>
+
+                <article class="glass-card hover-lift">
+                    <div class="feat-head">
+                        <div class="feat-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.77 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                        </div>
+                        <h3>Premium Look &amp; Feel</h3>
+                    </div>
+                    <p>Visuelle Wiedererkennbarkeit, die Vertrauen schafft – und Brands wie deine in den Vordergrund stellt.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
     <!-- ===== LEISTUNGEN ===== -->
     <section class="section container" id="leistungen">
         <div class="section-head" data-reveal>
