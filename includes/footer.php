@@ -12,8 +12,8 @@ if (!isset($navBase)) {
                     <span class="brand-name">DODIDIS.MEDIA</span>
                 </a>
                 <p>
-                    Wir sind die junge Social Media Marketing Agentur aus Nordhessen
-                    und helfen Brands, online sichtbar zu werden und zu wachsen.
+                    Wir sorgen dafür, dass deine Marke wahrgenommen wird.
+                    Sichtbarkeit, Reichweite und Vertrauen über Social Media – aus Nordhessen.
                 </p>
                 <div class="socials" aria-label="Social Media">
                     <a href="https://www.instagram.com/dodidis.media" target="_blank" rel="noopener" aria-label="Instagram">
@@ -34,10 +34,13 @@ if (!isset($navBase)) {
             <div class="footer-col">
                 <h4>Navigation</h4>
                 <ul>
-                    <li><a href="<?= $navBase === '' ? '#home' : 'index.php' ?>">Home</a></li>
+                    <li><a href="<?= $navBase === '' ? '#hero' : 'index.php' ?>">Home</a></li>
+                    <li><a href="<?= $navBase ?>#painpoint">Problem</a></li>
+                    <li><a href="<?= $navBase ?>#hebel">Lösung</a></li>
                     <li><a href="<?= $navBase ?>#leistungen">Leistungen</a></li>
-                    <li><a href="<?= $navBase ?>#projekte">Projekte</a></li>
+                    <li><a href="<?= $navBase ?>#case-studies">Ergebnisse</a></li>
                     <li><a href="<?= $navBase ?>#ueber-uns">Über uns</a></li>
+                    <li><a href="<?= $navBase ?>#stimmen">Stimmen</a></li>
                     <li><a href="<?= $navBase ?>#kontakt">Kontakt</a></li>
                 </ul>
             </div>
