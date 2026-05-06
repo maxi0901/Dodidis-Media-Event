@@ -257,6 +257,82 @@
     })();
 
     /* ============================================================
+       Logo marquee — clone track once for seamless infinite loop
+       ============================================================ */
+    (function () {
+        var marquees = document.querySelectorAll('[data-logos-marquee]');
+        if (!marquees.length) return;
+        marquees.forEach(function (mq) {
+            var track = mq.querySelector('.logos-track');
+            if (!track || track.dataset.cloned === 'true') return;
+            var items = Array.prototype.slice.call(track.children);
+            items.forEach(function (item) {
+                var clone = item.cloneNode(true);
+                clone.setAttribute('aria-hidden', 'true');
+                track.appendChild(clone);
+            });
+            track.dataset.cloned = 'true';
+        });
+    })();
+
+    /* ============================================================
+       Hebel (lever) — scroll-driven tilt + glow particles
+       Maps section visibility (0..1) to --lever-tilt and --lever-glow
+       ============================================================ */
+    (function () {
+        var stage = document.querySelector('[data-hebel-stage]');
+        if (!stage) return;
+
+        var section = stage.closest('section') || stage;
+        var ticking = false;
+        var active = false;
+
+        function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+        function update() {
+            ticking = false;
+            if (!active || prefersReduced) return;
+            var rect = section.getBoundingClientRect();
+            var vh = window.innerHeight || document.documentElement.clientHeight;
+            // 0 when section bottom hits viewport top, 1 when section top reaches bottom
+            var raw = (vh - rect.top) / (vh + rect.height);
+            var p = clamp(raw, 0, 1);
+            // Map progress to tilt: -10deg (left heavy) → +10deg (right heavy)
+            var tilt = -10 + (p * 20);
+            stage.style.setProperty('--lever-tilt', tilt.toFixed(2) + 'deg');
+            stage.style.setProperty('--lever-glow', p.toFixed(3));
+        }
+
+        function requestUpdate() {
+            if (ticking) return;
+            ticking = true;
+            window.requestAnimationFrame(update);
+        }
+
+        if ('IntersectionObserver' in window) {
+            var obs = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    active = entry.isIntersecting;
+                    if (active) requestUpdate();
+                });
+            }, { threshold: [0, 0.05, 0.5, 0.95, 1] });
+            obs.observe(section);
+        } else {
+            active = true;
+        }
+
+        if (prefersReduced) {
+            stage.style.setProperty('--lever-tilt', '5deg');
+            stage.style.setProperty('--lever-glow', '0.7');
+            return;
+        }
+
+        window.addEventListener('scroll', requestUpdate, { passive: true });
+        window.addEventListener('resize', requestUpdate);
+        requestUpdate();
+    })();
+
+    /* ============================================================
        Contact form (mailto fallback)
        ============================================================ */
     var form = document.querySelector('.contact-form-card form');
