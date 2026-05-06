@@ -18,10 +18,14 @@ $navBase = ($activePage === 'home') ? '' : 'index.php';
         </a>
 
         <ul class="nav-links" id="navLinks">
+            <li class="nav-menu-kicker" aria-hidden="true">Menü</li>
             <li><a href="<?= $navBase ?>#leistungen">Leistungen</a></li>
             <li><a href="<?= $navBase ?>#projekte">Projekte</a></li>
             <li><a href="<?= $navBase ?>#ueber-uns">Über uns</a></li>
             <li><a href="<?= $navBase ?>#kontakt">Kontakt</a></li>
+            <li class="nav-mobile-cta">
+                <a href="<?= $navBase ?>#kontakt">Erstgespräch buchen</a>
+            </li>
         </ul>
 
         <a class="btn btn-primary nav-cta" href="<?= $navBase ?>#kontakt">

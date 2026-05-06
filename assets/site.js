@@ -50,6 +50,7 @@
             toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
             toggle.setAttribute('aria-label', open ? 'Menü schließen' : 'Menü öffnen');
             links.classList.toggle('open', open);
+            if (navWrap) navWrap.classList.toggle('is-menu-open', open);
             document.body.classList.toggle('is-menu-open', open);
         };
 
