@@ -2012,6 +2012,101 @@ main { padding-top: 2rem; }
     margin-top: 0.5rem;
 }
 
+
+/* Scroll-story shell for the phone extraction sequence */
+.phone-scroll-story {
+    position: relative;
+    min-height: 300vh;
+    overflow: clip;
+    padding: 5rem 0 6rem;
+}
+
+.phone-scroll-story .section-head {
+    margin-bottom: clamp(2rem, 5vh, 4rem);
+}
+
+.phone-story-pin {
+    position: sticky;
+    top: 90px;
+    min-height: calc(100vh - 110px);
+    display: flex;
+    align-items: center;
+}
+
+.phone-story-layout {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(260px, 420px) minmax(0, 1fr);
+    gap: clamp(32px, 6vw, 96px);
+    align-items: center;
+}
+
+.phone-story-layout .agency-phone-stage {
+    position: relative;
+    top: auto;
+    align-self: center;
+    width: 100%;
+    height: min(640px, calc(100vh - 140px));
+    min-height: 540px;
+}
+
+.phone-extracted-cards {
+    position: relative;
+    min-height: 560px;
+    min-width: 0;
+    isolation: isolate;
+}
+
+.phone-extract-card {
+    --extract-progress: 0;
+    --extract-opacity: 0;
+    --extract-x: -120px;
+    --extract-y: 80px;
+    --extract-scale: 0.72;
+    position: absolute;
+    left: 0;
+    right: 0;
+    max-width: 560px;
+    width: min(100%, 560px);
+    opacity: var(--extract-opacity);
+    transform-origin: left center;
+    transform: translate3d(var(--extract-x), var(--extract-y), 0) scale(var(--extract-scale));
+    will-change: transform, opacity;
+    overflow-wrap: anywhere;
+    z-index: calc(1 + var(--extract-z, 0));
+    background:
+        radial-gradient(circle at 0% 50%, rgba(53,143,129,0.20), transparent 42%),
+        linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.035) 55%, rgba(53,143,129,0.08) 100%),
+        rgba(13, 18, 24, 0.72);
+    border-color: rgba(53,143,129,0.24);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.20),
+        inset 0 -1px 0 rgba(255,255,255,0.04),
+        0 18px 46px rgba(0,0,0,0.42),
+        0 0 38px rgba(53,143,129,0.18);
+}
+
+.phone-extract-card::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(120deg, rgba(255,255,255,0.16), transparent 36%, rgba(53,143,129,0.10));
+    opacity: 0.55;
+}
+
+.phone-extract-card:nth-child(1) { top: 0; --extract-z: 4; }
+.phone-extract-card:nth-child(2) { top: 135px; --extract-z: 3; }
+.phone-extract-card:nth-child(3) { top: 270px; --extract-z: 2; }
+.phone-extract-card:nth-child(4) { top: 405px; --extract-z: 1; }
+
+.phone-extract-card .feat-head,
+.phone-extract-card p {
+    position: relative;
+    z-index: 1;
+}
+
 /* ===== Glass card (reusable) ===== */
 .glass-card {
     position: relative;
@@ -2059,6 +2154,23 @@ main { padding-top: 2rem; }
 }
 
 .glass-card:hover::after { opacity: 1; }
+
+.glass-card.phone-extract-card,
+.glass-card.phone-extract-card:hover {
+    transform: translate3d(var(--extract-x), var(--extract-y), 0) scale(var(--extract-scale));
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+    background:
+        radial-gradient(circle at 0% 50%, rgba(53,143,129,0.20), transparent 42%),
+        linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.035) 55%, rgba(53,143,129,0.08) 100%),
+        rgba(13, 18, 24, 0.72);
+    border-color: rgba(53,143,129,0.24);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.20),
+        inset 0 -1px 0 rgba(255,255,255,0.04),
+        0 18px 46px rgba(0,0,0,0.42),
+        0 0 38px rgba(53,143,129,0.18);
+}
+
 
 .glass-card .feat-head {
     display: flex;
@@ -2228,6 +2340,51 @@ main { padding-top: 2rem; }
     .agency-phone-copy > p { font-size: 0.96rem; }
 }
 
+
+@media (max-width: 1023px) {
+    .phone-scroll-story {
+        min-height: auto;
+        overflow: hidden;
+        padding: 3.5rem 0 4rem;
+    }
+
+    .phone-story-pin {
+        position: relative;
+        top: auto;
+        min-height: auto;
+        display: block;
+    }
+
+    .phone-story-layout {
+        display: block;
+    }
+
+    .phone-story-layout .agency-phone-stage {
+        position: relative;
+        top: auto;
+        height: auto;
+        min-height: 0;
+        padding: 1rem 0 0.5rem;
+    }
+
+    .phone-extracted-cards {
+        min-height: auto;
+        display: grid;
+        gap: 16px;
+        margin-top: 32px;
+    }
+
+    .phone-extract-card {
+        position: relative;
+        top: auto !important;
+        width: 100%;
+        max-width: none;
+        opacity: 1 !important;
+        transform: none !important;
+        will-change: auto;
+    }
+}
+
 /* ===== Reduced motion: disable reveals & decorative animation ===== */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -2247,5 +2404,30 @@ main { padding-top: 2rem; }
     .agency-phone-mockup,
     .agency-phone-content {
         transform: none !important;
+    }
+
+    .phone-scroll-story {
+        min-height: auto;
+    }
+
+    .phone-story-pin {
+        position: relative;
+        top: auto;
+        min-height: auto;
+    }
+
+    .phone-extracted-cards {
+        display: grid;
+        gap: 16px;
+        min-height: auto;
+        margin-top: 32px;
+    }
+
+    .phone-extract-card {
+        position: relative;
+        top: auto !important;
+        opacity: 1 !important;
+        transform: none !important;
+        will-change: auto;
     }
 }
