@@ -58,8 +58,9 @@
     </section>
 
     <!-- ===== AGENCY PHONE SHOWCASE ===== -->
-    <section class="section agency-phone-section container" id="showcase">
-        <div class="section-head" data-reveal>
+    <section class="section agency-phone-section phone-scroll-story" id="showcase" data-phone-scroll-story>
+        <div class="container">
+            <div class="section-head" data-reveal>
             <div class="lead">
                 <span class="eyebrow">Content im Feed</span>
                 <h2>So sieht <span class="accent-text">Performance</span> aus.</h2>
@@ -68,9 +69,10 @@
                 Wir denken Social Media von der Plattform her: vom ersten Frame, der den Daumen
                 stoppt, bis zur Conversion. Hier ein Blick in die Praxis.
             </p>
-        </div>
+            </div>
 
-        <div class="agency-phone-grid">
+            <div class="phone-story-pin">
+                <div class="phone-story-layout">
             <div class="agency-phone-stage" data-phone-stage aria-hidden="true">
                 <div class="agency-phone-glow"></div>
                 <div class="agency-phone-mockup" data-phone-mockup>
@@ -175,8 +177,8 @@
                 </div>
             </div>
 
-            <div class="agency-phone-copy" data-reveal-stagger>
-                <article class="glass-card hover-lift">
+                    <div class="phone-extracted-cards" aria-label="Social Media Leistungen">
+                <article class="glass-card hover-lift phone-extract-card" data-step="1">
                     <div class="feat-head">
                         <div class="feat-icon">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -186,7 +188,7 @@
                     <p>Wir produzieren Content mit Hook, Pacing und Story – formatgerecht für Instagram, TikTok &amp; YouTube Shorts.</p>
                 </article>
 
-                <article class="glass-card hover-lift">
+                <article class="glass-card hover-lift phone-extract-card" data-step="2">
                     <div class="feat-head">
                         <div class="feat-icon">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
@@ -196,7 +198,7 @@
                     <p>Jeder Post hat ein Ziel: Reichweite, Engagement oder Conversion. Wir messen, lernen und skalieren das, was wirkt.</p>
                 </article>
 
-                <article class="glass-card hover-lift">
+                <article class="glass-card hover-lift phone-extract-card" data-step="3">
                     <div class="feat-head">
                         <div class="feat-icon">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -206,7 +208,7 @@
                     <p>Konstanter Content-Flow ohne Reibungsverluste – damit dein Auftritt wächst, statt zu verstauben.</p>
                 </article>
 
-                <article class="glass-card hover-lift">
+                <article class="glass-card hover-lift phone-extract-card" data-step="4">
                     <div class="feat-head">
                         <div class="feat-icon">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.77 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
@@ -215,6 +217,8 @@
                     </div>
                     <p>Visuelle Wiedererkennbarkeit, die Vertrauen schafft – und Brands wie deine in den Vordergrund stellt.</p>
                 </article>
+                    </div>
+                </div>
             </div>
         </div>
     </section>

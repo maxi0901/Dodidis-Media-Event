@@ -109,97 +109,109 @@
     }
 
     /* ============================================================
-       Agency phone — scroll-progress driven transforms
-       Uses requestAnimationFrame, transforms only, sticky-section
-       progress in the [0..1] range.
+       Agency phone — sticky scroll-story extraction
+       Desktop only. Cards are driven by section progress and CSS
+       custom properties, making the motion perfectly reversible.
        ============================================================ */
-    (function () {
-        var stage   = document.querySelector('[data-phone-stage]');
-        var mockup  = document.querySelector('[data-phone-mockup]');
-        var content = document.querySelector('[data-phone-content]');
-        if (!stage || !mockup || !content) return;
-        if (prefersReduced) return;
-
-        var section = stage.closest('.agency-phone-section') || stage.parentElement;
+    function initPhoneScrollStory() {
+        var section = document.querySelector('[data-phone-scroll-story]');
         if (!section) return;
 
-        // Skip on mobile — sticky disabled, animation would be jumpy
-        var mqMobile = window.matchMedia('(max-width: 860px)');
-        var isMobile = mqMobile.matches;
+        var cards = Array.prototype.slice.call(section.querySelectorAll('.phone-extract-card'));
+        var content = section.querySelector('[data-phone-content]');
+        if (!cards.length) return;
 
+        var mqDesktop = window.matchMedia('(min-width: 1024px)');
         var ticking = false;
         var lastProgress = -1;
-        var contentScrollMax = 0;
+        var ranges = [
+            [0.15, 0.35],
+            [0.35, 0.55],
+            [0.55, 0.75],
+            [0.75, 0.95]
+        ];
 
-        function measureContentMax() {
-            var screen = mockup.querySelector('.agency-phone-screen');
-            if (!screen) { contentScrollMax = 0; return; }
-            var diff = content.scrollHeight - screen.clientHeight;
-            contentScrollMax = diff > 0 ? Math.min(diff, 220) : 0;
+        function clamp(value, min, max) {
+            return value < min ? min : value > max ? max : value;
         }
 
-        function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+        function easeOutCubic(value) {
+            return 1 - Math.pow(1 - value, 3);
+        }
+
+        function applyCardProgress(card, progress) {
+            var x = -120 * (1 - progress);
+            var y = 80 * (1 - progress);
+            var scale = 0.72 + (0.28 * progress);
+
+            card.style.setProperty('--extract-progress', progress.toFixed(4));
+            card.style.setProperty('--extract-opacity', progress.toFixed(4));
+            card.style.setProperty('--extract-x', x.toFixed(2) + 'px');
+            card.style.setProperty('--extract-y', y.toFixed(2) + 'px');
+            card.style.setProperty('--extract-scale', scale.toFixed(4));
+        }
+
+        function setCardProgress(forceVisible) {
+            cards.forEach(function (card) {
+                applyCardProgress(card, forceVisible ? 1 : 0);
+            });
+        }
+
+        function resetInlineMotion(forceVisible) {
+            setCardProgress(forceVisible);
+            if (content) content.style.setProperty('--screen-y', '0px');
+            lastProgress = -1;
+        }
 
         function update() {
             ticking = false;
-            if (isMobile) return;
+
+            if (!mqDesktop.matches || prefersReduced) {
+                resetInlineMotion(true);
+                return;
+            }
 
             var rect = section.getBoundingClientRect();
             var vh = window.innerHeight || document.documentElement.clientHeight;
+            var total = section.offsetHeight - vh;
+            var progress = total > 0 ? clamp(-rect.top / total, 0, 1) : 0;
 
-            // Progress: 0 when section just appears at the bottom of viewport,
-            // 1 when the section's bottom leaves the top.
-            var totalRange = rect.height + vh;
-            var travelled = vh - rect.top;
-            var p = clamp(travelled / totalRange, 0, 1);
+            if (Math.abs(progress - lastProgress) < 0.001) return;
+            lastProgress = progress;
 
-            if (Math.abs(p - lastProgress) < 0.0015) return;
-            lastProgress = p;
+            cards.forEach(function (card, index) {
+                var range = ranges[index] || ranges[ranges.length - 1];
+                var local = clamp((progress - range[0]) / (range[1] - range[0]), 0, 1);
+                var eased = easeOutCubic(local);
+                applyCardProgress(card, eased);
+            });
 
-            // Smooth easing — keep changes subtle
-            var eased = p; // linear is fine for sticky-driven motion
-
-            var translateY = (eased - 0.5) * 24;          // -12px .. +12px
-            var scale = 0.96 + eased * 0.07;              // 0.96 .. 1.03
-            var rotate = (eased - 0.5) * 3.2;             // -1.6deg .. +1.6deg (well under 4°)
-            var screenY = -eased * contentScrollMax;      // counter-scroll
-
-            mockup.style.setProperty('--phone-y', translateY.toFixed(2) + 'px');
-            mockup.style.setProperty('--phone-scale', scale.toFixed(3));
-            mockup.style.setProperty('--phone-rot', rotate.toFixed(2) + 'deg');
-            content.style.setProperty('--screen-y', screenY.toFixed(2) + 'px');
+            if (content) content.style.setProperty('--screen-y', '0px');
         }
 
-        function onScroll() {
+        function requestUpdate() {
             if (ticking) return;
             ticking = true;
             window.requestAnimationFrame(update);
         }
 
         function onResize() {
-            isMobile = mqMobile.matches;
-            if (isMobile) {
-                // reset transforms cleanly
-                mockup.style.setProperty('--phone-y', '0px');
-                mockup.style.setProperty('--phone-scale', '1');
-                mockup.style.setProperty('--phone-rot', '0deg');
-                content.style.setProperty('--screen-y', '0px');
-            }
-            measureContentMax();
-            lastProgress = -1;
-            onScroll();
+            resetInlineMotion(!mqDesktop.matches || prefersReduced);
+            requestUpdate();
         }
 
-        measureContentMax();
+        resetInlineMotion(!mqDesktop.matches || prefersReduced);
         update();
-        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('scroll', requestUpdate, { passive: true });
         window.addEventListener('resize', onResize);
-        if (mqMobile.addEventListener) {
-            mqMobile.addEventListener('change', onResize);
-        } else if (mqMobile.addListener) {
-            mqMobile.addListener(onResize);
+        if (mqDesktop.addEventListener) {
+            mqDesktop.addEventListener('change', onResize);
+        } else if (mqDesktop.addListener) {
+            mqDesktop.addListener(onResize);
         }
-    })();
+    }
+
+    initPhoneScrollStory();
 
     /* ============================================================
        Reveal-scale helper — uses the same observer pattern
