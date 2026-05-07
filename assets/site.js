@@ -111,8 +111,12 @@
 
     /* ============================================================
        Agency phone — sticky scroll-story extraction
-       Desktop only. Cards are driven by section progress and CSS
-       custom properties, making the motion perfectly reversible.
+       Section uses position: sticky over a tall container so the
+       page visually "pauses" while cards are unpacked. Each card
+       owns a slice of section progress; ranges are tuned so all
+       four cards finish unpacking before the pin releases, giving
+       a perfectly reversible scroll-driven choreography on both
+       desktop and mobile.
        ============================================================ */
     function initPhoneScrollStory() {
         var section = document.querySelector('[data-phone-scroll-story]');
@@ -122,14 +126,18 @@
         var content = section.querySelector('[data-phone-content]');
         if (!cards.length) return;
 
-        var mqDesktop = window.matchMedia('(min-width: 1024px)');
+        var mqMobile = window.matchMedia('(max-width: 1023px)');
         var ticking = false;
         var lastProgress = -1;
+
+        // Each card occupies 25% of progress with 5% overlap into the next.
+        // Card 4 finishes at 0.90, leaving a 10% buffer before the pin releases
+        // so the scroll handoff back to the page feels seamless.
         var ranges = [
-            [0.15, 0.35],
-            [0.35, 0.55],
-            [0.55, 0.75],
-            [0.75, 0.95]
+            [0.05, 0.30],
+            [0.25, 0.50],
+            [0.45, 0.70],
+            [0.65, 0.90]
         ];
 
         function clamp(value, min, max) {
@@ -141,9 +149,13 @@
         }
 
         function applyCardProgress(card, progress) {
-            var x = -120 * (1 - progress);
-            var y = 80 * (1 - progress);
-            var scale = 0.72 + (0.28 * progress);
+            var mobile = mqMobile.matches;
+            // Mobile slides cards up vertically; desktop slides them in from the left.
+            var x = mobile ? 0 : -120 * (1 - progress);
+            var y = mobile ? 110 * (1 - progress) : 80 * (1 - progress);
+            var scaleFrom = mobile ? 0.86 : 0.72;
+            var scaleSpan = mobile ? 0.14 : 0.28;
+            var scale = scaleFrom + (scaleSpan * progress);
 
             card.style.setProperty('--extract-progress', progress.toFixed(4));
             card.style.setProperty('--extract-opacity', progress.toFixed(4));
@@ -167,7 +179,7 @@
         function update() {
             ticking = false;
 
-            if (!mqDesktop.matches || prefersReduced) {
+            if (prefersReduced) {
                 resetInlineMotion(true);
                 return;
             }
@@ -197,18 +209,19 @@
         }
 
         function onResize() {
-            resetInlineMotion(!mqDesktop.matches || prefersReduced);
+            resetInlineMotion(prefersReduced);
             requestUpdate();
         }
 
-        resetInlineMotion(!mqDesktop.matches || prefersReduced);
+        resetInlineMotion(prefersReduced);
         update();
         window.addEventListener('scroll', requestUpdate, { passive: true });
         window.addEventListener('resize', onResize);
-        if (mqDesktop.addEventListener) {
-            mqDesktop.addEventListener('change', onResize);
-        } else if (mqDesktop.addListener) {
-            mqDesktop.addListener(onResize);
+        window.addEventListener('orientationchange', onResize);
+        if (mqMobile.addEventListener) {
+            mqMobile.addEventListener('change', onResize);
+        } else if (mqMobile.addListener) {
+            mqMobile.addListener(onResize);
         }
     }
 
