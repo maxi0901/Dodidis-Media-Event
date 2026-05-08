@@ -150,11 +150,15 @@
 
         function applyCardProgress(card, progress) {
             var mobile = mqMobile.matches;
-            // Mobile slides cards up vertically; desktop slides them in from the left.
-            var x = mobile ? 0 : -120 * (1 - progress);
-            var y = mobile ? 110 * (1 - progress) : 80 * (1 - progress);
-            var scaleFrom = mobile ? 0.86 : 0.72;
-            var scaleSpan = mobile ? 0.14 : 0.28;
+            var step = parseInt(card.getAttribute('data-step'), 10) || 1;
+            // Odd cards exit to the left of the phone, even cards to the right.
+            var dir = (step % 2 === 1) ? -1 : 1;
+            // Mobile: cards fly out sideways from behind the phone;
+            // desktop keeps the original left-to-center slide.
+            var x = mobile ? dir * 140 * (1 - progress) : -120 * (1 - progress);
+            var y = mobile ? 40 * (1 - progress) : 80 * (1 - progress);
+            var scaleFrom = mobile ? 0.78 : 0.72;
+            var scaleSpan = mobile ? 0.22 : 0.28;
             var scale = scaleFrom + (scaleSpan * progress);
 
             card.style.setProperty('--extract-progress', progress.toFixed(4));
