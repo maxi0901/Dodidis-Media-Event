@@ -2524,24 +2524,38 @@ main { padding-top: 2rem; }
 
     .phone-extracted-cards {
         position: relative;
-        min-height: 380px;
         margin-top: 0;
         isolation: isolate;
+        overflow: clip;
+        /* 2x2 grid: cards land beside each other instead of overlapping. */
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        column-gap: 12px;
+        row-gap: 14px;
+        min-height: 0;
     }
 
     .phone-extract-card {
-        left: 0;
-        right: 0;
+        position: relative;
+        left: auto;
+        right: auto;
+        top: auto;
         width: 100%;
         max-width: none;
-        transform-origin: center top;
+        padding: 1.05rem 1.1rem;
+        transform-origin: center center;
+        --extract-z: 1;
     }
 
-    /* Tighter waterfall on mobile so the stack fits below the phone. */
-    .phone-extract-card:nth-child(1) { top: 0; }
-    .phone-extract-card:nth-child(2) { top: 80px; }
-    .phone-extract-card:nth-child(3) { top: 160px; }
-    .phone-extract-card:nth-child(4) { top: 240px; }
+    .phone-extract-card .feat-head { gap: 0.55rem; }
+    .phone-extract-card h3 { font-size: 0.98rem; line-height: 1.25; }
+    .phone-extract-card p { font-size: 0.86rem; line-height: 1.45; }
+
+    /* Reset desktop's absolute waterfall — grid handles placement now. */
+    .phone-extract-card:nth-child(1),
+    .phone-extract-card:nth-child(2),
+    .phone-extract-card:nth-child(3),
+    .phone-extract-card:nth-child(4) { top: auto; }
 }
 
 @media (max-width: 540px) {
@@ -2555,11 +2569,18 @@ main { padding-top: 2rem; }
         width: clamp(160px, 50vw, 200px);
     }
 
-    .phone-extracted-cards { min-height: 340px; }
+    .phone-extracted-cards {
+        min-height: 0;
+        column-gap: 10px;
+        row-gap: 12px;
+    }
 
-    .phone-extract-card:nth-child(2) { top: 70px; }
-    .phone-extract-card:nth-child(3) { top: 140px; }
-    .phone-extract-card:nth-child(4) { top: 210px; }
+    .phone-extract-card {
+        padding: 0.95rem 1rem;
+    }
+
+    .phone-extract-card h3 { font-size: 0.92rem; }
+    .phone-extract-card p { font-size: 0.82rem; line-height: 1.4; }
 }
 
 /* ===== Reduced motion: disable reveals & decorative animation ===== */
