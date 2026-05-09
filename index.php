@@ -20,7 +20,7 @@
 
     <!-- ===== HERO ===== -->
     <section class="hero container" id="hero">
-        <div class="hero-grid">
+        <div class="hero-grid hero-content">
             <div class="hero-text" data-reveal-stagger>
                 <span class="eyebrow">Sichtbarkeit · Wachstum · Vertrauen</span>
                 <h1 class="hero-headline-xl">
@@ -51,20 +51,8 @@
                     <span class="hero-trust-item"><strong>98 %</strong> Kundenzufriedenheit</span>
                 </div>
             </div>
-
-            <div class="hero-visual" data-reveal>
-                <!--
-                    HERO FOUNDER VISUAL
-                    Slot für späteres echtes Foto:
-                    <img src="assets/hero-founders.jpg" alt="Zwei Gründer Rücken an Rücken" class="hero-photo" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:28px;z-index:2;">
-                -->
-                <figure class="hero-founders" aria-label="Dodidis.Media Gründer mit Laptop und Kamera">
-                    <div class="hero-founders-glow" aria-hidden="true"></div>
-                    <img class="hero-founders-art" src="assets/hero-founders.svg" alt="Dodidis.Media Gründer mit Laptop und Kamera" width="900" height="720" loading="eager" decoding="async">
-                    <figcaption class="hero-founders-tag">Behind the Brand</figcaption>
-                </figure>
-            </div>
         </div>
+        <img class="hero-team-cutout" src="assets/hero-founders.svg" alt="" width="900" height="720" loading="eager" decoding="async" aria-hidden="true">
     </section>
 
     <!-- ===== LOGOS / VERTRAUEN ===== -->
