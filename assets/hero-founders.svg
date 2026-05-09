@@ -1,0 +1,130 @@
+<svg width="900" height="720" viewBox="0 0 900 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Dodidis.Media Gründer mit Laptop und Kamera</title>
+  <desc id="desc">Stilisierte Hero-Illustration von zwei Personen: links mit Laptop, rechts mit Videokamera.</desc>
+  <defs>
+    <radialGradient id="bgGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(470 280) rotate(90) scale(430 520)">
+      <stop stop-color="#6CD3C1" stop-opacity="0.38"/>
+      <stop offset="0.48" stop-color="#358F81" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#0E1422" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="floorGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(465 665) scale(370 62)">
+      <stop stop-color="#6CD3C1" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#6CD3C1" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#FFD2BC"/>
+      <stop offset="1" stop-color="#D58E72"/>
+    </linearGradient>
+    <linearGradient id="skinShadow" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F2B293"/>
+      <stop offset="1" stop-color="#B86D57"/>
+    </linearGradient>
+    <linearGradient id="navy" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#131A2B"/>
+      <stop offset="1" stop-color="#08101D"/>
+    </linearGradient>
+    <linearGradient id="blackShirt" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#151821"/>
+      <stop offset="1" stop-color="#05070C"/>
+    </linearGradient>
+    <linearGradient id="pantsLeft" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#CBBB99"/>
+      <stop offset="1" stop-color="#8E8066"/>
+    </linearGradient>
+    <linearGradient id="pantsRight" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#3F332A"/>
+      <stop offset="1" stop-color="#16120F"/>
+    </linearGradient>
+    <linearGradient id="tealStroke" x1="151" y1="116" x2="744" y2="624" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6CD3C1" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#358F81" stop-opacity="0.35"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="150%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#02040A" flood-opacity="0.46"/>
+    </filter>
+    <filter id="rimGlow" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#6CD3C1" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect width="900" height="720" fill="url(#bgGlow)"/>
+  <path d="M96 150C185 86 325 83 445 126C578 174 724 121 793 223C866 331 811 489 702 572C583 662 413 671 272 626C135 583 58 466 47 339C39 251 32 196 96 150Z" fill="#111B2E" fill-opacity="0.72"/>
+  <path d="M121 166C215 92 350 101 456 145C582 198 708 137 775 246C836 344 790 474 684 557C569 647 424 643 285 603C152 565 78 461 67 342C58 246 58 216 121 166Z" stroke="url(#tealStroke)" stroke-opacity="0.7" stroke-width="2"/>
+  <ellipse cx="458" cy="665" rx="365" ry="58" fill="url(#floorGlow)"/>
+
+  <g filter="url(#softShadow)">
+    <!-- left founder with laptop -->
+    <g transform="translate(92 70)">
+      <path d="M175 606C174 530 184 443 193 390H263C274 471 283 541 281 606H175Z" fill="url(#pantsLeft)"/>
+      <path d="M272 606C268 526 269 456 262 390H331C348 472 358 540 355 606H272Z" fill="url(#pantsLeft)"/>
+      <path d="M207 390C215 467 220 535 218 606" stroke="#6D604F" stroke-opacity="0.45" stroke-width="3"/>
+      <path d="M299 390C308 470 314 538 312 606" stroke="#6D604F" stroke-opacity="0.38" stroke-width="3"/>
+
+      <path d="M176 206C207 188 274 184 318 205C340 216 352 260 353 315C354 351 345 379 336 410C286 429 224 428 173 410C160 354 149 248 176 206Z" fill="url(#navy)"/>
+      <path d="M174 211C195 194 303 194 322 211L304 237C273 228 224 228 192 237L174 211Z" fill="#ECF3F3"/>
+      <path d="M190 238L177 213C210 193 287 194 320 214L303 238C270 230 222 230 190 238Z" fill="#101728"/>
+      <path d="M195 220L211 235M304 220L288 235" stroke="#6CD3C1" stroke-width="4" stroke-linecap="round"/>
+
+      <path d="M172 238C130 275 112 329 101 390" stroke="url(#skinShadow)" stroke-width="34" stroke-linecap="round"/>
+      <path d="M341 244C374 294 385 339 386 390" stroke="url(#skinShadow)" stroke-width="31" stroke-linecap="round"/>
+      <path d="M95 389C119 389 145 384 166 376" stroke="url(#skin)" stroke-width="32" stroke-linecap="round"/>
+      <path d="M388 390C359 392 336 386 315 377" stroke="url(#skin)" stroke-width="30" stroke-linecap="round"/>
+
+      <path d="M212 171C212 192 224 209 249 209C274 209 287 192 287 171V139H212V171Z" fill="url(#skinShadow)"/>
+      <ellipse cx="249" cy="122" rx="49" ry="57" fill="url(#skin)"/>
+      <path d="M198 114C200 78 222 55 257 61C291 67 303 91 300 118C288 107 277 93 256 94C233 95 221 107 198 114Z" fill="#5D351E"/>
+      <path d="M209 84C219 55 274 49 295 78C275 72 252 77 235 84C222 90 215 95 204 113C200 104 202 94 209 84Z" fill="#2B180F"/>
+      <circle cx="229" cy="128" r="4" fill="#17304D"/>
+      <circle cx="270" cy="128" r="4" fill="#17304D"/>
+      <path d="M234 157C246 166 263 166 275 157" stroke="#743A2D" stroke-width="4" stroke-linecap="round"/>
+      <path d="M237 151C248 156 260 156 272 151" stroke="#FFF7EF" stroke-width="3" stroke-linecap="round"/>
+
+      <g transform="translate(4 323) rotate(-7)" filter="url(#rimGlow)">
+        <path d="M0 0H159C169 0 178 8 181 18L219 147H44L0 0Z" fill="#0B0C10"/>
+        <path d="M45 148H224L245 166H59L45 148Z" fill="#171A20"/>
+        <path d="M88 67C96 62 105 68 105 78C105 88 98 94 89 90C82 86 81 73 88 67Z" fill="#1E222B"/>
+        <path d="M6 5H157C165 5 171 10 173 18L208 139" stroke="#6CD3C1" stroke-opacity="0.22" stroke-width="2"/>
+      </g>
+    </g>
+
+    <!-- right founder with camera -->
+    <g transform="translate(404 70)">
+      <path d="M193 606C190 532 198 454 214 391H291C308 465 315 535 310 606H193Z" fill="url(#pantsRight)"/>
+      <path d="M303 606C298 530 300 457 292 391H376C394 477 405 544 401 606H303Z" fill="url(#pantsRight)"/>
+      <path d="M279 392C285 466 288 537 286 606" stroke="#0A0806" stroke-opacity="0.8" stroke-width="5"/>
+
+      <path d="M184 212C226 184 323 181 366 212C384 255 386 322 377 410C323 431 237 430 178 410C167 325 166 258 184 212Z" fill="url(#blackShirt)"/>
+      <path d="M205 245C161 294 137 340 126 390" stroke="url(#skin)" stroke-width="33" stroke-linecap="round"/>
+      <path d="M360 245C396 301 414 348 421 392" stroke="url(#skinShadow)" stroke-width="32" stroke-linecap="round"/>
+      <path d="M124 390C157 395 188 388 220 372" stroke="url(#skin)" stroke-width="31" stroke-linecap="round"/>
+      <path d="M421 393C394 395 372 384 349 372" stroke="url(#skin)" stroke-width="29" stroke-linecap="round"/>
+
+      <path d="M239 172C240 194 254 210 281 210C308 210 322 193 323 172V138H239V172Z" fill="url(#skinShadow)"/>
+      <ellipse cx="281" cy="120" rx="50" ry="57" fill="url(#skin)"/>
+      <path d="M231 111C228 83 242 58 274 54C309 50 333 72 336 103C326 97 316 93 302 96C291 99 283 91 272 94C256 98 245 106 231 111Z" fill="#5A2E18"/>
+      <path d="M238 77C256 50 300 44 326 72C305 66 286 69 267 78C255 84 245 91 233 109C231 98 232 87 238 77Z" fill="#27140B"/>
+      <circle cx="262" cy="126" r="4" fill="#143251"/>
+      <circle cx="302" cy="126" r="4" fill="#143251"/>
+      <path d="M266 155C278 164 296 164 309 155" stroke="#743A2D" stroke-width="4" stroke-linecap="round"/>
+      <path d="M269 149C281 155 294 155 306 149" stroke="#FFF7EF" stroke-width="3" stroke-linecap="round"/>
+
+      <path d="M247 220C267 236 301 236 321 219" stroke="#EEE9DA" stroke-width="6" stroke-linecap="round" stroke-dasharray="1 10"/>
+      <path d="M267 232L293 282L318 232" stroke="#C3B9AB" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="293" cy="284" r="8" fill="#3CB7A7" stroke="#F6EFE5" stroke-width="2"/>
+
+      <g transform="translate(165 315) rotate(-5)" filter="url(#rimGlow)">
+        <rect x="52" y="6" width="129" height="74" rx="10" fill="#11151D" stroke="#6CD3C1" stroke-opacity="0.45" stroke-width="2"/>
+        <rect x="71" y="20" width="52" height="38" rx="5" fill="#202633" stroke="#B8C5C9" stroke-opacity="0.45"/>
+        <circle cx="201" cy="44" r="52" fill="#080A0E" stroke="#6CD3C1" stroke-opacity="0.4" stroke-width="3"/>
+        <circle cx="201" cy="44" r="34" fill="#151A24" stroke="#394454" stroke-width="8"/>
+        <circle cx="201" cy="44" r="18" fill="#05070B" stroke="#6CD3C1" stroke-opacity="0.38" stroke-width="2"/>
+        <rect x="171" y="-8" width="114" height="28" rx="14" fill="#10141B" transform="rotate(14 171 -8)"/>
+        <path d="M190 5L284 29" stroke="#E6EDED" stroke-opacity="0.7" stroke-width="4" stroke-linecap="round"/>
+        <rect x="22" y="41" width="38" height="72" rx="8" fill="#0B0E14" stroke="#6CD3C1" stroke-opacity="0.35"/>
+        <circle cx="168" cy="17" r="4" fill="#FF5A5A"/>
+      </g>
+    </g>
+  </g>
+
+  <path d="M86 648C168 606 252 629 347 644C468 663 557 622 674 632C725 636 775 651 816 679" stroke="#6CD3C1" stroke-opacity="0.25" stroke-width="2" stroke-linecap="round"/>
+</svg>
