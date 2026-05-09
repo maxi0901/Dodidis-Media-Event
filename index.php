@@ -52,92 +52,17 @@
                 </div>
             </div>
 
-            <div class="hero-visual" data-reveal aria-hidden="true">
+            <div class="hero-visual" data-reveal>
                 <!--
                     HERO FOUNDER VISUAL
                     Slot für späteres echtes Foto:
                     <img src="assets/hero-founders.jpg" alt="Zwei Gründer Rücken an Rücken" class="hero-photo" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:28px;z-index:2;">
                 -->
-                <div class="hero-founders">
-                    <div class="hero-founders-glow"></div>
-                    <svg class="hero-founders-svg" viewBox="0 0 500 400" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
-                        <defs>
-                            <linearGradient id="founderTeal" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stop-color="#6CD3C1" stop-opacity="0.85"/>
-                                <stop offset="100%" stop-color="#358F81" stop-opacity="0.55"/>
-                            </linearGradient>
-                            <linearGradient id="founderRim" x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" stop-color="#46A99A" stop-opacity="0.0"/>
-                                <stop offset="100%" stop-color="#6CD3C1" stop-opacity="0.95"/>
-                            </linearGradient>
-                            <radialGradient id="floorLight" cx="50%" cy="100%" r="60%">
-                                <stop offset="0%" stop-color="#6CD3C1" stop-opacity="0.30"/>
-                                <stop offset="100%" stop-color="#0E1422" stop-opacity="0"/>
-                            </radialGradient>
-                        </defs>
-
-                        <!-- Cinematic floor light -->
-                        <ellipse cx="250" cy="400" rx="240" ry="60" fill="url(#floorLight)"/>
-
-                        <!-- LEFT FOUNDER (Camera) -->
-                        <g transform="translate(150, 110)">
-                            <!-- Body -->
-                            <path d="M-22 90 Q-32 120 -38 200 L-12 200 L-8 120 Q-2 100 0 92 Z" fill="#0E1A2C" stroke="url(#founderRim)" stroke-width="1.2"/>
-                            <!-- Shoulder/arm holding camera -->
-                            <path d="M-2 92 Q14 86 28 102 L40 130 L20 138 L8 110 Z" fill="#0F1E32" stroke="url(#founderRim)" stroke-width="1"/>
-                            <!-- Head -->
-                            <ellipse cx="-8" cy="68" rx="20" ry="24" fill="#101F36" stroke="url(#founderRim)" stroke-width="1.2"/>
-                            <!-- Hair -->
-                            <path d="M-26 60 Q-24 44 -8 42 Q10 44 12 60 Q12 52 4 50 Q-2 56 -14 56 Q-24 56 -26 60 Z" fill="#0A1424"/>
-                            <!-- Camera body -->
-                            <rect x="32" y="116" width="42" height="26" rx="4" fill="#1C2940" stroke="url(#founderRim)" stroke-width="1.4"/>
-                            <!-- Lens -->
-                            <circle cx="78" cy="129" r="14" fill="#0E1A2C" stroke="#6CD3C1" stroke-width="1.6"/>
-                            <circle cx="78" cy="129" r="8" fill="#0A1220" stroke="#6CD3C1" stroke-width="1" opacity="0.8"/>
-                            <circle cx="78" cy="129" r="3" fill="#6CD3C1" opacity="0.85"/>
-                            <!-- Viewfinder bump -->
-                            <rect x="44" y="110" width="12" height="8" fill="#1C2940" stroke="url(#founderRim)" stroke-width="0.8"/>
-                            <!-- Recording dot -->
-                            <circle cx="36" cy="120" r="2" fill="#FF5A5A" opacity="0.9"/>
-                        </g>
-
-                        <!-- RIGHT FOUNDER (MacBook) -->
-                        <g transform="translate(350, 110)">
-                            <!-- Body -->
-                            <path d="M22 90 Q32 120 38 200 L12 200 L8 120 Q2 100 0 92 Z" fill="#0E1A2C" stroke="url(#founderRim)" stroke-width="1.2" transform="scale(-1,1)"/>
-                            <!-- Arm forward holding laptop -->
-                            <path d="M-2 92 Q-22 90 -38 108 L-50 138 L-28 144 L-12 116 Z" fill="#0F1E32" stroke="url(#founderRim)" stroke-width="1"/>
-                            <!-- Head -->
-                            <ellipse cx="8" cy="68" rx="20" ry="24" fill="#101F36" stroke="url(#founderRim)" stroke-width="1.2"/>
-                            <!-- Hair -->
-                            <path d="M26 60 Q24 44 8 42 Q-10 44 -12 60 Q-12 52 -4 50 Q2 56 14 56 Q24 56 26 60 Z" fill="#0A1424"/>
-                            <!-- MacBook (closed-to-open laptop) -->
-                            <g transform="translate(-66, 108) rotate(-8)">
-                                <!-- Base -->
-                                <path d="M0 36 L66 36 L70 42 L-4 42 Z" fill="#1A2640" stroke="url(#founderRim)" stroke-width="1"/>
-                                <!-- Screen back -->
-                                <rect x="2" y="0" width="62" height="38" rx="3" fill="#101A30" stroke="url(#founderRim)" stroke-width="1.4"/>
-                                <!-- Screen content -->
-                                <rect x="6" y="4" width="54" height="30" rx="2" fill="#0A1220"/>
-                                <!-- Bars (analytics) -->
-                                <rect x="10"  y="22" width="4" height="8" fill="#46A99A" opacity="0.85"/>
-                                <rect x="16"  y="18" width="4" height="12" fill="#6CD3C1" opacity="0.85"/>
-                                <rect x="22"  y="14" width="4" height="16" fill="#46A99A" opacity="0.85"/>
-                                <rect x="28"  y="10" width="4" height="20" fill="#6CD3C1" opacity="0.95"/>
-                                <rect x="34"  y="8"  width="4" height="22" fill="#6CD3C1"/>
-                                <rect x="40"  y="12" width="4" height="18" fill="#46A99A" opacity="0.85"/>
-                                <rect x="46"  y="16" width="4" height="14" fill="#358F81" opacity="0.85"/>
-                                <rect x="52"  y="20" width="4" height="10" fill="#358F81" opacity="0.7"/>
-                                <!-- Apple-ish dot -->
-                                <circle cx="33" cy="38" r="0.8" fill="#46A99A"/>
-                            </g>
-                        </g>
-
-                        <!-- Faint cinematic mist -->
-                        <rect x="0" y="0" width="500" height="400" fill="url(#founderTeal)" opacity="0.06"/>
-                    </svg>
-                    <span class="hero-founders-tag">Behind the Brand</span>
-                </div>
+                <figure class="hero-founders" aria-label="Dodidis.Media Gründer mit Laptop und Kamera">
+                    <div class="hero-founders-glow" aria-hidden="true"></div>
+                    <img class="hero-founders-art" src="assets/hero-founders.svg" alt="Dodidis.Media Gründer mit Laptop und Kamera" width="900" height="720" loading="eager" decoding="async">
+                    <figcaption class="hero-founders-tag">Behind the Brand</figcaption>
+                </figure>
             </div>
         </div>
     </section>
