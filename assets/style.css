@@ -526,18 +526,18 @@ main { padding-top: 2rem; }
 .hero-founders-stage {
     position: relative;
     width: 100%;
-    max-width: 1080px;
-    margin: 1.4rem auto 0.6rem;
-    aspect-ratio: 16 / 9;
+    max-width: 980px;
+    margin: 2.2rem auto 0.6rem;
     display: flex;
     align-items: flex-end;
     justify-content: center;
     pointer-events: none;
+    isolation: isolate;
 }
 
 .hero-founders-glow {
     position: absolute;
-    inset: 0;
+    inset: 8% 0 -4% 0;
     z-index: 0;
     pointer-events: none;
     background:
@@ -556,8 +556,8 @@ main { padding-top: 2rem; }
     position: relative;
     z-index: 2;
     display: block;
-    width: clamp(420px, 90%, 980px);
-    max-width: 100%;
+    width: 100%;
+    max-width: 720px;
     height: auto;
     margin: 0 auto;
     transform: translate3d(var(--hero-parallax-x, 0), var(--hero-parallax-y, 0), 0);
@@ -570,7 +570,7 @@ main { padding-top: 2rem; }
     position: absolute;
     left: 50%;
     bottom: -8px;
-    width: 70%;
+    width: 65%;
     height: 16px;
     transform: translateX(-50%);
     z-index: 1;
@@ -642,15 +642,17 @@ main { padding-top: 2rem; }
 }
 
 @media (max-width: 960px) {
-    .hero-founders-stage { max-width: 720px; aspect-ratio: 4 / 3; }
+    .hero-founders-stage { max-width: 560px; margin-top: 2rem; }
+    .hero-founders-cutout { max-width: 480px; }
     .hero-tagline-pill { font-size: 0.76rem; padding: 0.6rem 1.1rem; letter-spacing: 0.1em; }
     .eyebrow-pill { font-size: 0.72rem; letter-spacing: 0.14em; padding: 0.4rem 0.95rem; }
 }
 
 @media (max-width: 540px) {
     .hero-centered { padding-top: 1.5rem; }
-    .hero-founders-stage { max-width: 100%; aspect-ratio: 5 / 4; }
-    .hero-founders-cutout { width: 100%; }
+    .hero-centered .hero-content { gap: 1rem; }
+    .hero-founders-stage { max-width: 100%; margin-top: 1.6rem; }
+    .hero-founders-cutout { max-width: 360px; width: 92%; }
 }
 
 .hero-headline { margin-top: 0.6rem; }
@@ -2652,34 +2654,33 @@ main { padding-top: 2rem; }
 
 
 @media (max-width: 1023px) {
+    /* Mobile/Tablet: drop the sticky-pin scroll story entirely.
+       Phone above, 2x2 cards beneath. No transform drift, no overlap. */
     .phone-scroll-story {
-        /* Slightly shorter scroll budget on mobile (cards travel less distance). */
-        min-height: 300vh;
-        overflow: clip;
+        min-height: 0;
+        overflow: visible;
         padding: 3.5rem 0 4rem;
     }
 
     .phone-story-pin {
-        position: sticky;
-        top: 70px;
-        min-height: calc(100vh - 90px);
-        display: flex;
-        align-items: flex-start;
+        position: relative;
+        top: auto;
+        min-height: 0;
+        display: block;
     }
 
     .phone-story-layout {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 18px;
-        align-items: start;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
         width: 100%;
     }
 
     .phone-story-layout .agency-phone-stage {
         position: relative;
-        grid-column: 1;
+        grid-column: auto;
         top: auto;
-        height: clamp(280px, 40vh, 360px);
+        height: auto;
         min-height: 0;
         padding: 0;
         align-self: center;
@@ -2688,7 +2689,7 @@ main { padding-top: 2rem; }
     }
 
     .agency-phone-mockup {
-        width: clamp(170px, 44vw, 220px);
+        width: clamp(220px, 56vw, 280px);
         --phone-y: 0px;
         --phone-rot: 0deg;
         --phone-scale: 1;
@@ -2698,24 +2699,24 @@ main { padding-top: 2rem; }
         --screen-y: 0px;
     }
 
-    /* Mobile: stack cards under the phone in a 2x2 grid */
-    .phone-extracted-cards-split { display: grid; }
-    .phone-extracted-cards {
-        position: relative;
-        margin-top: 0;
-        isolation: isolate;
-        overflow: clip;
-        display: grid;
+    /* 2x2 grid: Col 1 (cards 1+3), Col 2 (cards 2+4) */
+    .phone-extracted-cards-split {
+        display: grid !important;
         grid-template-columns: 1fr 1fr;
-        grid-column: 1;
         column-gap: 12px;
         row-gap: 14px;
-        min-height: 0;
+        align-items: stretch;
     }
 
     .phone-extract-col {
-        display: contents;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        align-items: stretch;
     }
+
+    .phone-extract-col-left  { grid-column: 1; }
+    .phone-extract-col-right { grid-column: 2; }
 
     .phone-extract-card {
         position: relative;
@@ -2727,7 +2728,14 @@ main { padding-top: 2rem; }
         margin: 0;
         padding: 1.05rem 1.1rem;
         transform-origin: center center;
+        /* Override JS-driven transforms — cards are static on mobile. */
+        --extract-x: 0px;
+        --extract-y: 0px;
+        --extract-scale: 1;
+        --extract-opacity: 1;
         --extract-z: 1;
+        opacity: 1;
+        transform: none;
     }
 
     .phone-extract-card .feat-head { gap: 0.55rem; }
@@ -2738,16 +2746,11 @@ main { padding-top: 2rem; }
 @media (max-width: 540px) {
     .phone-scroll-story { padding: 3rem 0 3.5rem; }
 
-    .phone-story-layout .agency-phone-stage {
-        height: clamp(240px, 36vh, 320px);
-    }
-
     .agency-phone-mockup {
-        width: clamp(160px, 50vw, 200px);
+        width: clamp(200px, 60vw, 240px);
     }
 
-    .phone-extracted-cards {
-        min-height: 0;
+    .phone-extracted-cards-split {
         column-gap: 10px;
         row-gap: 12px;
     }
