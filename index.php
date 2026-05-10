@@ -46,7 +46,7 @@
 
             <div class="hero-founders-stage hero-reveal" style="--reveal-i:5" data-hero-image>
                 <div class="hero-founders-glow" aria-hidden="true"></div>
-                <img class="hero-founders-cutout" src="assets/hero-founders.svg" alt="Gründer von Dodidis.Media" width="900" height="720" loading="eager" decoding="async">
+                <img class="hero-founders-cutout" src="assets/hero-founders.svg" alt="Gründer von Dodidis.Media" width="986" height="1148" loading="eager" decoding="async">
                 <div class="hero-founders-floor" aria-hidden="true"></div>
             </div>
 
