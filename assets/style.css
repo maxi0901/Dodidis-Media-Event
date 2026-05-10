@@ -526,9 +526,9 @@ main { padding-top: 2rem; }
 .hero-founders-stage {
     position: relative;
     width: 100%;
-    max-width: 1080px;
+    max-width: 860px;
     margin: 1.4rem auto 0.6rem;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: auto;
     display: flex;
     align-items: flex-end;
     justify-content: center;
@@ -642,14 +642,19 @@ main { padding-top: 2rem; }
 }
 
 @media (max-width: 960px) {
-    .hero-founders-stage { max-width: 720px; aspect-ratio: 4 / 3; }
+    .hero-founders-stage { max-width: 720px; }
     .hero-tagline-pill { font-size: 0.76rem; padding: 0.6rem 1.1rem; letter-spacing: 0.1em; }
     .eyebrow-pill { font-size: 0.72rem; letter-spacing: 0.14em; padding: 0.4rem 0.95rem; }
 }
 
 @media (max-width: 540px) {
     .hero-centered { padding-top: 1.5rem; }
-    .hero-founders-stage { max-width: 100%; aspect-ratio: 5 / 4; margin-top: 3.5rem; }
+    .hero-founders-stage {
+        max-width: 100%;
+        aspect-ratio: auto;
+        margin-top: 1.6rem;
+        align-items: center;
+    }
     .hero-founders-cutout { width: 100%; }
 }
 
