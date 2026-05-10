@@ -210,14 +210,15 @@
         var ticking = false;
         var lastProgress = -1;
 
-        // Each card occupies 25% of progress with 5% overlap into the next.
-        // Card 4 finishes at 0.90, leaving a 10% buffer before the pin releases
+        // Five analytics cards unpack in overlapping scroll slices. The last
+        // card finishes at 0.90, leaving a 10% buffer before the pin releases
         // so the scroll handoff back to the page feels seamless.
         var ranges = [
-            [0.05, 0.30],
-            [0.25, 0.50],
-            [0.45, 0.70],
-            [0.65, 0.90]
+            [0.04, 0.24],
+            [0.20, 0.40],
+            [0.36, 0.56],
+            [0.52, 0.72],
+            [0.68, 0.90]
         ];
 
         function clamp(value, min, max) {
@@ -237,7 +238,7 @@
             var dir = side === 'right' ? 1 : -1;
             // Distance: phone width + a bit of breathing room. Mobile uses
             // a smaller offset since cards stack underneath the phone instead.
-            var distance = mobile ? 120 : 180;
+            var distance = mobile ? 120 : 220;
             var x = -dir * distance * (1 - progress);
             var y = mobile ? 40 * (1 - progress) : 60 * (1 - progress);
             var scaleFrom = mobile ? 0.78 : 0.78;

@@ -268,95 +268,51 @@
                         <span class="agency-phone-side agency-phone-side-2"></span>
                         <span class="agency-phone-notch"></span>
                         <div class="agency-phone-screen">
-                            <div class="agency-phone-content" data-phone-content>
+                            <div class="agency-phone-content agency-phone-lockscreen" data-phone-content>
                                 <div class="agency-phone-status">
-                                    <span>9:41</span>
-                                    <span class="status-icons">
-                                        <span class="status-dot"></span>
-                                        <span class="status-dot"></span>
-                                        <span class="status-dot"></span>
+                                    <span>Telekom</span>
+                                    <span class="status-icons" aria-hidden="true">
+                                        <span class="signal-bars"><i></i><i></i><i></i></span>
+                                        <span class="wifi-icon"></span>
+                                        <span class="battery-icon">99</span>
                                     </span>
                                 </div>
 
-                                <div class="agency-phone-header">
-                                    <span class="ph-brand">
-                                        <span class="ph-brand-mark">DM</span>
-                                        dodidis.media
-                                    </span>
-                                    <span class="ph-actions">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                                    </span>
+                                <div class="lockscreen-clock">
+                                    <span class="lockscreen-date">Montag, 3. August</span>
+                                    <strong>12:34</strong>
                                 </div>
 
-                                <div class="agency-phone-stories">
-                                    <div class="agency-phone-story">
-                                        <div class="story-ring"><div class="story-inner">DM</div></div>
-                                        <span>live</span>
+                                <div class="lockscreen-notifications">
+                                    <div class="lockscreen-notification notification-instagram">
+                                        <span class="notification-app-icon">◎</span>
+                                        <span class="notification-copy">
+                                            <strong>Instagram</strong>
+                                            <small>23 neue Follower</small>
+                                        </span>
+                                        <em>12:10</em>
                                     </div>
-                                    <div class="agency-phone-story">
-                                        <div class="story-ring"><div class="story-inner">RE</div></div>
-                                        <span>reels</span>
+                                    <div class="lockscreen-notification notification-whatsapp">
+                                        <span class="notification-app-icon">◌</span>
+                                        <span class="notification-copy">
+                                            <strong>WhatsApp</strong>
+                                            <small>Hey ich habe dein Video gesehen, können wir uns mal unterhalten?</small>
+                                        </span>
+                                        <em>11:49</em>
                                     </div>
-                                    <div class="agency-phone-story">
-                                        <div class="story-ring"><div class="story-inner">EV</div></div>
-                                        <span>event</span>
-                                    </div>
-                                    <div class="agency-phone-story">
-                                        <div class="story-ring"><div class="story-inner">BR</div></div>
-                                        <span>brand</span>
-                                    </div>
-                                </div>
-
-                                <div class="agency-phone-post">
-                                    <div class="post-head">
-                                        <span class="post-avatar"></span>
-                                        <span>dodidis.media</span>
-                                        <span class="post-meta">vor 2 Std.</span>
-                                    </div>
-                                    <div class="post-media">
-                                        <span class="play"></span>
-                                    </div>
-                                    <div class="post-stats">
-                                        <span>12.4K Views</span>
-                                        <span>1.8K Likes</span>
+                                    <div class="lockscreen-notification notification-tiktok">
+                                        <span class="notification-app-icon">♪</span>
+                                        <span class="notification-copy">
+                                            <strong>TikTok</strong>
+                                            <small>Dein Video hat 100.000 Aufrufe erreicht!</small>
+                                        </span>
+                                        <em>9:26</em>
                                     </div>
                                 </div>
 
-                                <div class="agency-phone-metric-row">
-                                    <div class="agency-phone-metric">
-                                        <div class="metric-num">+168%</div>
-                                        <div class="metric-label">Reichweite</div>
-                                    </div>
-                                    <div class="agency-phone-metric">
-                                        <div class="metric-num">+42%</div>
-                                        <div class="metric-label">Leads</div>
-                                    </div>
-                                    <div class="agency-phone-metric">
-                                        <div class="metric-num">98%</div>
-                                        <div class="metric-label">Retention</div>
-                                    </div>
-                                </div>
-
-                                <div class="agency-phone-card-cta">
-                                    <span>Erstgespräch buchen</span>
-                                    <span class="cta-arrow">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
-                                    </span>
-                                </div>
-
-                                <div class="agency-phone-post">
-                                    <div class="post-head">
-                                        <span class="post-avatar"></span>
-                                        <span>event.series</span>
-                                        <span class="post-meta">heute</span>
-                                    </div>
-                                    <div class="post-media">
-                                        <span class="play"></span>
-                                    </div>
-                                    <div class="post-stats">
-                                        <span>8.9K Views</span>
-                                        <span>720 Saves</span>
-                                    </div>
+                                <div class="lockscreen-actions" aria-hidden="true">
+                                    <span>◉</span>
+                                    <span>⌾</span>
                                 </div>
                             </div>
                         </div>
@@ -364,48 +320,58 @@
                 </div>
             </div>
 
-                    <div class="phone-extracted-cards phone-extracted-cards-split" aria-label="Social Media Leistungen">
+                    <div class="phone-extracted-cards phone-extracted-cards-split" aria-label="Social Media Kennzahlen">
                         <div class="phone-extract-col phone-extract-col-left">
-                            <article class="glass-card hover-lift phone-extract-card phone-extract-left" data-step="1" data-side="left">
-                                <div class="feat-head">
-                                    <div class="feat-icon">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                                    </div>
-                                    <h3>Kurzformate, die hängen bleiben</h3>
+                            <article class="glass-card hover-lift phone-extract-card phone-extract-left analytics-card analytics-card-chart" data-step="1" data-side="left">
+                                <div class="analytics-card-kicker">Videoaufrufe</div>
+                                <p>Starkes Wachstum nach der Veröffentlichung</p>
+                                <div class="mini-chart" aria-hidden="true">
+                                    <span></span><span></span><span></span><span></span>
+                                    <i></i>
                                 </div>
-                                <p>Hooks, Pacing und Story – so dass dein Auftritt nicht weggewischt, sondern weiterempfohlen wird.</p>
                             </article>
 
-                            <article class="glass-card hover-lift phone-extract-card phone-extract-left" data-step="3" data-side="left">
-                                <div class="feat-head">
-                                    <div class="feat-icon">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                                    </div>
-                                    <h3>Verlässlichkeit, die du spürst</h3>
-                                </div>
-                                <p>Konstanter Output ohne Reibungsverluste – damit dein Auftritt wächst, während du dich auf dein Kerngeschäft konzentrierst.</p>
+                            <article class="glass-card hover-lift phone-extract-card phone-extract-left analytics-card analytics-card-progress" data-step="3" data-side="left">
+                                <div class="analytics-card-kicker">Impressionen</div>
+                                <strong>707.362</strong>
+                                <small>+31.8%</small>
+                                <div class="progress-track" aria-hidden="true"><span></span></div>
                             </article>
                         </div>
 
                         <div class="phone-extract-col phone-extract-col-right">
-                            <article class="glass-card hover-lift phone-extract-card phone-extract-right" data-step="2" data-side="right">
-                                <div class="feat-head">
-                                    <div class="feat-icon">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+                            <article class="glass-card hover-lift phone-extract-card phone-extract-right analytics-card analytics-card-reach" data-step="2" data-side="right">
+                                <strong>293.508</strong>
+                                <div class="analytics-card-kicker">Erreichte Konten</div>
+                                <div class="donut-card-row">
+                                    <div class="analytics-donut" aria-hidden="true"><span>35.6%<small>Follower</small></span></div>
+                                    <div class="donut-stats">
+                                        <span>5.986 <small>Follower</small></span>
+                                        <span>+23.4% <small>letzte Woche</small></span>
                                     </div>
-                                    <h3>Strategie statt Bauchgefühl</h3>
                                 </div>
-                                <p>Jeder Post hat ein Ziel: Reichweite, Vertrauen oder Anfrage. Wir messen, lernen und skalieren das, was wirkt.</p>
                             </article>
 
-                            <article class="glass-card hover-lift phone-extract-card phone-extract-right" data-step="4" data-side="right">
-                                <div class="feat-head">
-                                    <div class="feat-icon">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.77 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                                    </div>
-                                    <h3>Premium-Look ohne Stockfoto-Vibes</h3>
+                            <article class="glass-card hover-lift phone-extract-card phone-extract-right analytics-card analytics-card-donut" data-step="4" data-side="right">
+                                <div class="analytics-card-kicker">Schlüsselmetriken</div>
+                                <p>Performance im letzten Monat</p>
+                                <div class="large-donut" aria-hidden="true"></div>
+                                <small>Interaktion gesteigert <b>17.57%</b></small>
+                            </article>
+
+                            <article class="glass-card hover-lift phone-extract-card phone-extract-right analytics-card analytics-card-social" data-step="5" data-side="right">
+                                <div class="social-stat-row">
+                                    <span class="social-icon instagram">◎</span>
+                                    <span>Instagram</span>
+                                    <strong>2.573+</strong>
+                                    <em>▲ 52%</em>
                                 </div>
-                                <p>Visuelle Wiedererkennbarkeit, die Vertrauen schafft – und deine Marke in den Vordergrund stellt.</p>
+                                <div class="social-stat-row">
+                                    <span class="social-icon tiktok">♪</span>
+                                    <span>TikTok</span>
+                                    <strong>9.843+</strong>
+                                    <em>▲ 83%</em>
+                                </div>
                             </article>
                         </div>
                     </div>
