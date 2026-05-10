@@ -229,20 +229,17 @@
         }
 
         function applyCardProgress(card, progress) {
-            var mobile = mqMobile.matches;
             var side = card.getAttribute('data-side');
             // Left-column cards travel from behind the phone (positive X)
             // out to the left (so initial X is +distance, ending at 0).
             // Right-column cards travel from behind the phone out to the right.
             var dir = side === 'right' ? 1 : -1;
-            // Distance: phone width + a bit of breathing room. Mobile uses
-            // a smaller offset since cards stack underneath the phone instead.
-            var distance = mobile ? 120 : 180;
+            // Distance: phone width + breathing room (desktop only — on mobile
+            // the cards are statically positioned via CSS).
+            var distance = 180;
             var x = -dir * distance * (1 - progress);
-            var y = mobile ? 40 * (1 - progress) : 60 * (1 - progress);
-            var scaleFrom = mobile ? 0.78 : 0.78;
-            var scaleSpan = mobile ? 0.22 : 0.22;
-            var scale = scaleFrom + (scaleSpan * progress);
+            var y = 60 * (1 - progress);
+            var scale = 0.78 + (0.22 * progress);
 
             card.style.setProperty('--extract-progress', progress.toFixed(4));
             card.style.setProperty('--extract-opacity', progress.toFixed(4));
@@ -266,7 +263,9 @@
         function update() {
             ticking = false;
 
-            if (prefersReduced) {
+            if (prefersReduced || mqMobile.matches) {
+                // Mobile: cards live in a static 2x2 grid (CSS handles it).
+                // Reduced motion: skip all motion.
                 resetInlineMotion(true);
                 return;
             }
