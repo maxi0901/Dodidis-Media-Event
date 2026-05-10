@@ -630,13 +630,6 @@
                     <li>Optimierung: Testing, Tracking, Skalierung</li>
                 </ul>
             </article>
-            <article class="about-card">
-                <h3>Kooperation mit blockfilms</h3>
-                <p>
-                    Für größere Produktionen arbeiten wir in Kooperation mit
-                    <strong>blockfilms</strong> – als kreativer Produktionspartner, nicht als Kunde.
-                </p>
-            </article>
         </div>
     </section>
 

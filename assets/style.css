@@ -649,7 +649,7 @@ main { padding-top: 2rem; }
 
 @media (max-width: 540px) {
     .hero-centered { padding-top: 1.5rem; }
-    .hero-founders-stage { max-width: 100%; aspect-ratio: 5 / 4; }
+    .hero-founders-stage { max-width: 100%; aspect-ratio: 5 / 4; margin-top: 3.5rem; }
     .hero-founders-cutout { width: 100%; }
 }
 
