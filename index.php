@@ -19,40 +19,62 @@
 <main id="home">
 
     <!-- ===== HERO ===== -->
-    <section class="hero container" id="hero">
+    <section class="hero container hero-v3" id="hero" data-hero-parallax>
         <div class="hero-grid hero-content">
-            <div class="hero-text" data-reveal-stagger>
-                <span class="eyebrow">Sichtbarkeit · Wachstum · Vertrauen</span>
+            <div class="hero-text">
+                <span class="eyebrow hero-reveal" style="--reveal-i:0">Reels · Content · Sichtbarkeit</span>
                 <h1 class="hero-headline-xl">
-                    Wir machen keine Videos.<br>
-                    <span class="accent-text">Wir sorgen dafür, dass deine Marke wahrgenommen wird.</span>
+                    <span class="hero-line hero-reveal" style="--reveal-i:1">Wir machen keine Videos.</span>
+                    <span class="hero-line hero-reveal" style="--reveal-i:2"><span class="accent-text">Wir liefern Ergebnisse.</span></span>
                 </h1>
-                <p class="hero-sub">
-                    Social Media ist heute kein Extra mehr — sondern der unsichtbare Hebel
-                    zwischen Wachstum und Bedeutungslosigkeit.
+                <p class="hero-sub hero-reveal" style="--reveal-i:3">
+                    Reels und Social Content, die Reichweite, Vertrauen und Kundenanfragen bringen –
+                    damit du dich auf dein Kerngeschäft konzentrieren kannst.
                 </p>
-                <div class="hero-actions">
+                <div class="hero-actions hero-reveal" style="--reveal-i:4">
                     <a class="btn btn-primary" href="#kontakt">
                         Erstgespräch buchen
                         <span class="arrow" aria-hidden="true">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
                         </span>
                     </a>
-                    <a class="btn btn-ghost" href="#kontakt">
-                        Kostenlos analysieren lassen
+                    <a class="btn btn-ghost" href="#showcase">
+                        So arbeiten wir
                         <span class="arrow" aria-hidden="true">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
                         </span>
                     </a>
                 </div>
-                <div class="hero-trust-row" aria-label="Vertrauensindikatoren">
+                <div class="hero-trust-row hero-reveal" style="--reveal-i:5" aria-label="Vertrauensindikatoren">
                     <span class="hero-trust-item"><strong>30+</strong> Projekte</span>
                     <span class="hero-trust-item"><strong>2,5 Mio+</strong> Reichweite</span>
                     <span class="hero-trust-item"><strong>98 %</strong> Kundenzufriedenheit</span>
                 </div>
             </div>
+
+            <div class="hero-visual hero-reveal" style="--reveal-i:3" data-hero-image>
+                <div class="hero-visual-halo" aria-hidden="true"></div>
+                <div class="hero-visual-frame">
+                    <img class="hero-founders-img" src="assets/hero-founders.svg" alt="Gründer von Dodidis.Media" width="900" height="720" loading="eager" decoding="async">
+                    <span class="hero-visual-shine" aria-hidden="true"></span>
+                </div>
+                <div class="hero-founder-badge" aria-hidden="true">
+                    <span class="hero-founder-pulse"></span>
+                    <div class="hero-founder-meta">
+                        <span class="hero-founder-name">Dodidis.Media</span>
+                        <span class="hero-founder-role">Gründer · Nordhessen</span>
+                    </div>
+                </div>
+                <div class="hero-floating-chip hero-chip-views" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <span><strong>+168%</strong> Reichweite</span>
+                </div>
+                <div class="hero-floating-chip hero-chip-leads" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+                    <span><strong>+42%</strong> Leads</span>
+                </div>
+            </div>
         </div>
-        <img class="hero-team-cutout" src="assets/hero-founders.svg" alt="" width="900" height="720" loading="eager" decoding="async" aria-hidden="true">
     </section>
 
     <!-- ===== LOGOS / VERTRAUEN ===== -->
@@ -86,12 +108,12 @@
         <div class="section-head" data-reveal>
             <div class="lead">
                 <span class="eyebrow">Das Problem</span>
-                <h2 class="painpoint-headline">
-                    Das Problem ist nicht dein Produkt.<br>
-                    <span class="accent-text">Das Problem ist, dass dich niemand wahrnimmt.</span>
+                <h2 class="painpoint-headline" data-reveal-lines>
+                    <span class="reveal-line"><span style="--reveal-index:0">Das Problem ist nicht dein Produkt.</span></span>
+                    <span class="reveal-line accent-text"><span style="--reveal-index:1">Das Problem ist, dass dich niemand wahrnimmt.</span></span>
                 </h2>
             </div>
-            <p>
+            <p data-reveal-soft style="--reveal-delay:200ms">
                 Ob du gerade erst startest oder schon postest – ohne klare Sichtbarkeit
                 bleibt selbst die beste Leistung im digitalen Hintergrundrauschen.
             </p>
@@ -155,9 +177,12 @@
             <div class="section-head" data-reveal>
                 <div class="lead">
                     <span class="eyebrow">Die Lösung</span>
-                    <h2>Social Media ist <span class="accent-text">der unsichtbare Hebel</span>.</h2>
+                    <h2 data-reveal-lines>
+                        <span class="reveal-line"><span style="--reveal-index:0">Social Media ist</span></span>
+                        <span class="reveal-line"><span style="--reveal-index:1"><span class="accent-text">der unsichtbare Hebel</span>.</span></span>
+                    </h2>
                 </div>
-                <p>
+                <p data-reveal-soft style="--reveal-delay:220ms">
                     Wer ihn richtig ansetzt, hebt sich aus dem Rauschen heraus.
                     Wer ihn ignoriert, bleibt im Hintergrund – egal, wie gut die Arbeit ist.
                 </p>

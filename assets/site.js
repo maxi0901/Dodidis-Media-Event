@@ -6,7 +6,7 @@
        Scroll reveal — IntersectionObserver, no library
        ============================================================ */
     var revealTargets = document.querySelectorAll(
-        '[data-reveal], [data-reveal-stagger], .reveal'
+        '[data-reveal], [data-reveal-stagger], [data-reveal-lines], [data-reveal-soft], .reveal'
     );
 
     // Stagger: assign --reveal-index to each direct child
@@ -33,6 +33,41 @@
         });
         revealTargets.forEach(function (el) { io.observe(el); });
     }
+
+    /* ============================================================
+       Hero parallax — gentle translation on scroll for the founder
+       image, mirroring the brandcontent.de hero treatment.
+       ============================================================ */
+    (function () {
+        var heroSection = document.querySelector('[data-hero-parallax]');
+        var heroImage = heroSection && heroSection.querySelector('[data-hero-image]');
+        if (!heroSection || !heroImage || prefersReduced) return;
+
+        var ticking = false;
+
+        function update() {
+            ticking = false;
+            var rect = heroSection.getBoundingClientRect();
+            var vh = window.innerHeight || document.documentElement.clientHeight;
+            // -1 (above viewport) → 0 (centered) → 1 (below viewport)
+            var center = rect.top + rect.height / 2;
+            var rel = (center - vh / 2) / vh;
+            var clamped = rel < -1 ? -1 : rel > 1 ? 1 : rel;
+            // Negative scroll → image drifts up; positive → drifts down.
+            var translate = -clamped * 28;
+            heroImage.style.setProperty('--hero-parallax-y', translate.toFixed(2) + 'px');
+        }
+
+        function requestUpdate() {
+            if (ticking) return;
+            ticking = true;
+            window.requestAnimationFrame(update);
+        }
+
+        update();
+        window.addEventListener('scroll', requestUpdate, { passive: true });
+        window.addEventListener('resize', requestUpdate);
+    })();
 
     /* ============================================================
        Mobile navigation — robust open/close
