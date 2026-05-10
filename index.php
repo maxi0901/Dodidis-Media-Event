@@ -19,11 +19,11 @@
 <main id="home">
 
     <!-- ===== HERO ===== -->
-    <section class="hero container hero-v3" id="hero" data-hero-parallax>
-        <div class="hero-grid hero-content">
-            <div class="hero-text">
-                <span class="eyebrow hero-reveal" style="--reveal-i:0">Reels · Content · Sichtbarkeit</span>
-                <h1 class="hero-headline-xl">
+    <section class="hero container hero-v3 hero-centered" id="hero" data-hero-parallax>
+        <div class="hero-content">
+            <div class="hero-text hero-text-centered">
+                <span class="eyebrow eyebrow-pill hero-reveal" style="--reveal-i:0">Content ohne Aufwand</span>
+                <h1 class="hero-headline-xl hero-headline-stack">
                     <span class="hero-line hero-reveal" style="--reveal-i:1">Wir machen keine Videos.</span>
                     <span class="hero-line hero-reveal" style="--reveal-i:2"><span class="accent-text">Wir liefern Ergebnisse.</span></span>
                 </h1>
@@ -31,48 +31,34 @@
                     Reels und Social Content, die Reichweite, Vertrauen und Kundenanfragen bringen –
                     damit du dich auf dein Kerngeschäft konzentrieren kannst.
                 </p>
-                <div class="hero-actions hero-reveal" style="--reveal-i:4">
+                <div class="hero-actions hero-actions-centered hero-reveal" style="--reveal-i:4">
                     <a class="btn btn-primary" href="#kontakt">
                         Erstgespräch buchen
                         <span class="arrow" aria-hidden="true">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
                         </span>
                     </a>
-                    <a class="btn btn-ghost" href="#showcase">
-                        So arbeiten wir
-                        <span class="arrow" aria-hidden="true">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
-                        </span>
+                    <a class="btn btn-ghost" href="#case-studies">
+                        Unsere Projekte
                     </a>
-                </div>
-                <div class="hero-trust-row hero-reveal" style="--reveal-i:5" aria-label="Vertrauensindikatoren">
-                    <span class="hero-trust-item"><strong>30+</strong> Projekte</span>
-                    <span class="hero-trust-item"><strong>2,5 Mio+</strong> Reichweite</span>
-                    <span class="hero-trust-item"><strong>98 %</strong> Kundenzufriedenheit</span>
                 </div>
             </div>
 
-            <div class="hero-visual hero-reveal" style="--reveal-i:3" data-hero-image>
-                <div class="hero-visual-halo" aria-hidden="true"></div>
-                <div class="hero-visual-frame">
-                    <img class="hero-founders-img" src="assets/hero-founders.svg" alt="Gründer von Dodidis.Media" width="900" height="720" loading="eager" decoding="async">
-                    <span class="hero-visual-shine" aria-hidden="true"></span>
-                </div>
-                <div class="hero-founder-badge" aria-hidden="true">
-                    <span class="hero-founder-pulse"></span>
-                    <div class="hero-founder-meta">
-                        <span class="hero-founder-name">Dodidis.Media</span>
-                        <span class="hero-founder-role">Gründer · Nordhessen</span>
-                    </div>
-                </div>
-                <div class="hero-floating-chip hero-chip-views" aria-hidden="true">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    <span><strong>+168%</strong> Reichweite</span>
-                </div>
-                <div class="hero-floating-chip hero-chip-leads" aria-hidden="true">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
-                    <span><strong>+42%</strong> Leads</span>
-                </div>
+            <div class="hero-founders-stage hero-reveal" style="--reveal-i:5" data-hero-image>
+                <div class="hero-founders-glow" aria-hidden="true"></div>
+                <img class="hero-founders-cutout" src="assets/hero-founders.svg" alt="Gründer von Dodidis.Media" width="900" height="720" loading="eager" decoding="async">
+                <div class="hero-founders-floor" aria-hidden="true"></div>
+            </div>
+
+            <div class="hero-trust-row hero-reveal" style="--reveal-i:6" aria-label="Vertrauensindikatoren">
+                <span class="hero-trust-item"><strong>30+</strong> Projekte</span>
+                <span class="hero-trust-item"><strong>2,5 Mio+</strong> Reichweite</span>
+                <span class="hero-trust-item"><strong>98 %</strong> Kundenzufriedenheit</span>
+            </div>
+
+            <div class="hero-tagline-pill hero-reveal" style="--reveal-i:7" aria-hidden="true">
+                <span class="hero-tagline-dot"></span>
+                Minimaler Aufwand. Maximale Performance.
             </div>
         </div>
     </section>
@@ -378,46 +364,50 @@
                 </div>
             </div>
 
-                    <div class="phone-extracted-cards" aria-label="Social Media Leistungen">
-                <article class="glass-card hover-lift phone-extract-card" data-step="1">
-                    <div class="feat-head">
-                        <div class="feat-icon">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        </div>
-                        <h3>Kurzformate, die hängen bleiben</h3>
-                    </div>
-                    <p>Hooks, Pacing und Story – so dass dein Auftritt nicht weggewischt, sondern weiterempfohlen wird.</p>
-                </article>
+                    <div class="phone-extracted-cards phone-extracted-cards-split" aria-label="Social Media Leistungen">
+                        <div class="phone-extract-col phone-extract-col-left">
+                            <article class="glass-card hover-lift phone-extract-card phone-extract-left" data-step="1" data-side="left">
+                                <div class="feat-head">
+                                    <div class="feat-icon">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                    </div>
+                                    <h3>Kurzformate, die hängen bleiben</h3>
+                                </div>
+                                <p>Hooks, Pacing und Story – so dass dein Auftritt nicht weggewischt, sondern weiterempfohlen wird.</p>
+                            </article>
 
-                <article class="glass-card hover-lift phone-extract-card" data-step="2">
-                    <div class="feat-head">
-                        <div class="feat-icon">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+                            <article class="glass-card hover-lift phone-extract-card phone-extract-left" data-step="3" data-side="left">
+                                <div class="feat-head">
+                                    <div class="feat-icon">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                                    </div>
+                                    <h3>Verlässlichkeit, die du spürst</h3>
+                                </div>
+                                <p>Konstanter Output ohne Reibungsverluste – damit dein Auftritt wächst, während du dich auf dein Kerngeschäft konzentrierst.</p>
+                            </article>
                         </div>
-                        <h3>Strategie statt Bauchgefühl</h3>
-                    </div>
-                    <p>Jeder Post hat ein Ziel: Reichweite, Vertrauen oder Anfrage. Wir messen, lernen und skalieren das, was wirkt.</p>
-                </article>
 
-                <article class="glass-card hover-lift phone-extract-card" data-step="3">
-                    <div class="feat-head">
-                        <div class="feat-icon">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                        </div>
-                        <h3>Verlässlichkeit, die du spürst</h3>
-                    </div>
-                    <p>Konstanter Output ohne Reibungsverluste – damit dein Auftritt wächst, während du dich auf dein Kerngeschäft konzentrierst.</p>
-                </article>
+                        <div class="phone-extract-col phone-extract-col-right">
+                            <article class="glass-card hover-lift phone-extract-card phone-extract-right" data-step="2" data-side="right">
+                                <div class="feat-head">
+                                    <div class="feat-icon">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+                                    </div>
+                                    <h3>Strategie statt Bauchgefühl</h3>
+                                </div>
+                                <p>Jeder Post hat ein Ziel: Reichweite, Vertrauen oder Anfrage. Wir messen, lernen und skalieren das, was wirkt.</p>
+                            </article>
 
-                <article class="glass-card hover-lift phone-extract-card" data-step="4">
-                    <div class="feat-head">
-                        <div class="feat-icon">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.77 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                            <article class="glass-card hover-lift phone-extract-card phone-extract-right" data-step="4" data-side="right">
+                                <div class="feat-head">
+                                    <div class="feat-icon">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.77 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                                    </div>
+                                    <h3>Premium-Look ohne Stockfoto-Vibes</h3>
+                                </div>
+                                <p>Visuelle Wiedererkennbarkeit, die Vertrauen schafft – und deine Marke in den Vordergrund stellt.</p>
+                            </article>
                         </div>
-                        <h3>Premium-Look ohne Stockfoto-Vibes</h3>
-                    </div>
-                    <p>Visuelle Wiedererkennbarkeit, die Vertrauen schafft – und deine Marke in den Vordergrund stellt.</p>
-                </article>
                     </div>
                 </div>
             </div>
@@ -563,6 +553,16 @@
         </div>
     </section>
 
+    <!-- ===== SCROLL TEXT BANNER (Outline + Solid) ===== -->
+    <section class="scroll-text-banner" data-scroll-banner aria-hidden="true">
+        <div class="scroll-text-banner-inner">
+            <span class="scroll-text-emoji scroll-text-emoji-1">🤩</span>
+            <span class="scroll-text-emoji scroll-text-emoji-2">🚀</span>
+            <span class="scroll-text-line scroll-text-outline" data-banner-line="left">Von unsichtbar</span>
+            <span class="scroll-text-line scroll-text-solid"   data-banner-line="right">zu ausgebucht</span>
+        </div>
+    </section>
+
     <!-- ===== ERGEBNISSE / CASE STUDIES ===== -->
     <section class="section container" id="case-studies">
         <span id="projekte" aria-hidden="true" style="position:absolute"></span>
@@ -572,45 +572,9 @@
                 <h2>Sichtbarkeit, die in <span class="accent-text">Anfragen</span> mündet.</h2>
             </div>
             <p>
-                Ausgewählte Produktionen, Reels und Performance-Kampagnen –
-                für Marken, die mehr als nur schöne Bilder wollten.
+                Vergiss leere Versprechen. Wir liefern messbare Resultate –
+                in Reichweite, Vertrauen und Kundenanfragen.
             </p>
-        </div>
-
-        <div class="projects-grid" data-reveal-stagger>
-            <a class="project project-1" href="#projekte">
-                <div class="img" aria-hidden="true"></div>
-                <span class="label">Social Media &amp; Reels</span>
-            </a>
-            <a class="project project-2" href="#projekte">
-                <div class="img" aria-hidden="true"></div>
-                <span class="label">Event Content</span>
-            </a>
-            <a class="project project-3" href="#projekte">
-                <div class="img" aria-hidden="true"></div>
-                <span class="label">Video Production</span>
-            </a>
-            <a class="project project-4" href="#projekte">
-                <div class="img" aria-hidden="true"></div>
-                <span class="vendor">VB</span>
-                <span class="label">Social Media &amp; Ads</span>
-            </a>
-            <a class="project project-5" href="lp/gutshof-maifest-2026/">
-                <div class="img" aria-hidden="true"></div>
-                <span class="label">Maifest 2026</span>
-            </a>
-            <a class="project project-6" href="#projekte">
-                <div class="img" aria-hidden="true"></div>
-                <span class="label">Brand Launch</span>
-            </a>
-            <a class="project project-7" href="#projekte">
-                <div class="img" aria-hidden="true"></div>
-                <span class="label">Restaurant Series</span>
-            </a>
-            <a class="project project-8" href="#projekte">
-                <div class="img" aria-hidden="true"></div>
-                <span class="label">E-Commerce Scale</span>
-            </a>
         </div>
 
         <div class="testimonial" data-reveal>
