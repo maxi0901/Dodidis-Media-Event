@@ -3373,3 +3373,451 @@ main { padding-top: 2rem; }
         transition: none !important;
     }
 }
+
+/* ===== Phone showcase: lockscreen + analytics cards ===== */
+.phone-story-layout {
+    grid-template-columns: minmax(190px, 0.95fr) minmax(300px, 390px) minmax(190px, 0.95fr);
+    gap: clamp(22px, 4vw, 64px);
+}
+
+.phone-story-layout .agency-phone-stage {
+    height: min(680px, calc(100vh - 130px));
+    min-height: 560px;
+}
+
+.agency-phone-mockup {
+    width: clamp(260px, 24vw, 330px);
+}
+
+.agency-phone-glow {
+    inset: -10% -45%;
+    background:
+        radial-gradient(closest-side at 50% 48%, rgba(37,74,255,0.32), transparent 72%),
+        radial-gradient(closest-side at 48% 82%, rgba(92,34,255,0.28), transparent 64%),
+        radial-gradient(closest-side at 35% 58%, rgba(53,143,129,0.16), transparent 76%);
+    filter: blur(46px);
+}
+
+.agency-phone-frame {
+    padding: 9px;
+    border: 2px solid rgba(255,255,255,0.18);
+    background: linear-gradient(145deg, #20262f 0%, #070a10 45%, #171d25 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.25),
+        inset 0 -1px 0 rgba(255,255,255,0.07),
+        0 34px 90px rgba(0,0,0,0.68),
+        0 0 0 1px rgba(100,114,150,0.34),
+        0 0 70px rgba(37,74,255,0.16);
+}
+
+.agency-phone-notch {
+    top: 13px;
+    width: 30%;
+    height: 18px;
+    background: #030407;
+    opacity: 0.9;
+}
+
+.agency-phone-screen {
+    border-radius: 34px;
+    background:
+        radial-gradient(circle at 62% 62%, rgba(54,82,255,0.95) 0 14%, transparent 38%),
+        radial-gradient(circle at 65% 50%, rgba(94,36,180,0.72) 0 11%, transparent 34%),
+        radial-gradient(circle at 40% 92%, rgba(20,58,255,0.95), transparent 34%),
+        linear-gradient(155deg, #02040a 0%, #050414 47%, #151044 100%);
+}
+
+.agency-phone-lockscreen {
+    padding: 25px 18px 16px;
+    gap: 0;
+    color: #fff;
+}
+
+.agency-phone-lockscreen .agency-phone-status {
+    padding: 0 4px;
+    color: rgba(255,255,255,0.92);
+    font-size: 0.64rem;
+    font-weight: 700;
+}
+
+.agency-phone-lockscreen .status-icons {
+    gap: 5px;
+}
+
+.signal-bars {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 1px;
+    height: 9px;
+}
+
+.signal-bars i {
+    display: block;
+    width: 2px;
+    border-radius: 2px;
+    background: #fff;
+}
+
+.signal-bars i:nth-child(1) { height: 4px; opacity: 0.65; }
+.signal-bars i:nth-child(2) { height: 6px; opacity: 0.8; }
+.signal-bars i:nth-child(3) { height: 9px; }
+
+.wifi-icon {
+    width: 11px;
+    height: 8px;
+    border: 2px solid #fff;
+    border-left-color: transparent;
+    border-right-color: transparent;
+    border-bottom: 0;
+    border-radius: 12px 12px 0 0;
+    transform: translateY(1px);
+}
+
+.battery-icon {
+    position: relative;
+    min-width: 18px;
+    height: 9px;
+    border: 1px solid rgba(255,255,255,0.88);
+    border-radius: 3px;
+    font-size: 0.42rem;
+    line-height: 8px;
+    text-align: center;
+}
+
+.battery-icon::after {
+    content: "";
+    position: absolute;
+    right: -3px;
+    top: 2px;
+    width: 2px;
+    height: 4px;
+    border-radius: 0 2px 2px 0;
+    background: rgba(255,255,255,0.75);
+}
+
+.lockscreen-clock {
+    margin-top: 48px;
+    text-align: center;
+    text-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+
+.lockscreen-date {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.lockscreen-clock strong {
+    display: block;
+    font-size: clamp(3.65rem, 6.4vw, 4.95rem);
+    line-height: 0.92;
+    letter-spacing: -0.07em;
+    font-weight: 800;
+}
+
+.lockscreen-notifications {
+    margin-top: 45px;
+    display: grid;
+    gap: 8px;
+}
+
+.lockscreen-notification {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 50px;
+    padding: 8px 9px;
+    border-radius: 12px;
+    background: rgba(40,42,56,0.72);
+    border: 1px solid rgba(255,255,255,0.13);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), 0 12px 24px rgba(0,0,0,0.28);
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+}
+
+.notification-app-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-weight: 900;
+    font-size: 1rem;
+}
+
+.notification-instagram .notification-app-icon { background: radial-gradient(circle at 30% 105%, #ffd76a, #ff3d7f 48%, #783cff 100%); }
+.notification-whatsapp .notification-app-icon { background: #27d567; }
+.notification-tiktok .notification-app-icon { background: #050508; }
+
+.notification-copy { min-width: 0; }
+.notification-copy strong,
+.notification-copy small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.notification-copy strong { font-size: 0.72rem; line-height: 1.1; }
+.notification-copy small { margin-top: 2px; font-size: 0.61rem; color: rgba(255,255,255,0.86); }
+.lockscreen-notification em { align-self: start; color: rgba(255,255,255,0.58); font-style: normal; font-size: 0.54rem; }
+
+.lockscreen-actions {
+    margin-top: auto;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 22px;
+    color: rgba(255,255,255,0.86);
+    font-size: 1rem;
+}
+
+.analytics-card {
+    max-width: 250px;
+    min-height: 128px;
+    padding: 1rem 1.05rem;
+    border-radius: 18px;
+    color: #fff;
+    background:
+        linear-gradient(145deg, rgba(17,24,62,0.82), rgba(8,10,34,0.70)),
+        rgba(10,12,28,0.74);
+    border-color: rgba(74,87,255,0.28);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.12),
+        0 20px 56px rgba(0,0,0,0.38),
+        0 0 34px rgba(44,66,255,0.14);
+}
+
+.analytics-card::before {
+    background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent 42%, rgba(74,87,255,0.12));
+}
+
+.analytics-card-kicker {
+    font-size: 0.69rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.analytics-card p,
+.analytics-card small {
+    margin: 0.18rem 0 0;
+    color: rgba(255,255,255,0.68);
+    font-size: 0.53rem;
+    line-height: 1.35;
+}
+
+.analytics-card strong {
+    display: block;
+    font-size: 1.35rem;
+    line-height: 1;
+    letter-spacing: -0.03em;
+}
+
+.analytics-card-progress {
+    max-width: 255px;
+    min-height: 150px;
+}
+
+.analytics-card-progress small {
+    color: #5c7cff;
+    font-weight: 800;
+}
+
+.progress-track {
+    height: 8px;
+    margin-top: 28px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.13);
+    overflow: hidden;
+}
+
+.progress-track span {
+    display: block;
+    width: 55%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #fff, #4d79ff);
+    box-shadow: 0 0 18px rgba(77,121,255,0.8);
+}
+
+.mini-chart {
+    position: relative;
+    height: 66px;
+    margin-top: 15px;
+    border-bottom: 1px solid rgba(255,255,255,0.18);
+    background: repeating-linear-gradient(to top, rgba(255,255,255,0.12) 0 1px, transparent 1px 18px);
+}
+
+.mini-chart span {
+    position: absolute;
+    bottom: 0;
+    width: 2px;
+    height: 2px;
+    border-radius: 999px;
+    background: #4d79ff;
+    box-shadow: 0 0 12px rgba(77,121,255,0.85);
+}
+
+.mini-chart span:nth-child(1) { left: 8%; bottom: 4px; }
+.mini-chart span:nth-child(2) { left: 38%; bottom: 8px; }
+.mini-chart span:nth-child(3) { left: 66%; bottom: 18px; }
+.mini-chart span:nth-child(4) { left: 88%; bottom: 54px; }
+.mini-chart i {
+    position: absolute;
+    inset: auto 8% 5px 8%;
+    height: 55px;
+    clip-path: polygon(0 85%, 34% 78%, 64% 64%, 87% 5%, 100% 92%, 0 92%);
+    background: linear-gradient(180deg, rgba(77,121,255,0.75), rgba(77,121,255,0.02));
+}
+
+.analytics-card-reach {
+    max-width: 270px;
+    min-height: 170px;
+    text-align: center;
+}
+
+.analytics-card-reach strong {
+    color: #5878ff;
+    text-shadow: 0 0 18px rgba(88,120,255,0.42);
+}
+
+.donut-card-row {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.analytics-donut,
+.large-donut {
+    border-radius: 999px;
+    background: conic-gradient(#e8edff 0 36%, #29366b 36% 75%, rgba(255,255,255,0.10) 75% 100%);
+    position: relative;
+    box-shadow: inset 0 0 16px rgba(0,0,0,0.28), 0 0 20px rgba(77,121,255,0.16);
+}
+
+.analytics-donut { width: 82px; height: 82px; }
+.analytics-donut::after,
+.large-donut::after {
+    content: "";
+    position: absolute;
+    inset: 15px;
+    border-radius: inherit;
+    background: #101434;
+}
+
+.analytics-donut span {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    color: #5878ff;
+    font-size: 0.63rem;
+    font-weight: 900;
+}
+.analytics-donut small { display: block; margin: 1px 0 0; font-size: 0.36rem; color: rgba(255,255,255,0.6); }
+
+.donut-stats {
+    display: grid;
+    gap: 7px;
+}
+.donut-stats span {
+    padding: 8px 6px;
+    border-radius: 9px;
+    background: rgba(36,54,126,0.38);
+    color: #5878ff;
+    font-size: 0.58rem;
+    font-weight: 800;
+}
+.donut-stats small { display: block; font-size: 0.43rem; }
+
+.analytics-card-donut { max-width: 220px; min-height: 210px; }
+.large-donut {
+    width: 92px;
+    height: 92px;
+    margin: 18px auto 10px;
+    background: conic-gradient(#edf2ff 0 23%, #3b61ff 23% 39%, rgba(255,255,255,0.13) 39% 100%);
+}
+.analytics-card-donut b { color: #4d79ff; }
+
+.analytics-card-social {
+    max-width: 220px;
+    min-height: 0;
+    padding: 0.72rem;
+    display: grid;
+    gap: 8px;
+}
+
+.social-stat-row {
+    display: grid;
+    grid-template-columns: 24px 1fr auto auto;
+    align-items: center;
+    gap: 7px;
+    padding: 0.55rem 0.5rem;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.13);
+    color: rgba(255,255,255,0.82);
+    font-size: 0.74rem;
+}
+
+.social-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+    font-weight: 900;
+}
+.social-icon.instagram { background: radial-gradient(circle at 30% 105%, #ffd76a, #ff3d7f 48%, #783cff 100%); }
+.social-icon.tiktok { background: #050508; }
+.social-stat-row strong { font-size: 0.74rem; }
+.social-stat-row em {
+    padding: 3px 6px;
+    border-radius: 999px;
+    background: rgba(89,123,255,0.18);
+    color: #b9c7ff;
+    font-style: normal;
+    font-size: 0.58rem;
+    font-weight: 900;
+}
+
+@media (min-width: 1024px) {
+    .phone-extract-col-left { gap: 92px; }
+    .phone-extract-col-right { gap: 72px; }
+    .analytics-card-chart { align-self: flex-start; margin-right: 6px; }
+    .analytics-card-progress { align-self: flex-end; margin-right: -8px; }
+    .analytics-card-reach { align-self: flex-start; margin-left: -4px; }
+    .analytics-card-donut { align-self: center; margin-left: 16px; }
+    .analytics-card-social { align-self: flex-end; margin-left: 0; }
+}
+
+@media (max-width: 1023px) {
+    .agency-phone-mockup { width: clamp(190px, 50vw, 250px); }
+    .agency-phone-lockscreen { padding: 22px 14px 14px; }
+    .lockscreen-clock { margin-top: 34px; }
+    .lockscreen-clock strong { font-size: clamp(3rem, 12vw, 4rem); }
+    .lockscreen-notifications { margin-top: 30px; gap: 6px; }
+    .lockscreen-notification { min-height: 42px; padding: 6px 7px; grid-template-columns: 26px minmax(0, 1fr) auto; }
+    .notification-app-icon { width: 24px; height: 24px; border-radius: 7px; }
+    .notification-copy strong { font-size: 0.64rem; }
+    .notification-copy small { font-size: 0.54rem; }
+    .phone-extracted-cards { grid-template-columns: 1fr 1fr; }
+    .analytics-card { max-width: none; min-height: 118px; }
+    .analytics-card-reach,
+    .analytics-card-donut,
+    .analytics-card-social { max-width: none; }
+    .analytics-card-social { grid-column: 1 / -1; }
+}
+
+@media (max-width: 540px) {
+    .agency-phone-mockup { width: clamp(190px, 62vw, 235px); }
+    .phone-story-layout .agency-phone-stage { height: clamp(410px, 74vh, 520px); }
+    .phone-extracted-cards { grid-template-columns: 1fr; }
+    .analytics-card-social { grid-column: auto; }
+    .analytics-card { padding: 0.9rem; }
+}
