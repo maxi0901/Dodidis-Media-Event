@@ -434,6 +434,174 @@
     })();
 
     /* ============================================================
+       Number count-up — animates [data-count-up] when in view.
+       Drives Stage-4 "+168%" / "+42%" reveals + the stats row.
+       ============================================================ */
+    (function () {
+        var targets = document.querySelectorAll('[data-count-up]');
+        if (!targets.length) return;
+
+        function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+        function format(value, decimals) {
+            if (decimals > 0) return value.toFixed(decimals).replace('.', ',');
+            return Math.round(value).toString();
+        }
+
+        function run(el) {
+            var target = parseFloat(el.getAttribute('data-count-up'));
+            if (isNaN(target)) return;
+            var decimals = parseInt(el.getAttribute('data-count-decimals') || '0', 10);
+            var prefix = el.getAttribute('data-count-prefix') || '';
+            var suffix = el.getAttribute('data-count-suffix') || '';
+            var duration = parseInt(el.getAttribute('data-count-duration') || '1600', 10);
+            var start = performance.now();
+
+            function tick(now) {
+                var p = Math.min((now - start) / duration, 1);
+                var v = easeOutCubic(p) * target;
+                el.textContent = prefix + format(v, decimals) + suffix;
+                if (p < 1) requestAnimationFrame(tick);
+                else el.textContent = prefix + format(target, decimals) + suffix;
+            }
+            requestAnimationFrame(tick);
+        }
+
+        if (prefersReduced || !('IntersectionObserver' in window)) {
+            // Leave original markup intact.
+            return;
+        }
+
+        // Reset to zero on init so the count is visually felt when it triggers.
+        targets.forEach(function (el) {
+            var prefix = el.getAttribute('data-count-prefix') || '';
+            var suffix = el.getAttribute('data-count-suffix') || '';
+            var decimals = parseInt(el.getAttribute('data-count-decimals') || '0', 10);
+            el.textContent = prefix + (decimals > 0 ? '0,' + '0'.repeat(decimals) : '0') + suffix;
+        });
+
+        var io = new IntersectionObserver(function (entries, obs) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    run(entry.target);
+                    obs.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.4, rootMargin: '0px 0px -10% 0px' });
+        targets.forEach(function (el) { io.observe(el); });
+    })();
+
+    /* ============================================================
+       Chart draw-in — measures path length, sets dashoffset,
+       triggers .is-drawn class on viewport entry.
+       ============================================================ */
+    (function () {
+        var charts = document.querySelectorAll('[data-chart-draw]');
+        if (!charts.length) return;
+
+        charts.forEach(function (svg) {
+            var path = svg.querySelector('[data-draw-path]');
+            if (!path || typeof path.getTotalLength !== 'function') return;
+            var length = Math.ceil(path.getTotalLength());
+            // Buffer of +2 prevents subpixel "tip" artefacts on certain GPUs.
+            svg.style.setProperty('--draw-length', (length + 2));
+        });
+
+        if (prefersReduced || !('IntersectionObserver' in window)) {
+            charts.forEach(function (svg) { svg.classList.add('is-drawn'); });
+            return;
+        }
+
+        var io = new IntersectionObserver(function (entries, obs) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-drawn');
+                    obs.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.35, rootMargin: '0px 0px -8% 0px' });
+        charts.forEach(function (svg) { io.observe(svg); });
+    })();
+
+    /* ============================================================
+       Phone entrance — scale 0.9 → 1 + fade once stage is in view.
+       Independent from the existing scrollytelling pin handler.
+       ============================================================ */
+    (function () {
+        var stages = document.querySelectorAll('[data-phone-entrance]');
+        if (!stages.length) return;
+
+        if (prefersReduced || !('IntersectionObserver' in window)) {
+            stages.forEach(function (s) { s.classList.add('is-revealed'); });
+            return;
+        }
+
+        var io = new IntersectionObserver(function (entries, obs) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-revealed');
+                    obs.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.2, rootMargin: '0px 0px -5% 0px' });
+        stages.forEach(function (s) { io.observe(s); });
+    })();
+
+    /* ============================================================
+       CTA glow — pulses .btn-primary while #kontakt is in view.
+       Toggles body.is-cta-active so headline & footer button both
+       benefit; pause on hover (CSS).
+       ============================================================ */
+    (function () {
+        var contact = document.getElementById('kontakt');
+        if (!contact) return;
+
+        if (prefersReduced || !('IntersectionObserver' in window)) return;
+
+        var io = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                document.body.classList.toggle('is-cta-active', entry.isIntersecting);
+            });
+        }, { threshold: 0.18 });
+        io.observe(contact);
+    })();
+
+    /* ============================================================
+       Hero depth parallax — second layer for the glow halo.
+       Cutout already drifts via [data-hero-image]; here the glow
+       moves at ~0.35x speed to fake atmospheric depth.
+       ============================================================ */
+    (function () {
+        var heroSection = document.querySelector('[data-hero-parallax]');
+        var bg = heroSection && heroSection.querySelector('[data-hero-bg]');
+        if (!heroSection || !bg || prefersReduced) return;
+
+        var ticking = false;
+
+        function update() {
+            ticking = false;
+            var rect = heroSection.getBoundingClientRect();
+            var vh = window.innerHeight || document.documentElement.clientHeight;
+            var center = rect.top + rect.height / 2;
+            var rel = (center - vh / 2) / vh;
+            var clamped = rel < -1 ? -1 : rel > 1 ? 1 : rel;
+            // Background drifts slower (smaller amplitude) than the cutout's 28px.
+            var translate = -clamped * 10;
+            bg.style.setProperty('--hero-bg-y', translate.toFixed(2) + 'px');
+        }
+
+        function requestUpdate() {
+            if (ticking) return;
+            ticking = true;
+            window.requestAnimationFrame(update);
+        }
+
+        update();
+        window.addEventListener('scroll', requestUpdate, { passive: true });
+        window.addEventListener('resize', requestUpdate);
+    })();
+
+    /* ============================================================
        Contact form (mailto fallback)
        ============================================================ */
     var form = document.querySelector('.contact-form-card form');

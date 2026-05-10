@@ -45,8 +45,8 @@
             </div>
 
             <div class="hero-founders-stage hero-reveal" style="--reveal-i:5" data-hero-image>
-                <div class="hero-founders-glow" aria-hidden="true"></div>
-                <img class="hero-founders-cutout" src="assets/hero-founders.svg" alt="Gründer von Dodidis.Media" width="986" height="1148" loading="eager" decoding="async">
+                <div class="hero-founders-glow" aria-hidden="true" data-hero-bg></div>
+                <img class="hero-founders-cutout" src="assets/hero-founders.svg" alt="Gründer von Dodidis.Media" width="986" height="1148" loading="eager" decoding="async" data-hero-fg>
                 <div class="hero-founders-floor" aria-hidden="true"></div>
             </div>
 
@@ -141,14 +141,14 @@
                     <li>Stunden investiert, ohne messbares Ergebnis</li>
                 </ul>
                 <div class="painpoint-visual" aria-hidden="true">
-                    <svg class="painpoint-chart" viewBox="0 0 320 100" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="painpoint-chart" data-chart-draw viewBox="0 0 320 100" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <!-- Sinkende Kurve -->
-                        <path d="M0 30 L40 25 L80 40 L120 35 L160 55 L200 60 L240 70 L280 78 L320 85" stroke="#46A99A" opacity="0.55"/>
+                        <path class="chart-line" data-draw-path d="M0 30 L40 25 L80 40 L120 35 L160 55 L200 60 L240 70 L280 78 L320 85" stroke="#46A99A" opacity="0.55"/>
                         <!-- Datenpunkte -->
-                        <circle cx="40"  cy="25" r="3" fill="#6CD3C1"/>
-                        <circle cx="120" cy="35" r="3" fill="#46A99A"/>
-                        <circle cx="200" cy="60" r="3" fill="#358F81" opacity="0.7"/>
-                        <circle cx="280" cy="78" r="3" fill="#358F81" opacity="0.5"/>
+                        <circle class="chart-dot" cx="40"  cy="25" r="3" fill="#6CD3C1"/>
+                        <circle class="chart-dot" cx="120" cy="35" r="3" fill="#46A99A"/>
+                        <circle class="chart-dot" cx="200" cy="60" r="3" fill="#358F81" opacity="0.7"/>
+                        <circle class="chart-dot" cx="280" cy="78" r="3" fill="#358F81" opacity="0.5"/>
                         <!-- Achse -->
                         <line x1="0" y1="98" x2="320" y2="98" stroke="rgba(255,255,255,0.08)"/>
                     </svg>
@@ -260,7 +260,7 @@
 
             <div class="phone-story-pin">
                 <div class="phone-story-layout">
-            <div class="agency-phone-stage" data-phone-stage aria-hidden="true">
+            <div class="agency-phone-stage" data-phone-stage data-phone-entrance aria-hidden="true">
                 <div class="agency-phone-glow"></div>
                 <div class="agency-phone-mockup" data-phone-mockup>
                     <div class="agency-phone-frame">
@@ -485,7 +485,7 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
                 </span>
                 <div>
-                    <div class="stat-num">30+</div>
+                    <div class="stat-num" data-count-up="30" data-count-suffix="+">30+</div>
                     <div class="stat-label">Projekte<br>abgeschlossen</div>
                 </div>
             </div>
@@ -494,7 +494,7 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
                 </span>
                 <div>
-                    <div class="stat-num">15+</div>
+                    <div class="stat-num" data-count-up="15" data-count-suffix="+">15+</div>
                     <div class="stat-label">zufriedene<br>Kunden</div>
                 </div>
             </div>
@@ -503,7 +503,7 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </span>
                 <div>
-                    <div class="stat-num">2.5M+</div>
+                    <div class="stat-num" data-count-up="2.5" data-count-decimals="1" data-count-suffix="M+">2.5M+</div>
                     <div class="stat-label">erreichte<br>Konten</div>
                 </div>
             </div>
@@ -512,7 +512,7 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 </span>
                 <div>
-                    <div class="stat-num">98%</div>
+                    <div class="stat-num" data-count-up="98" data-count-suffix="%">98%</div>
                     <div class="stat-label">Kunden<br>zufriedenheit</div>
                 </div>
             </div>
@@ -552,7 +552,7 @@
                 <p class="testimonial-quote">
                     <strong>Problem:</strong> Unklare Botschaft und sinkende Performance.<br>
                     <strong>Lösung:</strong> Neue Positionierung, 12 Reels/Monat &amp; eine datenbasierte Ad-Struktur.<br>
-                    <strong>Ergebnis:</strong> +168% Reichweite und +42% qualifizierte Leads in nur 8 Wochen.
+                    <strong>Ergebnis:</strong> <span class="result-num" data-count-up="168" data-count-prefix="+" data-count-suffix="%">+168%</span> Reichweite und <span class="result-num" data-count-up="42" data-count-prefix="+" data-count-suffix="%">+42%</span> qualifizierte Leads in nur 8 Wochen.
                 </p>
                 <div class="testimonial-row">
                     <div class="testimonial-author">
