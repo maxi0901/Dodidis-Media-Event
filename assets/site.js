@@ -35,6 +35,51 @@
     }
 
     /* ============================================================
+       Scroll-driven outline+solid text banner
+       Maps section-in-view (0..1) to --banner-progress on each line
+       so they drift in/out as the user scrolls past.
+       ============================================================ */
+    (function () {
+        var banner = document.querySelector('[data-scroll-banner]');
+        if (!banner) return;
+        var lines = banner.querySelectorAll('[data-banner-line]');
+        if (!lines.length) return;
+
+        if (prefersReduced) {
+            lines.forEach(function (line) {
+                line.style.setProperty('--banner-progress', '1');
+            });
+            return;
+        }
+
+        var ticking = false;
+
+        function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+        function update() {
+            ticking = false;
+            var rect = banner.getBoundingClientRect();
+            var vh = window.innerHeight || document.documentElement.clientHeight;
+            // 0 when banner enters from below, 1 when it exits from above.
+            var raw = (vh - rect.top) / (vh + rect.height);
+            var p = clamp(raw, 0, 1);
+            lines.forEach(function (line) {
+                line.style.setProperty('--banner-progress', p.toFixed(4));
+            });
+        }
+
+        function requestUpdate() {
+            if (ticking) return;
+            ticking = true;
+            window.requestAnimationFrame(update);
+        }
+
+        update();
+        window.addEventListener('scroll', requestUpdate, { passive: true });
+        window.addEventListener('resize', requestUpdate);
+    })();
+
+    /* ============================================================
        Hero parallax — gentle translation on scroll for the founder
        image, mirroring the brandcontent.de hero treatment.
        ============================================================ */
@@ -185,15 +230,18 @@
 
         function applyCardProgress(card, progress) {
             var mobile = mqMobile.matches;
-            var step = parseInt(card.getAttribute('data-step'), 10) || 1;
-            // Odd cards exit to the left of the phone, even cards to the right.
-            var dir = (step % 2 === 1) ? -1 : 1;
-            // Mobile: cards fly out sideways from behind the phone;
-            // desktop keeps the original left-to-center slide.
-            var x = mobile ? dir * 140 * (1 - progress) : -120 * (1 - progress);
-            var y = mobile ? 40 * (1 - progress) : 80 * (1 - progress);
-            var scaleFrom = mobile ? 0.78 : 0.72;
-            var scaleSpan = mobile ? 0.22 : 0.28;
+            var side = card.getAttribute('data-side');
+            // Left-column cards travel from behind the phone (positive X)
+            // out to the left (so initial X is +distance, ending at 0).
+            // Right-column cards travel from behind the phone out to the right.
+            var dir = side === 'right' ? 1 : -1;
+            // Distance: phone width + a bit of breathing room. Mobile uses
+            // a smaller offset since cards stack underneath the phone instead.
+            var distance = mobile ? 120 : 180;
+            var x = -dir * distance * (1 - progress);
+            var y = mobile ? 40 * (1 - progress) : 60 * (1 - progress);
+            var scaleFrom = mobile ? 0.78 : 0.78;
+            var scaleSpan = mobile ? 0.22 : 0.22;
             var scale = scaleFrom + (scaleSpan * progress);
 
             card.style.setProperty('--extract-progress', progress.toFixed(4));
