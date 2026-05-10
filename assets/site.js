@@ -229,21 +229,17 @@
             return 1 - Math.pow(1 - value, 3);
         }
 
-        function applyCardProgress(card, progress) {
-            var mobile = mqMobile.matches;
+        var cardsContainer = section.querySelector('.phone-extracted-cards');
+
+        function applyCardDesktop(card, progress) {
             var side = card.getAttribute('data-side');
             // Left-column cards travel from behind the phone (positive X)
-            // out to the left (so initial X is +distance, ending at 0).
-            // Right-column cards travel from behind the phone out to the right.
+            // out to the left; right-column cards travel out to the right.
             var dir = side === 'right' ? 1 : -1;
-            // Distance: phone width + a bit of breathing room. Mobile uses
-            // a smaller offset since cards stack underneath the phone instead.
-            var distance = mobile ? 120 : 220;
+            var distance = 220;
             var x = -dir * distance * (1 - progress);
-            var y = mobile ? 40 * (1 - progress) : 60 * (1 - progress);
-            var scaleFrom = mobile ? 0.78 : 0.78;
-            var scaleSpan = mobile ? 0.22 : 0.22;
-            var scale = scaleFrom + (scaleSpan * progress);
+            var y = 60 * (1 - progress);
+            var scale = 0.78 + (0.22 * progress);
 
             card.style.setProperty('--extract-progress', progress.toFixed(4));
             card.style.setProperty('--extract-opacity', progress.toFixed(4));
@@ -252,9 +248,58 @@
             card.style.setProperty('--extract-scale', scale.toFixed(4));
         }
 
+        // Mobile carousel: cards live in a single absolutely-positioned
+        // slot below the phone. Each card has an enter phase (rises +
+        // fades in) and an exit phase (fades up & out) when the next
+        // card starts entering. Result: one card visible at a time,
+        // smooth crossfade — fits viewport, reads cleanly on small
+        // screens. The last card has no exit so it stays at the end.
+        function applyCardMobile(card, index, totalProgress) {
+            var range = ranges[index];
+            var enterRaw = clamp((totalProgress - range[0]) / (range[1] - range[0]), 0, 1);
+            var enter = easeOutCubic(enterRaw);
+
+            var exit = 0;
+            if (index < cards.length - 1) {
+                var nextRange = ranges[index + 1];
+                // Exit accelerates so this card is gone before the next
+                // is fully in (uses 60% of next card's enter window).
+                var exitWindow = (nextRange[1] - nextRange[0]) * 0.6;
+                var exitRaw = clamp((totalProgress - nextRange[0]) / exitWindow, 0, 1);
+                exit = easeOutCubic(exitRaw);
+            }
+
+            var opacity = enter * (1 - exit);
+            // Rise from below (+50px) to 0, then drift up (-30px) on exit.
+            var y = 50 * (1 - enter) - 30 * exit;
+            var scale = 0.92 + (0.08 * enter) - (0.04 * exit);
+
+            card.style.setProperty('--extract-progress', enter.toFixed(4));
+            card.style.setProperty('--extract-opacity', opacity.toFixed(4));
+            card.style.setProperty('--extract-x', '0px');
+            card.style.setProperty('--extract-y', y.toFixed(2) + 'px');
+            card.style.setProperty('--extract-scale', scale.toFixed(4));
+
+            return { enter: enter, exit: exit, active: enter * (1 - exit) };
+        }
+
+        function applyCardProgress(card, progress) {
+            applyCardDesktop(card, progress);
+        }
+
         function setCardProgress(forceVisible) {
-            cards.forEach(function (card) {
-                applyCardProgress(card, forceVisible ? 1 : 0);
+            cards.forEach(function (card, index) {
+                if (mqMobile.matches) {
+                    // On mobile we want only the LAST card visible at full
+                    // forceVisible (final state), or all hidden at 0.
+                    if (forceVisible) {
+                        applyCardMobile(card, index, 1);
+                    } else {
+                        applyCardMobile(card, index, 0);
+                    }
+                } else {
+                    applyCardDesktop(card, forceVisible ? 1 : 0);
+                }
             });
         }
 
@@ -262,6 +307,16 @@
             setCardProgress(forceVisible);
             if (content) content.style.setProperty('--screen-y', '0px');
             lastProgress = -1;
+        }
+
+        function updateIndicator(states) {
+            if (!cardsContainer) return;
+            // Map each card's "active" weight to a CSS variable so the
+            // 5-dot indicator below the slot lights up the current step.
+            for (var i = 0; i < states.length; i++) {
+                var weight = 0.18 + (states[i] * 0.82);
+                cardsContainer.style.setProperty('--carousel-d' + (i + 1), weight.toFixed(3));
+            }
         }
 
         function update() {
@@ -280,12 +335,21 @@
             if (Math.abs(progress - lastProgress) < 0.001) return;
             lastProgress = progress;
 
+            var mobile = mqMobile.matches;
+            var states = [];
+
             cards.forEach(function (card, index) {
-                var range = ranges[index] || ranges[ranges.length - 1];
-                var local = clamp((progress - range[0]) / (range[1] - range[0]), 0, 1);
-                var eased = easeOutCubic(local);
-                applyCardProgress(card, eased);
+                if (mobile) {
+                    var s = applyCardMobile(card, index, progress);
+                    states.push(s.active);
+                } else {
+                    var range = ranges[index] || ranges[ranges.length - 1];
+                    var local = clamp((progress - range[0]) / (range[1] - range[0]), 0, 1);
+                    applyCardDesktop(card, easeOutCubic(local));
+                }
             });
+
+            if (mobile) updateIndicator(states);
 
             if (content) content.style.setProperty('--screen-y', '0px');
         }

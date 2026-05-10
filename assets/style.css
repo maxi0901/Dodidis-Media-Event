@@ -2658,42 +2658,47 @@ main { padding-top: 2rem; }
 
 @media (max-width: 1023px) {
     .phone-scroll-story {
-        /* Slightly shorter scroll budget on mobile (cards travel less distance). */
-        min-height: 300vh;
+        /* 1 viewport pin + ~1.6 viewports of scroll budget for the carousel.
+           Tighter than desktop because each mobile card swaps in/out instead
+           of stacking, so we need less travel per card. */
+        min-height: 260vh;
         overflow: clip;
-        padding: 3.5rem 0 4rem;
+        padding: 3rem 0 4rem;
     }
 
     .phone-story-pin {
         position: sticky;
-        top: 70px;
-        min-height: calc(100vh - 90px);
+        top: 60px;
+        min-height: calc(100vh - 80px);
         display: flex;
-        align-items: flex-start;
+        align-items: center;
     }
 
     .phone-story-layout {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 18px;
-        align-items: start;
+        grid-template-rows: auto auto;
+        gap: clamp(16px, 3.2vh, 30px);
+        align-content: center;
         width: 100%;
+        height: 100%;
     }
 
     .phone-story-layout .agency-phone-stage {
         position: relative;
         grid-column: 1;
+        grid-row: 1;
         top: auto;
-        height: clamp(280px, 40vh, 360px);
+        height: clamp(260px, 38vh, 340px);
         min-height: 0;
         padding: 0;
-        align-self: center;
+        align-self: end;
         justify-self: center;
         width: 100%;
     }
 
     .agency-phone-mockup {
-        width: clamp(170px, 44vw, 220px);
+        width: clamp(180px, 46vw, 230px);
         --phone-y: 0px;
         --phone-rot: 0deg;
         --phone-scale: 1;
@@ -2703,19 +2708,22 @@ main { padding-top: 2rem; }
         --screen-y: 0px;
     }
 
-    /* Mobile: stack cards under the phone in a 2x2 grid */
-    .phone-extracted-cards-split { display: grid; }
+    /* MOBILE CAROUSEL: one card visible at a time, stacked absolutely
+       in a single slot below the phone. Cards crossfade as scroll
+       progresses — cinematic, Apple-style. */
+    .phone-extracted-cards-split { display: contents; }
+
     .phone-extracted-cards {
         position: relative;
-        margin-top: 0;
-        isolation: isolate;
-        overflow: clip;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
         grid-column: 1;
-        column-gap: 12px;
-        row-gap: 14px;
-        min-height: 0;
+        grid-row: 2;
+        width: 100%;
+        max-width: 420px;
+        margin: 0 auto;
+        height: clamp(150px, 24vh, 200px);
+        overflow: visible;
+        isolation: isolate;
+        display: block;
     }
 
     .phone-extract-col {
@@ -2723,38 +2731,74 @@ main { padding-top: 2rem; }
     }
 
     .phone-extract-card {
-        position: relative;
-        left: auto;
-        right: auto;
-        top: auto;
+        position: absolute !important;
+        inset: 0 0 auto 0;
         width: 100%;
         max-width: none;
         margin: 0;
-        padding: 1.05rem 1.1rem;
-        transform-origin: center center;
+        padding: 1.05rem 1.15rem;
+        transform-origin: center center !important;
         --extract-z: 1;
     }
+
+    /* Source-order on mobile = visual + animation order (1→2→3→4→5).
+       Without this, the html column structure would interleave them. */
+    .phone-extract-card[data-step="1"] { z-index: 1; }
+    .phone-extract-card[data-step="2"] { z-index: 2; }
+    .phone-extract-card[data-step="3"] { z-index: 3; }
+    .phone-extract-card[data-step="4"] { z-index: 4; }
+    .phone-extract-card[data-step="5"] { z-index: 5; }
 
     .phone-extract-card .feat-head { gap: 0.55rem; }
     .phone-extract-card h3 { font-size: 0.98rem; line-height: 1.25; }
     .phone-extract-card p { font-size: 0.86rem; line-height: 1.45; }
+
+    /* Step indicator (5 dots) below the carousel slot for orientation */
+    .phone-extracted-cards::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: -22px;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 4px;
+        border-radius: 999px;
+        background:
+            linear-gradient(90deg,
+                rgba(108,211,193, var(--carousel-d1, 0.2)) 0 20%,
+                rgba(108,211,193, var(--carousel-d2, 0.2)) 20% 40%,
+                rgba(108,211,193, var(--carousel-d3, 0.2)) 40% 60%,
+                rgba(108,211,193, var(--carousel-d4, 0.2)) 60% 80%,
+                rgba(108,211,193, var(--carousel-d5, 0.2)) 80% 100%);
+        opacity: 0.85;
+        transition: background 0.3s ease;
+        pointer-events: none;
+    }
 }
 
 @media (max-width: 540px) {
-    .phone-scroll-story { padding: 3rem 0 3.5rem; }
+    .phone-scroll-story { padding: 2.5rem 0 3rem; }
+
+    .phone-story-pin {
+        top: 56px;
+        min-height: calc(100vh - 72px);
+    }
+
+    .phone-story-layout {
+        gap: clamp(12px, 2.8vh, 24px);
+    }
 
     .phone-story-layout .agency-phone-stage {
-        height: clamp(240px, 36vh, 320px);
+        height: clamp(230px, 34vh, 290px);
     }
 
     .agency-phone-mockup {
-        width: clamp(160px, 50vw, 200px);
+        width: clamp(165px, 50vw, 200px);
     }
 
     .phone-extracted-cards {
-        min-height: 0;
-        column-gap: 10px;
-        row-gap: 12px;
+        height: clamp(140px, 22vh, 180px);
+        max-width: 92vw;
     }
 
     .phone-extract-card {
@@ -2763,6 +2807,18 @@ main { padding-top: 2rem; }
 
     .phone-extract-card h3 { font-size: 0.92rem; }
     .phone-extract-card p { font-size: 0.82rem; line-height: 1.4; }
+}
+
+@media (max-width: 380px) {
+    .phone-story-layout .agency-phone-stage {
+        height: clamp(210px, 30vh, 260px);
+    }
+    .agency-phone-mockup {
+        width: clamp(155px, 52vw, 185px);
+    }
+    .phone-extracted-cards {
+        height: clamp(132px, 21vh, 168px);
+    }
 }
 
 /* ===== Scroll-driven outline+solid text banner =================== */
