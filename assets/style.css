@@ -2336,10 +2336,14 @@ main { padding-top: 2rem; }
 
 .phone-story-pin {
     position: sticky;
-    top: 90px;
-    min-height: calc(100vh - 110px);
+    /* Sticky-Top hält Abstand zur Sticky-Navbar (.nav-wrap: top 1rem + ~64px Höhe).
+       clamp() skaliert sauber zwischen kleinen Laptops und großen Desktops. */
+    top: clamp(120px, 14vh, 180px);
+    /* Pin füllt den Viewport unterhalb der Navbar, ohne sie zu überlappen. */
+    min-height: calc(100vh - clamp(120px, 14vh, 180px) - 24px);
     display: flex;
     align-items: center;
+    z-index: 1;
 }
 
 .phone-story-layout {
@@ -2356,8 +2360,10 @@ main { padding-top: 2rem; }
     align-self: center;
     grid-column: 2;
     width: 100%;
-    height: min(640px, calc(100vh - 140px));
-    min-height: 540px;
+    /* Höhe folgt dem Viewport abzüglich Navbar + Sticky-Abstand, damit das
+       Mockup samt Glow nie über die Navbar oder den unteren Viewportrand läuft. */
+    height: clamp(420px, calc(100vh - clamp(120px, 14vh, 180px) - 60px), 680px);
+    min-height: 0;
 }
 
 /* Split layout: cards live in two side-columns */
@@ -2668,10 +2674,13 @@ main { padding-top: 2rem; }
 
     .phone-story-pin {
         position: sticky;
-        top: 60px;
-        min-height: calc(100vh - 80px);
+        /* Auf Tablet bleibt das Mockup gepinnt, aber mit klarem Abstand zur Navbar
+           (Mobile-Nav: top 1rem + ~56-64px Höhe = ~76-80px Unterkante). */
+        top: clamp(96px, 12vh, 132px);
+        min-height: calc(100vh - clamp(96px, 12vh, 132px) - 16px);
         display: flex;
         align-items: center;
+        z-index: 1;
     }
 
     .phone-story-layout {
@@ -2780,8 +2789,10 @@ main { padding-top: 2rem; }
     .phone-scroll-story { padding: 2.5rem 0 3rem; }
 
     .phone-story-pin {
-        top: 56px;
-        min-height: calc(100vh - 72px);
+        /* Mobile-Navbar (top: 0.6rem + ~58-64px Höhe) → Unterkante bei ~74px.
+           Sticky-Top hält das Handy zuverlässig darunter, samt Glow-Puffer. */
+        top: clamp(84px, 11vh, 110px);
+        min-height: calc(100vh - clamp(84px, 11vh, 110px) - 12px);
     }
 
     .phone-story-layout {
@@ -3437,8 +3448,10 @@ main { padding-top: 2rem; }
 }
 
 .phone-story-layout .agency-phone-stage {
-    height: min(680px, calc(100vh - 130px));
-    min-height: 560px;
+    /* Stage-Höhe hängt am Sticky-Top der Pin, damit Handy + Glow
+       nie an die Navbar oder die untere Viewport-Kante stoßen. */
+    height: clamp(420px, calc(100vh - clamp(120px, 14vh, 180px) - 60px), 680px);
+    min-height: 0;
 }
 
 .agency-phone-mockup {
@@ -3872,7 +3885,12 @@ main { padding-top: 2rem; }
 
 @media (max-width: 540px) {
     .agency-phone-mockup { width: clamp(190px, 62vw, 235px); }
-    .phone-story-layout .agency-phone-stage { height: clamp(410px, 74vh, 520px); }
+    /* Stage-Höhe muss in den Viewport unter der Navbar passen
+       (Sticky-Top: clamp(84px,11vh,110px)). Sonst überlappt das Handy
+       die Navbar oder wird unten abgeschnitten. */
+    .phone-story-layout .agency-phone-stage {
+        height: clamp(320px, calc(100vh - clamp(84px, 11vh, 110px) - 180px), 460px);
+    }
     .phone-extracted-cards { grid-template-columns: 1fr; }
     .analytics-card-social { grid-column: auto; }
     .analytics-card { padding: 0.9rem; }
