@@ -62,7 +62,9 @@
             var vh = window.innerHeight || document.documentElement.clientHeight;
             // 0 when banner enters from below, 1 when it exits from above.
             var raw = (vh - rect.top) / (vh + rect.height);
-            var p = clamp(raw, 0, 1);
+            // Amplify around the center so the transition completes in a much
+            // narrower scroll window — the banner snaps into place faster.
+            var p = clamp(0.5 + (raw - 0.5) * 2.8, 0, 1);
             lines.forEach(function (line) {
                 line.style.setProperty('--banner-progress', p.toFixed(4));
             });
