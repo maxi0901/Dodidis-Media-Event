@@ -2302,7 +2302,7 @@ main { padding-top: 2rem; }
     gap: 3rem;
     width: max-content;
     align-items: center;
-    animation: logosScroll 38s linear infinite;
+    animation: logosScroll 90s linear infinite;
     will-change: transform;
 }
 
@@ -2632,7 +2632,7 @@ main { padding-top: 2rem; }
     .painpoint-card.is-visible { transform: translateY(0); opacity: 1; }
     .hebel-stage { aspect-ratio: 16 / 9; }
     .hebel-section { padding: 4.5rem 0; }
-    .logos-track { gap: 2rem; animation-duration: 28s; }
+    .logos-track { gap: 2rem; animation-duration: 70s; }
     .logo-item { height: 30px; }
     .section { padding: 4rem 0; }
 }

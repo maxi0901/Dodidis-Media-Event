@@ -40,7 +40,6 @@ if (!isset($navBase)) {
                     <li><a href="<?= $navBase ?>#leistungen">Leistungen</a></li>
                     <li><a href="<?= $navBase ?>#case-studies">Ergebnisse</a></li>
                     <li><a href="<?= $navBase ?>#ueber-uns">Über uns</a></li>
-                    <li><a href="<?= $navBase ?>#stimmen">Stimmen</a></li>
                     <li><a href="<?= $navBase ?>#kontakt">Kontakt</a></li>
                 </ul>
             </div>

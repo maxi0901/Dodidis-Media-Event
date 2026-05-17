@@ -50,16 +50,6 @@
                 <div class="hero-founders-floor" aria-hidden="true"></div>
             </div>
 
-            <div class="hero-trust-row hero-reveal" style="--reveal-i:6" aria-label="Vertrauensindikatoren">
-                <span class="hero-trust-item"><strong>30+</strong> Projekte</span>
-                <span class="hero-trust-item"><strong>2,5 Mio+</strong> Reichweite</span>
-                <span class="hero-trust-item"><strong>98 %</strong> Kundenzufriedenheit</span>
-            </div>
-
-            <div class="hero-tagline-pill hero-reveal" style="--reveal-i:7" aria-hidden="true">
-                <span class="hero-tagline-dot"></span>
-                Minimaler Aufwand. Maximale Performance.
-            </div>
         </div>
     </section>
 
@@ -460,100 +450,6 @@
                     <li>Optimierung: Testing, Tracking, Skalierung</li>
                 </ul>
             </article>
-        </div>
-    </section>
-
-    <!-- ===== TESTIMONIALS / STIMMEN ===== -->
-    <section class="section testimonials-section container" id="stimmen">
-        <div class="section-head" data-reveal>
-            <div class="lead">
-                <span class="eyebrow">Stimmen</span>
-                <h2>Mehr als <span class="accent-text">nur Zahlen</span>.</h2>
-            </div>
-            <p>
-                Was unsere Kunden über die Zusammenarbeit sagen – und warum sie immer wiederkommen.
-            </p>
-        </div>
-
-        <div class="testimonial" data-reveal>
-            <div>
-                <div class="quote-mark" aria-hidden="true">&ldquo;</div>
-                <h2>Das sagen<br>unsere Kunden.</h2>
-            </div>
-            <div>
-                <div class="testimonial-slide is-active">
-                    <p class="testimonial-quote">
-                        „Die Zusammenarbeit mit Dodidis.Media hat unseren Social Media Auftritt
-                        auf ein neues Level gebracht. Kreativ, zuverlässig und immer einen
-                        Schritt voraus."
-                    </p>
-                    <div class="testimonial-row">
-                        <div class="testimonial-author">
-                            <div class="author-pic" aria-hidden="true">M</div>
-                            <div class="author-meta">
-                                <div class="author-name">Marvin Becker</div>
-                                <div class="author-role">Gründer von Becker Fitness</div>
-                            </div>
-                        </div>
-                        <div class="testimonial-controls">
-                            <button class="icon-btn" type="button" data-testimonial-prev aria-label="Vorheriges Testimonial">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 19l-7-7 7-7"/></svg>
-                            </button>
-                            <button class="icon-btn" type="button" data-testimonial-next aria-label="Nächstes Testimonial">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="testimonial-slide">
-                    <p class="testimonial-quote">
-                        „Schnelle Umsetzung, klare Kommunikation und Reels, die wirklich performen.
-                        Wir konnten unsere Reichweite in wenigen Wochen vervielfachen."
-                    </p>
-                    <div class="testimonial-row">
-                        <div class="testimonial-author">
-                            <div class="author-pic" aria-hidden="true">L</div>
-                            <div class="author-meta">
-                                <div class="author-name">Lara Schneider</div>
-                                <div class="author-role">Marketing Lead, Studio Nord</div>
-                            </div>
-                        </div>
-                        <div class="testimonial-controls">
-                            <button class="icon-btn" type="button" data-testimonial-prev aria-label="Vorheriges Testimonial">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 19l-7-7 7-7"/></svg>
-                            </button>
-                            <button class="icon-btn" type="button" data-testimonial-next aria-label="Nächstes Testimonial">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="testimonial-slide">
-                    <p class="testimonial-quote">
-                        „Endlich ein Partner, der nicht nur Content liefert, sondern strategisch
-                        mitdenkt. Die Resultate sprechen für sich – mehr Leads, mehr Umsatz."
-                    </p>
-                    <div class="testimonial-row">
-                        <div class="testimonial-author">
-                            <div class="author-pic" aria-hidden="true">T</div>
-                            <div class="author-meta">
-                                <div class="author-name">Tim Vogel</div>
-                                <div class="author-role">Inhaber, Vogel &amp; Becker GmbH</div>
-                            </div>
-                        </div>
-                        <div class="testimonial-controls">
-                            <button class="icon-btn" type="button" data-testimonial-prev aria-label="Vorheriges Testimonial">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 19l-7-7 7-7"/></svg>
-                            </button>
-                            <button class="icon-btn" type="button" data-testimonial-next aria-label="Nächstes Testimonial">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </section>
 
