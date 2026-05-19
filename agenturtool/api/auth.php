@@ -71,6 +71,7 @@ switch ($action) {
         $type = $b['type'] ?? 'staff';
 
         if ($type === 'staff') {
+            $nameCol = users_name_column();
             $username = trim((string)($b['username'] ?? ''));
             $hash     = (string)($b['password_hash'] ?? '');
             if ($username === '' || $hash === '') {
@@ -78,7 +79,7 @@ switch ($action) {
             }
 
             $u = db_one(
-                "SELECT id, name, username, password_hash
+                "SELECT id, {$nameCol} AS name, username, password_hash
                    FROM users
                   WHERE LOWER(username) = LOWER(?)
                   LIMIT 1",
