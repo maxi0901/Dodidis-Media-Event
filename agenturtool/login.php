@@ -18,7 +18,7 @@ $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Login – Dodidis Media</title>
-  <link rel="icon" href="DM_Logo_4K_ohneschrift_invert.png">
+  <link rel="icon" href="<?= htmlspecialchars($basePath, ENT_QUOTES) ?>DM_Logo_4K_ohneschrift_invert.png">
   <style>
     :root {
       --bg-0: #000; --bg-1: #0d0f12; --bg-2: #151820; --bg-3: #1c2029;
@@ -45,7 +45,8 @@ $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')
     }
     .login-logo { width: 72px; height: 72px; border-radius: 16px; background: #000;
       display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; overflow: hidden; }
-    .login-logo img { width: 52px; height: 52px; object-fit: contain; }
+    .login-logo img { width: 52px; height: 52px; object-fit: contain; filter: brightness(0) invert(1); opacity: .95; }
+    .logo-fallback { color: #fff; font-weight: 700; letter-spacing: .06em; font-size: 24px; }
     .login-title { font-size: 22px; font-weight: 600; text-align: center; margin: 0 0 4px; }
     .login-sub   { font-size: 13px; color: var(--text-2); text-align: center; margin-bottom: 22px; }
     .login-tabs  { display: flex; gap: 8px; margin-bottom: 18px; background: var(--bg-3);
@@ -73,7 +74,11 @@ $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')
 <body>
 <div class="login-screen">
   <div class="login-box">
-    <div class="login-logo"><img src="DM_Logo_4K_ohneschrift_invert.png" alt="Dodidis Media"></div>
+    <div class="login-logo" aria-label="Dodidis Media Logo">
+      <img id="dm-logo" src="<?= htmlspecialchars($basePath, ENT_QUOTES) ?>DM_Logo_4K_ohneschrift_invert.png" alt="Dodidis Media"
+           onerror="this.classList.add('hide'); document.getElementById('dm-logo-fallback').classList.remove('hide');">
+      <span id="dm-logo-fallback" class="logo-fallback hide" aria-hidden="true">DM</span>
+    </div>
     <div class="login-title">Dodidis Media</div>
     <div class="login-sub">Internes Management Tool</div>
 
@@ -135,9 +140,31 @@ async function postJson(action, body) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  let j;
-  try { j = await r.json(); } catch (_) { j = { success: false, error: 'Ungültige Antwort (HTTP ' + r.status + ')' }; }
-  return { ok: r.ok && j.success, data: j.data, error: j.error };
+
+  const raw = await r.text();
+  let j = null;
+  try {
+    j = raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    const serverHint = raw
+      ? raw.replace(/\s+/g, ' ').trim().slice(0, 140)
+      : 'Leere Serverantwort';
+    return {
+      ok: false,
+      data: null,
+      error: `Serverantwort ist kein JSON (HTTP ${r.status}). ${serverHint}`
+    };
+  }
+
+  if (!j || typeof j !== 'object') {
+    return { ok: false, data: null, error: `Ungültiges Antwortformat (HTTP ${r.status}).` };
+  }
+
+  return {
+    ok: Boolean(r.ok && (j.success || j.ok)),
+    data: j.data ?? null,
+    error: j.error || j.message || (r.ok ? 'Anmeldung fehlgeschlagen.' : `HTTP ${r.status}`)
+  };
 }
 
 async function loginStaff(e) {
