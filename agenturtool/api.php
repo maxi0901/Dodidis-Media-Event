@@ -56,6 +56,17 @@ $action = $_GET['action'] ?? '';
 // Whitelist der erlaubten "id+data"-Tabellen (alle bis auf app_config)
 $DATA_TABLES = ['users', 'customers', 'projects', 'vacations', 'todos', 'shoot_days'];
 
+function hasDataColumn(PDO $pdo, string $table): bool
+{
+    static $cache = [];
+    if (array_key_exists($table, $cache)) return $cache[$table];
+    $stmt = $pdo->prepare("SHOW COLUMNS FROM `$table` LIKE 'data'");
+    $stmt->execute();
+    $cache[$table] = (bool) $stmt->fetch();
+    return $cache[$table];
+}
+
+
 if ($action === 'ping') {
     $row = $pdo->query('SELECT 1 AS ok')->fetch();
     respond(['ok' => true, 'db' => $cfg['database'], 'ping' => $row['ok'] ?? null]);
@@ -64,12 +75,20 @@ if ($action === 'ping') {
 if ($action === 'pull') {
     $out = [];
     foreach ($DATA_TABLES as $t) {
-        $stmt = $pdo->query("SELECT `data` FROM `$t`");
         $rows = [];
-        foreach ($stmt as $r) {
-            $decoded = json_decode($r['data'], true);
-            if ($decoded !== null) {
-                $rows[] = $decoded;
+        if (hasDataColumn($pdo, $t)) {
+            $stmt = $pdo->query("SELECT `data` FROM `$t`");
+            foreach ($stmt as $r) {
+                $decoded = json_decode($r['data'], true);
+                if ($decoded !== null) {
+                    $rows[] = $decoded;
+                }
+            }
+        } else {
+            $stmt = $pdo->query("SELECT * FROM `$t`");
+            foreach ($stmt as $r) {
+                unset($r['created_at'], $r['updated_at']);
+                $rows[] = $r;
             }
         }
         $out[$t] = $rows;
@@ -106,26 +125,28 @@ if ($action === 'push') {
             if (empty($upserts[$t]) || !is_array($upserts[$t])) {
                 continue;
             }
-            $stmt = $pdo->prepare(
-                "INSERT INTO `$t` (`id`, `data`) VALUES (:id, :data)
-                 ON DUPLICATE KEY UPDATE `data` = VALUES(`data`), `updated_at` = CURRENT_TIMESTAMP"
-            );
-            foreach ($upserts[$t] as $row) {
-                if (!isset($row['id'], $row['data'])) {
-                    continue;
+            if (hasDataColumn($pdo, $t)) {
+                $stmt = $pdo->prepare(
+                    "INSERT INTO `$t` (`id`, `data`) VALUES (:id, :data) AS new
+                     ON DUPLICATE KEY UPDATE `data` = new.`data`, `updated_at` = CURRENT_TIMESTAMP"
+                );
+                foreach ($upserts[$t] as $row) {
+                    if (!isset($row['id'], $row['data'])) {
+                        continue;
+                    }
+                    $stmt->execute([
+                        ':id'   => (string) $row['id'],
+                        ':data' => json_encode($row['data'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    ]);
                 }
-                $stmt->execute([
-                    ':id'   => (string) $row['id'],
-                    ':data' => json_encode($row['data'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                ]);
             }
         }
 
         // Upserts in app_config
         if (!empty($upserts['app_config']) && is_array($upserts['app_config'])) {
             $stmt = $pdo->prepare(
-                "INSERT INTO `app_config` (`key`, `value`) VALUES (:key, :value)
-                 ON DUPLICATE KEY UPDATE `value` = VALUES(`value`), `updated_at` = CURRENT_TIMESTAMP"
+                "INSERT INTO `app_config` (`key`, `value`) VALUES (:key, :value) AS new
+                 ON DUPLICATE KEY UPDATE `value` = new.`value`, `updated_at` = CURRENT_TIMESTAMP"
             );
             foreach ($upserts['app_config'] as $row) {
                 if (!isset($row['key'])) {
