@@ -124,7 +124,8 @@ function log_err(string $msg, array $ctx = []): void
  */
 function hydrate_user(string $userId): ?array
 {
-    $u = db_one("SELECT id, username, name, email, avatar_color, avatar_image, calendar_prefs
+    $nameCol = users_name_column();
+    $u = db_one("SELECT id, username, {$nameCol} AS name, email, avatar_color, avatar_image, calendar_prefs
                  FROM users WHERE id = ?", [$userId]);
     if (!$u) return null;
     $roles = db_all("SELECT role FROM user_roles WHERE user_id = ?", [$userId]);
@@ -153,4 +154,26 @@ function strip_secrets(array $row): array
 {
     unset($row['password_hash'], $row['password'], $row['pin_hash'], $row['pin']);
     return $row;
+}
+
+/**
+ * Kompatibilitätsschicht: manche Deployments verwenden `users.name`,
+ * andere `users.full_name`.
+ */
+function users_name_column(): string
+{
+    static $col = null;
+    if ($col !== null) return $col;
+
+    $row = db_one(
+        "SELECT column_name
+           FROM information_schema.columns
+          WHERE table_schema = DATABASE()
+            AND table_name = 'users'
+            AND column_name IN ('name','full_name')
+          ORDER BY (column_name = 'name') DESC
+          LIMIT 1"
+    );
+    $col = $row['column_name'] ?? 'name';
+    return $col;
 }

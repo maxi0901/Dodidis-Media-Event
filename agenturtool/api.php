@@ -173,8 +173,9 @@ if ($action === 'pull') {
     $type = $session['type'] ?? 'staff';
 
     // Users (ohne password_hash)
+    $nameCol = users_name_column();
     $userRows = db_all(
-        "SELECT id, username, name, email, avatar_color, avatar_image, calendar_prefs FROM users"
+        "SELECT id, username, {$nameCol} AS name, email, avatar_color, avatar_image, calendar_prefs FROM users"
     );
     $rolesRows = db_all("SELECT user_id, role FROM user_roles");
     $rolesByUser = [];
@@ -279,12 +280,13 @@ if ($action === 'push') {
                     fn($u) => isset($u['id'], $u['data']) && $u['id'] === $session['uid']
                 ));
             }
+            $nameCol = users_name_column();
             $stmtU = $pdo->prepare(
-                "INSERT INTO users (id, username, name, email, password_hash, avatar_color, avatar_image, calendar_prefs)
+                "INSERT INTO users (id, username, {$nameCol}, email, password_hash, avatar_color, avatar_image, calendar_prefs)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                  ON DUPLICATE KEY UPDATE
                     username       = VALUES(username),
-                    name           = VALUES(name),
+                    {$nameCol}     = VALUES({$nameCol}),
                     email          = VALUES(email),
                     password_hash  = IF(VALUES(password_hash) = '', password_hash, VALUES(password_hash)),
                     avatar_color   = VALUES(avatar_color),
