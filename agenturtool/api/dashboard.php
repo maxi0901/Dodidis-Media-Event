@@ -52,9 +52,10 @@ if ($initial) {
     $isStaff = ($session['type'] ?? '') === 'staff';
 
     // Users: roles eager-loaded
+    $nameCol = users_name_column();
     $userRows = db_all(
-        "SELECT id, username, name" . (has_role('admin','manager') ? ", email" : "") .
-        ", avatar_color AS avatarColor, avatar_image AS avatarImage, calendar_prefs FROM users ORDER BY name"
+        "SELECT id, username, {$nameCol} AS name" . (has_role('admin','manager') ? ", email" : "") .
+        ", avatar_color AS avatarColor, avatar_image AS avatarImage, calendar_prefs FROM users ORDER BY {$nameCol}"
     );
     $roleAll = db_all("SELECT user_id, role FROM user_roles");
     $byUser  = [];

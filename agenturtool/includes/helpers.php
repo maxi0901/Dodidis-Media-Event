@@ -124,7 +124,8 @@ function log_err(string $msg, array $ctx = []): void
  */
 function hydrate_user(string $userId): ?array
 {
-    $u = db_one("SELECT id, username, name, email, avatar_color, avatar_image, calendar_prefs
+    $nameCol = users_name_column();
+    $u = db_one("SELECT id, username, {$nameCol} AS name, email, avatar_color, avatar_image, calendar_prefs
                  FROM users WHERE id = ?", [$userId]);
     if (!$u) return null;
     $roles = db_all("SELECT role FROM user_roles WHERE user_id = ?", [$userId]);
@@ -153,4 +154,53 @@ function strip_secrets(array $row): array
 {
     unset($row['password_hash'], $row['password'], $row['pin_hash'], $row['pin']);
     return $row;
+}
+
+/**
+ * Kompatibilitätsschicht: manche Deployments verwenden `users.name`,
+ * andere `users.full_name`.
+ */
+function users_name_column(): string
+{
+    static $col = null;
+    if ($col !== null) return $col;
+
+    // Primär: SHOW COLUMNS ist auf Shared-Hostern oft zuverlässiger als
+    // direkte SELECTs auf information_schema.*.
+    try {
+        $cols = db_all("SHOW COLUMNS FROM users");
+        $fields = array_map(static fn(array $r): string => (string)($r['Field'] ?? ''), $cols);
+        if (in_array('name', $fields, true)) {
+            $col = 'name';
+            return $col;
+        }
+        if (in_array('full_name', $fields, true)) {
+            $col = 'full_name';
+            return $col;
+        }
+    } catch (Throwable $e) {
+        // Fallback unten
+    }
+
+    try {
+        $row = db_one(
+            "SELECT column_name
+               FROM information_schema.columns
+              WHERE table_schema = DATABASE()
+                AND table_name = 'users'
+                AND column_name IN ('name','full_name')
+              ORDER BY (column_name = 'name') DESC
+              LIMIT 1"
+        );
+        if (!empty($row['column_name'])) {
+            $col = (string)$row['column_name'];
+            return $col;
+        }
+    } catch (Throwable $e) {
+        // Letzter Fallback unten
+    }
+
+    // In deinem Produktiv-Schema heißt die Spalte `full_name`.
+    $col = 'full_name';
+    return $col;
 }

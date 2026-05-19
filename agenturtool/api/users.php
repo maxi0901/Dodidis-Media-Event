@@ -17,6 +17,7 @@ if (in_array($method, ['POST', 'PUT', 'DELETE'], true)) {
 switch ($method) {
 
     case 'GET': {
+        $nameCol = users_name_column();
         if ($id) {
             // Detail: admin/manager beliebig, self immer erlaubt
             if (!has_role('admin', 'manager') && $session['uid'] !== $id) {
@@ -31,9 +32,9 @@ switch ($method) {
         // Mitarbeiter dürfen die Liste lesen (für Avatar-Anzeigen, Assignee-Auswahl etc.),
         // aber wir liefern keine Mail-Adressen außer für admin/manager.
         $isPriv  = has_role('admin', 'manager');
-        $rows    = db_all("SELECT id, username, name, " .
+        $rows    = db_all("SELECT id, username, {$nameCol} AS name, " .
                           ($isPriv ? "email, " : "") .
-                          "avatar_color, avatar_image FROM users ORDER BY name");
+                          "avatar_color, avatar_image FROM users ORDER BY {$nameCol}");
         $roleAll = db_all("SELECT user_id, role FROM user_roles");
         $byUser  = [];
         foreach ($roleAll as $r) {
@@ -50,6 +51,7 @@ switch ($method) {
 
     case 'POST': {
         require_role('admin');
+        $nameCol = users_name_column();
         $b = input_json();
         $username = s($b['username'] ?? null, 64);
         $name     = s($b['name'] ?? null, 128);
@@ -68,7 +70,7 @@ switch ($method) {
         $pdo->beginTransaction();
         try {
             $pdo->prepare(
-                "INSERT INTO users (id, username, name, email, password_hash, avatar_color, avatar_image)
+                "INSERT INTO users (id, username, {$nameCol}, email, password_hash, avatar_color, avatar_image)
                  VALUES (?, ?, ?, ?, ?, ?, ?)"
             )->execute([
                 $newId, $username, $name, $email, $hash,
@@ -104,7 +106,7 @@ switch ($method) {
             $fields[] = 'username = ?'; $params[] = s($b['username'], 64);
         }
         if (array_key_exists('name', $b)) {
-            $fields[] = 'name = ?'; $params[] = s($b['name'], 128);
+            $fields[] = users_name_column() . ' = ?'; $params[] = s($b['name'], 128);
         }
         if (array_key_exists('email', $b)) {
             $fields[] = 'email = ?'; $params[] = s($b['email'], 190);
