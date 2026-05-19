@@ -1,0 +1,415 @@
+{
+  "users": [
+    {
+      "id": "u_raphael",
+      "username": "Raphael",
+      "password": "sha256$d59642bccca172e785cd7eb3df7cd5ef0943da07d999476ab4afe5f19362a53b",
+      "name": "Raphael Dodidis",
+      "roles": [
+        "admin",
+        "manager",
+        "videograf",
+        "cutter"
+      ],
+      "email": "kontakt@dodidis-media.de",
+      "calendarPrefs": {
+        "shoot": true,
+        "vacation": true,
+        "videos": true,
+        "todos": true,
+        "_v": 2
+      }
+    },
+    {
+      "id": "u_f2j54ck",
+      "name": "Leonie Stella Christ",
+      "username": "Leonie",
+      "roles": [
+        "cutter"
+      ],
+      "email": "",
+      "password": "sha256$261e470e0307050ae4925409616e322903f6824bfba2cfacfb61a8d8384cdf56"
+    },
+    {
+      "id": "u_06hdf5r",
+      "name": "Timo Block",
+      "username": "Timo",
+      "roles": [
+        "manager",
+        "videograf",
+        "cutter"
+      ],
+      "email": "kontakt@dodidis-media.de",
+      "password": "sha256$23383b44e0049f2bc3bb0ed5823581700aaa92c59a84c8b7041665e16345bec6",
+      "calendarPrefs": {
+        "shoot": true,
+        "vacation": true,
+        "videos": true,
+        "todos": true,
+        "_v": 2
+      }
+    },
+    {
+      "id": "u_163qsdr",
+      "name": "Dennis Ryhs",
+      "username": "Dennis",
+      "roles": [
+        "cutter"
+      ],
+      "email": "",
+      "password": "sha256$b56f3b8a7b87e7f880091bc76972621b62fa75039688a6585f3c9ac11b1b0891"
+    },
+    {
+      "id": "u_qof4x9n",
+      "name": "Gokilian",
+      "username": "Gokilian",
+      "roles": [
+        "cutter"
+      ],
+      "email": "",
+      "password": "sha256$cac3f56ce5bfd492abf5bc7782eb92e80e9d71b3e8290dcec084f2df8c5f5289"
+    },
+    {
+      "id": "u_uya5a9e",
+      "name": "Maxim Tokarski",
+      "username": "Maxim",
+      "roles": [
+        "mitarbeiter"
+      ],
+      "email": "",
+      "password": "sha256$b56f3b8a7b87e7f880091bc76972621b62fa75039688a6585f3c9ac11b1b0891",
+      "avatarImage": null
+    }
+  ],
+  "customers": [
+    {
+      "id": "c_x5ixucw",
+      "name": "Daniela Marquardt",
+      "customerNumber": "1001",
+      "managerId": "u_raphael",
+      "socialInstagram": "",
+      "socialTiktok": "",
+      "notes": "Zinzino",
+      "contactName": "",
+      "email": "",
+      "phone": "",
+      "addressStreet": "",
+      "addressZip": "",
+      "addressCity": "",
+      "billingSameAsAddress": true,
+      "billingStreet": "",
+      "billingZip": "",
+      "billingCity": "",
+      "vatId": "",
+      "billingEmail": "",
+      "contractStart": "2026-06-01",
+      "package": "Management 8 Reels ",
+      "monthlyRate": "2000",
+      "videosPerMonth": "8",
+      "status": null,
+      "checklist": {
+        "contractSigned": false,
+        "depositReceived": false,
+        "kickoffDone": true,
+        "socialAccess": false,
+        "firstShoot": true
+      },
+      "createdAt": "2026-05-19T00:03:49.846Z"
+    },
+    {
+      "id": "c_g1qg7ew",
+      "name": "Blu Guxhagen",
+      "customerNumber": "1002",
+      "managerId": "u_06hdf5r",
+      "socialInstagram": "",
+      "socialTiktok": "",
+      "notes": "",
+      "contactName": "",
+      "email": "",
+      "phone": "",
+      "addressStreet": "",
+      "addressZip": "",
+      "addressCity": "",
+      "billingSameAsAddress": true,
+      "billingStreet": "",
+      "billingZip": "",
+      "billingCity": "",
+      "vatId": "",
+      "billingEmail": "",
+      "contractStart": "",
+      "package": "Management 8 Reels",
+      "monthlyRate": "1200",
+      "videosPerMonth": "8",
+      "status": null,
+      "checklist": {
+        "contractSigned": false,
+        "depositReceived": false,
+        "kickoffDone": true,
+        "socialAccess": true,
+        "firstShoot": true
+      },
+      "createdAt": "2026-05-19T00:04:14.245Z"
+    },
+    {
+      "id": "c_mudcxh1",
+      "name": "S-Art ",
+      "customerNumber": "1003",
+      "managerId": "u_raphael",
+      "socialInstagram": "",
+      "socialTiktok": "",
+      "notes": "",
+      "contactName": "",
+      "email": "",
+      "phone": "",
+      "addressStreet": "",
+      "addressZip": "",
+      "addressCity": "",
+      "billingSameAsAddress": true,
+      "billingStreet": "",
+      "billingZip": "",
+      "billingCity": "",
+      "vatId": "",
+      "billingEmail": "",
+      "contractStart": "",
+      "package": "Management (Künstler)",
+      "monthlyRate": "",
+      "videosPerMonth": "",
+      "status": null,
+      "checklist": {
+        "contractSigned": true,
+        "depositReceived": true,
+        "kickoffDone": true,
+        "socialAccess": false,
+        "firstShoot": true
+      },
+      "createdAt": "2026-05-19T00:04:41.174Z"
+    },
+    {
+      "id": "c_jamem66",
+      "name": "Talentschmiede",
+      "customerNumber": "1004",
+      "managerId": "u_06hdf5r",
+      "socialInstagram": "",
+      "socialTiktok": "",
+      "notes": "",
+      "contactName": "",
+      "email": "",
+      "phone": "",
+      "addressStreet": "",
+      "addressZip": "",
+      "addressCity": "",
+      "billingSameAsAddress": true,
+      "billingStreet": "",
+      "billingZip": "",
+      "billingCity": "",
+      "vatId": "",
+      "billingEmail": "",
+      "contractStart": "",
+      "package": "Management 6 Reels",
+      "monthlyRate": "500",
+      "videosPerMonth": "6",
+      "status": null,
+      "checklist": {
+        "contractSigned": true,
+        "depositReceived": true,
+        "kickoffDone": true,
+        "socialAccess": true,
+        "firstShoot": true
+      },
+      "createdAt": "2026-05-19T00:07:08.673Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "p_3e91q09",
+      "title": "Anbau Detail",
+      "customerId": "c_g1qg7ew",
+      "videografId": "u_raphael",
+      "cutterId": "u_06hdf5r",
+      "shootDate": "2026-05-20",
+      "shootDayId": "sd_pnnj1ja",
+      "deadline": "2026-06-01",
+      "postingDate": "2026-06-03",
+      "script": "B Roll von dem Anbau Filmen\n\nÄsthetische Shorts in Kombination mit schönem motions Gimbal dazu atmosphärischer Musik",
+      "status": "skript",
+      "createdAt": "2026-05-19T12:57:16.206Z",
+      "isInternal": false
+    },
+    {
+      "id": "p_qzwt7fs",
+      "title": "Onboardingprozess im Video erklärt",
+      "customerId": "c_g1qg7ew",
+      "videografId": "u_raphael",
+      "cutterId": "u_163qsdr",
+      "shootDate": "2026-05-20",
+      "shootDayId": "sd_pnnj1ja",
+      "deadline": "2026-06-05",
+      "postingDate": "2026-06-07",
+      "script": "Kein festes Skript. Wir filmen von A bis Z den Onboarding Prozess von der ersten Minute im Blu bis zum ersten finalen Training dort was für Schritte werden durchlaufen. \nCheck Mescan zum Beispiel.",
+      "status": "skript",
+      "createdAt": "2026-05-19T13:40:44.058Z"
+    },
+    {
+      "id": "p_isamf67",
+      "title": "Fahrtweg -> Metime",
+      "customerId": "c_g1qg7ew",
+      "videografId": "u_raphael",
+      "cutterId": "u_163qsdr",
+      "shootDate": "2026-05-20",
+      "shootDayId": "sd_pnnj1ja",
+      "deadline": "2026-06-05",
+      "postingDate": "2026-06-10",
+      "script": "",
+      "status": "skript",
+      "createdAt": "2026-05-19T13:42:23.823Z",
+      "isInternal": false
+    },
+    {
+      "id": "p_k6ibbj9",
+      "title": "Ibiza - Coco Beach After Movie",
+      "customerId": "c_mudcxh1",
+      "videografId": "u_raphael",
+      "cutterId": "u_raphael",
+      "shootDate": "2026-05-23",
+      "shootDayId": null,
+      "deadline": "2026-05-22",
+      "postingDate": "2026-05-24",
+      "script": "Modern viele Effekte die Energie im Coco Beach zeigen",
+      "status": "skript",
+      "createdAt": "2026-05-19T17:10:09.499Z"
+    }
+  ],
+  "vacations": [
+    {
+      "id": "v_dlxvq03",
+      "userId": "u_raphael",
+      "startDate": "2026-06-11",
+      "endDate": "2026-06-14",
+      "note": ""
+    },
+    {
+      "id": "v_mle0bqp",
+      "userId": "u_163qsdr",
+      "startDate": "2026-05-26",
+      "endDate": "2026-06-02",
+      "note": ""
+    },
+    {
+      "id": "v_aufp9zn",
+      "userId": "u_163qsdr",
+      "startDate": "2026-06-25",
+      "endDate": "2026-07-02",
+      "note": ""
+    },
+    {
+      "id": "v_fashv2v",
+      "userId": "u_raphael",
+      "startDate": "2026-05-29",
+      "endDate": "2026-05-29",
+      "note": ""
+    }
+  ],
+  "todos": [
+    {
+      "id": "t_09fnzwh",
+      "title": "Projekte Strukturieren und in neues Portal einbetten",
+      "description": "",
+      "createdById": "u_raphael",
+      "createdAt": "2026-05-19T00:50:00.806Z",
+      "status": "open",
+      "seenBy": [
+        "u_raphael",
+        "u_06hdf5r"
+      ],
+      "assigneeIds": [
+        "u_raphael",
+        "u_06hdf5r"
+      ]
+    },
+    {
+      "id": "t_13t6rcj",
+      "title": "Webseite Fertigstellen",
+      "description": "",
+      "createdById": "u_raphael",
+      "createdAt": "2026-05-19T00:50:33.041Z",
+      "status": "open",
+      "seenBy": [
+        "u_raphael"
+      ],
+      "assigneeIds": [
+        "u_uya5a9e"
+      ]
+    },
+    {
+      "id": "t_1zc57ra",
+      "title": "Orga Tool auf Domain bringen",
+      "description": "",
+      "createdById": "u_raphael",
+      "createdAt": "2026-05-19T00:50:48.266Z",
+      "status": "open",
+      "seenBy": [
+        "u_raphael"
+      ],
+      "assigneeIds": [
+        "u_raphael",
+        "u_uya5a9e"
+      ]
+    },
+    {
+      "id": "t_oshg99c",
+      "title": "Add online Bringen",
+      "description": "",
+      "assigneeIds": [
+        "u_06hdf5r"
+      ],
+      "dueDate": null,
+      "createdById": "u_raphael",
+      "createdAt": "2026-05-19T14:10:20.883Z",
+      "status": "open",
+      "seenBy": [
+        "u_raphael",
+        "u_06hdf5r"
+      ]
+    },
+    {
+      "id": "t_cq3kp7s",
+      "title": "Landin Page für Add",
+      "description": "",
+      "assigneeIds": [
+        "u_06hdf5r",
+        "u_uya5a9e"
+      ],
+      "dueDate": null,
+      "createdById": "u_raphael",
+      "createdAt": "2026-05-19T14:10:32.401Z",
+      "status": "open",
+      "seenBy": [
+        "u_raphael",
+        "u_06hdf5r"
+      ]
+    }
+  ],
+  "shootDays": [
+    {
+      "id": "sd_pnnj1ja",
+      "date": "2026-05-20",
+      "videografId": "u_raphael",
+      "startTime": "09:00",
+      "endTime": "12:00",
+      "customerId": "c_g1qg7ew",
+      "note": "Timo & Raphael - Monatscontent 05.-06. 2026",
+      "createdAt": "2026-05-19T12:54:12.527Z"
+    }
+  ],
+  "calendarConfig": {
+    "token": "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",
+    "githubUser": "DirbaMedia",
+    "agencyGistId": "10c751b8900f322c5d8908240393c7b8",
+    "enabledAt": "2026-05-19T11:24:28.269Z"
+  },
+  "session": {
+    "type": "staff",
+    "userId": "u_raphael",
+    "startedAt": 1779212806316
+  }
+}
