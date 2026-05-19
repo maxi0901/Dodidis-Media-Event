@@ -1,0 +1,23 @@
+# Schutz gegen Skript-Execution in hochgeladenen Dateien
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# Niemand soll .htaccess oder versteckte Dateien lesen können
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Auch keine .php-Dateien ausliefern (falls die PHP-Engine pro-Verzeichnis nicht abschaltbar ist)
+<FilesMatch "\.(php|phtml|phar|pl|cgi|sh|py)$">
+    Require all denied
+</FilesMatch>
+
+Options -ExecCGI -Indexes
+AddType text/plain .php .phtml .phar .pl .cgi
