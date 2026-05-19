@@ -2862,11 +2862,48 @@
    Alle Operationen gehen über saveStore() / loadStore().
    =========================================================================== */
 
-/* ----------- BACKEND CLIENT ----------- */
-const API_URL = './api.php';
+/* ----------- BACKEND CLIENT (REST + Sessions) ----------- */
+const APP_BASE = (document.querySelector('meta[name=app-base]')?.content || './').replace(/\/+$/, '/') ;
+const API_BASE = APP_BASE + 'api';
+const SESSION_META = (() => {
+  try { return JSON.parse(document.querySelector('meta[name=x-session]')?.content || 'null'); }
+  catch { return null; }
+})();
+let CSRF = document.querySelector('meta[name=csrf]')?.content || (SESSION_META && SESSION_META.csrf) || '';
 
-// Bootstrap: optional kompletter Daten-Import aus URL-Hash
-// #__store=<JSON> → kompletter LocalStorage-Stand übernehmen (Migration nach Cloud)
+async function apiCall(method, path, body) {
+  const opts = { method, credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } };
+  if (body !== undefined) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  let res;
+  try {
+    res = await fetch(API_BASE + path, opts);
+  } catch (e) {
+    console.error('[api] network', e);
+    throw new Error('Netzwerkfehler');
+  }
+  if (res.status === 401) {
+    location.href = APP_BASE + 'login.php';
+    throw new Error('401');
+  }
+  let j;
+  try { j = await res.json(); } catch { j = { success: false, error: 'HTTP ' + res.status }; }
+  if (!res.ok || !j.success) {
+    throw new Error(j.error || ('HTTP ' + res.status));
+  }
+  return j.data;
+}
+const apiGet  = (p)    => apiCall('GET',    p);
+const apiPost = (p, b) => apiCall('POST',   p, b ?? {});
+const apiPut  = (p, b) => apiCall('PUT',    p, b ?? {});
+const apiDel  = (p)    => apiCall('DELETE', p);
+
+// Legacy-Konstante – einige bestehende Stellen referenzieren API_URL noch im Console-Log
+const API_URL = API_BASE;
+
+// Bootstrap: optional kompletter Daten-Import aus URL-Hash (LocalStorage-Migration)
 (function bootstrapFromHash() {
   try {
     const h = (location.hash || '').replace(/^#/, '');
@@ -3201,14 +3238,14 @@ function cutterCanSeeStatus(s) {
 }
 
 function saveStore() {
-  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch {}
   scheduleCloudPush();
 }
 
 let store = loadStore();
 
-/* ----------- CLOUD SYNC (Supabase) ----------- */
-// Tabellen-Mapping: lokaler Array-Name <-> Supabase-Tabelle
+/* ----------- BULK CLOUD SYNC ----------- */
+// Lokales Mapping (für Iteration); api.php empfängt/liefert weiterhin Document-Form.
 const CLOUD_COLLECTIONS = [
   { local: 'users',     table: 'users'      },
   { local: 'customers', table: 'customers'  },
@@ -3219,15 +3256,17 @@ const CLOUD_COLLECTIONS = [
 ];
 
 let cloudPushTimer = null;
-let cloudPullTimer = null;
 let cloudReady = false;
 let cloudPullInFlight = false;
+let lastDashboardEtag = null;
+let lastDashboardChange = 0;
 
 function scheduleCloudPush() {
-  if (!supa) return;
-  if (!cloudReady) return; // Vor erstem Pull nicht pushen
+  if (!cloudReady) return;
   if (cloudPushTimer) clearTimeout(cloudPushTimer);
-  cloudPushTimer = setTimeout(() => { pushAllToCloud().catch(e => console.error('[cloud push]', e)); }, 400);
+  cloudPushTimer = setTimeout(() => {
+    pushAllToCloud().catch(e => console.error('[cloud push]', e));
+  }, 400);
 }
 
 const ACTION_LABELS = {
@@ -3273,8 +3312,9 @@ function logActivity(scope, refId, action, details = {}) {
   if (store.activity.length > 2000) store.activity = store.activity.slice(0, 2000);
 }
 
-// Explicit deletion tracking – verhindert dass eine simultane Anlage von User B
-// beim Push von User A versehentlich gelöscht wird (kein List-Diff mehr).
+// Deletion-Tracking: explizite Tombstones, damit Race-Conditions zwischen
+// gleichzeitig laufenden Clients keine versehentlichen "wegen List-Diff gelöschten"
+// Einträge produzieren.
 function trackDeletion(collectionLocalKey, id) {
   if (!store._pendingDeletions) store._pendingDeletions = {};
   if (!store._pendingDeletions[collectionLocalKey]) store._pendingDeletions[collectionLocalKey] = [];
@@ -3283,9 +3323,10 @@ function trackDeletion(collectionLocalKey, id) {
   }
 }
 
+// Bulk-Push: Document-Form an api.php?action=push mit Session-Cookie + CSRF-Header.
+// Das Mapping auf normalisierte Spalten passiert serverseitig in api.php.
 async function pushAllToCloud() {
-  if (!supa) return;
-  // 1. Users: Passwörter hashen (nie Klartext ins Backend)
+  // Passwort-Hashes sicherstellen (Frontend hasht clientseitig, das Backend prüft 1:1).
   const usersOut = await Promise.all((store.users || []).map(async u => ({
     ...u,
     password: u.password ? await hashPassword(u.password) : ''
@@ -3299,10 +3340,9 @@ async function pushAllToCloud() {
   });
   upserts.app_config = [
     { key: 'calendarConfig', value: store.calendarConfig || {} },
-    { key: 'activity', value: { entries: (store.activity || []).slice(0, 500) } }
+    { key: 'activity',       value: { entries: (store.activity || []).slice(0, 500) } }
   ];
 
-  // Explizite Tombstones – nur was lokal aktiv gelöscht wurde
   const pending = store._pendingDeletions || {};
   const deletions = {};
   for (const c of CLOUD_COLLECTIONS) {
@@ -3312,48 +3352,53 @@ async function pushAllToCloud() {
 
   let res, json;
   try {
-    res = await fetch(API_URL + '?action=push', {
+    res = await fetch(API_BASE.replace(/\/api$/, '') + '/api.php?action=push', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
       body: JSON.stringify({ upserts, deletions })
     });
+    if (res.status === 401) { location.href = APP_BASE + 'login.php'; return; }
     json = await res.json();
   } catch (e) {
     console.error('[cloud push] network/parse error', e);
     return;
   }
-  if (!res.ok || !json.ok) {
-    console.error('[cloud push]', json && json.error ? json.error : ('HTTP ' + res.status));
+  if (!res.ok || !(json.ok || json.success)) {
+    console.error('[cloud push]', (json && (json.error || json.message)) || ('HTTP ' + res.status));
     return;
   }
-  // Erfolgreich gepusht → Pending-Deletions leeren
   for (const c of CLOUD_COLLECTIONS) {
     if (deletions[c.table]) pending[c.local] = [];
   }
   store._pendingDeletions = pending;
-  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch {}
 }
 
+// Vollständiger Pull aus api.php?action=pull (liefert Document-Form).
 async function pullAllFromCloud() {
-  if (!supa || cloudPullInFlight) return false;
+  if (cloudPullInFlight) return false;
   cloudPullInFlight = true;
   try {
-    const res = await fetch(API_URL + '?action=pull', { cache: 'no-store' });
+    const res = await fetch(API_BASE.replace(/\/api$/, '') + '/api.php?action=pull', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    if (res.status === 401) { location.href = APP_BASE + 'login.php'; return false; }
     if (!res.ok) {
       console.error('[cloud pull] HTTP', res.status);
       return false;
     }
     const json = await res.json();
-    if (!json.ok) {
+    if (!(json.ok || json.success)) {
       console.error('[cloud pull]', json.error || 'unknown error');
       return false;
     }
     const data = json.data || {};
-    // Prüfen ob irgendetwas geliefert wurde – bei komplett leerer DB nichts überschreiben
     let totalRows = 0;
     CLOUD_COLLECTIONS.forEach(c => { totalRows += (data[c.table] || []).length; });
     totalRows += (data.app_config || []).length;
-    if (totalRows === 0) return false; // DB leer – Bootstrap-Pfad nehmen
+    if (totalRows === 0) return false;
 
     CLOUD_COLLECTIONS.forEach(c => {
       if (Array.isArray(data[c.table])) store[c.local] = data[c.table];
@@ -3364,7 +3409,7 @@ async function pullAllFromCloud() {
       const act = data.app_config.find(r => r.key === 'activity');
       if (act && act.value && Array.isArray(act.value.entries)) store.activity = act.value.entries;
     }
-    localStorage.setItem(STORE_KEY, JSON.stringify(store));
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch {}
     return true;
   } catch (e) {
     console.error('[cloud pull]', e);
@@ -3375,21 +3420,14 @@ async function pullAllFromCloud() {
 }
 
 async function initCloudSync() {
-  if (!supa) {
-    console.warn('[cloud] Supabase SDK nicht geladen – nur LocalStorage aktiv.');
-    cloudReady = true;
-    return;
-  }
   const hadCloudData = await pullAllFromCloud();
   cloudReady = true;
   if (!hadCloudData) {
     // DB war leer → aktuellen LocalStorage-Stand initial hochladen
-    console.log('[cloud] Bootstrap – LocalStorage → Supabase');
+    console.log('[cloud] Bootstrap – LocalStorage → MySQL');
     await pushAllToCloud();
   }
-  // Live-Sync abonnieren
   subscribeCloudChannel();
-  // Nach erfolgreichem Pull neu rendern, damit aktuelle Daten sichtbar sind
   try {
     const sess = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
     if (sess && typeof renderPage === 'function') {
@@ -3398,26 +3436,38 @@ async function initCloudSync() {
   } catch (e) { console.error('[cloud rerender]', e); }
 }
 
+// Light-Polling: kleines Aggregat über /api/dashboard.php; bei last_change-Diff voller Pull.
 function subscribeCloudChannel() {
-  if (!supa) return;
-  // Self-hosted Backend hat keine Realtime-Events → Polling alle 5 Sekunden.
-  // Nur re-rendern wenn sich der Store tatsächlich geändert hat.
   setInterval(async () => {
     if (cloudPullInFlight) return;
-    // Falls ein Push aussteht: erst pushen, dann pullen
     if (cloudPushTimer) {
       clearTimeout(cloudPushTimer);
       cloudPushTimer = null;
       try { await pushAllToCloud(); } catch (e) { console.error('[cloud push before pull]', e); }
     }
-    const before = JSON.stringify(store);
     try {
-      await pullAllFromCloud();
-      if (JSON.stringify(store) !== before) {
-        try { renderPage?.(); } catch {}
+      const headers = { 'X-CSRF-Token': CSRF };
+      if (lastDashboardEtag) headers['If-None-Match'] = lastDashboardEtag;
+      const res = await fetch(API_BASE + '/dashboard.php', { credentials: 'same-origin', headers });
+      if (res.status === 304) return;
+      if (res.status === 401) { location.href = APP_BASE + 'login.php'; return; }
+      const etag = res.headers.get('ETag');
+      if (etag) lastDashboardEtag = etag;
+      const j = await res.json().catch(() => null);
+      if (!j || !j.success) return;
+      const change = j.data && j.data.last_change ? j.data.last_change : 0;
+      if (change && change !== lastDashboardChange) {
+        const before = JSON.stringify(store);
+        await pullAllFromCloud();
+        lastDashboardChange = change;
+        if (JSON.stringify(store) !== before) {
+          try { renderPage?.(); } catch {}
+        }
       }
-    } catch {}
-  }, 5000);
+    } catch (e) {
+      // Stille Fehler – Polling ist best effort.
+    }
+  }, 12000); // 12s Light-Polling
 }
 
 // Cloud-Sync starten sobald DOM bereit
@@ -3490,13 +3540,18 @@ function generateFolderName(customer, project) {
 }
 
 /* ----------- AUTH ----------- */
+// PHP-Session ist die Quelle der Wahrheit. SESSION_META kommt vom Backend (index.php).
 function getCurrentUser() {
-  if (!store.session) return null;
-  if (store.session.type === 'staff') {
-    return { type: 'staff', user: store.users.find(u => u.id === store.session.userId) };
+  if (!SESSION_META) return null;
+  if (SESSION_META.type === 'staff' && SESSION_META.uid) {
+    const user = (store.users || []).find(u => u.id === SESSION_META.uid)
+              || { id: SESSION_META.uid, name: SESSION_META.name, roles: SESSION_META.roles || [] };
+    return { type: 'staff', user };
   }
-  if (store.session.type === 'customer') {
-    return { type: 'customer', customer: store.customers.find(c => c.id === store.session.customerId) };
+  if (SESSION_META.type === 'customer' && SESSION_META.cid) {
+    const customer = (store.customers || []).find(c => c.id === SESSION_META.cid)
+                  || { id: SESSION_META.cid, name: SESSION_META.name };
+    return { type: 'customer', customer };
   }
   return null;
 }
@@ -3518,85 +3573,36 @@ async function loginStaff(e) {
   e.preventDefault();
   const username = $('#login-username').value.trim();
   const password = $('#login-password').value;
-  // Sicherheit: bei aktivem Cloud-Sync vorher frischen Stand ziehen,
-  // damit auch Mitarbeiter, die woanders angelegt wurden, sofort einloggen können
-  if (supa && !cloudReady) {
-    showLoginError('Verbinde mit Cloud … bitte kurz nochmal versuchen.');
-    return;
+  const hash = await hashPassword(password);
+  try {
+    await apiPost('/auth.php?action=login', { type: 'staff', username, password_hash: hash });
+    location.reload();
+  } catch (err) {
+    showLoginError(err.message || 'Anmeldung fehlgeschlagen.');
   }
-  if (supa) { try { await pullAllFromCloud(); } catch {} }
-
-  const hashed = await hashPassword(password);
-  const matches = store.users.filter(u => (u.username || '').trim().toLowerCase() === username.toLowerCase());
-  // 1. Versuch: gehashtes Passwort vergleichen (= Standard nach Cloud-Sync)
-  // 2. Versuch: Klartext (für Erstmigration, bevor Hashes geschrieben wurden)
-  const user = matches.find(u => {
-    const stored = (u.password || '').trim();
-    return stored === hashed || stored === password || stored === password.trim();
-  });
-  if (!user) {
-    showLoginError('Benutzername oder Passwort ist falsch.');
-    return;
-  }
-  // Falls dieser User noch ein Klartext-Passwort hatte → jetzt hashen + zurückschreiben
-  if (user.password && !user.password.startsWith('sha256$')) {
-    user.password = hashed;
-  }
-  store.session = { type: 'staff', userId: user.id, startedAt: Date.now() };
-  saveStore();
-  initApp();
 }
 
 async function loginCustomer(e) {
   e.preventDefault();
   const num = $('#login-customer-number').value.trim();
   const pin = $('#login-customer-pin').value;
-  if (supa) { try { await pullAllFromCloud(); } catch {} }
-  const customer = store.customers.find(c => c.customerNumber === num);
-  if (!customer) {
-    showLoginError('Kundennummer oder PIN falsch.');
-    return;
+  const pinHash = await hashPassword(pin || num);
+  try {
+    await apiPost('/auth.php?action=login', { type: 'customer', customer_number: num, pin_hash: pinHash });
+    location.reload();
+  } catch (err) {
+    showLoginError(err.message || 'Anmeldung fehlgeschlagen.');
   }
-  // PIN-Check: hashed PIN vergleichen. Migration: alte Kunden ohne PIN dürfen einmalig ohne rein und kriegen die PIN dabei gesetzt.
-  if (customer.pinHash) {
-    const hashed = await hashPassword(pin);
-    if (customer.pinHash !== hashed) {
-      showLoginError('Kundennummer oder PIN falsch.');
-      return;
-    }
-  } else {
-    // Kein PIN gesetzt → Erst-Login. PIN muss explizit eingegeben werden (Kundennummer als initiale PIN).
-    if (!pin || pin !== customer.customerNumber) {
-      showLoginError('Erst-Login: nimm bitte deine Kundennummer als PIN. Du kannst sie danach ändern.');
-      return;
-    }
-    const idx = store.customers.findIndex(c => c.id === customer.id);
-    if (idx >= 0) {
-      store.customers[idx].pinHash = await hashPassword(pin);
-    }
-  }
-  store.session = { type: 'customer', customerId: customer.id, startedAt: Date.now() };
-  saveStore();
-  initApp();
 }
 
-// Session-Ablauf nach 14 Tagen Inaktivität
+// Session-Ablauf: serverseitig via PHP-Session-Cookie (14 Tage). Stub für Bestandsaufrufer.
 const SESSION_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
-function isSessionExpired() {
-  if (!store.session) return false;
-  if (!store.session.startedAt) return false; // alte Sessions ohne Timestamp werden geduldet
-  return (Date.now() - store.session.startedAt) > SESSION_MAX_AGE_MS;
-}
+function isSessionExpired() { return false; }
 
-function logout() {
-  store.session = null;
-  saveStore();
-  $('#app').classList.add('hide');
-  $('#login-screen').classList.remove('hide');
-  $('#login-username').value = '';
-  $('#login-password').value = '';
-  $('#login-customer-number').value = '';
-  const pinEl = $('#login-customer-pin'); if (pinEl) pinEl.value = '';
+async function logout() {
+  try { await apiPost('/auth.php?action=logout', {}); } catch {}
+  try { localStorage.removeItem(STORE_KEY); } catch {}
+  location.href = APP_BASE + 'login.php';
 }
 
 /* ----------- NAV / ROUTING ----------- */
@@ -9063,229 +9069,23 @@ function generateICS(forUser = null) {
 // - Tool legt für JEDEN Mitarbeiter automatisch einen Gist an unter dem Admin-Account
 // - Mitarbeiter bekommen ihre fertige webcal://-URL – KEIN GitHub-Setup nötig
 
-function calendarConfigured() {
-  return !!(store.calendarConfig?.token && store.calendarConfig?.githubUser);
-}
+// GitHub-Gist-Kalendersync wurde deaktiviert. Kalenderdaten liegen jetzt in MySQL,
+// die App rendert sie direkt aus store.projects/shootDays/vacations.
+function calendarConfigured() { return false; }
+function getUserGistUrl(_user) { return null; }
+function getAgencyGistUrl()    { return null; }
 
-function getUserGistUrl(user) {
-  if (!user?.calendarGistId || !store.calendarConfig?.githubUser) return null;
-  const filename = user.calendarFilename || 'kalender.ics';
-  return `https://gist.githubusercontent.com/${store.calendarConfig.githubUser}/${user.calendarGistId}/raw/${filename}`;
-}
-
-function getAgencyGistUrl() {
-  if (!store.calendarConfig?.agencyGistId || !store.calendarConfig?.githubUser) return null;
-  return `https://gist.githubusercontent.com/${store.calendarConfig.githubUser}/${store.calendarConfig.agencyGistId}/raw/dodidis-gesamt.ics`;
-}
-
-async function calendarAdminSetup(token) {
-  if (!token) throw new Error('Bitte ein Token eingeben.');
-  token = token.trim();
-  // 1. Token verifizieren
-  const userResp = await fetch('https://api.github.com/user', {
-    headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' }
-  });
-  if (!userResp.ok) {
-    if (userResp.status === 401) throw new Error('Token ungültig oder abgelaufen.');
-    throw new Error('GitHub-Verbindung fehlgeschlagen (' + userResp.status + ').');
-  }
-  const ghUser = await userResp.json();
-  store.calendarConfig = {
-    token,
-    githubUser: ghUser.login,
-    agencyGistId: store.calendarConfig?.agencyGistId || null,
-    enabledAt: new Date().toISOString()
-  };
-  saveStore();
-  // 2. Für JEDEN Mitarbeiter einen Gist anlegen + Agentur-Gist
-  await ensureAgencyGist();
-  for (const u of store.users) {
-    await ensureUserGist(u);
-  }
-  // 3. Direkt mit aktuellen Daten füllen
-  await writeLiveICS();
-}
-
-async function ensureAgencyGist() {
-  if (store.calendarConfig.agencyGistId) return;
-  const ics = generateICS(null);
-  const resp = await fetch('https://api.github.com/gists', {
-    method: 'POST',
-    headers: {
-      Authorization: 'Bearer ' + store.calendarConfig.token,
-      Accept: 'application/vnd.github+json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      description: 'Dodidis Media – Gesamtkalender (alle Projekte)',
-      public: false,
-      files: { 'dodidis-gesamt.ics': { content: ics } }
-    })
-  });
-  if (resp.ok) {
-    const gist = await resp.json();
-    store.calendarConfig.agencyGistId = gist.id;
-    saveStore();
-  }
-}
-
-async function ensureUserGist(user) {
-  if (user.calendarGistId) return;
-  const safe = (user.name || 'user').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  const filename = `dodidis-${safe}.ics`;
-  const ics = generateICS(user);
-  const resp = await fetch('https://api.github.com/gists', {
-    method: 'POST',
-    headers: {
-      Authorization: 'Bearer ' + store.calendarConfig.token,
-      Accept: 'application/vnd.github+json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      description: 'Dodidis Media – ' + user.name,
-      public: false,
-      files: { [filename]: { content: ics } }
-    })
-  });
-  if (resp.ok) {
-    const gist = await resp.json();
-    const idx = store.users.findIndex(u => u.id === user.id);
-    if (idx >= 0) {
-      store.users[idx].calendarGistId = gist.id;
-      store.users[idx].calendarFilename = filename;
-      saveStore();
-    }
-  }
-}
-
-async function pushSingleGist(gistId, filename, content) {
-  if (!store.calendarConfig?.token) return;
-  try {
-    await fetch('https://api.github.com/gists/' + gistId, {
-      method: 'PATCH',
-      headers: {
-        Authorization: 'Bearer ' + store.calendarConfig.token,
-        Accept: 'application/vnd.github+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ files: { [filename]: { content } } })
-    });
-  } catch (e) {
-    console.warn('Gist push failed for', gistId, e);
-  }
-}
+async function calendarAdminSetup(_token) { /* GitHub-Sync deaktiviert */ }
+async function ensureAgencyGist()          { /* GitHub-Sync deaktiviert */ }
+async function ensureUserGist(_user)       { /* GitHub-Sync deaktiviert */ }
+async function pushSingleGist(_gistId, _filename, _content) { /* GitHub-Sync deaktiviert */ }
 
 // Legacy stubs damit alter Code nicht crasht – werden nicht mehr verwendet
 function loadCalSync() { return null; }
 function saveCalSync() {}
-async function setupGistSubscription(token, scope = 'personal') {
-  if (!token) throw new Error('Bitte ein Token eingeben.');
-  token = token.trim();
-
-  // 1. Token verifizieren
-  const userResp = await fetch('https://api.github.com/user', {
-    headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' }
-  });
-  if (!userResp.ok) {
-    if (userResp.status === 401) throw new Error('Token ungültig oder abgelaufen.');
-    throw new Error('GitHub-Verbindung fehlgeschlagen (' + userResp.status + ').');
-  }
-  const ghUser = await userResp.json();
-
-  // 2. ICS-Inhalt vorbereiten
-  const session = getCurrentUser();
-  const forUser = scope === 'agency' ? null : session.user;
-  const safeName = (session.user.name || 'kalender').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  const filename = scope === 'agency' ? 'dodidis-gesamt.ics' : `dodidis-${safeName}.ics`;
-  const ics = generateICS(forUser);
-
-  // 3. Gist erstellen (secret = nicht gelistet, URL aber öffentlich erreichbar)
-  const createResp = await fetch('https://api.github.com/gists', {
-    method: 'POST',
-    headers: {
-      Authorization: 'Bearer ' + token,
-      Accept: 'application/vnd.github+json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      description: 'Dodidis Media Kalender – ' + (scope === 'agency' ? 'Gesamt' : session.user.name),
-      public: false,
-      files: { [filename]: { content: ics } }
-    })
-  });
-  if (!createResp.ok) {
-    const err = await createResp.text();
-    throw new Error('Gist konnte nicht erstellt werden. ' + err.slice(0, 200));
-  }
-  const gist = await createResp.json();
-  const httpsUrl = `https://gist.githubusercontent.com/${ghUser.login}/${gist.id}/raw/${filename}`;
-  const webcalUrl = httpsUrl.replace(/^https:\/\//, 'webcal://');
-
-  const data = {
-    enabled: true,
-    scope,
-    token,
-    gistId: gist.id,
-    username: ghUser.login,
-    filename,
-    httpsUrl,
-    webcalUrl,
-    userId: scope === 'personal' ? session.user.id : null,
-    lastSyncedAt: new Date().toISOString()
-  };
-  saveCalSync(scope, data);
-  return data;
-}
-
-async function pushGistSubscription(scope) {
-  const data = loadCalSync(scope);
-  if (!data || !data.enabled) return;
-  let forUser = null;
-  if (scope === 'personal' && data.userId) {
-    forUser = store.users.find(u => u.id === data.userId);
-  }
-  const ics = generateICS(forUser);
-  try {
-    const resp = await fetch('https://api.github.com/gists/' + data.gistId, {
-      method: 'PATCH',
-      headers: {
-        Authorization: 'Bearer ' + data.token,
-        Accept: 'application/vnd.github+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ files: { [data.filename]: { content: ics } } })
-    });
-    if (resp.ok) {
-      data.lastSyncedAt = new Date().toISOString();
-      data.lastError = null;
-      saveCalSync(scope, data);
-    } else if (resp.status === 401) {
-      data.lastError = 'Token ungültig – bitte neu verbinden.';
-      saveCalSync(scope, data);
-    } else {
-      data.lastError = 'Sync fehlgeschlagen (' + resp.status + ').';
-      saveCalSync(scope, data);
-    }
-  } catch (e) {
-    data.lastError = 'Netzwerkfehler beim Sync.';
-    saveCalSync(scope, data);
-  }
-}
-
-async function disconnectGistSubscription(scope) {
-  if (!confirm('Subscription beenden? Der Gist auf GitHub wird gelöscht.')) return;
-  const data = loadCalSync(scope);
-  if (data?.gistId) {
-    try {
-      await fetch('https://api.github.com/gists/' + data.gistId, {
-        method: 'DELETE',
-        headers: { Authorization: 'Bearer ' + data.token, Accept: 'application/vnd.github+json' }
-      });
-    } catch {}
-  }
-  saveCalSync(scope, null);
-  openSubscribeModal();
-}
+async function setupGistSubscription(_token, _scope = 'personal') { /* GitHub-Sync deaktiviert */ return null; }
+async function pushGistSubscription(_scope)        { /* GitHub-Sync deaktiviert */ }
+async function disconnectGistSubscription(_scope)  { /* GitHub-Sync deaktiviert */ }
 
 function copyToClipboard(text, msg = 'In Zwischenablage kopiert') {
   navigator.clipboard.writeText(text).then(() => {
@@ -9297,23 +9097,8 @@ function copyToClipboard(text, msg = 'In Zwischenablage kopiert') {
   });
 }
 
-// Stößt Push auf ALLE Mitarbeiter-Gists + Agentur-Gist an
-async function writeLiveICS() {
-  if (!calendarConfigured()) return;
-  const pushes = [];
-  // Agentur-Gesamtkalender
-  if (store.calendarConfig.agencyGistId) {
-    pushes.push(pushSingleGist(store.calendarConfig.agencyGistId, 'dodidis-gesamt.ics', generateICS(null)));
-  }
-  // Persönlicher Gist je Mitarbeiter
-  for (const user of store.users) {
-    if (!user.calendarGistId) continue;
-    const filename = user.calendarFilename || 'kalender.ics';
-    const ics = generateICS(user);
-    pushes.push(pushSingleGist(user.calendarGistId, filename, ics));
-  }
-  await Promise.all(pushes);
-}
+// GitHub-Gist-Kalendersync ist deaktiviert; Kalender wird direkt aus MySQL gerendert.
+async function writeLiveICS() { /* deaktiviert */ }
 
 function renderSubscriptionBlock(scope, opts) {
   const data = loadCalSync(scope);
@@ -9737,14 +9522,14 @@ runAutoArchive();
 // Der zuvor seedRaphaelCalendarSubscription()-Block enthielt einen Klartext-GitHub-Token,
 // der bei öffentlichem Hosting auslesbar war – jetzt entfernt.
 
-// Auto-login if session exists – aber Session läuft nach 14 Tagen ab
-if (store.session) {
-  if (isSessionExpired()) {
-    store.session = null;
-    saveStore();
-  } else {
-    initApp();
-  }
+// PHP-Session ist über SESSION_META verfügbar – die App direkt starten.
+// (Wenn keine Session vorhanden ist, hat index.php bereits auf login.php weitergeleitet
+//  und dieser Code wird gar nicht ausgeführt.)
+if (SESSION_META) {
+  initApp();
+} else if (store.session) {
+  // Fallback für direkten Aufruf der HTML-Datei (sollte über index.php nicht passieren)
+  initApp();
 }
 
 // Keyboard: ESC closes modal, ← / → navigiert Kalenderwoche/-monat

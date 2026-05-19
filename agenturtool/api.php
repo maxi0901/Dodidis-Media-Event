@@ -1,183 +1,638 @@
 <?php
 /**
- * Agenturtool – REST-API (MySQL-Backend)
+ * Agenturtool – Legacy-Snapshot-API gegen normalisiertes Schema.
  *
- * Endpunkte:
- *   GET  ?action=ping  – Health-Check (DB-Verbindung testen)
- *   GET  ?action=pull  – Komplettes Daten-Snapshot zurückgeben
- *   POST ?action=push  – Upserts + Deletions in einer Transaktion anwenden
+ * Frontend-Verträge bleiben kompatibel zu der Bestands-SPA:
+ *   GET  ?action=ping         – Health-Check
+ *   GET  ?action=pull         – Komplettes Daten-Snapshot zurückgeben (Document-Form)
+ *   POST ?action=push         – Upserts + Deletions auf normalisierte Tabellen mappen
  *
- * Request-Body für push (JSON):
- *   {
- *     "upserts":   { "<table>": [ { "id": "...", "data": {...} }, ... ], "app_config": [ { "key": "...", "value": {...} } ] },
- *     "deletions": { "<table>": ["id1","id2", ...] }
- *   }
+ * Sicherheit:
+ *   - Session erforderlich (über includes/auth-check.php)
+ *   - CSRF-Token bei push (X-CSRF-Token-Header)
+ *   - Backend ist Auth-Authority; password_hash/pin_hash werden NIE im pull zurückgeliefert
  *
- * Erlaubte Tabellen: users, customers, projects, vacations, todos, shoot_days, app_config
+ * Mapping-Strategie:
+ *   pull  → liest normalisierte Tabellen + Join-Tabellen, baut Document zusammen
+ *   push  → empfängt {upserts: {table: [{id, data}]}}, mapped JSON-Felder auf Spalten
  */
 
 declare(strict_types=1);
-header('Content-Type: application/json; charset=utf-8');
-header('Cache-Control: no-store');
 
-$cfg = require __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/response.php';
+require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/helpers.php';
+require_once __DIR__ . '/includes/auth-check.php';
 
-function respond(array $payload, int $code = 200): void
+$session = require_login();
+$action  = $_GET['action'] ?? '';
+
+// ----------------------------------------------------------------------------
+// Helfer: Mapping-Logik
+// ----------------------------------------------------------------------------
+
+function ensure_staff_or_customer_self(string $entity, ?string $id, array $session): void
 {
-    http_response_code($code);
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if (($session['type'] ?? '') !== 'customer') return;
+    // Kunden dürfen nichts schreiben/aktualisieren
+    json_err(403, 'Keine Berechtigung.');
+}
+
+function map_user_doc(array $u): array
+{
+    $roles = $u['roles'] ?? [];
+    return [
+        'id'         => (string)$u['id'],
+        'username'   => (string)($u['username'] ?? ''),
+        'name'       => (string)($u['name'] ?? ''),
+        'email'      => $u['email'] ?? '',
+        // password niemals zurückliefern!
+        'roles'      => $roles,
+        'avatarColor'=> $u['avatar_color'] ?? null,
+        'avatarImage'=> $u['avatar_image'] ?? null,
+        'calendarPrefs' => $u['calendar_prefs'] ? json_decode($u['calendar_prefs'], true) : null,
+    ];
+}
+
+function customer_to_doc(array $c): array
+{
+    $doc = [
+        'id'               => (string)$c['id'],
+        'name'             => (string)$c['name'],
+        'customerNumber'   => (string)$c['customer_number'],
+        'managerId'        => $c['manager_id'],
+        'email'            => $c['email']            ?? '',
+        'phone'            => $c['phone']            ?? '',
+        'contactName'      => $c['contact_name']     ?? '',
+        'socialInstagram'  => $c['social_instagram'] ?? '',
+        'socialTiktok'     => $c['social_tiktok']    ?? '',
+        'notes'            => $c['notes']            ?? '',
+        'addressStreet'    => $c['address_street']   ?? '',
+        'addressZip'       => $c['address_zip']      ?? '',
+        'addressCity'      => $c['address_city']     ?? '',
+        'billingSameAsAddress' => (bool)$c['billing_same_as_address'],
+        'billingStreet'    => $c['billing_street'] ?? '',
+        'billingZip'       => $c['billing_zip']    ?? '',
+        'billingCity'      => $c['billing_city']   ?? '',
+        'vatId'            => $c['vat_id']         ?? '',
+        'billingEmail'     => $c['billing_email']  ?? '',
+        'contractStart'    => $c['contract_start'],
+        'package'          => $c['package']        ?? '',
+        'monthlyRate'      => $c['monthly_rate'],
+        'videosPerMonth'   => $c['videos_per_month'] !== null ? (int)$c['videos_per_month'] : '',
+        'status'           => $c['status'],
+        'checklist'        => [
+            'contractSigned'  => (bool)$c['contract_signed'],
+            'depositReceived' => (bool)$c['deposit_received'],
+            'kickoffDone'     => (bool)$c['kickoff_done'],
+            'socialAccess'    => (bool)$c['social_access'],
+            'firstShoot'      => (bool)$c['first_shoot'],
+        ],
+        'createdAt'        => $c['created_at'],
+    ];
+    // pin_hash wird nicht raus geliefert (Sicherheit)
+    return $doc;
+}
+
+function project_to_doc(array $p): array
+{
+    return [
+        'id'           => (string)$p['id'],
+        'title'        => (string)$p['title'],
+        'customerId'   => $p['customer_id'],
+        'videografId'  => $p['videograf_id'],
+        'cutterId'     => $p['cutter_id'],
+        'shootDate'    => $p['shoot_date'],
+        'shootDayId'   => $p['shoot_day_id'],
+        'deadline'     => $p['deadline'],
+        'postingDate'  => $p['posting_date'],
+        'script'       => $p['script'],
+        'status'       => $p['status'],
+        'isInternal'   => (bool)$p['is_internal'],
+        'approvedAt'   => $p['approved_at'],
+        'createdAt'    => $p['created_at'],
+    ];
+}
+
+function vacation_to_doc(array $v): array
+{
+    return [
+        'id'        => (string)$v['id'],
+        'userId'    => $v['user_id'],
+        'startDate' => $v['start_date'],
+        'endDate'   => $v['end_date'],
+        'note'      => $v['note'] ?? '',
+        'approvedBy'=> $v['approved_by'],
+        'approvedAt'=> $v['approved_at'],
+    ];
+}
+
+function shootday_to_doc(array $s): array
+{
+    return [
+        'id'          => (string)$s['id'],
+        'date'        => $s['date'],
+        'startTime'   => $s['start_time'],
+        'endTime'     => $s['end_time'],
+        'videografId' => $s['videograf_id'],
+        'customerId'  => $s['customer_id'],
+        'note'        => $s['note'] ?? '',
+        'createdAt'   => $s['created_at'],
+    ];
+}
+
+function todo_to_doc(array $t, array $assigneeMap, array $seenMap): array
+{
+    return [
+        'id'          => (string)$t['id'],
+        'title'       => (string)$t['title'],
+        'description' => $t['description'] ?? '',
+        'createdById' => $t['created_by'],
+        'dueDate'     => $t['due_date'],
+        'status'      => $t['status'],
+        'createdAt'   => $t['created_at'],
+        'assigneeIds' => $assigneeMap[$t['id']] ?? [],
+        'seenBy'      => $seenMap[$t['id']]     ?? [],
+    ];
+}
+
+// ----------------------------------------------------------------------------
+// PING
+// ----------------------------------------------------------------------------
+if ($action === 'ping') {
+    json_ok(['ping' => 1, 'session_type' => $session['type']]);
+}
+
+// ----------------------------------------------------------------------------
+// PULL – Document-Snapshot aus normalisierten Tabellen
+// ----------------------------------------------------------------------------
+if ($action === 'pull') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') json_err(405, 'GET erwartet.');
+
+    $pdo  = db();
+    $type = $session['type'] ?? 'staff';
+
+    // Users (ohne password_hash)
+    $userRows = db_all(
+        "SELECT id, username, name, email, avatar_color, avatar_image, calendar_prefs FROM users"
+    );
+    $rolesRows = db_all("SELECT user_id, role FROM user_roles");
+    $rolesByUser = [];
+    foreach ($rolesRows as $r) { $rolesByUser[$r['user_id']][] = $r['role']; }
+    $users = [];
+    foreach ($userRows as $u) {
+        $u['roles'] = $rolesByUser[$u['id']] ?? [];
+        $users[] = map_user_doc($u);
+    }
+
+    // Customers
+    if ($type === 'customer') {
+        $custRows = db_all("SELECT * FROM customers WHERE id = ?", [$session['cid']]);
+    } else {
+        $custRows = db_all("SELECT * FROM customers");
+    }
+    $customers = array_map('customer_to_doc', $custRows);
+
+    // Projects
+    if ($type === 'customer') {
+        $projRows = db_all("SELECT * FROM projects WHERE customer_id = ?", [$session['cid']]);
+    } else {
+        $projRows = db_all("SELECT * FROM projects");
+    }
+    $projects = array_map('project_to_doc', $projRows);
+
+    // Vacations (volle Transparenz für Staff, leer für Customer)
+    $vacations = $type === 'staff' ? array_map('vacation_to_doc', db_all("SELECT * FROM vacations")) : [];
+
+    // ShootDays
+    $shootDays = $type === 'staff' ? array_map('shootday_to_doc', db_all("SELECT * FROM shoot_days")) : [];
+
+    // Todos + Assignees + SeenBy
+    $todoRows = $type === 'staff' ? db_all("SELECT * FROM todos") : [];
+    $assigneeMap = [];
+    $seenMap     = [];
+    if ($todoRows) {
+        $ids = array_column($todoRows, 'id');
+        $place = implode(',', array_fill(0, count($ids), '?'));
+        foreach (db_all("SELECT todo_id, user_id FROM todo_assignees WHERE todo_id IN ($place)", $ids) as $r) {
+            $assigneeMap[$r['todo_id']][] = $r['user_id'];
+        }
+        foreach (db_all("SELECT todo_id, user_id FROM todo_seen_by WHERE todo_id IN ($place)", $ids) as $r) {
+            $seenMap[$r['todo_id']][] = $r['user_id'];
+        }
+    }
+    $todos = array_map(fn($t) => todo_to_doc($t, $assigneeMap, $seenMap), $todoRows);
+
+    // App-Config
+    $appCfg = [];
+    foreach (db_all("SELECT `key`, `value` FROM app_config") as $r) {
+        $appCfg[] = ['key' => $r['key'], 'value' => json_decode($r['value'], true)];
+    }
+
+    // Antwort: kompatibel zum Bestand (ok/data)
+    echo json_encode([
+        'ok'      => true,
+        'success' => true,
+        'data'    => [
+            'users'      => $users,
+            'customers'  => $customers,
+            'projects'   => $projects,
+            'vacations'  => $vacations,
+            'todos'      => $todos,
+            'shoot_days' => $shootDays,
+            'app_config' => $appCfg,
+        ],
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
-function bad(string $msg, int $code = 400): void
-{
-    respond(['ok' => false, 'error' => $msg], $code);
-}
-
-try {
-    $dsn = sprintf(
-        'mysql:host=%s;port=%d;dbname=%s;charset=%s',
-        $cfg['host'],
-        (int) $cfg['port'],
-        $cfg['database'],
-        $cfg['charset']
-    );
-    $pdo = new PDO($dsn, $cfg['user'], $cfg['password'], [
-        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES   => false,
-    ]);
-} catch (Throwable $e) {
-    bad('DB-Verbindung fehlgeschlagen: ' . $e->getMessage(), 500);
-}
-
-$action = $_GET['action'] ?? '';
-
-// Whitelist der erlaubten "id+data"-Tabellen (alle bis auf app_config)
-$DATA_TABLES = ['users', 'customers', 'projects', 'vacations', 'todos', 'shoot_days'];
-
-function hasDataColumn(PDO $pdo, string $table): bool
-{
-    static $cache = [];
-    if (array_key_exists($table, $cache)) return $cache[$table];
-    $stmt = $pdo->prepare("SHOW COLUMNS FROM `$table` LIKE 'data'");
-    $stmt->execute();
-    $cache[$table] = (bool) $stmt->fetch();
-    return $cache[$table];
-}
-
-
-if ($action === 'ping') {
-    $row = $pdo->query('SELECT 1 AS ok')->fetch();
-    respond(['ok' => true, 'db' => $cfg['database'], 'ping' => $row['ok'] ?? null]);
-}
-
-if ($action === 'pull') {
-    $out = [];
-    foreach ($DATA_TABLES as $t) {
-        $rows = [];
-        if (hasDataColumn($pdo, $t)) {
-            $stmt = $pdo->query("SELECT `data` FROM `$t`");
-            foreach ($stmt as $r) {
-                $decoded = json_decode($r['data'], true);
-                if ($decoded !== null) {
-                    $rows[] = $decoded;
-                }
-            }
-        } else {
-            $stmt = $pdo->query("SELECT * FROM `$t`");
-            foreach ($stmt as $r) {
-                unset($r['created_at'], $r['updated_at']);
-                $rows[] = $r;
-            }
-        }
-        $out[$t] = $rows;
-    }
-    $stmt = $pdo->query('SELECT `key`, `value` FROM `app_config`');
-    $cfgRows = [];
-    foreach ($stmt as $r) {
-        $cfgRows[] = ['key' => $r['key'], 'value' => json_decode($r['value'], true)];
-    }
-    $out['app_config'] = $cfgRows;
-    respond(['ok' => true, 'data' => $out]);
-}
-
+// ----------------------------------------------------------------------------
+// PUSH – Document-Upserts auf normalisierte Spalten mappen
+// ----------------------------------------------------------------------------
 if ($action === 'push') {
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        bad('POST erwartet', 405);
-    }
-    $raw = file_get_contents('php://input');
-    if (!$raw) {
-        bad('Leerer Request-Body');
-    }
-    $body = json_decode($raw, true);
-    if (!is_array($body)) {
-        bad('Body ist kein gültiges JSON');
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err(405, 'POST erwartet.');
+    require_csrf();
+
+    if (($session['type'] ?? '') === 'customer') {
+        // Kunden dürfen mit der alten Bulk-Schnittstelle nichts ändern
+        json_err(403, 'Keine Berechtigung.');
     }
 
-    $upserts   = is_array($body['upserts']   ?? null) ? $body['upserts']   : [];
+    $body      = input_json();
+    $upserts   = is_array($body['upserts'] ?? null)   ? $body['upserts']   : [];
     $deletions = is_array($body['deletions'] ?? null) ? $body['deletions'] : [];
 
+    $pdo = db();
     $pdo->beginTransaction();
+
     try {
-        // Upserts in JSON-Datentabellen
-        foreach ($DATA_TABLES as $t) {
-            if (empty($upserts[$t]) || !is_array($upserts[$t])) {
-                continue;
+        $isAdmin   = has_role('admin');
+        $isManager = has_role('admin', 'manager');
+
+        // ---------- USERS ----------
+        if (!empty($upserts['users']) && is_array($upserts['users'])) {
+            if (!$isAdmin) {
+                // Nicht-Admins dürfen über das Bulk-API keine User editieren –
+                // außer ihr eigenes Profil. Wir filtern entsprechend.
+                $upserts['users'] = array_values(array_filter(
+                    $upserts['users'],
+                    fn($u) => isset($u['id'], $u['data']) && $u['id'] === $session['uid']
+                ));
             }
-            if (hasDataColumn($pdo, $t)) {
-                $stmt = $pdo->prepare(
-                    "INSERT INTO `$t` (`id`, `data`) VALUES (:id, :data) AS new
-                     ON DUPLICATE KEY UPDATE `data` = new.`data`, `updated_at` = CURRENT_TIMESTAMP"
-                );
-                foreach ($upserts[$t] as $row) {
-                    if (!isset($row['id'], $row['data'])) {
-                        continue;
+            $stmtU = $pdo->prepare(
+                "INSERT INTO users (id, username, name, email, password_hash, avatar_color, avatar_image, calendar_prefs)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    username       = VALUES(username),
+                    name           = VALUES(name),
+                    email          = VALUES(email),
+                    password_hash  = IF(VALUES(password_hash) = '', password_hash, VALUES(password_hash)),
+                    avatar_color   = VALUES(avatar_color),
+                    avatar_image   = VALUES(avatar_image),
+                    calendar_prefs = VALUES(calendar_prefs)"
+            );
+            $stmtRoleDel = $pdo->prepare("DELETE FROM user_roles WHERE user_id = ?");
+            $stmtRoleIns = $pdo->prepare("INSERT IGNORE INTO user_roles (user_id, role) VALUES (?, ?)");
+
+            foreach ($upserts['users'] as $u) {
+                if (!isset($u['id'], $u['data']) || !is_array($u['data'])) continue;
+                $d = $u['data'];
+                $hash = (string)($d['password'] ?? '');
+                // Nur sha256$-Hashes akzeptieren – Klartext bei Bulk-Push abweisen
+                if ($hash !== '' && !str_starts_with($hash, 'sha256$')) {
+                    $hash = '';
+                }
+                $stmtU->execute([
+                    (string)$u['id'],
+                    (string)($d['username'] ?? ''),
+                    (string)($d['name'] ?? ''),
+                    !empty($d['email']) ? (string)$d['email'] : null,
+                    $hash,
+                    !empty($d['avatarColor']) ? (string)$d['avatarColor'] : null,
+                    $d['avatarImage'] ?? null,
+                    isset($d['calendarPrefs']) ? json_encode($d['calendarPrefs'], JSON_UNESCAPED_UNICODE) : null,
+                ]);
+                if ($isAdmin) {
+                    $stmtRoleDel->execute([(string)$u['id']]);
+                    foreach ((array)($d['roles'] ?? []) as $r) {
+                        if (in_array($r, ['admin','manager','videograf','cutter','mitarbeiter'], true)) {
+                            $stmtRoleIns->execute([(string)$u['id'], $r]);
+                        }
                     }
-                    $stmt->execute([
-                        ':id'   => (string) $row['id'],
-                        ':data' => json_encode($row['data'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                    ]);
                 }
             }
         }
 
-        // Upserts in app_config
-        if (!empty($upserts['app_config']) && is_array($upserts['app_config'])) {
-            $stmt = $pdo->prepare(
-                "INSERT INTO `app_config` (`key`, `value`) VALUES (:key, :value) AS new
-                 ON DUPLICATE KEY UPDATE `value` = new.`value`, `updated_at` = CURRENT_TIMESTAMP"
+        // ---------- CUSTOMERS ----------
+        if (!empty($upserts['customers']) && is_array($upserts['customers'])) {
+            if (!$isManager) json_err(403, 'Keine Berechtigung.');
+            $stmtC = $pdo->prepare(
+                "INSERT INTO customers (
+                    id, name, customer_number, manager_id, pin_hash,
+                    email, phone, contact_name, social_instagram, social_tiktok, notes,
+                    address_street, address_zip, address_city,
+                    billing_same_as_address, billing_street, billing_zip, billing_city,
+                    vat_id, billing_email, contract_start, package, monthly_rate, videos_per_month, status,
+                    contract_signed, deposit_received, kickoff_done, social_access, first_shoot
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    name = VALUES(name), customer_number = VALUES(customer_number), manager_id = VALUES(manager_id),
+                    pin_hash = IF(VALUES(pin_hash) IS NULL, pin_hash, VALUES(pin_hash)),
+                    email = VALUES(email), phone = VALUES(phone), contact_name = VALUES(contact_name),
+                    social_instagram = VALUES(social_instagram), social_tiktok = VALUES(social_tiktok),
+                    notes = VALUES(notes),
+                    address_street = VALUES(address_street), address_zip = VALUES(address_zip), address_city = VALUES(address_city),
+                    billing_same_as_address = VALUES(billing_same_as_address),
+                    billing_street = VALUES(billing_street), billing_zip = VALUES(billing_zip), billing_city = VALUES(billing_city),
+                    vat_id = VALUES(vat_id), billing_email = VALUES(billing_email),
+                    contract_start = VALUES(contract_start), package = VALUES(package),
+                    monthly_rate = VALUES(monthly_rate), videos_per_month = VALUES(videos_per_month),
+                    status = VALUES(status),
+                    contract_signed = VALUES(contract_signed), deposit_received = VALUES(deposit_received),
+                    kickoff_done = VALUES(kickoff_done), social_access = VALUES(social_access), first_shoot = VALUES(first_shoot)"
             );
-            foreach ($upserts['app_config'] as $row) {
-                if (!isset($row['key'])) {
-                    continue;
-                }
-                $stmt->execute([
-                    ':key'   => (string) $row['key'],
-                    ':value' => json_encode($row['value'] ?? null, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            foreach ($upserts['customers'] as $c) {
+                if (!isset($c['id'], $c['data']) || !is_array($c['data'])) continue;
+                $d = $c['data'];
+                $cl = $d['checklist'] ?? [];
+                $pinH = !empty($d['pinHash']) && str_starts_with((string)$d['pinHash'], 'sha256$')
+                        ? (string)$d['pinHash'] : null;
+                $stmtC->execute([
+                    (string)$c['id'],
+                    (string)($d['name'] ?? ''),
+                    (string)($d['customerNumber'] ?? ''),
+                    !empty($d['managerId']) ? (string)$d['managerId'] : null,
+                    $pinH,
+                    !empty($d['email']) ? (string)$d['email'] : null,
+                    !empty($d['phone']) ? (string)$d['phone'] : null,
+                    !empty($d['contactName']) ? (string)$d['contactName'] : null,
+                    !empty($d['socialInstagram']) ? (string)$d['socialInstagram'] : null,
+                    !empty($d['socialTiktok']) ? (string)$d['socialTiktok'] : null,
+                    !empty($d['notes']) ? (string)$d['notes'] : null,
+                    !empty($d['addressStreet']) ? (string)$d['addressStreet'] : null,
+                    !empty($d['addressZip']) ? (string)$d['addressZip'] : null,
+                    !empty($d['addressCity']) ? (string)$d['addressCity'] : null,
+                    !empty($d['billingSameAsAddress']) ? 1 : 0,
+                    !empty($d['billingStreet']) ? (string)$d['billingStreet'] : null,
+                    !empty($d['billingZip']) ? (string)$d['billingZip'] : null,
+                    !empty($d['billingCity']) ? (string)$d['billingCity'] : null,
+                    !empty($d['vatId']) ? (string)$d['vatId'] : null,
+                    !empty($d['billingEmail']) ? (string)$d['billingEmail'] : null,
+                    as_date($d['contractStart'] ?? null),
+                    !empty($d['package']) ? (string)$d['package'] : null,
+                    isset($d['monthlyRate']) && $d['monthlyRate'] !== '' ? (string)$d['monthlyRate'] : null,
+                    isset($d['videosPerMonth']) && $d['videosPerMonth'] !== '' ? (int)$d['videosPerMonth'] : null,
+                    in_array($d['status'] ?? null, ['onboarding','active','paused'], true) ? $d['status'] : null,
+                    !empty($cl['contractSigned'])  ? 1 : 0,
+                    !empty($cl['depositReceived']) ? 1 : 0,
+                    !empty($cl['kickoffDone'])     ? 1 : 0,
+                    !empty($cl['socialAccess'])    ? 1 : 0,
+                    !empty($cl['firstShoot'])      ? 1 : 0,
                 ]);
             }
         }
 
-        // Deletions
-        foreach ($DATA_TABLES as $t) {
-            $ids = $deletions[$t] ?? [];
-            if (!is_array($ids) || empty($ids)) {
-                continue;
+        // ---------- SHOOT_DAYS ----------
+        if (!empty($upserts['shoot_days']) && is_array($upserts['shoot_days'])) {
+            if (!$isManager) json_err(403, 'Keine Berechtigung.');
+            $stmtSD = $pdo->prepare(
+                "INSERT INTO shoot_days (id, date, start_time, end_time, videograf_id, customer_id, note)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    date = VALUES(date), start_time = VALUES(start_time), end_time = VALUES(end_time),
+                    videograf_id = VALUES(videograf_id), customer_id = VALUES(customer_id), note = VALUES(note)"
+            );
+            foreach ($upserts['shoot_days'] as $s) {
+                if (!isset($s['id'], $s['data']) || !is_array($s['data'])) continue;
+                $d = $s['data'];
+                $stmtSD->execute([
+                    (string)$s['id'],
+                    as_date($d['date'] ?? null) ?? '1970-01-01',
+                    as_time($d['startTime'] ?? null),
+                    as_time($d['endTime']   ?? null),
+                    !empty($d['videografId']) ? (string)$d['videografId'] : null,
+                    !empty($d['customerId'])  ? (string)$d['customerId']  : null,
+                    !empty($d['note']) ? (string)$d['note'] : null,
+                ]);
             }
+        }
+
+        // ---------- PROJECTS ----------
+        if (!empty($upserts['projects']) && is_array($upserts['projects'])) {
+            $stmtP = $pdo->prepare(
+                "INSERT INTO projects (
+                    id, title, customer_id, videograf_id, cutter_id,
+                    shoot_date, shoot_day_id, deadline, posting_date, script,
+                    status, is_internal, approved_at
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    title = VALUES(title), customer_id = VALUES(customer_id),
+                    videograf_id = VALUES(videograf_id), cutter_id = VALUES(cutter_id),
+                    shoot_date = VALUES(shoot_date), shoot_day_id = VALUES(shoot_day_id),
+                    deadline = VALUES(deadline), posting_date = VALUES(posting_date),
+                    script = VALUES(script), status = VALUES(status), is_internal = VALUES(is_internal),
+                    approved_at = VALUES(approved_at)"
+            );
+            $validStatus = ['skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
+
+            foreach ($upserts['projects'] as $p) {
+                if (!isset($p['id'], $p['data']) || !is_array($p['data'])) continue;
+                $d = $p['data'];
+
+                // Rolle: Videograf/Cutter dürfen nur eigene Projekte und nur status updaten.
+                if (!$isManager) {
+                    $cur = db_one(
+                        "SELECT videograf_id, cutter_id, title, customer_id, shoot_date, shoot_day_id, deadline, posting_date, script, status, is_internal, approved_at
+                           FROM projects WHERE id = ?",
+                        [(string)$p['id']]
+                    );
+                    if (!$cur) continue;
+                    if ($session['uid'] !== $cur['videograf_id'] && $session['uid'] !== $cur['cutter_id']) {
+                        continue;
+                    }
+                    // Nur status erlauben
+                    $d = array_merge([
+                        'title' => $cur['title'],
+                        'customerId'  => $cur['customer_id'],
+                        'videografId' => $cur['videograf_id'],
+                        'cutterId'    => $cur['cutter_id'],
+                        'shootDate'   => $cur['shoot_date'],
+                        'shootDayId'  => $cur['shoot_day_id'],
+                        'deadline'    => $cur['deadline'],
+                        'postingDate' => $cur['posting_date'],
+                        'script'      => $cur['script'],
+                        'isInternal'  => (bool)$cur['is_internal'],
+                        'approvedAt'  => $cur['approved_at'],
+                    ], array_intersect_key($d, ['status' => 1]));
+                }
+
+                $status = in_array($d['status'] ?? null, $validStatus, true) ? $d['status'] : 'skript';
+                $approvedAt = $d['approvedAt'] ?? null;
+                if ($status === 'freigegeben' && !$approvedAt) $approvedAt = date('Y-m-d H:i:s');
+
+                $stmtP->execute([
+                    (string)$p['id'],
+                    (string)($d['title'] ?? ''),
+                    !empty($d['customerId'])  ? (string)$d['customerId']  : null,
+                    !empty($d['videografId']) ? (string)$d['videografId'] : null,
+                    !empty($d['cutterId'])    ? (string)$d['cutterId']    : null,
+                    as_date($d['shootDate']   ?? null),
+                    !empty($d['shootDayId'])  ? (string)$d['shootDayId']  : null,
+                    as_date($d['deadline']    ?? null),
+                    as_date($d['postingDate'] ?? null),
+                    $d['script'] ?? null,
+                    $status,
+                    !empty($d['isInternal']) ? 1 : 0,
+                    $approvedAt ? date('Y-m-d H:i:s', strtotime($approvedAt)) : null,
+                ]);
+            }
+        }
+
+        // ---------- VACATIONS ----------
+        if (!empty($upserts['vacations']) && is_array($upserts['vacations'])) {
+            $stmtV = $pdo->prepare(
+                "INSERT INTO vacations (id, user_id, start_date, end_date, note, approved_by, approved_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    user_id = VALUES(user_id), start_date = VALUES(start_date),
+                    end_date = VALUES(end_date), note = VALUES(note),
+                    approved_by = VALUES(approved_by), approved_at = VALUES(approved_at)"
+            );
+            foreach ($upserts['vacations'] as $v) {
+                if (!isset($v['id'], $v['data']) || !is_array($v['data'])) continue;
+                $d = $v['data'];
+                // Self oder Admin
+                if (!$isAdmin && ($d['userId'] ?? null) !== $session['uid']) continue;
+                $stmtV->execute([
+                    (string)$v['id'],
+                    (string)($d['userId'] ?? $session['uid']),
+                    as_date($d['startDate'] ?? null) ?? '1970-01-01',
+                    as_date($d['endDate']   ?? null) ?? '1970-01-01',
+                    !empty($d['note']) ? (string)$d['note'] : null,
+                    !empty($d['approvedBy']) ? (string)$d['approvedBy'] : null,
+                    !empty($d['approvedAt']) ? date('Y-m-d H:i:s', strtotime($d['approvedAt'])) : null,
+                ]);
+            }
+        }
+
+        // ---------- TODOS ----------
+        if (!empty($upserts['todos']) && is_array($upserts['todos'])) {
+            $stmtT  = $pdo->prepare(
+                "INSERT INTO todos (id, title, description, created_by, due_date, status)
+                 VALUES (?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    title = VALUES(title), description = VALUES(description),
+                    created_by = VALUES(created_by), due_date = VALUES(due_date), status = VALUES(status)"
+            );
+            $stmtAD = $pdo->prepare("DELETE FROM todo_assignees WHERE todo_id = ?");
+            $stmtAI = $pdo->prepare("INSERT IGNORE INTO todo_assignees (todo_id, user_id) VALUES (?, ?)");
+            $stmtSD2= $pdo->prepare("DELETE FROM todo_seen_by WHERE todo_id = ?");
+            $stmtSI = $pdo->prepare("INSERT IGNORE INTO todo_seen_by   (todo_id, user_id) VALUES (?, ?)");
+
+            foreach ($upserts['todos'] as $t) {
+                if (!isset($t['id'], $t['data']) || !is_array($t['data'])) continue;
+                $d = $t['data'];
+
+                // Rolle: non-manager dürfen nur status+seenBy ändern
+                if (!$isManager) {
+                    $cur = db_one("SELECT title, description, created_by, due_date FROM todos WHERE id = ?", [(string)$t['id']]);
+                    if (!$cur) continue;
+                    $isAssignee = (bool)db_one(
+                        "SELECT 1 AS ok FROM todo_assignees WHERE todo_id = ? AND user_id = ?",
+                        [(string)$t['id'], $session['uid']]
+                    );
+                    if (!$isAssignee && $cur['created_by'] !== $session['uid']) continue;
+                    $d = [
+                        'title'       => $cur['title'],
+                        'description' => $cur['description'],
+                        'createdById' => $cur['created_by'],
+                        'dueDate'     => $cur['due_date'],
+                        'status'      => in_array($d['status'] ?? null, ['open','done'], true) ? $d['status'] : 'open',
+                        'seenBy'      => $d['seenBy'] ?? null,
+                    ];
+                }
+
+                $stmtT->execute([
+                    (string)$t['id'],
+                    (string)($d['title'] ?? ''),
+                    $d['description'] ?? null,
+                    !empty($d['createdById']) ? (string)$d['createdById'] : null,
+                    as_date($d['dueDate'] ?? null),
+                    in_array($d['status'] ?? null, ['open','done'], true) ? $d['status'] : 'open',
+                ]);
+
+                if ($isManager && array_key_exists('assigneeIds', $d)) {
+                    $stmtAD->execute([(string)$t['id']]);
+                    foreach ((array)$d['assigneeIds'] as $uid) {
+                        if ($uid) $stmtAI->execute([(string)$t['id'], (string)$uid]);
+                    }
+                }
+                if (array_key_exists('seenBy', $d) && $d['seenBy'] !== null) {
+                    $stmtSD2->execute([(string)$t['id']]);
+                    foreach ((array)$d['seenBy'] as $uid) {
+                        if ($uid) $stmtSI->execute([(string)$t['id'], (string)$uid]);
+                    }
+                }
+            }
+        }
+
+        // ---------- APP_CONFIG ----------
+        if (!empty($upserts['app_config']) && is_array($upserts['app_config'])) {
+            $stmtAC = $pdo->prepare(
+                "INSERT INTO app_config (`key`, `value`) VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)"
+            );
+            foreach ($upserts['app_config'] as $row) {
+                if (!isset($row['key'])) continue;
+                $stmtAC->execute([
+                    (string)$row['key'],
+                    json_encode($row['value'] ?? null, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                ]);
+            }
+        }
+
+        // ---------- DELETIONS ----------
+        $delTables = ['users','customers','projects','vacations','todos','shoot_days'];
+        foreach ($delTables as $t) {
+            $ids = $deletions[$t] ?? [];
+            if (!is_array($ids) || empty($ids)) continue;
             $ids = array_values(array_map('strval', $ids));
-            $placeholders = implode(',', array_fill(0, count($ids), '?'));
-            $stmt = $pdo->prepare("DELETE FROM `$t` WHERE `id` IN ($placeholders)");
-            $stmt->execute($ids);
+
+            // Berechtigung:
+            //   users        → admin
+            //   customers    → admin
+            //   projects     → admin/manager
+            //   shoot_days   → admin/manager
+            //   todos        → admin/manager
+            //   vacations    → self/admin
+            if ($t === 'users' || $t === 'customers') {
+                if (!$isAdmin) continue;
+            } elseif (in_array($t, ['projects','shoot_days','todos'], true)) {
+                if (!$isManager) continue;
+            } elseif ($t === 'vacations') {
+                if (!$isAdmin) {
+                    // Nur eigene
+                    $place = implode(',', array_fill(0, count($ids), '?'));
+                    $own = db_all("SELECT id FROM vacations WHERE user_id = ? AND id IN ($place)",
+                                  array_merge([$session['uid']], $ids));
+                    $ids = array_column($own, 'id');
+                    if (!$ids) continue;
+                }
+            }
+
+            $place = implode(',', array_fill(0, count($ids), '?'));
+            $pdo->prepare("DELETE FROM `$t` WHERE id IN ($place)")->execute($ids);
         }
 
         $pdo->commit();
     } catch (Throwable $e) {
         $pdo->rollBack();
-        bad('Push fehlgeschlagen: ' . $e->getMessage(), 500);
+        log_err('legacy api push failed', ['msg' => $e->getMessage()]);
+        json_err(500, 'Push fehlgeschlagen.');
     }
 
-    respond(['ok' => true]);
+    echo json_encode(['ok' => true, 'success' => true, 'data' => []], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
-bad('Unbekannte action. Erlaubt: ping, pull, push', 404);
+json_err(404, 'Unbekannte action. Erlaubt: ping, pull, push');
