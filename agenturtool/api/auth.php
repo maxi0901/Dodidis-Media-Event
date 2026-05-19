@@ -78,7 +78,7 @@ switch ($action) {
             }
 
             $u = db_one(
-                "SELECT id, name, username, password_hash
+                "SELECT id, username, password_hash
                    FROM users
                   WHERE LOWER(username) = LOWER(?)
                   LIMIT 1",
@@ -96,7 +96,7 @@ switch ($action) {
             regenerate_session();
             $_SESSION['type']    = 'staff';
             $_SESSION['uid']     = $u['id'];
-            $_SESSION['name']    = $u['name'];
+            $_SESSION['name']    = $u['username'];
             $_SESSION['roles']   = $roles;
 
             log_activity('auth', $u['id'], 'login', ['type' => 'staff']);
