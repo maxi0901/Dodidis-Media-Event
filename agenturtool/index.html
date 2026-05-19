@@ -2853,65 +2853,43 @@
 <!-- MODAL CONTAINER -->
 <div id="modal-container"></div>
 
-<!-- Supabase JS SDK (Cloud-Sync für Mehrbenutzer-Betrieb) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-
 <script>
 /* ===========================================================================
    AGENTUR MANAGEMENT TOOL
    ===========================================================================
-   Datenhaltung: Supabase als Quelle der Wahrheit + LocalStorage-Cache für
-   schnellen UI-Start. Alle Operationen gehen über saveStore() / loadStore().
+   Datenhaltung: MySQL-Backend (api.php) als Quelle der Wahrheit
+   + LocalStorage-Cache für schnellen UI-Start.
+   Alle Operationen gehen über saveStore() / loadStore().
    =========================================================================== */
 
-/* ----------- SUPABASE CLIENT ----------- */
-const SUPABASE_URL = 'https://jkkuhqwuizjfzuavxxpy.supabase.co';
-const SUPABASE_KEY_STORAGE = 'sb_anon_key';
+/* ----------- BACKEND CLIENT ----------- */
+const API_URL = './api.php';
 
-// Bootstrap: Key + optional kompletter Daten-Import aus URL-Hash
-// #sb_key=... → Supabase-Key in localStorage
-// #__store=<JSON> → kompletter LocalStorage-Stand übernehmen (Migration von lokal in Cloud)
+// Bootstrap: optional kompletter Daten-Import aus URL-Hash
+// #__store=<JSON> → kompletter LocalStorage-Stand übernehmen (Migration nach Cloud)
 (function bootstrapFromHash() {
   try {
     const h = (location.hash || '').replace(/^#/, '');
     if (!h) return;
     const params = new URLSearchParams(h);
-    const k = params.get('sb_key');
-    if (k && k.startsWith('eyJ')) {
-      localStorage.setItem(SUPABASE_KEY_STORAGE, k);
-    }
     const importJson = params.get('__store');
     if (importJson) {
       try {
         const parsed = JSON.parse(importJson);
         if (parsed && typeof parsed === 'object') {
-          // Kompletten Stand überschreiben – wird gleich von Cloud-Sync nach Supabase gepusht
-          localStorage.setItem(STORE_KEY, importJson);
-          // Session löschen damit User sich frisch einloggen muss (Sicherheit nach Import)
-          // (optional – auskommentiert weil sonst Migration mühsamer wird)
-          // localStorage.removeItem('agentur_session');
+          localStorage.setItem('agentur_mgmt_v1', importJson);
           console.log('[migration] LocalStorage-Stand aus URL-Hash importiert.');
         }
       } catch (e) { console.error('[migration] Hash-Import fehlgeschlagen:', e); }
-    }
-    if (k || importJson) {
       history.replaceState(null, '', location.pathname + location.search);
     }
   } catch {}
 })();
 
-const SUPABASE_KEY = localStorage.getItem(SUPABASE_KEY_STORAGE) || '';
-const supa = (SUPABASE_KEY && window.supabase && window.supabase.createClient)
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-      auth: { persistSession: false },
-      realtime: { params: { eventsPerSecond: 5 } }
-    })
-  : null;
-if (!supa) {
-  console.warn('[cloud] Kein Supabase-Key gesetzt – Tool läuft im reinen LocalStorage-Modus.');
-}
+// Truthy marker: Cloud-Backend ist verfügbar (eigene PHP-API auf gleichem Host).
+const supa = true;
 
-// Hash a password to SHA-256 hex (so we never store plaintext in Supabase)
+// Hash a password to SHA-256 hex (so we never store plaintext in the cloud)
 async function hashPassword(plain) {
   if (!plain) return '';
   // Bereits gehashte Passwörter beginnen mit 'sha256$' – nicht doppelt hashen
@@ -3307,42 +3285,50 @@ function trackDeletion(collectionLocalKey, id) {
 
 async function pushAllToCloud() {
   if (!supa) return;
-  // 1. Users: Passwörter hashen
+  // 1. Users: Passwörter hashen (nie Klartext ins Backend)
   const usersOut = await Promise.all((store.users || []).map(async u => ({
     ...u,
     password: u.password ? await hashPassword(u.password) : ''
   })));
-  // Lokal auch direkt die gehashten Versionen behalten (damit nach Reload alles konsistent ist)
   store.users = usersOut;
 
-  const upserts = [];
-  upserts.push(['users', usersOut.map(u => ({ id: u.id, data: u, updated_at: new Date().toISOString() }))]);
+  const upserts = {};
+  upserts.users = usersOut.map(u => ({ id: u.id, data: u }));
   CLOUD_COLLECTIONS.slice(1).forEach(c => {
-    const arr = (store[c.local] || []).map(r => ({ id: r.id, data: r, updated_at: new Date().toISOString() }));
-    upserts.push([c.table, arr]);
+    upserts[c.table] = (store[c.local] || []).map(r => ({ id: r.id, data: r }));
   });
-  // app_config / calendarConfig + activity log
-  upserts.push(['app_config', [
-    { key: 'calendarConfig', value: store.calendarConfig || {}, updated_at: new Date().toISOString() },
-    { key: 'activity', value: { entries: (store.activity || []).slice(0, 500) }, updated_at: new Date().toISOString() }
-  ]]);
+  upserts.app_config = [
+    { key: 'calendarConfig', value: store.calendarConfig || {} },
+    { key: 'activity', value: { entries: (store.activity || []).slice(0, 500) } }
+  ];
 
-  for (const [table, rows] of upserts) {
-    if (rows.length === 0) continue;
-    const { error } = await supa.from(table).upsert(rows, { onConflict: table === 'app_config' ? 'key' : 'id' });
-    if (error) console.error('[cloud upsert ' + table + ']', error);
-  }
   // Explizite Tombstones – nur was lokal aktiv gelöscht wurde
   const pending = store._pendingDeletions || {};
+  const deletions = {};
   for (const c of CLOUD_COLLECTIONS) {
     const ids = pending[c.local] || [];
-    if (ids.length === 0) continue;
-    const { error } = await supa.from(c.table).delete().in('id', ids);
-    if (error) {
-      console.error('[cloud delete ' + c.table + ']', error);
-    } else {
-      pending[c.local] = []; // erfolgreich gelöscht → aus Pending-Queue entfernen
-    }
+    if (ids.length > 0) deletions[c.table] = ids;
+  }
+
+  let res, json;
+  try {
+    res = await fetch(API_URL + '?action=push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ upserts, deletions })
+    });
+    json = await res.json();
+  } catch (e) {
+    console.error('[cloud push] network/parse error', e);
+    return;
+  }
+  if (!res.ok || !json.ok) {
+    console.error('[cloud push]', json && json.error ? json.error : ('HTTP ' + res.status));
+    return;
+  }
+  // Erfolgreich gepusht → Pending-Deletions leeren
+  for (const c of CLOUD_COLLECTIONS) {
+    if (deletions[c.table]) pending[c.local] = [];
   }
   store._pendingDeletions = pending;
   localStorage.setItem(STORE_KEY, JSON.stringify(store));
@@ -3352,30 +3338,30 @@ async function pullAllFromCloud() {
   if (!supa || cloudPullInFlight) return false;
   cloudPullInFlight = true;
   try {
-    const results = await Promise.all([
-      ...CLOUD_COLLECTIONS.map(c => supa.from(c.table).select('data')),
-      supa.from('app_config').select('key,value')
-    ]);
+    const res = await fetch(API_URL + '?action=pull', { cache: 'no-store' });
+    if (!res.ok) {
+      console.error('[cloud pull] HTTP', res.status);
+      return false;
+    }
+    const json = await res.json();
+    if (!json.ok) {
+      console.error('[cloud pull]', json.error || 'unknown error');
+      return false;
+    }
+    const data = json.data || {};
     // Prüfen ob irgendetwas geliefert wurde – bei komplett leerer DB nichts überschreiben
     let totalRows = 0;
-    CLOUD_COLLECTIONS.forEach((c, i) => {
-      const r = results[i];
-      if (r.error) { console.error('[cloud pull ' + c.table + ']', r.error); return; }
-      totalRows += (r.data || []).length;
-    });
-    const cfgRes = results[results.length - 1];
-    if (cfgRes.data && cfgRes.data.length > 0) totalRows += cfgRes.data.length;
-
+    CLOUD_COLLECTIONS.forEach(c => { totalRows += (data[c.table] || []).length; });
+    totalRows += (data.app_config || []).length;
     if (totalRows === 0) return false; // DB leer – Bootstrap-Pfad nehmen
 
-    CLOUD_COLLECTIONS.forEach((c, i) => {
-      const r = results[i];
-      if (!r.error && r.data) store[c.local] = r.data.map(row => row.data);
+    CLOUD_COLLECTIONS.forEach(c => {
+      if (Array.isArray(data[c.table])) store[c.local] = data[c.table];
     });
-    if (cfgRes.data) {
-      const cfg = cfgRes.data.find(r => r.key === 'calendarConfig');
+    if (Array.isArray(data.app_config)) {
+      const cfg = data.app_config.find(r => r.key === 'calendarConfig');
       if (cfg) store.calendarConfig = cfg.value;
-      const act = cfgRes.data.find(r => r.key === 'activity');
+      const act = data.app_config.find(r => r.key === 'activity');
       if (act && act.value && Array.isArray(act.value.entries)) store.activity = act.value.entries;
     }
     localStorage.setItem(STORE_KEY, JSON.stringify(store));
@@ -3414,25 +3400,24 @@ async function initCloudSync() {
 
 function subscribeCloudChannel() {
   if (!supa) return;
-  const tables = [...CLOUD_COLLECTIONS.map(c => c.table), 'app_config'];
-  const ch = supa.channel('dodidis-sync');
-  tables.forEach(t => {
-    ch.on('postgres_changes', { event: '*', schema: 'public', table: t }, () => {
-      // Eigener Timer (NICHT cloudPushTimer) damit ausstehende Pushes nicht verworfen werden
-      if (cloudPullTimer) clearTimeout(cloudPullTimer);
-      cloudPullTimer = setTimeout(async () => {
-        // Wenn gerade ein Push wartet, ZUERST pushen, dann pullen
-        if (cloudPushTimer) {
-          clearTimeout(cloudPushTimer);
-          cloudPushTimer = null;
-          try { await pushAllToCloud(); } catch (e) { console.error('[cloud push before pull]', e); }
-        }
-        await pullAllFromCloud();
+  // Self-hosted Backend hat keine Realtime-Events → Polling alle 5 Sekunden.
+  // Nur re-rendern wenn sich der Store tatsächlich geändert hat.
+  setInterval(async () => {
+    if (cloudPullInFlight) return;
+    // Falls ein Push aussteht: erst pushen, dann pullen
+    if (cloudPushTimer) {
+      clearTimeout(cloudPushTimer);
+      cloudPushTimer = null;
+      try { await pushAllToCloud(); } catch (e) { console.error('[cloud push before pull]', e); }
+    }
+    const before = JSON.stringify(store);
+    try {
+      await pullAllFromCloud();
+      if (JSON.stringify(store) !== before) {
         try { renderPage?.(); } catch {}
-      }, 300);
-    });
-  });
-  ch.subscribe();
+      }
+    } catch {}
+  }, 5000);
 }
 
 // Cloud-Sync starten sobald DOM bereit
