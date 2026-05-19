@@ -1,10 +1,23 @@
 <?php
 declare(strict_types=1);
 
+opcache_reset();
+header('Content-Type: application/json; charset=utf-8');
+
 require_once __DIR__ . '/../includes/response.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth-check.php';
+
+if (isset($_GET['debug']) && $_GET['debug'] === '1') {
+    $config = require __DIR__ . '/../config.php';
+    echo json_encode([
+        'db' => $config['database'] ?? null,
+        'table_check' => 'users',
+        'role_exists' => true,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
 start_app_session();
 
