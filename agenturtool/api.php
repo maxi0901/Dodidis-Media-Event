@@ -177,9 +177,9 @@ if ($action === 'pull') {
     $userRows = db_all(
         "SELECT id, username, {$nameCol} AS name, email, avatar_color, avatar_image, calendar_prefs FROM users"
     );
-    $rolesRows = db_all("SELECT user_id, role FROM user_roles");
+    $rolesRows = db_all("SELECT user_id, role_name FROM user_roles");
     $rolesByUser = [];
-    foreach ($rolesRows as $r) { $rolesByUser[$r['user_id']][] = $r['role']; }
+    foreach ($rolesRows as $r) { $rolesByUser[$r['user_id']][] = $r['role_name']; }
     $users = [];
     foreach ($userRows as $u) {
         $u['roles'] = $rolesByUser[$u['id']] ?? [];
@@ -294,7 +294,7 @@ if ($action === 'push') {
                     calendar_prefs = VALUES(calendar_prefs)"
             );
             $stmtRoleDel = $pdo->prepare("DELETE FROM user_roles WHERE user_id = ?");
-            $stmtRoleIns = $pdo->prepare("INSERT IGNORE INTO user_roles (user_id, role) VALUES (?, ?)");
+            $stmtRoleIns = $pdo->prepare("INSERT IGNORE INTO user_roles (user_id, role_name) VALUES (?, ?)");
 
             foreach ($upserts['users'] as $u) {
                 if (!isset($u['id'], $u['data']) || !is_array($u['data'])) continue;

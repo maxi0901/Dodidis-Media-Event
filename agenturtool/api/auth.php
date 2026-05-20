@@ -104,8 +104,8 @@ switch ($action) {
                 json_err(401, 'Benutzername oder Passwort ist falsch.');
             }
 
-            $rolesRows = db_all("SELECT role FROM user_roles WHERE user_id = ?", [$u['id']]);
-            $roles     = array_column($rolesRows, 'role');
+            $rolesRows = db_all("SELECT role_name FROM user_roles WHERE user_id = ?", [$u['id']]);
+            $roles     = array_column($rolesRows, 'role_name');
 
             regenerate_session();
             $_SESSION['type']    = 'staff';
@@ -116,9 +116,10 @@ switch ($action) {
             log_activity('auth', $u['id'], 'login', ['type' => 'staff']);
 
             json_ok([
-                'type' => 'staff',
-                'user' => hydrate_user($u['id']),
-                'csrf' => csrf_token(),
+                'type'  => 'staff',
+                'user'  => hydrate_user($u['id']),
+                'roles' => $roles,
+                'csrf'  => csrf_token(),
             ]);
         }
 

@@ -57,9 +57,9 @@ if ($initial) {
         "SELECT id, username, {$nameCol} AS name" . (has_role('admin','manager') ? ", email" : "") .
         ", avatar_color AS avatarColor, avatar_image AS avatarImage, calendar_prefs FROM users ORDER BY {$nameCol}"
     );
-    $roleAll = db_all("SELECT user_id, role FROM user_roles");
+    $roleAll = db_all("SELECT user_id, role_name FROM user_roles");
     $byUser  = [];
-    foreach ($roleAll as $r) { $byUser[$r['user_id']][] = $r['role']; }
+    foreach ($roleAll as $r) { $byUser[$r['user_id']][] = $r['role_name']; }
     foreach ($userRows as &$u) {
         $u['roles'] = $byUser[$u['id']] ?? [];
         if ($u['calendar_prefs']) {
