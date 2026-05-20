@@ -121,6 +121,19 @@ if (!tbl_exists($pdo, $db, 'activity_log')) {
     ", 'activity_log erstellt');
 } else {
     skip('activity_log existiert bereits');
+    // Fehlende Spalten nachrüsten (ältere Schema-Versionen hatten nicht alle Spalten)
+    if (!col_exists($pdo, $db, 'activity_log', 'scope')) {
+        exec_sql($pdo, "ALTER TABLE activity_log ADD COLUMN scope VARCHAR(32) NOT NULL DEFAULT 'system' AFTER ts", 'activity_log.scope hinzugefügt');
+    } else { skip('activity_log.scope existiert bereits'); }
+    if (!col_exists($pdo, $db, 'activity_log', 'ref_id')) {
+        exec_sql($pdo, "ALTER TABLE activity_log ADD COLUMN ref_id VARCHAR(64) NULL DEFAULT NULL AFTER scope", 'activity_log.ref_id hinzugefügt');
+    } else { skip('activity_log.ref_id existiert bereits'); }
+    if (!col_exists($pdo, $db, 'activity_log', 'actor_id')) {
+        exec_sql($pdo, "ALTER TABLE activity_log ADD COLUMN actor_id VARCHAR(64) NULL DEFAULT NULL AFTER action", 'activity_log.actor_id hinzugefügt');
+    } else { skip('activity_log.actor_id existiert bereits'); }
+    if (!col_exists($pdo, $db, 'activity_log', 'details')) {
+        exec_sql($pdo, "ALTER TABLE activity_log ADD COLUMN details JSON NULL DEFAULT NULL", 'activity_log.details hinzugefügt');
+    } else { skip('activity_log.details existiert bereits'); }
 }
 
 // project_files
