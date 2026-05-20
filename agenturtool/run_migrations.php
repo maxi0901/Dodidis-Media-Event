@@ -311,6 +311,24 @@ if (!col_exists($pdo, $db, 'todos', 'updated_at')) {
     skip('todos.updated_at existiert bereits');
 }
 
+// customers: instagram → social_instagram  (alter Spaltenname ohne Präfix)
+if (col_exists($pdo, $db, 'customers', 'instagram') && !col_exists($pdo, $db, 'customers', 'social_instagram')) {
+    exec_sql($pdo, "ALTER TABLE customers CHANGE COLUMN instagram social_instagram VARCHAR(190) NULL DEFAULT NULL", 'customers.instagram → social_instagram umbenannt');
+} elseif (!col_exists($pdo, $db, 'customers', 'social_instagram')) {
+    exec_sql($pdo, "ALTER TABLE customers ADD COLUMN social_instagram VARCHAR(190) NULL DEFAULT NULL", 'customers.social_instagram hinzugefügt');
+} else {
+    skip('customers.social_instagram existiert bereits');
+}
+
+// customers: tiktok → social_tiktok
+if (col_exists($pdo, $db, 'customers', 'tiktok') && !col_exists($pdo, $db, 'customers', 'social_tiktok')) {
+    exec_sql($pdo, "ALTER TABLE customers CHANGE COLUMN tiktok social_tiktok VARCHAR(190) NULL DEFAULT NULL", 'customers.tiktok → social_tiktok umbenannt');
+} elseif (!col_exists($pdo, $db, 'customers', 'social_tiktok')) {
+    exec_sql($pdo, "ALTER TABLE customers ADD COLUMN social_tiktok VARCHAR(190) NULL DEFAULT NULL", 'customers.social_tiktok hinzugefügt');
+} else {
+    skip('customers.social_tiktok existiert bereits');
+}
+
 // ============================================================
 // BLOCK D – User-Seed sicherstellen
 // ============================================================
