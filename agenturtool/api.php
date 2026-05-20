@@ -77,16 +77,16 @@ function customer_to_doc(array $c): array
         'vatId'            => $c['vat_id']         ?? '',
         'billingEmail'     => $c['billing_email']  ?? '',
         'contractStart'    => $c['contract_start'],
-        'package'          => $c['package']        ?? '',
+        'package'          => $c['package_name']   ?? ($c['package'] ?? ''),
         'monthlyRate'      => $c['monthly_rate'],
         'videosPerMonth'   => $c['videos_per_month'] !== null ? (int)$c['videos_per_month'] : '',
         'status'           => $c['status'],
         'checklist'        => [
-            'contractSigned'  => (bool)$c['contract_signed'],
-            'depositReceived' => (bool)$c['deposit_received'],
-            'kickoffDone'     => (bool)$c['kickoff_done'],
-            'socialAccess'    => (bool)$c['social_access'],
-            'firstShoot'      => (bool)$c['first_shoot'],
+            'contractSigned'  => (bool)($c['contract_signed']  ?? 0),
+            'depositReceived' => (bool)($c['deposit_received'] ?? 0),
+            'kickoffDone'     => (bool)($c['kickoff_done']     ?? 0),
+            'socialAccess'    => (bool)($c['social_access']    ?? 0),
+            'firstShoot'      => (bool)($c['first_shoot']      ?? 0),
         ],
         'createdAt'        => $c['created_at'],
     ];
@@ -147,7 +147,7 @@ function todo_to_doc(array $t, array $assigneeMap, array $seenMap): array
         'id'          => (string)$t['id'],
         'title'       => (string)$t['title'],
         'description' => $t['description'] ?? '',
-        'createdById' => $t['created_by'],
+        'createdById' => $t['created_by_id'] ?? $t['created_by'] ?? null,
         'dueDate'     => $t['due_date'],
         'status'      => $t['status'],
         'createdAt'   => $t['created_at'],
@@ -186,11 +186,25 @@ if ($action === 'pull') {
         $users[] = map_user_doc($u);
     }
 
-    // Customers
+    // Customers – mit LEFT JOIN auf customer_checklists
+    $custSql = "SELECT c.id, c.name, c.customer_number, c.manager_id,
+                       c.email, c.phone, c.contact_name, c.social_instagram, c.social_tiktok,
+                       c.notes, c.address_street, c.address_zip, c.address_city,
+                       c.billing_same_as_address, c.billing_street, c.billing_zip, c.billing_city,
+                       c.vat_id, c.billing_email, c.contract_start, c.package_name,
+                       c.monthly_rate, c.videos_per_month, c.status,
+                       COALESCE(cl.contract_signed, 0)  AS contract_signed,
+                       COALESCE(cl.deposit_received, 0) AS deposit_received,
+                       COALESCE(cl.kickoff_done, 0)     AS kickoff_done,
+                       COALESCE(cl.social_access, 0)    AS social_access,
+                       COALESCE(cl.first_shoot, 0)      AS first_shoot,
+                       c.created_at
+                  FROM customers c
+                  LEFT JOIN customer_checklists cl ON cl.customer_id = c.id";
     if ($type === 'customer') {
-        $custRows = db_all("SELECT * FROM customers WHERE id = ?", [$session['cid']]);
+        $custRows = db_all("$custSql WHERE c.id = ?", [$session['cid']]);
     } else {
-        $custRows = db_all("SELECT * FROM customers");
+        $custRows = db_all($custSql);
     }
     $customers = array_map('customer_to_doc', $custRows);
 
@@ -218,7 +232,7 @@ if ($action === 'pull') {
         foreach (db_all("SELECT todo_id, user_id FROM todo_assignees WHERE todo_id IN ($place)", $ids) as $r) {
             $assigneeMap[$r['todo_id']][] = $r['user_id'];
         }
-        foreach (db_all("SELECT todo_id, user_id FROM todo_seen_by WHERE todo_id IN ($place)", $ids) as $r) {
+        foreach (db_all("SELECT todo_id, user_id FROM todo_seen WHERE todo_id IN ($place)", $ids) as $r) {
             $seenMap[$r['todo_id']][] = $r['user_id'];
         }
     }
@@ -334,9 +348,8 @@ if ($action === 'push') {
                     email, phone, contact_name, social_instagram, social_tiktok, notes,
                     address_street, address_zip, address_city,
                     billing_same_as_address, billing_street, billing_zip, billing_city,
-                    vat_id, billing_email, contract_start, package, monthly_rate, videos_per_month, status,
-                    contract_signed, deposit_received, kickoff_done, social_access, first_shoot
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    vat_id, billing_email, contract_start, package_name, monthly_rate, videos_per_month, status
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                  ON DUPLICATE KEY UPDATE
                     name = VALUES(name), customer_number = VALUES(customer_number), manager_id = VALUES(manager_id),
                     pin_hash = IF(VALUES(pin_hash) IS NULL, pin_hash, VALUES(pin_hash)),
@@ -347,11 +360,20 @@ if ($action === 'push') {
                     billing_same_as_address = VALUES(billing_same_as_address),
                     billing_street = VALUES(billing_street), billing_zip = VALUES(billing_zip), billing_city = VALUES(billing_city),
                     vat_id = VALUES(vat_id), billing_email = VALUES(billing_email),
-                    contract_start = VALUES(contract_start), package = VALUES(package),
+                    contract_start = VALUES(contract_start), package_name = VALUES(package_name),
                     monthly_rate = VALUES(monthly_rate), videos_per_month = VALUES(videos_per_month),
-                    status = VALUES(status),
-                    contract_signed = VALUES(contract_signed), deposit_received = VALUES(deposit_received),
-                    kickoff_done = VALUES(kickoff_done), social_access = VALUES(social_access), first_shoot = VALUES(first_shoot)"
+                    status = VALUES(status)"
+            );
+            $stmtCL = $pdo->prepare(
+                "INSERT INTO customer_checklists
+                    (customer_id, contract_signed, deposit_received, kickoff_done, social_access, first_shoot)
+                 VALUES (?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    contract_signed  = VALUES(contract_signed),
+                    deposit_received = VALUES(deposit_received),
+                    kickoff_done     = VALUES(kickoff_done),
+                    social_access    = VALUES(social_access),
+                    first_shoot      = VALUES(first_shoot)"
             );
             foreach ($upserts['customers'] as $c) {
                 if (!isset($c['id'], $c['data']) || !is_array($c['data'])) continue;
@@ -385,12 +407,21 @@ if ($action === 'push') {
                     isset($d['monthlyRate']) && $d['monthlyRate'] !== '' ? (string)$d['monthlyRate'] : null,
                     isset($d['videosPerMonth']) && $d['videosPerMonth'] !== '' ? (int)$d['videosPerMonth'] : null,
                     in_array($d['status'] ?? null, ['onboarding','active','paused'], true) ? $d['status'] : null,
-                    !empty($cl['contractSigned'])  ? 1 : 0,
-                    !empty($cl['depositReceived']) ? 1 : 0,
-                    !empty($cl['kickoffDone'])     ? 1 : 0,
-                    !empty($cl['socialAccess'])    ? 1 : 0,
-                    !empty($cl['firstShoot'])      ? 1 : 0,
                 ]);
+                // Checkliste in separate Tabelle
+                try {
+                    $stmtCL->execute([
+                        (string)$c['id'],
+                        !empty($cl['contractSigned'])  ? 1 : 0,
+                        !empty($cl['depositReceived']) ? 1 : 0,
+                        !empty($cl['kickoffDone'])     ? 1 : 0,
+                        !empty($cl['socialAccess'])    ? 1 : 0,
+                        !empty($cl['firstShoot'])      ? 1 : 0,
+                    ]);
+                } catch (Throwable $e) {
+                    // Wenn customer_checklists nicht existiert, silent fail
+                    error_log('[api.php/push/checklist] ' . $e->getMessage());
+                }
             }
         }
 
@@ -520,16 +551,16 @@ if ($action === 'push') {
         // ---------- TODOS ----------
         if (!empty($upserts['todos']) && is_array($upserts['todos'])) {
             $stmtT  = $pdo->prepare(
-                "INSERT INTO todos (id, title, description, created_by, due_date, status)
+                "INSERT INTO todos (id, title, description, created_by_id, due_date, status)
                  VALUES (?, ?, ?, ?, ?, ?)
                  ON DUPLICATE KEY UPDATE
                     title = VALUES(title), description = VALUES(description),
-                    created_by = VALUES(created_by), due_date = VALUES(due_date), status = VALUES(status)"
+                    created_by_id = VALUES(created_by_id), due_date = VALUES(due_date), status = VALUES(status)"
             );
             $stmtAD = $pdo->prepare("DELETE FROM todo_assignees WHERE todo_id = ?");
             $stmtAI = $pdo->prepare("INSERT IGNORE INTO todo_assignees (todo_id, user_id) VALUES (?, ?)");
-            $stmtSD2= $pdo->prepare("DELETE FROM todo_seen_by WHERE todo_id = ?");
-            $stmtSI = $pdo->prepare("INSERT IGNORE INTO todo_seen_by   (todo_id, user_id) VALUES (?, ?)");
+            $stmtSD2= $pdo->prepare("DELETE FROM todo_seen WHERE todo_id = ?");
+            $stmtSI = $pdo->prepare("INSERT IGNORE INTO todo_seen (todo_id, user_id) VALUES (?, ?)");
 
             foreach ($upserts['todos'] as $t) {
                 if (!isset($t['id'], $t['data']) || !is_array($t['data'])) continue;
@@ -537,17 +568,17 @@ if ($action === 'push') {
 
                 // Rolle: non-manager dürfen nur status+seenBy ändern
                 if (!$isManager) {
-                    $cur = db_one("SELECT title, description, created_by, due_date FROM todos WHERE id = ?", [(string)$t['id']]);
+                    $cur = db_one("SELECT title, description, created_by_id, due_date FROM todos WHERE id = ?", [(string)$t['id']]);
                     if (!$cur) continue;
                     $isAssignee = (bool)db_one(
                         "SELECT 1 AS ok FROM todo_assignees WHERE todo_id = ? AND user_id = ?",
                         [(string)$t['id'], $session['uid']]
                     );
-                    if (!$isAssignee && $cur['created_by'] !== $session['uid']) continue;
+                    if (!$isAssignee && $cur['created_by_id'] !== $session['uid']) continue;
                     $d = [
                         'title'       => $cur['title'],
                         'description' => $cur['description'],
-                        'createdById' => $cur['created_by'],
+                        'createdById' => $cur['created_by_id'],
                         'dueDate'     => $cur['due_date'],
                         'status'      => in_array($d['status'] ?? null, ['open','done'], true) ? $d['status'] : 'open',
                         'seenBy'      => $d['seenBy'] ?? null,
@@ -558,7 +589,7 @@ if ($action === 'push') {
                     (string)$t['id'],
                     (string)($d['title'] ?? ''),
                     $d['description'] ?? null,
-                    !empty($d['createdById']) ? (string)$d['createdById'] : null,
+                    !empty($d['createdById']) ? (string)$d['createdById'] : ($session['uid'] ?? null),
                     as_date($d['dueDate'] ?? null),
                     in_array($d['status'] ?? null, ['open','done'], true) ? $d['status'] : 'open',
                 ]);

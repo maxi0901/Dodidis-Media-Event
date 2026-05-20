@@ -119,10 +119,9 @@ try {
             email, phone, contact_name, social_instagram, social_tiktok, notes,
             address_street, address_zip, address_city,
             billing_same_as_address, billing_street, billing_zip, billing_city,
-            vat_id, billing_email, contract_start, package, monthly_rate, videos_per_month, status,
-            contract_signed, deposit_received, kickoff_done, social_access, first_shoot
+            vat_id, billing_email, contract_start, package_name, monthly_rate, videos_per_month, status
          ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          ) ON DUPLICATE KEY UPDATE
             name = VALUES(name), manager_id = VALUES(manager_id), pin_hash = VALUES(pin_hash),
             email = VALUES(email), phone = VALUES(phone), contact_name = VALUES(contact_name),
@@ -132,11 +131,20 @@ try {
             billing_same_as_address = VALUES(billing_same_as_address),
             billing_street = VALUES(billing_street), billing_zip = VALUES(billing_zip), billing_city = VALUES(billing_city),
             vat_id = VALUES(vat_id), billing_email = VALUES(billing_email),
-            contract_start = VALUES(contract_start), package = VALUES(package),
+            contract_start = VALUES(contract_start), package_name = VALUES(package_name),
             monthly_rate = VALUES(monthly_rate), videos_per_month = VALUES(videos_per_month),
-            status = VALUES(status),
-            contract_signed = VALUES(contract_signed), deposit_received = VALUES(deposit_received),
-            kickoff_done = VALUES(kickoff_done), social_access = VALUES(social_access), first_shoot = VALUES(first_shoot)"
+            status = VALUES(status)"
+    );
+    $stmtCL = $pdo->prepare(
+        "INSERT INTO customer_checklists
+            (customer_id, contract_signed, deposit_received, kickoff_done, social_access, first_shoot)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+            contract_signed  = VALUES(contract_signed),
+            deposit_received = VALUES(deposit_received),
+            kickoff_done     = VALUES(kickoff_done),
+            social_access    = VALUES(social_access),
+            first_shoot      = VALUES(first_shoot)"
     );
 
     foreach (($source['customers'] ?? []) as $c) {
@@ -168,12 +176,20 @@ try {
             isset($c['monthlyRate'])     && $c['monthlyRate'] !== ''     ? (string)$c['monthlyRate']     : null,
             isset($c['videosPerMonth'])  && $c['videosPerMonth'] !== ''  ? (int)$c['videosPerMonth']     : null,
             in_array($c['status'] ?? null, ['onboarding','active','paused'], true) ? $c['status'] : null,
-            !empty($cl['contractSigned'])  ? 1 : 0,
-            !empty($cl['depositReceived']) ? 1 : 0,
-            !empty($cl['kickoffDone'])     ? 1 : 0,
-            !empty($cl['socialAccess'])    ? 1 : 0,
-            !empty($cl['firstShoot'])      ? 1 : 0,
         ]);
+        // Checkliste in separate Tabelle migrieren
+        try {
+            $stmtCL->execute([
+                $c['id'],
+                !empty($cl['contractSigned'])  ? 1 : 0,
+                !empty($cl['depositReceived']) ? 1 : 0,
+                !empty($cl['kickoffDone'])     ? 1 : 0,
+                !empty($cl['socialAccess'])    ? 1 : 0,
+                !empty($cl['firstShoot'])      ? 1 : 0,
+            ]);
+        } catch (Throwable $e) {
+            error_log('[migrate/checklist] ' . $e->getMessage());
+        }
     }
     $echo('[ok] customers: ' . count($source['customers'] ?? []));
 
@@ -259,14 +275,14 @@ try {
 
     // ---------- TODOS (+ assignees + seen_by) ----------
     $stmtT  = $pdo->prepare(
-        "INSERT INTO todos (id, title, description, created_by, due_date, status, created_at)
+        "INSERT INTO todos (id, title, description, created_by_id, due_date, status, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
            title = VALUES(title), description = VALUES(description),
-           created_by = VALUES(created_by), due_date = VALUES(due_date), status = VALUES(status)"
+           created_by_id = VALUES(created_by_id), due_date = VALUES(due_date), status = VALUES(status)"
     );
     $stmtTA = $pdo->prepare("INSERT IGNORE INTO todo_assignees (todo_id, user_id) VALUES (?, ?)");
-    $stmtTS = $pdo->prepare("INSERT IGNORE INTO todo_seen_by   (todo_id, user_id) VALUES (?, ?)");
+    $stmtTS = $pdo->prepare("INSERT IGNORE INTO todo_seen      (todo_id, user_id) VALUES (?, ?)");
     foreach (($source['todos'] ?? []) as $t) {
         if (!isset($t['id'], $t['title'])) continue;
         $stmtT->execute([

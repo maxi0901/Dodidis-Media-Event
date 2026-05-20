@@ -7,13 +7,14 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS activity_log;
-DROP TABLE IF EXISTS todo_seen_by;
+DROP TABLE IF EXISTS todo_seen;
 DROP TABLE IF EXISTS todo_assignees;
 DROP TABLE IF EXISTS project_files;
 DROP TABLE IF EXISTS todos;
 DROP TABLE IF EXISTS vacations;
 DROP TABLE IF EXISTS projects;
 DROP TABLE IF EXISTS shoot_days;
+DROP TABLE IF EXISTS customer_checklists;
 DROP TABLE IF EXISTS customers;
 DROP TABLE IF EXISTS user_roles;
 DROP TABLE IF EXISTS users;
@@ -73,15 +74,10 @@ CREATE TABLE customers (
   vat_id                   VARCHAR(64)  NULL,
   billing_email            VARCHAR(190) NULL,
   contract_start           DATE         NULL,
-  package                  VARCHAR(190) NULL,
+  package_name             VARCHAR(190) NULL,
   monthly_rate             DECIMAL(10,2) NULL,
   videos_per_month         SMALLINT     NULL,
   status                   ENUM('onboarding','active','paused') NULL,
-  contract_signed          TINYINT(1) NOT NULL DEFAULT 0,
-  deposit_received         TINYINT(1) NOT NULL DEFAULT 0,
-  kickoff_done             TINYINT(1) NOT NULL DEFAULT 0,
-  social_access            TINYINT(1) NOT NULL DEFAULT 0,
-  first_shoot              TINYINT(1) NOT NULL DEFAULT 0,
   created_at               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -89,6 +85,20 @@ CREATE TABLE customers (
   KEY idx_customers_manager (manager_id),
   KEY idx_customers_status (status),
   CONSTRAINT fk_cust_manager FOREIGN KEY (manager_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- customer_checklists (1:1 zu customers)
+-- ----------------------------------------------------------------------------
+CREATE TABLE customer_checklists (
+  customer_id      VARCHAR(64) NOT NULL,
+  contract_signed  TINYINT(1)  NOT NULL DEFAULT 0,
+  deposit_received TINYINT(1)  NOT NULL DEFAULT 0,
+  kickoff_done     TINYINT(1)  NOT NULL DEFAULT 0,
+  social_access    TINYINT(1)  NOT NULL DEFAULT 0,
+  first_shoot      TINYINT(1)  NOT NULL DEFAULT 0,
+  PRIMARY KEY (customer_id),
+  CONSTRAINT fk_cc_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------------------------------------------------------
@@ -166,18 +176,18 @@ CREATE TABLE project_files (
 -- todos
 -- ----------------------------------------------------------------------------
 CREATE TABLE todos (
-  id          VARCHAR(64)  NOT NULL,
-  title       VARCHAR(255) NOT NULL,
-  description TEXT         NULL,
-  created_by  VARCHAR(64)  NULL,
-  due_date    DATE         NULL,
-  status      ENUM('open','done') NOT NULL DEFAULT 'open',
-  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id             VARCHAR(64)  NOT NULL,
+  title          VARCHAR(255) NOT NULL,
+  description    TEXT         NULL,
+  created_by_id  VARCHAR(64)  NULL,
+  due_date       DATE         NULL,
+  status         ENUM('open','done') NOT NULL DEFAULT 'open',
+  created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_t_status (status),
   KEY idx_t_due (due_date),
-  CONSTRAINT fk_t_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+  CONSTRAINT fk_t_created_by_id FOREIGN KEY (created_by_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE todo_assignees (
@@ -189,10 +199,10 @@ CREATE TABLE todo_assignees (
   CONSTRAINT fk_ta_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE todo_seen_by (
+CREATE TABLE todo_seen (
   todo_id VARCHAR(64) NOT NULL,
   user_id VARCHAR(64) NOT NULL,
-  seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  seen_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (todo_id, user_id),
   CONSTRAINT fk_ts_todo FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE,
   CONSTRAINT fk_ts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
