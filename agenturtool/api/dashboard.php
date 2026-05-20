@@ -70,21 +70,26 @@ if ($initial) {
     unset($u);
 
     // Customers: für staff alle, für customer nur sich selbst
-    $custSelect = "id, name, customer_number AS customerNumber, manager_id AS managerId,
-                   email, phone, contact_name AS contactName,
-                   social_instagram AS socialInstagram, social_tiktok AS socialTiktok,
-                   notes, address_street AS addressStreet, address_zip AS addressZip, address_city AS addressCity,
-                   billing_same_as_address AS billingSameAsAddress,
-                   billing_street AS billingStreet, billing_zip AS billingZip, billing_city AS billingCity,
-                   vat_id AS vatId, billing_email AS billingEmail,
-                   contract_start AS contractStart, package, monthly_rate AS monthlyRate,
-                   videos_per_month AS videosPerMonth, status,
-                   contract_signed, deposit_received, kickoff_done, social_access, first_shoot,
-                   created_at AS createdAt";
+    $custSelect = "c.id, c.name, c.customer_number AS customerNumber, c.manager_id AS managerId,
+                   c.email, c.phone, c.contact_name AS contactName,
+                   c.social_instagram AS socialInstagram, c.social_tiktok AS socialTiktok,
+                   c.notes, c.address_street AS addressStreet, c.address_zip AS addressZip, c.address_city AS addressCity,
+                   c.billing_same_as_address AS billingSameAsAddress,
+                   c.billing_street AS billingStreet, c.billing_zip AS billingZip, c.billing_city AS billingCity,
+                   c.vat_id AS vatId, c.billing_email AS billingEmail,
+                   c.contract_start AS contractStart, c.package_name AS package, c.monthly_rate AS monthlyRate,
+                   c.videos_per_month AS videosPerMonth, c.status,
+                   COALESCE(cl.contract_signed, 0) AS contract_signed,
+                   COALESCE(cl.deposit_received, 0) AS deposit_received,
+                   COALESCE(cl.kickoff_done, 0) AS kickoff_done,
+                   COALESCE(cl.social_access, 0) AS social_access,
+                   COALESCE(cl.first_shoot, 0) AS first_shoot,
+                   c.created_at AS createdAt";
+    $custFrom = "FROM customers c LEFT JOIN customer_checklists cl ON cl.customer_id = c.id";
     if ($isStaff) {
-        $customers = db_all("SELECT $custSelect FROM customers ORDER BY customer_number");
+        $customers = db_all("SELECT $custSelect $custFrom ORDER BY c.customer_number");
     } else {
-        $customers = db_all("SELECT $custSelect FROM customers WHERE id = ?", [$session['cid']]);
+        $customers = db_all("SELECT $custSelect $custFrom WHERE c.id = ?", [$session['cid']]);
     }
     foreach ($customers as &$c) {
         $c['checklist'] = [
@@ -121,16 +126,16 @@ if ($initial) {
     // Todos
     if ($isStaff) {
         if (has_role('admin', 'manager')) {
-            $todos = db_all("SELECT id, title, description, created_by AS createdById, due_date AS dueDate, status,
+            $todos = db_all("SELECT id, title, description, created_by_id AS createdById, due_date AS dueDate, status,
                                     created_at AS createdAt, updated_at AS updatedAt
                                FROM todos ORDER BY status='done', COALESCE(due_date, created_at)");
         } else {
             $todos = db_all(
-                "SELECT id, title, description, created_by AS createdById, due_date AS dueDate, status,
+                "SELECT id, title, description, created_by_id AS createdById, due_date AS dueDate, status,
                         created_at AS createdAt, updated_at AS updatedAt
                    FROM todos
                   WHERE id IN (SELECT todo_id FROM todo_assignees WHERE user_id = ?)
-                     OR created_by = ?
+                     OR created_by_id = ?
                   ORDER BY status='done', COALESCE(due_date, created_at)",
                 [$session['uid'], $session['uid']]
             );
@@ -139,7 +144,7 @@ if ($initial) {
             $ids   = array_column($todos, 'id');
             $place = implode(',', array_fill(0, count($ids), '?'));
             $a = db_all("SELECT todo_id, user_id FROM todo_assignees WHERE todo_id IN ($place)", $ids);
-            $s = db_all("SELECT todo_id, user_id FROM todo_seen_by   WHERE todo_id IN ($place)", $ids);
+            $s = db_all("SELECT todo_id, user_id FROM todo_seen       WHERE todo_id IN ($place)", $ids);
             $byA = []; $byS = [];
             foreach ($a as $r) $byA[$r['todo_id']][] = $r['user_id'];
             foreach ($s as $r) $byS[$r['todo_id']][] = $r['user_id'];

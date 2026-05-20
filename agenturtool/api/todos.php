@@ -18,7 +18,7 @@ if (($session['type'] ?? '') === 'customer') {
     json_err(403, 'Keine Berechtigung.');
 }
 
-$baseSelect = "SELECT id, title, description, created_by AS createdById,
+$baseSelect = "SELECT id, title, description, created_by_id AS createdById,
                       due_date AS dueDate, status,
                       created_at AS createdAt, updated_at AS updatedAt
                  FROM todos";
@@ -44,7 +44,7 @@ switch ($method) {
             $rows = db_all(
                 "$baseSelect WHERE id IN (
                     SELECT todo_id FROM todo_assignees WHERE user_id = ?
-                ) OR created_by = ?
+                ) OR created_by_id = ?
                  ORDER BY status='done', COALESCE(due_date, created_at)",
                 [$uid, $uid]
             );
@@ -65,7 +65,7 @@ switch ($method) {
         $pdo->beginTransaction();
         try {
             $pdo->prepare(
-                "INSERT INTO todos (id, title, description, created_by, due_date, status)
+                "INSERT INTO todos (id, title, description, created_by_id, due_date, status)
                  VALUES (?, ?, ?, ?, ?, ?)"
             )->execute([
                 $newId,
@@ -90,7 +90,7 @@ switch ($method) {
 
     case 'PUT': {
         if (!$id) json_err(400, 'id fehlt.');
-        $cur = db_one("SELECT id, created_by FROM todos WHERE id = ?", [$id]);
+        $cur = db_one("SELECT id, created_by_id FROM todos WHERE id = ?", [$id]);
         if (!$cur) json_err(404, 'Todo nicht gefunden.');
 
         $b      = input_json();
@@ -98,7 +98,7 @@ switch ($method) {
         $isPriv = has_role('admin', 'manager');
         $isAssignee = (bool)db_one("SELECT 1 AS ok FROM todo_assignees WHERE todo_id = ? AND user_id = ?", [$id, $uid]);
 
-        if (!$isPriv && !$isAssignee && $cur['created_by'] !== $uid) {
+        if (!$isPriv && !$isAssignee && $cur['created_by_id'] !== $uid) {
             json_err(403, 'Keine Berechtigung.');
         }
 
@@ -128,7 +128,7 @@ switch ($method) {
             sync_assignees($id, (array)$b['assigneeIds']);
         }
         if (!empty($b['markSeen'])) {
-            db()->prepare("INSERT IGNORE INTO todo_seen_by (todo_id, user_id) VALUES (?, ?)")
+            db()->prepare("INSERT IGNORE INTO todo_seen (todo_id, user_id) VALUES (?, ?)")
                 ->execute([$id, $uid]);
         }
 
@@ -163,7 +163,7 @@ function sync_assignees(string $todoId, array $userIds): void
 function hydrate_todo_join(array &$todo): void
 {
     $a = db_all("SELECT user_id FROM todo_assignees WHERE todo_id = ?", [$todo['id']]);
-    $s = db_all("SELECT user_id FROM todo_seen_by WHERE todo_id = ?", [$todo['id']]);
+    $s = db_all("SELECT user_id FROM todo_seen WHERE todo_id = ?", [$todo['id']]);
     $todo['assigneeIds'] = array_column($a, 'user_id');
     $todo['seenBy']      = array_column($s, 'user_id');
 }
@@ -174,7 +174,7 @@ function hydrate_todos_join(array &$todos): void
     $ids = array_column($todos, 'id');
     $place = implode(',', array_fill(0, count($ids), '?'));
     $a = db_all("SELECT todo_id, user_id FROM todo_assignees WHERE todo_id IN ($place)", $ids);
-    $s = db_all("SELECT todo_id, user_id FROM todo_seen_by   WHERE todo_id IN ($place)", $ids);
+    $s = db_all("SELECT todo_id, user_id FROM todo_seen       WHERE todo_id IN ($place)", $ids);
     $byA = []; $byS = [];
     foreach ($a as $r) $byA[$r['todo_id']][] = $r['user_id'];
     foreach ($s as $r) $byS[$r['todo_id']][] = $r['user_id'];

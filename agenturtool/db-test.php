@@ -5,8 +5,8 @@ require_once __DIR__ . '/includes/response.php';
 require_once __DIR__ . '/includes/db.php';
 
 $tables = [
-    'users','user_roles','customers','projects','shoot_days',
-    'todos','todo_assignees','todo_seen_by','vacations',
+    'users','user_roles','customers','customer_checklists','projects','shoot_days',
+    'todos','todo_assignees','todo_seen','vacations',
     'project_files','activity_log','app_config',
 ];
 
