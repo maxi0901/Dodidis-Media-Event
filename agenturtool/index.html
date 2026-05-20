@@ -41,13 +41,22 @@
     --shadow-sm: 0 4px 16px -4px rgba(0, 0, 0, 0.4);
     --blur: saturate(180%) blur(20px);
     --transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Safe-Area-Insets fuer Notch-Geraete (iPhone X+) */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
   }
 
   * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
   }
+  button, a, .nav-item, .row-clickable, .modal-tab, .checkbox-row,
+  .cutter-card, .deadline-item, .stat, .todo-item, .shoot-item,
+  .view-toggle button, .login-tab { touch-action: manipulation; }
 
   html, body {
     height: 100%;
@@ -2764,6 +2773,322 @@
     .login-logo { width: 60px; height: 60px; border-radius: 14px; }
     .login-logo img { width: 40px; height: 40px; }
   }
+
+  /* =========================================
+     MOBILE OVERHAUL - umfassende Responsive-Optimierung
+     Breakpoints: 1024 (Tablet-Landscape) / 768 (Tablet-Portrait)
+                  / 640 (Phone) / 380 (Small Phone)
+     ========================================= */
+
+  /* Wrapper fuer keep-table (horizontaler Scroll auf Mobile) */
+  .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Login & App-Container: dynamische Viewport-Hoehe + Safe-Areas */
+  @supports (height: 100dvh) {
+    .login-screen { height: 100dvh; }
+    .app { height: 100dvh; }
+  }
+
+  /* ----------- 1024px: Tablet-Landscape ----------- */
+  @media (max-width: 1024px) {
+    .content { padding: 24px 24px 32px; }
+    .sidebar { width: 220px; }
+    .form-row { gap: 12px; }
+  }
+
+  /* ----------- 768px: Tablet-Portrait ----------- */
+  @media (max-width: 768px) {
+    /* iOS-Auto-Zoom-Fix: alle Inputs >= 16px */
+    input, select, textarea {
+      font-size: 16px;
+      padding: 12px 14px;
+      min-height: 44px;
+    }
+    textarea { min-height: 96px; }
+
+    /* Touch-Targets nach Apple HIG (>=44px) */
+    .btn { min-height: 44px; padding: 11px 18px; font-size: 14px; }
+    .btn-sm { min-height: 38px; padding: 9px 14px; font-size: 13px; }
+    .nav-item { min-height: 44px; padding: 12px 14px; font-size: 14px; }
+    .mobile-menu-btn { min-width: 44px; min-height: 44px; padding: 10px; }
+    .checkbox-row { min-height: 44px; padding: 10px 12px; }
+    .checkbox-row input[type="checkbox"] { width: 22px; height: 22px; }
+    .modal-tab { min-height: 44px; }
+    .login-tab, .login-tabs button { min-height: 44px; }
+    .view-toggle button { min-height: 38px; }
+
+    /* Form-Rows: Tablet-Portrait -> einspaltig (ausser opt-in .keep-2col) */
+    .form-row:not(.keep-2col) { grid-template-columns: 1fr; gap: 12px; }
+
+    /* Sidebar: Safe-Area-Padding */
+    .sidebar {
+      padding-top: calc(20px + var(--safe-top));
+      padding-bottom: calc(16px + var(--safe-bottom));
+      padding-left: calc(14px + var(--safe-left));
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Topbar: Safe-Area + sticky-blur */
+    .topbar {
+      padding-top: calc(12px + var(--safe-top));
+      padding-left: calc(16px + var(--safe-left));
+      padding-right: calc(16px + var(--safe-right));
+      background: rgba(13,15,18,0.92);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+    }
+    .content {
+      padding-bottom: calc(40px + var(--safe-bottom));
+      padding-left: calc(16px + var(--safe-left));
+      padding-right: calc(16px + var(--safe-right));
+    }
+
+    /* Dashboard Grid einspaltig */
+    .dashboard-grid { grid-template-columns: 1fr; }
+
+    /* Modals - Bottom-Sheet polish */
+    .modal { padding-bottom: var(--safe-bottom); }
+    .modal-tabs {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      flex-wrap: nowrap;
+      scrollbar-width: none;
+    }
+    .modal-tabs::-webkit-scrollbar { display: none; }
+    .modal-tab { flex-shrink: 0; white-space: nowrap; }
+    .modal-footer {
+      padding-bottom: calc(14px + var(--safe-bottom));
+      position: sticky;
+      bottom: 0;
+      background: var(--bg-1);
+      border-top: 1px solid var(--border);
+    }
+  }
+
+  /* ----------- 640px: Phone ----------- */
+  @media (max-width: 640px) {
+    /* Tabellen ohne keep-table -> Card-Stack */
+    .card:has(> table:not(.keep-table)),
+    .card:has(> .table-scroll > table:not(.keep-table)) { overflow-x: visible; }
+    table:not(.keep-table) {
+      min-width: 0;
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    table:not(.keep-table) thead { display: none; }
+    table:not(.keep-table) tbody,
+    table:not(.keep-table) tr,
+    table:not(.keep-table) td { display: block; width: 100%; }
+    table:not(.keep-table) tr {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin: 10px 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    table:not(.keep-table) tr:hover { background: var(--bg-2); }
+    table:not(.keep-table) td {
+      padding: 6px 0;
+      border: none;
+      font-size: 13.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      text-align: right;
+    }
+    table:not(.keep-table) td:first-child {
+      font-weight: 600;
+      font-size: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 6px;
+      display: block;
+      text-align: left;
+    }
+    table:not(.keep-table) td * { min-width: 0; }
+    table:not(.keep-table) td .badge,
+    table:not(.keep-table) td .avatar-stack,
+    table:not(.keep-table) td .progress-bar { flex-shrink: 0; }
+
+    /* keep-table: horizontaler Scroll + sticky erste Spalte */
+    .table-scroll { border-radius: var(--radius-sm); }
+    table.keep-table { min-width: 640px; }
+    table.keep-table th:first-child,
+    table.keep-table td:first-child {
+      position: sticky;
+      left: 0;
+      background: var(--bg-1);
+      z-index: 2;
+      box-shadow: 1px 0 0 var(--border);
+    }
+    table.keep-table tbody tr:nth-child(odd) td:first-child { background: var(--bg-1); }
+    table.keep-table tbody tr:hover td:first-child { background: var(--bg-hover); }
+
+    /* Filterleisten: gezielt per :has() den Flex-Container der Filter-Inputs treffen */
+    .filter-bar,
+    .proj-filter-bar,
+    div:has(> #cust-search),
+    div:has(> #cust-status),
+    div:has(> #proj-search),
+    div:has(> #proj-status),
+    div:has(> #archive-search),
+    div:has(> #user-search) {
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 8px !important;
+    }
+    #proj-search, #proj-status,
+    #cust-search, #cust-status,
+    #archive-search, #user-search,
+    .filter-bar input, .filter-bar select {
+      width: 100% !important;
+      font-size: 16px !important;
+      min-height: 44px;
+      min-width: 0 !important;
+    }
+
+    /* Kalender Wochenansicht: schmalere Hours-Col + breitere Tag-Spalten mit Snap-Scroll.
+       Echtes Vertical-Stack ist hier nicht moeglich, weil das Layout aus drei
+       getrennten Grids (.icw-headers / .icw-allday / .icw-grid) besteht und
+       Events absolute-positioniert werden. Stattdessen Touch-freundlicher Scroll. */
+    .icw-hours-col { width: 44px !important; }
+    .icw-hour-label { font-size: 10px !important; padding-right: 4px !important; }
+    .icw-scroll { scroll-snap-type: x mandatory !important; }
+    .icw-day-head { padding: 8px 6px !important; gap: 4px !important; }
+    .icw-day-head .icw-dname { font-size: 11px !important; }
+    .icw-day-head .icw-dnum { font-size: 13px !important; }
+    .icw-timed { font-size: 11px !important; padding: 4px 6px !important; }
+    .icw-allday-event { font-size: 11px !important; padding: 3px 6px !important; }
+    .icw-allday-tag { font-size: 10px !important; }
+
+    /* Monatsansicht-Optimierung */
+    .calendar-day { min-height: 64px; padding: 4px 2px; }
+    .calendar-date { font-size: 12px; }
+    .calendar-event { font-size: 10.5px; padding: 2px 5px; }
+    .calendar-day-name { font-size: 10.5px; padding: 8px 4px; }
+    .calendar-filters, .cal-filters { flex-wrap: wrap; gap: 6px; }
+    .cal-filter-chip { min-height: 36px; padding: 6px 12px; }
+
+    /* Text-Overflow Schutz */
+    .page-title, .cutter-card-title, .proj-title, .customer-name,
+    .deadline-title, .shoot-item-title, .modal-title, .card-title,
+    table:not(.keep-table) td:first-child {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .avatar-stack { flex-wrap: wrap; gap: 0; }
+
+    /* Cards mit "padding:14px" etc Inline-Styles haben fixierte Werte - kompakter */
+    .card { margin-bottom: 12px; }
+    .card-header { padding: 14px 16px; }
+
+    /* Shoot-Day-Card Header vertikal stapeln */
+    .shoot-day-header {
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    /* Bulk-Action-Floating-Bar (Customers) */
+    .bulk-action-bar,
+    div[style*="position:fixed"][style*="bottom"] {
+      left: 12px !important;
+      right: 12px !important;
+      bottom: calc(20px + var(--safe-bottom)) !important;
+      width: auto !important;
+      max-width: none !important;
+    }
+
+    /* Stat-Grid: 2 Spalten bleiben gut auf 640-481 */
+    .stat-grid { gap: 8px; }
+    .stat { padding: 12px 14px; }
+    .stat-label { font-size: 11px; }
+    .stat-value { font-size: 20px; }
+
+    /* Todo-Items: groessere Touch-Targets */
+    .todo-item { min-height: 56px; padding: 12px 14px; }
+    .todo-item input[type="checkbox"] { width: 22px; height: 22px; flex-shrink: 0; }
+
+    /* Modal Footer: Buttons gestapelt */
+    .modal-footer { flex-direction: column-reverse; gap: 8px; align-items: stretch; }
+    .modal-footer .btn { width: 100%; min-width: 0; flex: none; }
+  }
+
+  /* ----------- 480px: Topbar-Buttons stapeln ----------- */
+  @media (max-width: 480px) {
+    #topbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      width: 100%;
+    }
+    #topbar-actions > *,
+    #topbar-actions .flex > * { flex: 1 1 calc(50% - 4px); min-width: 0; }
+    #topbar-actions .btn {
+      padding: 11px 12px;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  /* ----------- 380px: Sehr kleine Phones (Galaxy Fold etc) ----------- */
+  @media (max-width: 380px) {
+    .topbar { padding: 10px 12px; }
+    .page-title { font-size: 16px; }
+    .page-subtitle { font-size: 11px; }
+    .content { padding: 14px 12px 32px; }
+    .stat { padding: 10px 12px; }
+    .stat-value { font-size: 18px; }
+    .card-header { padding: 12px 14px; }
+    .login-box { padding: 20px 14px; }
+    .login-title { font-size: 18px; }
+    .modal-body { padding: 14px 12px; }
+    .modal-tab { padding: 10px 8px; font-size: 12px; }
+    .btn { padding: 11px 14px; font-size: 13.5px; }
+    .btn-sm { padding: 8px 11px; font-size: 12.5px; }
+  }
+
+  /* ----------- Touch-Feedback (Geraete ohne Hover) ----------- */
+  @media (hover: none) {
+    .btn:active { transform: scale(0.97); opacity: 0.88; }
+    .nav-item:active,
+    .row-clickable:active,
+    .cutter-card:active,
+    .deadline-item:active,
+    .stat:active,
+    .todo-item:active,
+    .shoot-item:active,
+    .checklist-item:active { background: var(--bg-hover); }
+    .modal-tab:active { color: var(--accent); }
+    /* Hover-only-Effekte deaktivieren um Sticky-Hover-States zu vermeiden */
+    .btn:hover { transform: none; }
+  }
+
+  /* ----------- Reduzierte Animationen ----------- */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* ----------- Landscape-Phone-Optimierung (kurze Hoehe) ----------- */
+  @media (max-height: 480px) and (orientation: landscape) {
+    .login-screen { padding: 12px; align-items: flex-start; }
+    .login-box { margin-top: 12px; padding: 18px 22px; }
+    .login-logo { width: 50px; height: 50px; margin-bottom: 8px; }
+    .login-title { font-size: 17px; }
+    .login-sub { font-size: 12px; }
+    .modal { max-height: 96vh; }
+  }
 </style>
 </head>
 <body>
@@ -4578,7 +4903,8 @@ function renderReports(session) {
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
       <div class="card">
         <div class="card-header"><div class="card-title">Umsatz pro Kunde</div></div>
-        <table>
+        <div class="table-scroll">
+        <table class="keep-table">
           <thead><tr><th>Kunde</th><th style="text-align:right;">Monatlich</th><th style="text-align:right;">Soll</th><th style="text-align:right;">30 T</th></tr></thead>
           <tbody>
             ${customersByRevenue.length === 0 ? '<tr><td colspan="4" class="text-muted" style="padding:14px;">Noch keine Kunden mit Monatsraten.</td></tr>' :
@@ -4597,6 +4923,7 @@ function renderReports(session) {
               }).join('')}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div class="card">
@@ -4696,7 +5023,8 @@ function renderShootDays(session) {
   function renderTable(rows, emptyLabel) {
     if (rows.length === 0) return `<div class="text-sm text-muted" style="padding:14px;">${emptyLabel}</div>`;
     return `
-      <table>
+      <div class="table-scroll">
+      <table class="keep-table">
         <thead>
           <tr>
             <th>Datum</th>
@@ -4709,6 +5037,7 @@ function renderShootDays(session) {
         </thead>
         <tbody>${rows.map(renderRow).join('')}</tbody>
       </table>
+      </div>
     `;
   }
 
@@ -7668,7 +7997,8 @@ function renderAdmin(session) {
       <div class="card-header">
         <div class="card-title">Mitarbeiter</div>
       </div>
-      <table>
+      <div class="table-scroll">
+      <table class="keep-table">
         <thead>
           <tr><th>Name</th><th>Benutzername</th><th>Rollen</th><th>E-Mail</th><th></th></tr>
         </thead>
@@ -7691,6 +8021,7 @@ function renderAdmin(session) {
           `).join('')}
         </tbody>
       </table>
+      </div>
     </div>
 
     <div class="card">

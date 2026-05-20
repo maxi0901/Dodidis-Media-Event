@@ -69,6 +69,41 @@ $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')
       font-size: 14px; cursor: pointer; }
     .btn-primary:hover { background: var(--accent-hover); }
     .login-hint { font-size: 12px; color: var(--text-3); margin-top: 12px; text-align: center; }
+
+    /* Mobile-Optimierung */
+    @supports (height: 100dvh) {
+      .login-screen { min-height: 100dvh; }
+    }
+    .login-screen {
+      padding-top: calc(24px + env(safe-area-inset-top, 0px));
+      padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+      padding-left: calc(24px + env(safe-area-inset-left, 0px));
+      padding-right: calc(24px + env(safe-area-inset-right, 0px));
+    }
+    @media (max-width: 480px) {
+      .login-box { padding: 28px 20px; border-radius: 18px; }
+      .login-logo { width: 64px; height: 64px; }
+      .login-logo img { width: 44px; height: 44px; }
+      .login-title { font-size: 19px; }
+      .login-sub { font-size: 12px; }
+      .login-tab { min-height: 44px; padding: 10px 12px; font-size: 13px; }
+      /* iOS-Auto-Zoom-Fix: Inputs >= 16px */
+      input[type=text], input[type=password] {
+        font-size: 16px; padding: 12px 14px; min-height: 44px;
+      }
+      .btn-primary { min-height: 46px; font-size: 15px; padding: 12px 14px; }
+      label { font-size: 12.5px; }
+    }
+    @media (max-height: 480px) and (orientation: landscape) {
+      .login-screen { align-items: flex-start; }
+      .login-box { margin-top: 12px; padding: 20px 22px; }
+      .login-logo { width: 48px; height: 48px; margin-bottom: 10px; }
+      .login-logo img { width: 34px; height: 34px; }
+      .login-title { font-size: 18px; }
+      .login-tabs { margin-bottom: 12px; }
+    }
+    * { -webkit-tap-highlight-color: transparent; }
+    button, .login-tab, .btn-primary { touch-action: manipulation; }
   </style>
 </head>
 <body>
