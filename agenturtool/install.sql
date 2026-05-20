@@ -157,7 +157,7 @@ CREATE TABLE project_files (
   uploaded_by VARCHAR(64)  NULL,
   uploaded_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY idx_pf_project (project_id, kind),
+  KEY idx_pf_project (project_id, uploaded_at),
   CONSTRAINT fk_pf_project FOREIGN KEY (project_id)  REFERENCES projects(id) ON DELETE CASCADE,
   CONSTRAINT fk_pf_user    FOREIGN KEY (uploaded_by) REFERENCES users(id)    ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
