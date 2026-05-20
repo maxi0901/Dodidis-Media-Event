@@ -23,10 +23,20 @@ $navBase = ($activePage === 'home') ? '' : 'index.php';
             <li><a href="<?= $navBase ?>#case-studies">Ergebnisse</a></li>
             <li><a href="<?= $navBase ?>#ueber-uns">Über uns</a></li>
             <li><a href="<?= $navBase ?>#kontakt">Kontakt</a></li>
+            <li class="nav-mobile-portal">
+                <a href="/agenturtool/login.php">Kundenportal</a>
+            </li>
             <li class="nav-mobile-cta">
                 <a href="<?= $navBase ?>#kontakt">Erstgespräch buchen</a>
             </li>
         </ul>
+
+        <a class="nav-portal" href="/agenturtool/login.php" aria-label="Zum Kundenportal">
+            <span class="nav-portal-icon" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </span>
+            <span class="nav-portal-label">Kundenportal</span>
+        </a>
 
         <a class="btn btn-primary nav-cta" href="<?= $navBase ?>#kontakt">
             Erstgespräch buchen
