@@ -87,8 +87,8 @@ switch ($action) {
             $nameCol = users_name_column();
             $username = trim((string)($b['username'] ?? ''));
             $hash     = (string)($b['password_hash'] ?? '');
-            if ($username === '' || $hash === '') {
-                json_err(400, 'Benutzername oder Passwort fehlt.');
+            if ($username === '') {
+                json_err(400, 'Benutzername fehlt.');
             }
 
             $u = db_one(
@@ -99,8 +99,15 @@ switch ($action) {
                 [$username]
             );
 
-            if (!$u || !hash_equals((string)$u['password_hash'], $hash)) {
-                // Generische Fehlermeldung gegen User-Enumeration
+            if (!$u) {
+                json_err(401, 'Benutzername oder Passwort ist falsch.');
+            }
+
+            $noPasswordSet = !isset($u['password_hash']) || (string)$u['password_hash'] === '';
+
+            if ($noPasswordSet) {
+                // Erst-Login: kein Passwort hinterlegt → ohne Passwort-Check einloggen
+            } elseif ($hash === '' || !hash_equals((string)$u['password_hash'], $hash)) {
                 json_err(401, 'Benutzername oder Passwort ist falsch.');
             }
 
@@ -112,14 +119,18 @@ switch ($action) {
             $_SESSION['uid']     = $u['id'];
             $_SESSION['name']    = $u['name'];
             $_SESSION['roles']   = $roles;
+            if ($noPasswordSet) {
+                $_SESSION['must_set_password'] = true;
+            }
 
-            log_activity('auth', $u['id'], 'login', ['type' => 'staff']);
+            log_activity('auth', $u['id'], 'login', ['type' => 'staff', 'first_login' => $noPasswordSet]);
 
             json_ok([
-                'type'  => 'staff',
-                'user'  => hydrate_user($u['id']),
-                'roles' => $roles,
-                'csrf'  => csrf_token(),
+                'type'              => 'staff',
+                'user'              => hydrate_user($u['id']),
+                'roles'             => $roles,
+                'csrf'              => csrf_token(),
+                'must_set_password' => $noPasswordSet,
             ]);
         }
 
@@ -175,6 +186,27 @@ switch ($action) {
         }
 
         json_err(400, 'Unbekannter Login-Typ.');
+        break;
+    }
+
+    // ---------- SET PASSWORD (Erst-Login) ----------
+    case 'set_password': {
+        if ($method !== 'POST') json_err(405, 'POST erwartet.');
+        start_app_session();
+        if (empty($_SESSION['uid'])) json_err(401, 'Nicht angemeldet.');
+
+        $b    = input_json();
+        $hash = trim((string)($b['password_hash'] ?? ''));
+        if (!str_starts_with($hash, 'sha256$') || strlen($hash) < 71) {
+            json_err(400, 'Ungültiges Passwort-Format.');
+        }
+
+        db_exec("UPDATE users SET password_hash = ? WHERE id = ?", [$hash, $_SESSION['uid']]);
+        unset($_SESSION['must_set_password']);
+
+        log_activity('auth', $_SESSION['uid'], 'password_set', []);
+
+        json_ok(['password_set' => true, 'csrf' => csrf_token()]);
         break;
     }
 
