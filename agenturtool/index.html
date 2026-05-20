@@ -3712,18 +3712,18 @@ async function pullAllFromCloud() {
     if (res.status === 401) { location.href = APP_BASE + 'login.php'; return false; }
     if (!res.ok) {
       console.error('[cloud pull] HTTP', res.status);
-      return false;
+      return null; // Server-Fehler – kein Bootstrap versuchen
     }
     const json = await res.json();
     if (!(json.ok || json.success)) {
       console.error('[cloud pull]', json.error || 'unknown error');
-      return false;
+      return null; // API-Fehler – kein Bootstrap versuchen
     }
     const data = json.data || {};
     let totalRows = 0;
     CLOUD_COLLECTIONS.forEach(c => { totalRows += (data[c.table] || []).length; });
     totalRows += (data.app_config || []).length;
-    if (totalRows === 0) return false;
+    if (totalRows === 0) return false; // DB leer → Bootstrap erwünscht
 
     CLOUD_COLLECTIONS.forEach(c => {
       if (Array.isArray(data[c.table])) store[c.local] = data[c.table];
@@ -3747,8 +3747,8 @@ async function pullAllFromCloud() {
 async function initCloudSync() {
   const hadCloudData = await pullAllFromCloud();
   cloudReady = true;
-  if (!hadCloudData) {
-    // DB war leer → aktuellen LocalStorage-Stand initial hochladen
+  if (hadCloudData === false) {
+    // DB war leer (kein Server-Fehler) → aktuellen LocalStorage-Stand initial hochladen
     console.log('[cloud] Bootstrap – LocalStorage → MySQL');
     await pushAllToCloud();
   }
