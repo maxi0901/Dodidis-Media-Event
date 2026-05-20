@@ -388,6 +388,28 @@ if (tbl_exists($pdo, $db, 'user_roles')) {
 }
 
 // ============================================================
+// BLOCK E – Erst-Login-Flow: Placeholder-Passwörter löschen
+// ============================================================
+sect('Block E – Erst-Login Passwort-Reset');
+
+// Nutzer die noch den alten Seed-Hash haben → Hash leeren damit Erst-Login greift.
+// Hat ein Nutzer bereits ein eigenes Passwort gesetzt, passiert nichts.
+$placeholderHashes = [
+    'u_uya5a9e' => 'sha256$b56f3b8a7b87e7f880091bc76972621b62fa75039688a6585f3c9ac11b1b0891', // Maxim – Placeholder
+];
+$stmtReset = $pdo->prepare(
+    "UPDATE users SET password_hash = '' WHERE id = ? AND password_hash = ?"
+);
+foreach ($placeholderHashes as $uid => $oldHash) {
+    $stmtReset->execute([$uid, $oldHash]);
+    if ($stmtReset->rowCount() > 0) {
+        ok("$uid: Placeholder-Hash geleert → Erst-Login-Flow aktiv");
+    } else {
+        skip("$uid: Passwort bereits individuell gesetzt oder schon geleert");
+    }
+}
+
+// ============================================================
 // ABSCHLUSS – Tabellenstatus
 // ============================================================
 sect('Status aller Tabellen');
