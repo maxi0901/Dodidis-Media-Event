@@ -128,8 +128,8 @@ function hydrate_user(string $userId): ?array
     $u = db_one("SELECT id, username, {$nameCol} AS name, email, avatar_color, avatar_image, calendar_prefs
                  FROM users WHERE id = ?", [$userId]);
     if (!$u) return null;
-    $roles = db_all("SELECT role FROM user_roles WHERE user_id = ?", [$userId]);
-    $u['roles'] = array_column($roles, 'role');
+    $roles = db_all("SELECT role_name FROM user_roles WHERE user_id = ?", [$userId]);
+    $u['roles'] = array_column($roles, 'role_name');
     if ($u['calendar_prefs']) {
         $u['calendarPrefs'] = json_decode($u['calendar_prefs'], true);
     } else {

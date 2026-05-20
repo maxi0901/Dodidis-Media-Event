@@ -18,7 +18,7 @@ ON DUPLICATE KEY UPDATE
   email         = VALUES(email),
   password_hash = VALUES(password_hash);
 
-INSERT INTO user_roles (user_id, role) VALUES
+INSERT INTO user_roles (user_id, role_name) VALUES
  ('u_raphael',  'admin'),
  ('u_raphael',  'manager'),
  ('u_raphael',  'videograf'),
@@ -30,4 +30,4 @@ INSERT INTO user_roles (user_id, role) VALUES
  ('u_163qsdr',  'cutter'),
  ('u_qof4x9n',  'cutter'),
  ('u_uya5a9e',  'mitarbeiter')
-ON DUPLICATE KEY UPDATE role = VALUES(role);
+ON DUPLICATE KEY UPDATE role_name = VALUES(role_name);

@@ -41,10 +41,10 @@ CREATE TABLE users (
 -- user_roles (M:N)
 -- ----------------------------------------------------------------------------
 CREATE TABLE user_roles (
-  user_id VARCHAR(64) NOT NULL,
-  role    ENUM('admin','manager','videograf','cutter','mitarbeiter') NOT NULL,
-  PRIMARY KEY (user_id, role),
-  KEY idx_user_roles_role (role),
+  user_id   VARCHAR(64) NOT NULL,
+  role_name ENUM('admin','manager','videograf','cutter','mitarbeiter') NOT NULL,
+  PRIMARY KEY (user_id, role_name),
+  KEY idx_user_roles_role_name (role_name),
   CONSTRAINT fk_user_roles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

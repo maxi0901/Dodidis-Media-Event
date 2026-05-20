@@ -102,8 +102,8 @@ try {
             isset($u['calendarPrefs']) ? json_encode($u['calendarPrefs'], JSON_UNESCAPED_UNICODE) : null,
         ]);
 
-        $roles = $u['roles'] ?? ($u['role'] ? [$u['role']] : []);
-        $stmtRole = $pdo->prepare("INSERT IGNORE INTO user_roles (user_id, role) VALUES (?, ?)");
+        $roles = $u['roles'] ?? (!empty($u['role']) ? [$u['role']] : []);
+        $stmtRole = $pdo->prepare("INSERT IGNORE INTO user_roles (user_id, role_name) VALUES (?, ?)");
         foreach (array_unique($roles) as $r) {
             if (in_array($r, ['admin','manager','videograf','cutter','mitarbeiter'], true)) {
                 $stmtRole->execute([$u['id'], $r]);

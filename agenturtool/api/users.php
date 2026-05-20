@@ -35,10 +35,10 @@ switch ($method) {
         $rows    = db_all("SELECT id, username, {$nameCol} AS name, " .
                           ($isPriv ? "email, " : "") .
                           "avatar_color, avatar_image FROM users ORDER BY {$nameCol}");
-        $roleAll = db_all("SELECT user_id, role FROM user_roles");
+        $roleAll = db_all("SELECT user_id, role_name FROM user_roles");
         $byUser  = [];
         foreach ($roleAll as $r) {
-            $byUser[$r['user_id']][] = $r['role'];
+            $byUser[$r['user_id']][] = $r['role_name'];
         }
         foreach ($rows as &$r) {
             $r['roles']       = $byUser[$r['id']] ?? [];
@@ -137,8 +137,8 @@ switch ($method) {
             insert_roles($id, (array)$b['roles']);
             // Wenn der bearbeitete User die eigene Session ist, Roles in Session aktualisieren
             if ($isSelf) {
-                $rolesRows = db_all("SELECT role FROM user_roles WHERE user_id = ?", [$id]);
-                $_SESSION['roles'] = array_column($rolesRows, 'role');
+                $rolesRows = db_all("SELECT role_name FROM user_roles WHERE user_id = ?", [$id]);
+                $_SESSION['roles'] = array_column($rolesRows, 'role_name');
             }
         }
 
@@ -162,7 +162,7 @@ switch ($method) {
 function insert_roles(string $userId, array $roles): void
 {
     $valid = ['admin','manager','videograf','cutter','mitarbeiter'];
-    $stmt  = db()->prepare("INSERT INTO user_roles (user_id, role) VALUES (?, ?)");
+    $stmt  = db()->prepare("INSERT INTO user_roles (user_id, role_name) VALUES (?, ?)");
     foreach (array_unique($roles) as $r) {
         if (!in_array($r, $valid, true)) continue;
         $stmt->execute([$userId, $r]);
