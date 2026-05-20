@@ -322,22 +322,27 @@ if (col_exists($pdo, $db, 'users', 'full_name')) {
 }
 
 $seedUsers = [
+    // password_hash = '' → Erst-Login ohne Passwort (Nutzer legt es selbst beim ersten Login fest)
     ['u_raphael',  'Raphael',  'Raphael Dodidis',      'kontakt@dodidis-media.de', 'sha256$d59642bccca172e785cd7eb3df7cd5ef0943da07d999476ab4afe5f19362a53b'],
     ['u_f2j54ck',  'Leonie',   'Leonie Stella Christ',  null,                       'sha256$261e470e0307050ae4925409616e322903f6824bfba2cfacfb61a8d8384cdf56'],
     ['u_06hdf5r',  'Timo',     'Timo Block',             'kontakt@dodidis-media.de', 'sha256$23383b44e0049f2bc3bb0ed5823581700aaa92c59a84c8b7041665e16345bec6'],
     ['u_163qsdr',  'Dennis',   'Dennis Ryhs',            null,                       'sha256$b56f3b8a7b87e7f880091bc76972621b62fa75039688a6585f3c9ac11b1b0891'],
     ['u_qof4x9n',  'Gokilian', 'Gokilian',               null,                       'sha256$cac3f56ce5bfd492abf5bc7782eb92e80e9d71b3e8290dcec084f2df8c5f5289'],
-    ['u_uya5a9e',  'Maxim',    'Maxim Tokarski',         null,                       'sha256$b56f3b8a7b87e7f880091bc76972621b62fa75039688a6585f3c9ac11b1b0891'],
+    ['u_uya5a9e',  'Maxim',    'Maxim Tokarski',         null,                       ''],
 ];
 
 $stmtU = $pdo->prepare(
     "INSERT INTO users (id, username, {$nameCol}, email, password_hash)
      VALUES (?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
-       username = VALUES(username),
+       username   = VALUES(username),
        {$nameCol} = VALUES({$nameCol}),
-       email = VALUES(email),
-       password_hash = VALUES(password_hash)"
+       email      = VALUES(email),
+       password_hash = IF(
+           password_hash IS NOT NULL AND password_hash != '' AND VALUES(password_hash) = '',
+           password_hash,
+           VALUES(password_hash)
+       )"
 );
 $seedOk = 0;
 foreach ($seedUsers as [$id, $uname, $name, $email, $hash]) {

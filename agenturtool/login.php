@@ -69,6 +69,10 @@ $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')
       font-size: 14px; cursor: pointer; }
     .btn-primary:hover { background: var(--accent-hover); }
     .login-hint { font-size: 12px; color: var(--text-3); margin-top: 12px; text-align: center; }
+    .login-step-title { font-size: 18px; font-weight: 600; margin: 0 0 6px; }
+    .login-step-sub   { font-size: 13px; color: var(--text-2); margin-bottom: 20px; }
+    .setup-error { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3);
+      color: var(--danger); padding: 10px 12px; border-radius: 10px; font-size: 13px; margin-bottom: 14px; }
 
     /* Mobile-Optimierung */
     @supports (height: 100dvh) {
@@ -124,13 +128,29 @@ $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')
 
     <div id="login-error" class="login-error hide"></div>
 
-    <form id="staff-login" onsubmit="loginStaff(event)" autocomplete="on">
-      <label for="login-username">Benutzername</label>
-      <input type="text" id="login-username" autocomplete="username" required>
-      <label for="login-password">Passwort</label>
-      <input type="password" id="login-password" autocomplete="current-password" required>
-      <button class="btn-primary" type="submit">Anmelden</button>
-    </form>
+    <div id="login-form-area">
+      <form id="staff-login" onsubmit="loginStaff(event)" autocomplete="on">
+        <label for="login-username">Benutzername</label>
+        <input type="text" id="login-username" autocomplete="username" required>
+        <label for="login-password">Passwort</label>
+        <input type="password" id="login-password" autocomplete="current-password">
+        <div class="login-hint" style="text-align:left;margin:6px 0 0">Erstmalig? Passwortfeld leer lassen.</div>
+        <button class="btn-primary" type="submit">Anmelden</button>
+      </form>
+    </div>
+
+    <div id="password-setup" class="hide">
+      <p class="login-step-title">Passwort festlegen</p>
+      <p class="login-step-sub">Wähle ein Passwort für deine zukünftigen Logins.</p>
+      <div id="setup-error" class="setup-error hide"></div>
+      <form id="setup-form" onsubmit="setPassword(event)" autocomplete="off">
+        <label for="setup-pw1">Neues Passwort</label>
+        <input type="password" id="setup-pw1" autocomplete="new-password" minlength="6" required>
+        <label for="setup-pw2">Passwort bestätigen</label>
+        <input type="password" id="setup-pw2" autocomplete="new-password" minlength="6" required>
+        <button class="btn-primary" type="submit">Passwort speichern &amp; starten</button>
+      </form>
+    </div>
 
     <form id="customer-login" class="hide" onsubmit="loginCustomer(event)" autocomplete="on">
       <label for="login-customer-number">Kundennummer</label>
@@ -202,14 +222,43 @@ async function postJson(action, body) {
   };
 }
 
+let _csrf = '';
+
 async function loginStaff(e) {
   e.preventDefault();
   hideError();
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
-  const hash = await sha256(password);
+  const hash     = password ? await sha256(password) : '';
   const res = await postJson('login', { type: 'staff', username, password_hash: hash });
   if (!res.ok) { showError(res.error || 'Anmeldung fehlgeschlagen.'); return; }
+  _csrf = res.data?.csrf || '';
+  if (res.data?.must_set_password) {
+    document.getElementById('login-form-area').classList.add('hide');
+    document.getElementById('login-error').classList.add('hide');
+    document.querySelectorAll('.login-tabs').forEach(el => el.classList.add('hide'));
+    document.getElementById('password-setup').classList.remove('hide');
+    document.getElementById('setup-pw1').focus();
+    return;
+  }
+  location.href = 'index.php';
+}
+
+function showSetupError(m) {
+  const el = document.getElementById('setup-error');
+  el.textContent = m; el.classList.remove('hide');
+}
+
+async function setPassword(e) {
+  e.preventDefault();
+  document.getElementById('setup-error').classList.add('hide');
+  const pw1 = document.getElementById('setup-pw1').value;
+  const pw2 = document.getElementById('setup-pw2').value;
+  if (pw1.length < 6)  { showSetupError('Mindestens 6 Zeichen erforderlich.'); return; }
+  if (pw1 !== pw2)     { showSetupError('Passwörter stimmen nicht überein.'); return; }
+  const hash = await sha256(pw1);
+  const res  = await postJson('set_password', { password_hash: hash });
+  if (!res.ok) { showSetupError(res.error || 'Fehler beim Speichern.'); return; }
   location.href = 'index.php';
 }
 
