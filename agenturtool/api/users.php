@@ -74,7 +74,7 @@ switch ($method) {
                  VALUES (?, ?, ?, ?, ?, ?, ?)"
             )->execute([
                 $newId, $username, $name, $email, $hash,
-                s($b['avatarColor'] ?? null, 16),
+                s($b['avatarColor'] ?? null, 7),
                 $b['avatarImage'] ?? null,
             ]);
             insert_roles($newId, $roles);
@@ -117,7 +117,7 @@ switch ($method) {
             $fields[] = 'password_hash = ?'; $params[] = $h;
         }
         if (array_key_exists('avatarColor', $b)) {
-            $fields[] = 'avatar_color = ?'; $params[] = s($b['avatarColor'], 16);
+            $fields[] = 'avatar_color = ?'; $params[] = s($b['avatarColor'], 7);
         }
         if (array_key_exists('avatarImage', $b)) {
             $fields[] = 'avatar_image = ?'; $params[] = $b['avatarImage'] ?: null;

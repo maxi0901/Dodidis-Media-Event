@@ -28,7 +28,7 @@ CREATE TABLE users (
   name            VARCHAR(128) NOT NULL,
   email           VARCHAR(190) NULL,
   password_hash   VARCHAR(255) NOT NULL,
-  avatar_color    VARCHAR(16)  NULL,
+  avatar_color    VARCHAR(7)   DEFAULT '#cccccc',
   avatar_image    LONGTEXT     NULL,
   calendar_prefs  JSON         NULL,
   created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
