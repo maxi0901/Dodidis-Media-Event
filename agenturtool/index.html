@@ -3759,6 +3759,7 @@ async function initCloudSync() {
     return;
   }
   subscribeCloudChannel();
+  try { if (typeof runAutoArchive === 'function') runAutoArchive(); } catch {}
   try {
     if (typeof renderPage === 'function') renderPage();
   } catch (e) { console.error('[cloud rerender]', e); }
@@ -9869,7 +9870,6 @@ function runAutoArchive() {
   });
   if (changed) saveStore();
 }
-runAutoArchive();
 
 // Kalender-Subscription wird vom Admin im Admin-Bereich konfiguriert (nicht mehr hardcoded).
 // Der zuvor seedRaphaelCalendarSubscription()-Block enthielt einen Klartext-GitHub-Token,
