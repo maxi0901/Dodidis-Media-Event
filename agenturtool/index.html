@@ -6488,12 +6488,16 @@ function openCustomerModal(customerId = null) {
               </div>
 
               <div class="section-title">Vertragsdokumente</div>
-              ${[
+              ${!customer?.id ? `
+                <div style="font-size:13px;color:var(--text-3);padding:10px 0;">
+                  Bitte Kunden zuerst speichern, um Dokumente hochladen zu können.
+                </div>
+              ` : [
                 {kind:'vertrag',              label:'Vertrag'},
                 {kind:'leistungsbeschreibung',label:'Leistungsbeschreibung'},
                 {kind:'avv',                  label:'AVV (Auftragsverarbeitung)'},
               ].map(({kind, label}) => {
-                const docs = (store.customerFiles||[]).filter(f => f.customerId === (customer?.id||'') && f.kind === kind);
+                const docs = (store.customerFiles||[]).filter(f => f.customerId === customer.id && f.kind === kind);
                 return `<div class="form-group" style="margin-bottom:14px;">
                   <label class="form-label" style="margin-bottom:6px;">${escape(label)}</label>
                   ${docs.map(f => `
@@ -6501,10 +6505,10 @@ function openCustomerModal(customerId = null) {
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                       <span style="flex:1;font-size:12px;">${escape(f.filename)}</span>
                       <a class="btn btn-ghost btn-sm" href="${escape(f.path)}" target="_blank">Öffnen</a>
-                      <button type="button" class="btn btn-ghost btn-sm" onclick="deleteCustomerFile(${f.id},'${customer?.id||''}')" style="color:var(--danger);">×</button>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="deleteCustomerFile(${f.id},'${customer.id}')" style="color:var(--danger);">×</button>
                     </div>`).join('')}
                   <label class="file-upload" style="padding:8px 12px;cursor:pointer;">
-                    <input type="file" accept=".pdf,.doc,.docx,.odt" style="display:none;" onchange="uploadCustomerFile(this,'${customer?.id||''}','${kind}')" />
+                    <input type="file" accept=".pdf,.doc,.docx,.odt" style="display:none;" onchange="uploadCustomerFile(this,'${customer.id}','${kind}')" />
                     <span style="font-size:12px;color:var(--text-3);">+ ${escape(label)} hochladen (PDF, DOCX, ODT)</span>
                   </label>
                 </div>`;
