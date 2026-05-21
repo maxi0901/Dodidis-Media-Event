@@ -426,6 +426,126 @@ if (tbl_exists($pdo, $db, 'user_roles')) {
 }
 
 // ============================================================
+sect('Block F – App-Daten aus LocalStorage einpflegen');
+
+$pdo->exec('SET FOREIGN_KEY_CHECKS=0');
+
+// -- Drehtage (müssen vor Projekten existieren) --
+$stmtSD = $pdo->prepare(
+    "INSERT IGNORE INTO shoot_days (id, date, videograf_id, start_time, end_time, customer_id, note, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+);
+$seedShootDays = [
+    ['sd_pnnj1ja','2026-05-20','u_raphael','09:00:00','12:00:00','c_g1qg7ew',
+     'Timo & Raphael - Monatscontent 05.-06. 2026','2026-05-19 12:54:12'],
+];
+$sdOk = 0;
+foreach ($seedShootDays as $r) {
+    try { $stmtSD->execute($r); $sdOk++; } catch (Throwable $e) { err("ShootDay {$r[0]}: ".$e->getMessage()); }
+}
+ok("$sdOk Drehtage eingespielt");
+
+// -- Projekte --
+$stmtP = $pdo->prepare(
+    "INSERT IGNORE INTO projects
+       (id, title, customer_id, videograf_id, cutter_id, shoot_date, shoot_day_id,
+        deadline, posting_date, script, status, is_internal, created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
+);
+$seedProjects = [
+    ['p_3e91q09','Anbau Detail','c_g1qg7ew','u_raphael','u_06hdf5r',
+     '2026-05-20','sd_pnnj1ja','2026-06-01','2026-06-03',
+     "B Roll von dem Anbau Filmen\n\nÄsthetische Shorts in Kombination mit schönem motions Gimbal dazu atmosphärischer Musik",
+     'skript',0,'2026-05-19 12:57:16'],
+    ['p_qzwt7fs','Onboardingprozess im Video erklärt','c_g1qg7ew','u_raphael','u_163qsdr',
+     '2026-05-20','sd_pnnj1ja','2026-06-05','2026-06-07',
+     "Kein festes Skript. Wir filmen von A bis Z den Onboarding Prozess von der ersten Minute im Blu bis zum ersten finalen Training dort was für Schritte werden durchlaufen.\nCheck Mescan zum Beispiel.",
+     'skript',0,'2026-05-19 13:40:44'],
+    ['p_isamf67','Fahrtweg -> Metime','c_g1qg7ew','u_raphael','u_163qsdr',
+     '2026-05-20','sd_pnnj1ja','2026-06-05','2026-06-10',
+     '','skript',0,'2026-05-19 13:42:23'],
+    ['p_k6ibbj9','Ibiza - Coco Beach After Movie','c_mudcxh1','u_raphael','u_raphael',
+     '2026-05-23',null,'2026-05-22','2026-05-24',
+     'Modern viele Effekte die Energie im Coco Beach zeigen','skript',0,'2026-05-19 17:10:09'],
+];
+$pOk = 0;
+foreach ($seedProjects as $r) {
+    try { $stmtP->execute($r); $pOk++; } catch (Throwable $e) { err("Projekt {$r[0]}: ".$e->getMessage()); }
+}
+ok("$pOk Projekte eingespielt");
+
+// -- Urlaube --
+$stmtV = $pdo->prepare(
+    "INSERT IGNORE INTO vacations (id, user_id, start_date, end_date, note) VALUES (?,?,?,?,?)"
+);
+$seedVacations = [
+    ['v_dlxvq03','u_raphael', '2026-06-11','2026-06-14',''],
+    ['v_mle0bqp','u_163qsdr','2026-05-26','2026-06-02',''],
+    ['v_aufp9zn','u_163qsdr','2026-06-25','2026-07-02',''],
+    ['v_fashv2v','u_raphael', '2026-05-29','2026-05-29',''],
+];
+$vOk = 0;
+foreach ($seedVacations as $r) {
+    try { $stmtV->execute($r); $vOk++; } catch (Throwable $e) { err("Urlaub {$r[0]}: ".$e->getMessage()); }
+}
+ok("$vOk Urlaube eingespielt");
+
+// -- Todos --
+$stmtT = $pdo->prepare(
+    "INSERT IGNORE INTO todos (id, title, description, created_by_id, status, created_at)
+     VALUES (?,?,?,?,?,?)"
+);
+$seedTodos = [
+    ['t_09fnzwh','Projekte Strukturieren und in neues Portal einbetten','','u_raphael','open','2026-05-19 00:50:00'],
+    ['t_13t6rcj','Webseite Fertigstellen',                               '','u_raphael','open','2026-05-19 00:50:33'],
+    ['t_1zc57ra','Orga Tool auf Domain bringen',                         '','u_raphael','open','2026-05-19 00:50:48'],
+    ['t_oshg99c','Add online Bringen',                                   '','u_raphael','open','2026-05-19 14:10:20'],
+    ['t_cq3kp7s','Landing Page für Add',                                 '','u_raphael','open','2026-05-19 14:10:32'],
+];
+$tOk = 0;
+foreach ($seedTodos as $r) {
+    try { $stmtT->execute($r); $tOk++; } catch (Throwable $e) { err("Todo {$r[0]}: ".$e->getMessage()); }
+}
+ok("$tOk Todos eingespielt");
+
+// -- Todo-Zuweisungen --
+if (tbl_exists($pdo, $db, 'todo_assignees')) {
+    $stmtTA = $pdo->prepare("INSERT IGNORE INTO todo_assignees (todo_id, user_id) VALUES (?,?)");
+    $seedTA = [
+        ['t_09fnzwh','u_raphael'],['t_09fnzwh','u_06hdf5r'],
+        ['t_13t6rcj','u_uya5a9e'],
+        ['t_1zc57ra','u_raphael'],['t_1zc57ra','u_uya5a9e'],
+        ['t_oshg99c','u_06hdf5r'],
+        ['t_cq3kp7s','u_06hdf5r'],['t_cq3kp7s','u_uya5a9e'],
+    ];
+    $taOk = 0;
+    foreach ($seedTA as [$tid,$uid]) {
+        try { $stmtTA->execute([$tid,$uid]); $taOk++; } catch (Throwable $e) { err("TA $tid/$uid: ".$e->getMessage()); }
+    }
+    ok("$taOk Todo-Zuweisungen eingespielt");
+} else { skip('todo_assignees nicht vorhanden – übersprungen'); }
+
+// -- Todo-gelesen --
+if (tbl_exists($pdo, $db, 'todo_seen')) {
+    $stmtTS = $pdo->prepare("INSERT IGNORE INTO todo_seen (todo_id, user_id) VALUES (?,?)");
+    $seedTS = [
+        ['t_09fnzwh','u_raphael'],['t_09fnzwh','u_06hdf5r'],
+        ['t_13t6rcj','u_raphael'],
+        ['t_1zc57ra','u_raphael'],
+        ['t_oshg99c','u_raphael'],['t_oshg99c','u_06hdf5r'],
+        ['t_cq3kp7s','u_raphael'],['t_cq3kp7s','u_06hdf5r'],
+    ];
+    $tsOk = 0;
+    foreach ($seedTS as [$tid,$uid]) {
+        try { $stmtTS->execute([$tid,$uid]); $tsOk++; } catch (Throwable $e) { err("TS $tid/$uid: ".$e->getMessage()); }
+    }
+    ok("$tsOk Todo-gelesen eingespielt");
+} else { skip('todo_seen nicht vorhanden – übersprungen'); }
+
+$pdo->exec('SET FOREIGN_KEY_CHECKS=1');
+skip('calendarConfig: GitHub-Token wird nicht eingespielt (Security). Bitte nach Login unter Admin → Einstellungen neu eintragen.');
+
+// ============================================================
 // ABSCHLUSS – Tabellenstatus
 // ============================================================
 sect('Status aller Tabellen');
