@@ -21,11 +21,11 @@ return [
     // Avatare + öffentliche Bilder (innerhalb Webroot, per URL erreichbar)
     'uploads_path'     => __DIR__ . '/uploads',
     'uploads_url'      => '/agenturtool/uploads',
-    // Vertrauliche Dokumente (Verträge, Projektdateien) – AUSSERHALB Webroot
-    // dirname(__DIR__, 2) geht 2 Ebenen über agenturtool/ hinaus:
-    //   /var/www/vhosts/domain.de/httpdocs/agenturtool → /var/www/vhosts/domain.de/
-    // Auf Plesk/cPanel ist das außerhalb des öffentlichen Webroots.
-    'private_path'     => dirname(__DIR__, 2) . '/private_uploads',
+    // Vertrauliche Dokumente (Verträge, Projektdateien)
+    // Liegt innerhalb von agenturtool/ → PHP hat immer Schreibrechte.
+    // Zugriff wird durch .htaccess + index.php blockiert (Apache + nginx).
+    // Dateinamen enthalten einen zufälligen Prefix (uid), sind also nicht erratbar.
+    'private_path'     => __DIR__ . '/private_uploads',
     'allowed_mimes'    => [
         'application/pdf',
         'application/msword',                                                                    // .doc
