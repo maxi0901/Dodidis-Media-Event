@@ -584,6 +584,43 @@ if (!tbl_exists($pdo, $db, 'customer_files')) {
 }
 
 // ============================================================
+// Block H – Private Upload-Ordner (außerhalb Webroot)
+// ============================================================
+sect('Block H – Private Upload-Verzeichnisse anlegen');
+
+$cfg_h = require __DIR__ . '/config.php';
+$privatePath = $cfg_h['private_path'] ?? null;
+
+if (!$privatePath) {
+    warn('config.php hat keinen private_path definiert – übersprungen.');
+} else {
+    $dirs = [
+        $privatePath,
+        $privatePath . '/customers',
+        $privatePath . '/projects',
+    ];
+    foreach ($dirs as $d) {
+        if (!is_dir($d)) {
+            if (mkdir($d, 0750, true)) {
+                ok('Verzeichnis angelegt: ' . $d);
+            } else {
+                warn('Konnte Verzeichnis nicht anlegen: ' . $d . ' – PHP hat möglicherweise keine Schreibrechte.');
+            }
+        } else {
+            skip('Existiert bereits: ' . $d);
+        }
+    }
+    // .htaccess als Fallback-Schutz falls Ordner doch im Webroot landet
+    $htaccess = $privatePath . '/.htaccess';
+    if (!file_exists($htaccess)) {
+        file_put_contents($htaccess, "Order deny,allow\nDeny from all\n");
+        ok('.htaccess Schutz angelegt in ' . $privatePath);
+    } else {
+        skip('.htaccess bereits vorhanden');
+    }
+}
+
+// ============================================================
 // ABSCHLUSS – Tabellenstatus
 // ============================================================
 sect('Status aller Tabellen');
