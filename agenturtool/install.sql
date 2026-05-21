@@ -228,6 +228,25 @@ CREATE TABLE vacations (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------------------------------------------------------
+-- customer_files
+-- ----------------------------------------------------------------------------
+CREATE TABLE customer_files (
+  id          BIGINT       NOT NULL AUTO_INCREMENT,
+  customer_id VARCHAR(64)  NOT NULL,
+  kind        ENUM('vertrag','leistungsbeschreibung','avv','other') NOT NULL DEFAULT 'other',
+  filename    VARCHAR(255) NOT NULL,
+  mime        VARCHAR(100) NOT NULL,
+  size        INT          NOT NULL DEFAULT 0,
+  path        VARCHAR(500) NOT NULL,
+  uploaded_by VARCHAR(64)  NULL,
+  uploaded_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_cf_customer (customer_id),
+  CONSTRAINT fk_cf_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+  CONSTRAINT fk_cf_uploader FOREIGN KEY (uploaded_by) REFERENCES users(id)     ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
 -- activity_log
 -- ----------------------------------------------------------------------------
 CREATE TABLE activity_log (

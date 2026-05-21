@@ -30,8 +30,16 @@ $scope = $_GET['scope'] ?? 'project';
 $kind  = $_GET['kind']  ?? 'other';
 $refId = $_GET['id']    ?? '';
 
-if (!in_array($kind, ['script','contract','correction','other','avatar'], true)) {
-    json_err(400, 'Ungültiger kind-Parameter.');
+$customerKinds = ['vertrag','leistungsbeschreibung','avv','other'];
+$projectKinds  = ['script','contract','correction','other'];
+if ($scope === 'customer' && !in_array($kind, $customerKinds, true)) {
+    json_err(400, 'Ungültiger kind-Parameter für customer-Scope.');
+}
+if ($scope === 'project' && !in_array($kind, $projectKinds, true)) {
+    json_err(400, 'Ungültiger kind-Parameter für project-Scope.');
+}
+if ($scope === 'avatar' && $kind !== 'avatar') {
+    $kind = 'avatar';
 }
 
 // MIME über finfo verifizieren (Browser-Header sind nicht vertrauenswürdig)
@@ -52,6 +60,12 @@ if ($scope === 'project') {
     if (!$refId) json_err(400, 'id (user) fehlt.');
     $dir = $cfg['uploads_path'] . '/avatars/' . $refId;
     $urlDir = $cfg['uploads_url'] . '/avatars/' . $refId;
+} elseif ($scope === 'customer') {
+    if (!$refId) json_err(400, 'id (customer) fehlt.');
+    $cust = db_one("SELECT id FROM customers WHERE id = ?", [$refId]);
+    if (!$cust) json_err(404, 'Kunde nicht gefunden.');
+    $dir = $cfg['uploads_path'] . '/customers/' . $refId;
+    $urlDir = $cfg['uploads_url'] . '/customers/' . $refId;
 } else {
     json_err(400, 'Unbekannter scope.');
 }
@@ -86,6 +100,14 @@ if ($scope === 'project') {
     );
     $response['id'] = (int)db()->lastInsertId();
     log_activity('project', $refId, 'fileUploaded', ['kind' => $kind, 'filename' => $safeName]);
+} elseif ($scope === 'customer') {
+    db_exec(
+        "INSERT INTO customer_files (customer_id, kind, filename, mime, size, path, uploaded_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [$refId, $kind, $safeName, $mime, (int)$file['size'], $relPath, $session['uid']]
+    );
+    $response['id'] = (int)db()->lastInsertId();
+    log_activity('customer', $refId, 'fileUploaded', ['kind' => $kind, 'filename' => $safeName]);
 }
 
 json_ok($response);
