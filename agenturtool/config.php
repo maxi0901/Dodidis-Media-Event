@@ -22,6 +22,11 @@ return [
     'uploads_url'      => '/agenturtool/uploads',
     'allowed_mimes'    => [
         'application/pdf',
+        'application/msword',                                                                    // .doc
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',              // .docx
+        'application/vnd.oasis.opendocument.text',                                              // .odt
+        'application/vnd.ms-excel',                                                             // .xls
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',                   // .xlsx
         'image/png',
         'image/jpeg',
         'image/webp',

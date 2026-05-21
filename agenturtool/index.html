@@ -3573,6 +3573,7 @@ let store = {
   vacations: [],
   todos: [],
   shootDays: [],
+  customerFiles: [],
   calendarConfig: { token: null, githubUser: null, agencyGistId: null, enabledAt: null },
   session: null,
   activity: []
@@ -3736,6 +3737,7 @@ async function pullAllFromCloud() {
     CLOUD_COLLECTIONS.forEach(c => {
       if (Array.isArray(data[c.table])) store[c.local] = data[c.table];
     });
+    if (Array.isArray(data.customer_files)) store.customerFiles = data.customer_files;
     if (Array.isArray(data.app_config)) {
       const cfg = data.app_config.find(r => r.key === 'calendarConfig');
       if (cfg) store.calendarConfig = cfg.value;
@@ -6485,20 +6487,28 @@ function openCustomerModal(customerId = null) {
                 </div>
               </div>
 
-              <div class="section-title">Vertragsdokument</div>
-              ${c.contractFile ? `
-                <div class="file-uploaded">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  <span style="flex:1;">${escape(c.contractFileName || 'Vertrag.pdf')}</span>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="downloadContractFile('${customer.id}')">Öffnen</button>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="removeContractFile('${customer.id}')" style="color:var(--danger);">×</button>
-                </div>
-              ` : ''}
-              <label class="file-upload" for="contract-upload">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.5" style="margin-bottom:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <div style="font-size:13px;font-weight:500;">${c.contractFile ? 'Datei ersetzen' : 'Vertrag hochladen (PDF)'}</div>
-                <input type="file" id="contract-upload" accept=".pdf,application/pdf" style="display:none;" onchange="uploadContractFile(event)" />
-              </label>
+              <div class="section-title">Vertragsdokumente</div>
+              ${[
+                {kind:'vertrag',              label:'Vertrag'},
+                {kind:'leistungsbeschreibung',label:'Leistungsbeschreibung'},
+                {kind:'avv',                  label:'AVV (Auftragsverarbeitung)'},
+              ].map(({kind, label}) => {
+                const docs = (store.customerFiles||[]).filter(f => f.customerId === (customer?.id||'') && f.kind === kind);
+                return `<div class="form-group" style="margin-bottom:14px;">
+                  <label class="form-label" style="margin-bottom:6px;">${escape(label)}</label>
+                  ${docs.map(f => `
+                    <div class="file-uploaded" style="margin-bottom:4px;">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      <span style="flex:1;font-size:12px;">${escape(f.filename)}</span>
+                      <a class="btn btn-ghost btn-sm" href="${escape(f.path)}" target="_blank">Öffnen</a>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="deleteCustomerFile(${f.id},'${customer?.id||''}')" style="color:var(--danger);">×</button>
+                    </div>`).join('')}
+                  <label class="file-upload" style="padding:8px 12px;cursor:pointer;">
+                    <input type="file" accept=".pdf,.doc,.docx,.odt" style="display:none;" onchange="uploadCustomerFile(this,'${customer?.id||''}','${kind}')" />
+                    <span style="font-size:12px;color:var(--text-3);">+ ${escape(label)} hochladen (PDF, DOCX, ODT)</span>
+                  </label>
+                </div>`;
+              }).join('')}
             </div>
 
             <!-- TAB: ONBOARDING CHECKLIST -->
@@ -6556,49 +6566,52 @@ function updateChecklistVisual() {
   // No-op kept for hookability.
 }
 
-// Contract file upload (base64, stored in localStorage – warn if > 4MB)
-let pendingContractFile = null;
-function uploadContractFile(e) {
-  const file = e.target.files[0];
+async function uploadCustomerFile(input, customerId, kind) {
+  const file = input.files[0];
   if (!file) return;
-  if (file.size > 4 * 1024 * 1024) {
-    alert('Datei ist zu groß (max. 4 MB für LocalStorage).');
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = ev => {
-    pendingContractFile = { name: file.name, data: ev.target.result };
-    // Visual feedback
-    const labelEl = e.target.closest('.file-upload');
-    if (labelEl) {
-      labelEl.style.borderColor = 'var(--accent)';
-      labelEl.style.background = 'var(--accent-soft)';
-      labelEl.querySelector('div').textContent = '✓ ' + file.name + ' bereit zum Speichern';
-    }
-  };
-  reader.readAsDataURL(file);
-}
-
-function downloadContractFile(customerId) {
-  const c = store.customers.find(x => x.id === customerId);
-  if (!c?.contractFile) return;
-  const a = document.createElement('a');
-  a.href = c.contractFile;
-  a.download = c.contractFileName || 'Vertrag.pdf';
-  a.click();
-}
-
-async function removeContractFile(customerId) {
-  const ok = await appConfirm('Die hochgeladene Vertrags-PDF wird entfernt.', {
-    title: 'Vertragsdatei entfernen?', okLabel: 'Entfernen', danger: true
-  });
-  if (!ok) return;
-  const idx = store.customers.findIndex(c => c.id === customerId);
-  if (idx >= 0) {
-    delete store.customers[idx].contractFile;
-    delete store.customers[idx].contractFileName;
-    saveStore();
+  const label = input.closest('label');
+  if (label) label.style.opacity = '0.5';
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(
+      `${API_BASE}/upload.php?scope=customer&kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(customerId)}`,
+      { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF }, body: formData }
+    );
+    const json = await res.json();
+    if (!json.ok && !json.success) throw new Error(json.error || 'Upload fehlgeschlagen');
+    const f = json.data;
+    if (!store.customerFiles) store.customerFiles = [];
+    store.customerFiles.unshift({
+      id: f.id, customerId, kind,
+      filename: f.filename, mime: f.mime, size: f.size, path: f.path,
+      uploadedAt: new Date().toISOString(),
+    });
+    showToast(file.name + ' hochgeladen', '');
     openCustomerModal(customerId);
+  } catch (e) {
+    showToast(e.message, 'danger');
+  } finally {
+    input.value = '';
+    if (label) label.style.opacity = '1';
+  }
+}
+
+async function deleteCustomerFile(fileId, customerId) {
+  const ok = await appConfirm('Datei unwiderruflich löschen?', { title: 'Datei löschen', okLabel: 'Löschen', danger: true });
+  if (!ok) return;
+  try {
+    const res = await fetch(
+      `${API_BASE}/customer_files.php?id=${fileId}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!json.ok && !json.success) throw new Error(json.error || 'Löschen fehlgeschlagen');
+    store.customerFiles = (store.customerFiles || []).filter(f => f.id !== fileId);
+    showToast('Datei gelöscht', '');
+    openCustomerModal(customerId);
+  } catch (e) {
+    showToast(e.message, 'danger');
   }
 }
 
@@ -6658,25 +6671,16 @@ async function saveCustomer(e, customerId) {
   delete data.manualStatus;
   data.status = manualStatus === 'paused' ? 'paused' : null;
 
-  // Add contract file if pending
-  const fileAdds = {};
-  if (pendingContractFile) {
-    fileAdds.contractFile = pendingContractFile.data;
-    fileAdds.contractFileName = pendingContractFile.name;
-    pendingContractFile = null;
-  }
-
   if (customerId) {
     const idx = store.customers.findIndex(c => c.id === customerId);
     if (idx >= 0) {
-      store.customers[idx] = { ...store.customers[idx], ...data, ...fileAdds, checklist };
+      store.customers[idx] = { ...store.customers[idx], ...data, checklist };
       if (pinHashUpdate) store.customers[idx].pinHash = pinHashUpdate;
     }
   } else {
     store.customers.push({
       id: uid('c'),
       ...data,
-      ...fileAdds,
       checklist,
       ...(pinHashUpdate ? { pinHash: pinHashUpdate } : {}),
       createdAt: new Date().toISOString()
@@ -8638,18 +8642,25 @@ function renderCustomerOverview(session) {
       `}
     </div>
 
-    ${c.contractFile ? `
-      <div class="card mb-4">
-        <div class="card-header"><div class="card-title">Mein Vertrag</div></div>
-        <div class="card-body">
-          <div class="file-uploaded">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <span style="flex:1;">${escape(c.contractFileName || 'Vertrag.pdf')}</span>
-            <button class="btn btn-secondary btn-sm" onclick="downloadContractFile('${c.id}')">Herunterladen</button>
-          </div>
+    ${(() => {
+      const myDocs = (store.customerFiles || []).filter(f => f.customerId === c.id);
+      if (!myDocs.length) return '';
+      const DOC_LABELS = { vertrag: 'Vertrag', leistungsbeschreibung: 'Leistungsbeschreibung', avv: 'AVV', other: 'Dokument' };
+      return `<div class="card mb-4">
+        <div class="card-header"><div class="card-title">Meine Dokumente</div></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:8px;">
+          ${myDocs.map(f => `
+            <div class="file-uploaded">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:500;">${escape(DOC_LABELS[f.kind] || f.kind)}</div>
+                <div style="font-size:11px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(f.filename)}</div>
+              </div>
+              <a class="btn btn-secondary btn-sm" href="${escape(f.path)}" target="_blank" download="${escape(f.filename)}">Herunterladen</a>
+            </div>`).join('')}
         </div>
-      </div>
-    ` : ''}
+      </div>`;
+    })()}
 
     ${finished.length > 0 ? `
       <div class="card">

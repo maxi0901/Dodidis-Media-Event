@@ -248,18 +248,42 @@ if ($action === 'pull') {
         error_log('[api.php pull] app_config query failed: ' . $e->getMessage());
     }
 
+    // Customer Files
+    $customerFiles = [];
+    try {
+        $cfSql = $type === 'customer'
+            ? ["SELECT id, customer_id, kind, filename, mime, size, path, uploaded_by, uploaded_at FROM customer_files WHERE customer_id = ? ORDER BY uploaded_at DESC", [$session['cid']]]
+            : ["SELECT id, customer_id, kind, filename, mime, size, path, uploaded_by, uploaded_at FROM customer_files ORDER BY customer_id, uploaded_at DESC", []];
+        foreach (db_all($cfSql[0], $cfSql[1]) as $f) {
+            $customerFiles[] = [
+                'id'         => (int)$f['id'],
+                'customerId' => $f['customer_id'],
+                'kind'       => $f['kind'],
+                'filename'   => $f['filename'],
+                'mime'       => $f['mime'],
+                'size'       => (int)$f['size'],
+                'path'       => $f['path'],
+                'uploadedBy' => $f['uploaded_by'],
+                'uploadedAt' => $f['uploaded_at'],
+            ];
+        }
+    } catch (\Throwable $e) {
+        error_log('[api.php pull] customer_files query failed: ' . $e->getMessage());
+    }
+
     // Antwort: kompatibel zum Bestand (ok/data)
     echo json_encode([
         'ok'      => true,
         'success' => true,
         'data'    => [
-            'users'      => $users,
-            'customers'  => $customers,
-            'projects'   => $projects,
-            'vacations'  => $vacations,
-            'todos'      => $todos,
-            'shoot_days' => $shootDays,
-            'app_config' => $appCfg,
+            'users'          => $users,
+            'customers'      => $customers,
+            'projects'       => $projects,
+            'vacations'      => $vacations,
+            'todos'          => $todos,
+            'shoot_days'     => $shootDays,
+            'app_config'     => $appCfg,
+            'customer_files' => $customerFiles,
         ],
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
