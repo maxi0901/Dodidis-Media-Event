@@ -594,6 +594,7 @@ $privatePath = $cfg_h['private_path'] ?? null;
 if (!$privatePath) {
     warn('config.php hat keinen private_path definiert – übersprungen.');
 } else {
+    ok('Ziel-Pfad: ' . $privatePath);
     $dirs = [
         $privatePath,
         $privatePath . '/customers',
@@ -601,23 +602,34 @@ if (!$privatePath) {
     ];
     foreach ($dirs as $d) {
         if (!is_dir($d)) {
-            if (mkdir($d, 0750, true)) {
-                ok('Verzeichnis angelegt: ' . $d);
+            if (@mkdir($d, 0755, true)) {
+                ok('Verzeichnis angelegt: ' . basename($d));
             } else {
-                warn('Konnte Verzeichnis nicht anlegen: ' . $d . ' – PHP hat möglicherweise keine Schreibrechte.');
+                warn('mkdir() fehlgeschlagen für: ' . $d);
+                warn('→ Bitte Ordner manuell anlegen und PHP-Schreibrechte setzen.');
             }
         } else {
-            skip('Existiert bereits: ' . $d);
+            skip('Existiert bereits: ' . basename($d));
         }
     }
-    // .htaccess als Fallback-Schutz falls Ordner doch im Webroot landet
+    // .htaccess schreiben (überschreibt falls veraltet)
     $htaccess = $privatePath . '/.htaccess';
-    if (!file_exists($htaccess)) {
-        file_put_contents($htaccess, "Order deny,allow\nDeny from all\n");
-        ok('.htaccess Schutz angelegt in ' . $privatePath);
+    $htContent = "Order deny,allow\nDeny from all\n";
+    if (file_put_contents($htaccess, $htContent) !== false) {
+        ok('.htaccess Zugriffsschutz gesetzt');
     } else {
-        skip('.htaccess bereits vorhanden');
+        warn('.htaccess konnte nicht geschrieben werden.');
     }
+    // index.php als Fallback
+    $idxFile = $privatePath . '/index.php';
+    if (!file_exists($idxFile)) {
+        file_put_contents($idxFile, "<?php http_response_code(403); exit;\n");
+        ok('index.php Fallback erstellt');
+    } else {
+        skip('index.php bereits vorhanden');
+    }
+    ok('Nginx-Hinweis: Falls nginx statische Dateien direkt ausliefert, bitte in der Server-Config ergänzen:');
+    ok('  location /agenturtool/private_uploads/ { deny all; return 403; }');
 }
 
 // ============================================================
