@@ -168,7 +168,20 @@ if (!tbl_exists($pdo, $db, 'app_config')) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ", 'app_config erstellt');
 } else {
-    skip('app_config existiert bereits');
+    if (!col_exists($pdo, $db, 'app_config', 'key')) {
+        // Tabelle existiert mit falschem Schema (key-Spalte fehlt) → drop + neu anlegen
+        exec_sql($pdo, "DROP TABLE app_config", 'app_config (altes Schema) gelöscht');
+        exec_sql($pdo, "
+            CREATE TABLE app_config (
+              `key`      VARCHAR(64) NOT NULL,
+              `value`    JSON        NOT NULL,
+              updated_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (`key`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ", 'app_config (korrektes Schema) neu erstellt');
+    } else {
+        skip('app_config existiert bereits');
+    }
 }
 
 // customer_checklists

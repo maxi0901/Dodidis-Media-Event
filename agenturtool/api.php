@@ -240,8 +240,12 @@ if ($action === 'pull') {
 
     // App-Config
     $appCfg = [];
-    foreach (db_all("SELECT `key`, `value` FROM app_config") as $r) {
-        $appCfg[] = ['key' => $r['key'], 'value' => json_decode($r['value'], true)];
+    try {
+        foreach (db_all("SELECT `key`, `value` FROM app_config") as $r) {
+            $appCfg[] = ['key' => $r['key'], 'value' => json_decode($r['value'], true)];
+        }
+    } catch (\Throwable $e) {
+        error_log('[api.php pull] app_config query failed: ' . $e->getMessage());
     }
 
     // Antwort: kompatibel zum Bestand (ok/data)
