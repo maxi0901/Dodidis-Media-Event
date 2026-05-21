@@ -6504,7 +6504,7 @@ function openCustomerModal(customerId = null) {
                     <div class="file-uploaded" style="margin-bottom:4px;">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                       <span style="flex:1;font-size:12px;">${escape(f.filename)}</span>
-                      <a class="btn btn-ghost btn-sm" href="${escape(f.path)}" target="_blank">Öffnen</a>
+                      <a class="btn btn-ghost btn-sm" href="${API_BASE}/download.php?scope=customer&id=${f.id}" target="_blank">Öffnen</a>
                       <button type="button" class="btn btn-ghost btn-sm" onclick="deleteCustomerFile(${f.id},'${customer.id}')" style="color:var(--danger);">×</button>
                     </div>`).join('')}
                   <label class="file-upload" style="padding:8px 12px;cursor:pointer;">
@@ -6588,7 +6588,7 @@ async function uploadCustomerFile(input, customerId, kind) {
     if (!store.customerFiles) store.customerFiles = [];
     store.customerFiles.unshift({
       id: f.id, customerId, kind,
-      filename: f.filename, mime: f.mime, size: f.size, path: f.path,
+      filename: f.filename, mime: f.mime, size: f.size,
       uploadedAt: new Date().toISOString(),
     });
     showToast(file.name + ' hochgeladen', '');
@@ -8660,7 +8660,7 @@ function renderCustomerOverview(session) {
                 <div style="font-size:13px;font-weight:500;">${escape(DOC_LABELS[f.kind] || f.kind)}</div>
                 <div style="font-size:11px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(f.filename)}</div>
               </div>
-              <a class="btn btn-secondary btn-sm" href="${escape(f.path)}" target="_blank" download="${escape(f.filename)}">Herunterladen</a>
+              <a class="btn btn-secondary btn-sm" href="${API_BASE}/download.php?scope=customer&id=${f.id}" target="_blank">Herunterladen</a>
             </div>`).join('')}
         </div>
       </div>`;

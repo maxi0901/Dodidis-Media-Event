@@ -53,7 +53,8 @@ if ($method === 'DELETE') {
     );
     if (!$file) json_err(404, 'Datei nicht gefunden.');
 
-    $fsPath = str_replace($cfg['uploads_url'], $cfg['uploads_path'], $file['path']);
+    // Pfad ist jetzt relativ zum private_path (z.B. "customers/c_123/file.pdf")
+    $fsPath = $cfg['private_path'] . '/' . $file['path'];
     if (file_exists($fsPath)) @unlink($fsPath);
 
     db_exec("DELETE FROM customer_files WHERE id = ?", [$fileId]);
