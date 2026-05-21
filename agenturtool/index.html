@@ -1483,12 +1483,13 @@
   }
 
   .month-scroller {
-    height: 720px;
-    min-height: 0;
+    height: calc(100svh - 230px);
+    min-height: 400px;
     overflow-y: scroll;
     overflow-x: hidden;
     scroll-behavior: smooth;
     overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .month-scroller::-webkit-scrollbar { width: 10px; }
   .month-scroller::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
@@ -1549,28 +1550,26 @@
      KATEGORIE-WOCHENANSICHT (Swim-Lanes)
      ========================================= */
   .ical {
-    background: #1c1c1e;
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
-    border: 1px solid rgba(255,255,255,0.06);
+    background: var(--bg-2);
     width: 100%;
     max-width: 100%;
+    border-top: 1px solid var(--border);
   }
   .ical-scroll {
     overflow-x: scroll;
     overflow-y: auto;
     cursor: grab;
-    max-height: 720px;
-    scroll-snap-type: x mandatory;
+    max-height: calc(100svh - 190px);
+    scroll-snap-type: x proximity;
     overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .ical-scroll.dragging { cursor: grabbing; }
-  .ical-scroll::-webkit-scrollbar { height: 10px; width: 10px; background: #1c1c1e; }
+  .ical-scroll::-webkit-scrollbar { height: 8px; width: 8px; background: var(--bg-2); }
   .ical-scroll::-webkit-scrollbar-thumb {
     background: rgba(255,255,255,0.18);
-    border-radius: 5px;
-    border: 2px solid #1c1c1e;
+    border-radius: 4px;
+    border: 2px solid var(--bg-2);
   }
   .ical-track {
     display: grid;
@@ -1584,27 +1583,28 @@
   .ical-corner {
     grid-row: 1;
     grid-column: 1;
-    background: #1c1c1e;
+    background: var(--bg-3);
     position: sticky;
+    top: 0;
     left: 0;
-    z-index: 4;
+    z-index: 6;
     border-right: 1px solid rgba(255,255,255,0.08);
     border-bottom: 1px solid rgba(255,255,255,0.08);
   }
   .ical-day-head {
     grid-row: 1;
-    padding: 14px 16px 12px;
+    padding: 12px 16px 10px;
     border-right: 1px solid rgba(255,255,255,0.06);
     border-bottom: 1px solid rgba(255,255,255,0.08);
     display: flex;
     align-items: baseline;
     gap: 8px;
     scroll-snap-align: start;
-    background: #1c1c1e;
+    background: var(--bg-3);
     position: sticky;
     top: 0;
     z-index: 3;
-    min-height: 70px;
+    min-height: 60px;
   }
   .ical-day-head .ical-dname {
     font-size: 14px;
@@ -1668,20 +1668,26 @@
     position: sticky;
     left: 0;
     z-index: 2;
-    background: #232325;
+    background: var(--bg-3);
     border-right: 1px solid rgba(255,255,255,0.08);
     padding: 6px 14px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
-    color: #f5f5f7;
+    color: var(--text-2);
     display: flex;
     align-items: center;
     gap: 8px;
     text-transform: uppercase;
     letter-spacing: 0.4px;
+    white-space: nowrap;
+  }
+  .ical-cat-label span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .ical-cat-label .ical-cat-icon {
     width: 22px; height: 22px;
+    flex-shrink: 0;
     border-radius: 6px;
     display: inline-flex;
     align-items: center;
@@ -1751,9 +1757,11 @@
   .cal-filter-bar {
     display: flex;
     gap: 8px;
-    margin: 0 0 12px;
+    padding: 10px 24px 14px;
     flex-wrap: wrap;
     align-items: center;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-1);
   }
   .cal-filter-label {
     font-size: 11px;
@@ -2334,10 +2342,10 @@
   /* Legend */
   .cal-legend {
     display: flex;
-    gap: 16px;
+    gap: 12px 20px;
     padding: 12px 24px;
     border-top: 1px solid var(--border);
-    background: var(--bg-1);
+    background: var(--bg-2);
     flex-wrap: wrap;
   }
   .cal-legend-item {
@@ -2973,6 +2981,25 @@
     .calendar-day-name { font-size: 10.5px; padding: 8px 4px; }
     .calendar-filters, .cal-filters { flex-wrap: wrap; gap: 6px; }
     .cal-filter-chip { min-height: 36px; padding: 6px 12px; }
+
+    /* Kategorie-Wochenansicht auf Mobile */
+    .ical-scroll { max-height: calc(100svh - 240px); }
+    .ical-day-head { padding: 8px 10px 8px; min-height: 50px; gap: 5px; }
+    .ical-day-head .ical-dname { font-size: 11px; }
+    .ical-day-head .ical-dnum { font-size: 14px; }
+    .ical-day-head.today .ical-dnum { width: 20px; height: 20px; font-size: 11px; }
+    .ical-cat-label { padding: 4px 10px; font-size: 10px; gap: 6px; }
+    .ical-cat-label .ical-cat-icon { width: 20px; height: 20px; font-size: 11px; }
+    .ical-event { font-size: 11px; height: 24px; line-height: 24px; padding: 0 6px 0 9px; margin: 2px 2px; }
+    .cal-filter-bar { padding: 8px 16px 10px; gap: 6px; }
+    .cal-filter-btn { padding: 4px 10px; font-size: 11.5px; }
+    .cal-legend { padding: 10px 16px; gap: 8px 14px; }
+    .cal-legend-item { font-size: 11px; }
+    .month-scroller { height: calc(100svh - 270px); min-height: 320px; }
+    .month-week-row { min-height: 90px; }
+    .month-bar { font-size: 10.5px; height: 20px; line-height: 20px; }
+    .month-day-num { font-size: 11px; padding: 4px 6px 2px; }
+    .month-weekday-header > div { font-size: 10px; padding: 6px 4px; }
 
     /* Text-Overflow Schutz */
     .page-title, .cutter-card-title, .proj-title, .customer-name,
@@ -7317,8 +7344,14 @@ function renderCategoryWeekView(elementId, session, mini = false) {
     }));
 
   const anchor = mini ? dashboardCalDate : calendarDate;
-  const daysBefore = Math.floor(WEEK_RANGE_DAYS / 2);
-  const totalDays = WEEK_RANGE_DAYS;
+
+  // Adaptive sizing based on viewport
+  const vw = window.innerWidth;
+  const isSmallPhone = vw < 430;
+  const isMobile = vw < 680;
+  const totalDays = isSmallPhone ? 60 : (isMobile ? 90 : WEEK_RANGE_DAYS);
+  const daysBefore = Math.floor(totalDays / 2);
+
   const firstDay = new Date(anchor);
   firstDay.setHours(0, 0, 0, 0);
   firstDay.setDate(firstDay.getDate() - daysBefore);
@@ -7381,8 +7414,8 @@ function renderCategoryWeekView(elementId, session, mini = false) {
   const videoLayout    = visible('videos')   ? layoutCat(videoBars)    : [];
   const todoLayout     = visible('todos')    ? layoutCat(todoBars)     : [];
 
-  const colWidth = mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH;
-  const sidebarWidth = mini ? 120 : 150;
+  const colWidth = isSmallPhone ? 96 : (isMobile ? 120 : (mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH));
+  const sidebarWidth = isSmallPhone ? 68 : (isMobile ? 90 : (mini ? 120 : 150));
 
   // Dynamische Cat-Liste: nur sichtbare Kategorien rendern – Reihenfolge: Drehtag, Urlaub, Videos, Aufgaben
   let nextRow = 2;
@@ -7394,19 +7427,29 @@ function renderCategoryWeekView(elementId, session, mini = false) {
   }
   if (visible('vacation')) {
     const lanes = Math.max(1, vacationLayout.reduce((a,b) => Math.max(a, b.lane+1), 0));
-    cats.push({ key: 'vacation', label: 'Urlaub', icon: '🏖', cls: 'cat-vacation', start: nextRow, lanes, items: vacationLayout });
+    cats.push({ key: 'vacation', label: isSmallPhone ? '' : 'Urlaub', icon: '🏖', cls: 'cat-vacation', start: nextRow, lanes, items: vacationLayout });
     nextRow += lanes;
   }
   if (visible('videos')) {
     const lanes = Math.max(1, videoLayout.reduce((a,b) => Math.max(a, b.lane+1), 0));
-    cats.push({ key: 'videos', label: 'Videos', icon: '🎬', cls: 'cat-videos', start: nextRow, lanes, items: videoLayout });
+    cats.push({ key: 'videos', label: isSmallPhone ? '' : 'Videos', icon: '🎬', cls: 'cat-videos', start: nextRow, lanes, items: videoLayout });
     nextRow += lanes;
   }
   if (visible('todos')) {
     const lanes = Math.max(1, todoLayout.reduce((a,b) => Math.max(a, b.lane+1), 0));
-    cats.push({ key: 'todos', label: 'Aufgaben', icon: '✅', cls: 'cat-todos', start: nextRow, lanes, items: todoLayout });
+    cats.push({ key: 'todos', label: isSmallPhone ? '' : 'Aufgaben', icon: '✅', cls: 'cat-todos', start: nextRow, lanes, items: todoLayout });
     nextRow += lanes;
   }
+
+  // Drehtag-Label auch auf kleinen Phones kürzen
+  if (cats[0]?.key === 'shoot') cats[0].label = isSmallPhone ? '' : 'Drehtag';
+
+  const filterLabels = {
+    shoot:    { icon: '🎥', text: 'Drehtag' },
+    vacation: { icon: '🏖', text: 'Urlaub' },
+    videos:   { icon: '🎬', text: 'Videos' },
+    todos:    { icon: '✅', text: 'Aufgaben' }
+  };
 
   el.innerHTML = `
     <div class="calendar-header">
@@ -7420,30 +7463,24 @@ function renderCategoryWeekView(elementId, session, mini = false) {
       </div>
     </div>
     ${(() => {
-      const labels = {
-        shoot:    { icon: '🎥', text: 'Drehtag' },
-        vacation: { icon: '🏖', text: 'Urlaub' },
-        videos:   { icon: '🎬', text: 'Videos' },
-        todos:    { icon: '✅', text: 'Aufgaben' }
-      };
       const buttons = available.map(key => `
         <button type="button" class="cal-filter-btn ${visibility[key] ? 'active' : ''}" onclick="toggleCalCat('${key}')">
-          <span>${labels[key].icon}</span>
-          <span>${labels[key].text}</span>
+          <span>${filterLabels[key].icon}</span>
+          ${!isSmallPhone ? `<span>${filterLabels[key].text}</span>` : ''}
         </button>
       `).join('');
-      return `<div class="cal-filter-bar"><span class="cal-filter-label">Anzeigen:</span>${buttons}</div>`;
+      return `<div class="cal-filter-bar">${!isSmallPhone ? '<span class="cal-filter-label">Anzeigen:</span>' : ''}${buttons}</div>`;
     })()}
     <div class="ical ${mini ? 'mini' : ''}">
       <div class="ical-scroll" id="${elementId}-scroller">
         <div class="ical-track" style="width: ${sidebarWidth + totalDays * colWidth}px; grid-template-columns: ${sidebarWidth}px repeat(${totalDays}, ${colWidth}px);">
           <!-- Top-left corner (sticky) -->
           <div class="ical-corner"></div>
-          <!-- Day headers (Drehtag-Info steckt in der eigenen Drehtag-Lane unten) -->
+          <!-- Day headers -->
           ${days.map((d, i) => `
             <div class="ical-day-head ${d.isToday ? 'today' : ''} ${d.isShoot ? 'is-shoot' : ''}" style="grid-column:${i+2}; grid-row:1;">
-              <div class="ical-dname">${d.wdName} · ${d.monthShort}</div>
-              <div class="ical-dnum">${d.num}</div>
+              <div class="ical-dname">${isMobile ? d.wdName : d.wdName + ' · ' + d.monthShort}</div>
+              <div class="ical-dnum">${isMobile ? d.monthShort.slice(0,1) + d.num : d.num}</div>
             </div>
           `).join('')}
 
