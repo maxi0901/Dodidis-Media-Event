@@ -4300,7 +4300,7 @@ function canActOnProject(project, session, action) {
   return false;
 }
 
-function markAsShot(projectId) {
+async function markAsShot(projectId) {
   const p = store.projects.find(x => x.id === projectId);
   if (!p) { appAlert('Projekt nicht gefunden.', { title: 'Fehler' }); return; }
   const session = getCurrentUser();
@@ -4308,11 +4308,13 @@ function markAsShot(projectId) {
     appAlert('Du hast keine Berechtigung, dieses Projekt zu ändern.', { title: 'Nicht erlaubt' });
     return;
   }
-  // Direkt Status setzen – kein Confirm-Dialog, der irgendwo hängen kann
+  // Snapshot für Rollback
+  const prevStatus = p.status;
+  const prevShotAt = p.shotAt;
+  // Optimistisch lokal updaten
   p.status = STATUS.GEDREHT;
   p.shotAt = new Date().toISOString();
   logActivity('project', p.id, 'markAsShot', { title: p.title });
-  saveStore();
   console.log('[markAsShot] Status gesetzt auf:', p.status, 'für Projekt:', p.title);
   // Cutter informieren
   if (p.cutterId) {
@@ -4329,6 +4331,30 @@ function markAsShot(projectId) {
   // Hintergrund-Sync ohne UI-Block
   setTimeout(() => { try { writeLiveICS(); } catch(e){ console.warn(e); } }, 50);
   showToast('Als abgedreht markiert', `„${p.title}" ist jetzt bereit für den Schnitt`);
+  // Direkt in DB schreiben
+  try {
+    const res = await fetch(
+      `${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`,
+      {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ status: 'gedreht' })
+      }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const idx = store.projects.findIndex(x => x.id === projectId);
+      if (idx >= 0) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    p.status = prevStatus;
+    p.shotAt = prevShotAt;
+    renderPage();
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 /* Cutter-Queue fürs Dashboard */
@@ -5185,7 +5211,7 @@ function openShootDayModal(shootDayId = null) {
   $('#modal-container').innerHTML = html;
 }
 
-function saveShootDay(e, shootDayId) {
+async function saveShootDay(e, shootDayId) {
   e.preventDefault();
   const fd = new FormData(e.target);
   const data = {
@@ -5205,17 +5231,56 @@ function saveShootDay(e, shootDayId) {
     return;
   }
 
+  // Snapshot für Rollback
+  let prevEntry = null;
+  let insertedId = null;
+
   if (shootDayId) {
     const idx = store.shootDays.findIndex(s => s.id === shootDayId);
-    if (idx >= 0) store.shootDays[idx] = { ...store.shootDays[idx], ...data };
+    if (idx >= 0) {
+      prevEntry = { ...store.shootDays[idx] };
+      store.shootDays[idx] = { ...store.shootDays[idx], ...data };
+    }
   } else {
-    store.shootDays.push({ id: uid('sd'), ...data, createdAt: new Date().toISOString() });
+    insertedId = uid('sd');
+    store.shootDays.push({ id: insertedId, ...data, createdAt: new Date().toISOString() });
   }
-  saveStore();
   writeLiveICS();
   closeModal();
   renderPage();
   showToast('Drehtag gespeichert', fmtDate(data.date) + ' · ' + data.startTime + '–' + data.endTime);
+
+  // Direkt in DB schreiben
+  try {
+    const url = shootDayId
+      ? `${API_BASE}/shootdays.php?id=${encodeURIComponent(shootDayId)}`
+      : `${API_BASE}/shootdays.php`;
+    const method = shootDayId ? 'PUT' : 'POST';
+    const payload = shootDayId ? data : { ...data, id: insertedId };
+    const res = await fetch(url, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const targetId = shootDayId || insertedId;
+      const idx = store.shootDays.findIndex(s => s.id === targetId);
+      if (idx >= 0) store.shootDays[idx] = { ...store.shootDays[idx], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    if (shootDayId && prevEntry) {
+      const idx = store.shootDays.findIndex(s => s.id === shootDayId);
+      if (idx >= 0) store.shootDays[idx] = prevEntry;
+    } else if (insertedId) {
+      store.shootDays = store.shootDays.filter(s => s.id !== insertedId);
+    }
+    renderPage();
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 async function deleteShootDay(shootDayId) {
@@ -5230,13 +5295,35 @@ async function deleteShootDay(shootDayId) {
     : 'Der Drehtag wird gelöscht.';
   const ok = await appConfirm(msg, { title: 'Drehtag löschen?', okLabel: 'Löschen', danger: true });
   if (!ok) return;
+  // Snapshot für Rollback
+  const removedSd = store.shootDays.find(s => s.id === shootDayId);
+  const unlinkedProjects = [];
   // Verlinkung in Projekten entfernen
-  store.projects.forEach(p => { if (p.shootDayId === shootDayId) { delete p.shootDayId; } });
+  store.projects.forEach(p => {
+    if (p.shootDayId === shootDayId) {
+      unlinkedProjects.push({ p, id: p.shootDayId });
+      delete p.shootDayId;
+    }
+  });
   trackDeletion('shootDays', shootDayId);
   store.shootDays = store.shootDays.filter(s => s.id !== shootDayId);
-  saveStore();
   closeModal();
   renderPage();
+  // Direkt in DB löschen
+  try {
+    const res = await fetch(
+      `${API_BASE}/shootdays.php?id=${encodeURIComponent(shootDayId)}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+  } catch (err) {
+    // Rollback
+    if (removedSd) store.shootDays.push(removedSd);
+    unlinkedProjects.forEach(({ p }) => { p.shootDayId = shootDayId; });
+    await pullAllFromCloud().then(() => renderPage());
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 function openProjectModal(projectId = null) {
@@ -5653,7 +5740,7 @@ function openProjectViewerModal(project) {
   $('#modal-container').innerHTML = html;
 }
 
-function saveProject(e, projectId) {
+async function saveProject(e, projectId) {
   e.preventDefault();
   const session = getCurrentUser();
   if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) {
