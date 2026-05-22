@@ -54,7 +54,7 @@ switch ($method) {
     }
 
     case 'POST': {
-        require_role('admin', 'manager');
+        // Alle eingeloggten Mitarbeiter dürfen Aufgaben erstellen
         $b = input_json();
         $title = s($b['title'] ?? null, 255);
         if (!$title) json_err(400, 'title ist Pflicht.');
