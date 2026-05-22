@@ -278,6 +278,12 @@ if (!col_exists($pdo, $db, 'users', 'updated_at')) {
     skip('users.updated_at existiert bereits');
 }
 
+if (!col_exists($pdo, $db, 'users', 'calendar_token')) {
+    exec_sql($pdo, "ALTER TABLE users ADD COLUMN calendar_token VARCHAR(48) NULL DEFAULT NULL, ADD UNIQUE KEY uk_users_calendar_token (calendar_token)", 'users.calendar_token hinzugefügt');
+} else {
+    skip('users.calendar_token existiert bereits');
+}
+
 // ============================================================
 // BLOCK C – Spalten-Umbenennungen / Erweiterungen
 // ============================================================
