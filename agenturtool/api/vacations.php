@@ -24,13 +24,18 @@ $cols = "id, user_id AS userId, start_date AS startDate, end_date AS endDate,
 switch ($method) {
 
     case 'GET': {
+        $isAdmin = has_role('admin');
         if ($id) {
             $v = db_one("SELECT $cols FROM vacations WHERE id = ?", [$id]);
             if (!$v) json_err(404, 'Urlaub nicht gefunden.');
+            if (!$isAdmin && $v['userId'] !== $session['uid']) json_err(403, 'Keine Berechtigung.');
             json_ok($v);
         }
-        // Volle Transparenz für alle Mitarbeiter
-        $rows = db_all("SELECT $cols FROM vacations ORDER BY start_date DESC");
+        if ($isAdmin) {
+            $rows = db_all("SELECT $cols FROM vacations ORDER BY start_date DESC");
+        } else {
+            $rows = db_all("SELECT $cols FROM vacations WHERE user_id = ? ORDER BY start_date DESC", [$session['uid']]);
+        }
         json_ok($rows);
     }
 
