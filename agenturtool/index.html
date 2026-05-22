@@ -8603,6 +8603,25 @@ function openStaffSelfProfile(user) {
                 <input type="password" name="newPassword" autocomplete="new-password" />
               </div>
             </div>
+
+            <div class="section-title">Kalender-Abo</div>
+            <div class="text-sm text-muted" style="margin-bottom:12px;">Abonniere deinen persönlichen Kalender in Apple Kalender, Google Calendar oder Outlook – aktualisiert sich automatisch.</div>
+            ${user.calendarToken
+              ? `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                   <a href="webcal://${location.host}${APP_BASE}api/calendar.php?token=${encodeURIComponent(user.calendarToken)}"
+                      class="btn btn-primary btn-sm" style="text-decoration:none;">
+                     📅 In Kalender abonnieren
+                   </a>
+                   <button type="button" class="btn btn-secondary btn-sm" onclick="regenerateCalendarToken('${escape(user.id)}')">Token erneuern</button>
+                   <button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="removeCalendarToken('${escape(user.id)}')">Abo löschen</button>
+                 </div>
+                 <div class="text-sm text-muted" style="margin-top:8px;word-break:break-all;opacity:.6;">
+                   ${location.protocol}//${location.host}${APP_BASE}api/calendar.php?token=${encodeURIComponent(user.calendarToken)}
+                 </div>`
+              : `<button type="button" class="btn btn-secondary btn-sm" onclick="generateCalendarToken('${escape(user.id)}')">
+                   📅 Kalender-Abo erstellen
+                 </button>`
+            }
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
@@ -8613,6 +8632,52 @@ function openStaffSelfProfile(user) {
     </div>
   `;
   $('#modal-container').innerHTML = html;
+}
+
+async function generateCalendarToken(userId) {
+  try {
+    const res = await fetch(`${API_BASE}/users.php?id=${encodeURIComponent(userId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ generateCalendarToken: true })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    const idx = store.users.findIndex(u => u.id === userId);
+    if (idx >= 0 && json.data) store.users[idx] = { ...store.users[idx], ...json.data };
+    openMyProfile();
+  } catch (err) {
+    showToast('Fehler: ' + err.message, 'danger');
+  }
+}
+
+async function regenerateCalendarToken(userId) {
+  const ok = await appConfirm('Der alte Abo-Link wird ungültig. Alle bestehenden Kalender-Abos müssen neu eingerichtet werden.', {
+    title: 'Token erneuern?', okLabel: 'Erneuern'
+  });
+  if (!ok) return;
+  generateCalendarToken(userId);
+}
+
+async function removeCalendarToken(userId) {
+  const ok = await appConfirm('Das Kalender-Abo wird deaktiviert. Bestehende Abos erhalten keine Daten mehr.', {
+    title: 'Abo löschen?', okLabel: 'Löschen', danger: true
+  });
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API_BASE}/users.php?id=${encodeURIComponent(userId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ removeCalendarToken: true })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    const idx = store.users.findIndex(u => u.id === userId);
+    if (idx >= 0) store.users[idx] = { ...store.users[idx], calendarToken: null };
+    openMyProfile();
+  } catch (err) {
+    showToast('Fehler: ' + err.message, 'danger');
+  }
 }
 
 async function saveMyProfile(e) {
