@@ -4300,7 +4300,7 @@ function canActOnProject(project, session, action) {
   return false;
 }
 
-function markAsShot(projectId) {
+async function markAsShot(projectId) {
   const p = store.projects.find(x => x.id === projectId);
   if (!p) { appAlert('Projekt nicht gefunden.', { title: 'Fehler' }); return; }
   const session = getCurrentUser();
@@ -4308,11 +4308,13 @@ function markAsShot(projectId) {
     appAlert('Du hast keine Berechtigung, dieses Projekt zu ändern.', { title: 'Nicht erlaubt' });
     return;
   }
-  // Direkt Status setzen – kein Confirm-Dialog, der irgendwo hängen kann
+  // Snapshot für Rollback
+  const prevStatus = p.status;
+  const prevShotAt = p.shotAt;
+  // Optimistisch lokal updaten
   p.status = STATUS.GEDREHT;
   p.shotAt = new Date().toISOString();
   logActivity('project', p.id, 'markAsShot', { title: p.title });
-  saveStore();
   console.log('[markAsShot] Status gesetzt auf:', p.status, 'für Projekt:', p.title);
   // Cutter informieren
   if (p.cutterId) {
@@ -4329,6 +4331,30 @@ function markAsShot(projectId) {
   // Hintergrund-Sync ohne UI-Block
   setTimeout(() => { try { writeLiveICS(); } catch(e){ console.warn(e); } }, 50);
   showToast('Als abgedreht markiert', `„${p.title}" ist jetzt bereit für den Schnitt`);
+  // Direkt in DB schreiben
+  try {
+    const res = await fetch(
+      `${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`,
+      {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ status: 'gedreht' })
+      }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const idx = store.projects.findIndex(x => x.id === projectId);
+      if (idx >= 0) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    p.status = prevStatus;
+    p.shotAt = prevShotAt;
+    renderPage();
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 /* Cutter-Queue fürs Dashboard */
@@ -4398,7 +4424,7 @@ function renderCutQueueItem(p, kind) {
   `;
 }
 
-function cutterAccept(projectId) {
+async function cutterAccept(projectId) {
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx < 0) return;
   const session = getCurrentUser();
@@ -4406,14 +4432,28 @@ function cutterAccept(projectId) {
     appAlert('Du hast keine Berechtigung dafür.', { title: 'Nicht erlaubt' });
     return;
   }
+  const prevStatus = store.projects[idx].status;
   store.projects[idx].status = STATUS.SCHNITT;
   logActivity('project', store.projects[idx].id, 'cutterAccept', { title: store.projects[idx].title });
-  saveStore();
   writeLiveICS();
   closeModal();
   renderPage();
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: STATUS.SCHNITT })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+  } catch (err) {
+    store.projects[idx].status = prevStatus;
+    renderPage();
+    showToast('Speichern fehlgeschlagen: ' + err.message, 'danger');
+  }
 }
-function cutterMarkDone(projectId) {
+async function cutterMarkDone(projectId) {
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx < 0) return;
   const session = getCurrentUser();
@@ -4421,9 +4461,9 @@ function cutterMarkDone(projectId) {
     appAlert('Du hast keine Berechtigung dafür.', { title: 'Nicht erlaubt' });
     return;
   }
+  const prevStatus = store.projects[idx].status;
   store.projects[idx].status = STATUS.FERTIG;
   logActivity('project', store.projects[idx].id, 'cutterMarkDone', { title: store.projects[idx].title });
-  saveStore();
   writeLiveICS();
   const p = store.projects[idx];
   const c = store.customers.find(x => x.id === p.customerId);
@@ -4432,6 +4472,20 @@ function cutterMarkDone(projectId) {
   }
   closeModal();
   renderPage();
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: STATUS.FERTIG })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+  } catch (err) {
+    store.projects[idx].status = prevStatus;
+    renderPage();
+    showToast('Speichern fehlgeschlagen: ' + err.message, 'danger');
+  }
 }
 function dashCalNav(delta) {
   if (dashboardView === 'week') {
@@ -5185,7 +5239,7 @@ function openShootDayModal(shootDayId = null) {
   $('#modal-container').innerHTML = html;
 }
 
-function saveShootDay(e, shootDayId) {
+async function saveShootDay(e, shootDayId) {
   e.preventDefault();
   const fd = new FormData(e.target);
   const data = {
@@ -5205,17 +5259,56 @@ function saveShootDay(e, shootDayId) {
     return;
   }
 
+  // Snapshot für Rollback
+  let prevEntry = null;
+  let insertedId = null;
+
   if (shootDayId) {
     const idx = store.shootDays.findIndex(s => s.id === shootDayId);
-    if (idx >= 0) store.shootDays[idx] = { ...store.shootDays[idx], ...data };
+    if (idx >= 0) {
+      prevEntry = { ...store.shootDays[idx] };
+      store.shootDays[idx] = { ...store.shootDays[idx], ...data };
+    }
   } else {
-    store.shootDays.push({ id: uid('sd'), ...data, createdAt: new Date().toISOString() });
+    insertedId = uid('sd');
+    store.shootDays.push({ id: insertedId, ...data, createdAt: new Date().toISOString() });
   }
-  saveStore();
   writeLiveICS();
   closeModal();
   renderPage();
   showToast('Drehtag gespeichert', fmtDate(data.date) + ' · ' + data.startTime + '–' + data.endTime);
+
+  // Direkt in DB schreiben
+  try {
+    const url = shootDayId
+      ? `${API_BASE}/shootdays.php?id=${encodeURIComponent(shootDayId)}`
+      : `${API_BASE}/shootdays.php`;
+    const method = shootDayId ? 'PUT' : 'POST';
+    const payload = shootDayId ? data : { ...data, id: insertedId };
+    const res = await fetch(url, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const targetId = shootDayId || insertedId;
+      const idx = store.shootDays.findIndex(s => s.id === targetId);
+      if (idx >= 0) store.shootDays[idx] = { ...store.shootDays[idx], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    if (shootDayId && prevEntry) {
+      const idx = store.shootDays.findIndex(s => s.id === shootDayId);
+      if (idx >= 0) store.shootDays[idx] = prevEntry;
+    } else if (insertedId) {
+      store.shootDays = store.shootDays.filter(s => s.id !== insertedId);
+    }
+    renderPage();
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 async function deleteShootDay(shootDayId) {
@@ -5230,13 +5323,35 @@ async function deleteShootDay(shootDayId) {
     : 'Der Drehtag wird gelöscht.';
   const ok = await appConfirm(msg, { title: 'Drehtag löschen?', okLabel: 'Löschen', danger: true });
   if (!ok) return;
+  // Snapshot für Rollback
+  const removedSd = store.shootDays.find(s => s.id === shootDayId);
+  const unlinkedProjects = [];
   // Verlinkung in Projekten entfernen
-  store.projects.forEach(p => { if (p.shootDayId === shootDayId) { delete p.shootDayId; } });
+  store.projects.forEach(p => {
+    if (p.shootDayId === shootDayId) {
+      unlinkedProjects.push({ p, id: p.shootDayId });
+      delete p.shootDayId;
+    }
+  });
   trackDeletion('shootDays', shootDayId);
   store.shootDays = store.shootDays.filter(s => s.id !== shootDayId);
-  saveStore();
   closeModal();
   renderPage();
+  // Direkt in DB löschen
+  try {
+    const res = await fetch(
+      `${API_BASE}/shootdays.php?id=${encodeURIComponent(shootDayId)}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+  } catch (err) {
+    // Rollback
+    if (removedSd) store.shootDays.push(removedSd);
+    unlinkedProjects.forEach(({ p }) => { p.shootDayId = shootDayId; });
+    await pullAllFromCloud().then(() => renderPage());
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 function openProjectModal(projectId = null) {
@@ -5526,12 +5641,24 @@ async function cutterRevert(projectId, targetStatus) {
   if (!ok) return;
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx >= 0) {
+    const prevStatus = store.projects[idx].status;
     store.projects[idx].status = actualTarget;
     logActivity('project', store.projects[idx].id, 'cutterRevert', { title: store.projects[idx].title, from: targetStatus, to: actualTarget });
-    saveStore();
     writeLiveICS();
     closeModal();
     renderPage();
+    fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: actualTarget })
+    }).then(r => r.json()).then(json => {
+      if (!json.ok) throw new Error(json.error || 'Fehler');
+      if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    }).catch(err => {
+      store.projects[idx].status = prevStatus;
+      renderPage();
+      showToast('Speichern fehlgeschlagen: ' + err.message, 'danger');
+    });
   }
 }
 
@@ -5653,7 +5780,7 @@ function openProjectViewerModal(project) {
   $('#modal-container').innerHTML = html;
 }
 
-function saveProject(e, projectId) {
+async function saveProject(e, projectId) {
   e.preventDefault();
   const session = getCurrentUser();
   if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) {
@@ -5778,17 +5905,33 @@ function saveProject(e, projectId) {
     const sdIdx = store.shootDays.findIndex(s => s.id === data.shootDayId);
     if (sdIdx >= 0 && !store.shootDays[sdIdx].customerId) {
       store.shootDays[sdIdx].customerId = data.customerId;
+      // Fire-and-forget: shootDay übernimmt den Kunden in der DB
+      fetch(
+        `${API_BASE}/shootdays.php?id=${encodeURIComponent(data.shootDayId)}`,
+        {
+          method: 'PUT',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+          body: JSON.stringify({ customerId: data.customerId })
+        }
+      ).catch(err => console.warn('[saveProject] shootDay customerId sync failed:', err));
     }
   }
+
+  // Snapshot für Rollback
+  let prevEntry = null;
+  let insertedId = null;
 
   if (projectId) {
     const idx = store.projects.findIndex(p => p.id === projectId);
     if (idx >= 0) {
+      prevEntry = { ...store.projects[idx] };
       store.projects[idx] = { ...store.projects[idx], ...data, ...fileAdds };
     }
   } else {
+    insertedId = uid('p');
     store.projects.push({
-      id: uid('p'),
+      id: insertedId,
       title: data.title,
       customerId: data.customerId,
       videografId: data.videografId || null,
@@ -5803,10 +5946,57 @@ function saveProject(e, projectId) {
       ...fileAdds
     });
   }
-  saveStore();
   writeLiveICS();
   closeModal();
   renderPage();
+
+  // Direkt in DB schreiben (nur DB-kompatible Felder, kein base64)
+  const apiPayload = {
+    title: data.title,
+    customerId: data.customerId || null,
+    videografId: data.videografId || null,
+    cutterId: data.cutterId || null,
+    shootDate: data.shootDate || null,
+    shootDayId: data.shootDayId || null,
+    deadline: data.deadline || null,
+    postingDate: data.postingDate || null,
+    script: data.script || '',
+    isInternal: data.isInternal ? 1 : 0,
+    status: data.status || undefined
+  };
+  // Für neue Projekte: id mitschicken
+  if (!projectId) apiPayload.id = insertedId;
+
+  try {
+    const url = projectId
+      ? `${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`
+      : `${API_BASE}/projects.php`;
+    const method = projectId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(apiPayload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const targetId = projectId || insertedId;
+      const i = store.projects.findIndex(p => p.id === targetId);
+      // Merge server response but keep local-only fields (scriptFile, scriptFileName)
+      if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    if (projectId && prevEntry) {
+      const i = store.projects.findIndex(p => p.id === projectId);
+      if (i >= 0) store.projects[i] = prevEntry;
+    } else if (insertedId) {
+      store.projects = store.projects.filter(p => p.id !== insertedId);
+    }
+    renderPage();
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 function toggleInternalProject(cb) {
@@ -5900,18 +6090,38 @@ async function removeScriptFile(projectId) {
   }
 }
 
-function updateStatus(projectId, newStatus) {
+async function updateStatus(projectId, newStatus) {
   const idx = store.projects.findIndex(p => p.id === projectId);
-  if (idx >= 0) {
-    store.projects[idx].status = newStatus;
-    saveStore();
-    writeLiveICS();
-    closeModal();
+  if (idx < 0) return;
+  const prevStatus = store.projects[idx].status;
+  store.projects[idx].status = newStatus;
+  writeLiveICS();
+  closeModal();
+  renderPage();
+  try {
+    const res = await fetch(
+      `${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`,
+      {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ status: newStatus })
+      }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const i = store.projects.findIndex(p => p.id === projectId);
+      if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
+    }
+  } catch (err) {
+    store.projects[idx].status = prevStatus;
     renderPage();
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
   }
 }
 
-function approveProject(projectId) {
+async function approveProject(projectId) {
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx < 0) return;
   const session = getCurrentUser();
@@ -5920,10 +6130,11 @@ function approveProject(projectId) {
     return;
   }
   const p = store.projects[idx];
+  const prevStatus = p.status;
+  const prevApprovedAt = p.approvedAt;
   p.status = STATUS.FREIGEGEBEN;
   p.approvedAt = new Date().toISOString();
   logActivity('project', p.id, 'approve', { title: p.title });
-  saveStore();
   writeLiveICS();
   // Cutter benachrichtigen
   if (p.cutterId) {
@@ -5931,6 +6142,28 @@ function approveProject(projectId) {
   }
   closeModal();
   renderPage();
+  try {
+    const res = await fetch(
+      `${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`,
+      {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ status: 'freigegeben' })
+      }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const i = store.projects.findIndex(x => x.id === projectId);
+      if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
+    }
+  } catch (err) {
+    p.status = prevStatus;
+    p.approvedAt = prevApprovedAt;
+    renderPage();
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 function notifyUser(userId, title, body) {
@@ -6060,9 +6293,9 @@ function submitCorrection(projectId) {
   };
   if (!store.projects[idx].correctionNotes) store.projects[idx].correctionNotes = [];
   store.projects[idx].correctionNotes.push(note);
+  const prevStatus = store.projects[idx].status;
   store.projects[idx].status = STATUS.KORREKTUR;
   logActivity('project', store.projects[idx].id, 'correctionRequested', { title: store.projects[idx].title, text: (note.text || '').slice(0, 200) });
-  saveStore();
   writeLiveICS();
   // Cutter benachrichtigen
   const p = store.projects[idx];
@@ -6071,6 +6304,18 @@ function submitCorrection(projectId) {
   }
   closeModal();
   renderPage();
+  fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+    method: 'PUT', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+    body: JSON.stringify({ status: STATUS.KORREKTUR })
+  }).then(r => r.json()).then(json => {
+    if (!json.ok) throw new Error(json.error || 'Fehler');
+    if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+  }).catch(err => {
+    store.projects[idx].status = prevStatus;
+    renderPage();
+    showToast('Speichern fehlgeschlagen: ' + err.message, 'danger');
+  });
 }
 
 async function archiveProject(projectId) {
@@ -6103,27 +6348,26 @@ async function deleteProject(projectId) {
     danger: true
   });
   if (!ok) return;
-  // Snapshot für Undo
+  // Snapshot für Rollback
   const removed = store.projects.find(x => x.id === projectId);
-  const removedIdx = store.projects.findIndex(x => x.id === projectId);
   trackDeletion('projects', projectId);
   store.projects = store.projects.filter(p => p.id !== projectId);
-  saveStore();
   writeLiveICS();
   closeModal();
   renderPage();
-  if (removed) {
-    showUndoToast(`Projekt „${removed.title}" gelöscht`, () => {
-      // Aus Pending-Deletions wieder rausnehmen
-      if (store._pendingDeletions?.projects) {
-        store._pendingDeletions.projects = store._pendingDeletions.projects.filter(id => id !== projectId);
-      }
-      store.projects.splice(Math.min(removedIdx, store.projects.length), 0, removed);
-      saveStore();
-      writeLiveICS();
-      renderPage();
-      showToast('Wiederhergestellt', `„${removed.title}"`);
-    });
+  // Direkt in DB löschen
+  try {
+    const res = await fetch(
+      `${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+  } catch (err) {
+    // Rollback
+    if (removed) store.projects.push(removed);
+    await pullAllFromCloud().then(() => renderPage());
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
   }
 }
 
@@ -6675,26 +6919,91 @@ async function saveCustomer(e, customerId) {
   delete data.manualStatus;
   data.status = manualStatus === 'paused' ? 'paused' : null;
 
+  // Snapshot für Rollback
+  let prevEntry = null;
+  let insertedId = null;
+
   if (customerId) {
     const idx = store.customers.findIndex(c => c.id === customerId);
     if (idx >= 0) {
+      prevEntry = { ...store.customers[idx] };
       store.customers[idx] = { ...store.customers[idx], ...data, checklist };
       if (pinHashUpdate) store.customers[idx].pinHash = pinHashUpdate;
     }
   } else {
+    insertedId = uid('c');
     store.customers.push({
-      id: uid('c'),
+      id: insertedId,
       ...data,
       checklist,
       ...(pinHashUpdate ? { pinHash: pinHashUpdate } : {}),
       createdAt: new Date().toISOString()
     });
   }
-  saveStore();
   // Auto-refresh live ICS file if active
   writeLiveICS();
   closeModal();
   renderPage();
+
+  // Direkt in DB schreiben
+  const apiPayload = {
+    name: data.name,
+    customerNumber: data.customerNumber,
+    managerId: data.managerId || null,
+    email: data.email || null,
+    phone: data.phone || null,
+    contactName: data.contactName || null,
+    socialInstagram: data.socialInstagram || null,
+    socialTiktok: data.socialTiktok || null,
+    notes: data.notes || null,
+    addressStreet: data.addressStreet || null,
+    addressZip: data.addressZip || null,
+    addressCity: data.addressCity || null,
+    billingSameAsAddress: data.billingSameAsAddress ? 1 : 0,
+    billingStreet: data.billingStreet || null,
+    billingZip: data.billingZip || null,
+    billingCity: data.billingCity || null,
+    vatId: data.vatId || null,
+    billingEmail: data.billingEmail || null,
+    contractStart: data.contractStart || null,
+    package: data.package || null,
+    monthlyRate: data.monthlyRate || null,
+    videosPerMonth: data.videosPerMonth || null,
+    status: data.status || null,
+    checklist,
+    ...(pinHashUpdate ? { pinHash: pinHashUpdate } : {})
+  };
+  if (!customerId) apiPayload.id = insertedId;
+
+  try {
+    const url = customerId
+      ? `${API_BASE}/customers.php?id=${encodeURIComponent(customerId)}`
+      : `${API_BASE}/customers.php`;
+    const method = customerId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(apiPayload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const targetId = customerId || insertedId;
+      const i = store.customers.findIndex(c => c.id === targetId);
+      if (i >= 0) store.customers[i] = { ...store.customers[i], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    if (customerId && prevEntry) {
+      const i = store.customers.findIndex(c => c.id === customerId);
+      if (i >= 0) store.customers[i] = prevEntry;
+    } else if (insertedId) {
+      store.customers = store.customers.filter(c => c.id !== insertedId);
+    }
+    renderPage();
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 async function deleteCustomer(customerId) {
@@ -6710,22 +7019,23 @@ async function deleteCustomer(customerId) {
   const ok = await appConfirm(msg, { title: 'Kunde löschen?', okLabel: 'Löschen', danger: true });
   if (!ok) return;
   const removed = store.customers.find(c => c.id === customerId);
-  const removedIdx = store.customers.findIndex(c => c.id === customerId);
   trackDeletion('customers', customerId);
   store.customers = store.customers.filter(c => c.id !== customerId);
-  saveStore();
   closeModal();
   renderPage();
-  if (removed) {
-    showUndoToast(`Kunde „${removed.name}" gelöscht`, () => {
-      if (store._pendingDeletions?.customers) {
-        store._pendingDeletions.customers = store._pendingDeletions.customers.filter(id => id !== customerId);
-      }
-      store.customers.splice(Math.min(removedIdx, store.customers.length), 0, removed);
-      saveStore();
-      renderPage();
-      showToast('Wiederhergestellt', removed.name);
-    });
+  // Direkt in DB löschen
+  try {
+    const res = await fetch(
+      `${API_BASE}/customers.php?id=${encodeURIComponent(customerId)}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+  } catch (err) {
+    // Rollback
+    if (removed) store.customers.push(removed);
+    await pullAllFromCloud().then(() => renderPage());
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
   }
 }
 
@@ -6796,7 +7106,11 @@ function getCalCatVisibility() {
       const idx = store.users.findIndex(x => x.id === u.id);
       if (idx >= 0) {
         store.users[idx].calendarPrefs = migrated;
-        saveStore();
+        fetch(`${API_BASE}/users.php?id=${encodeURIComponent(u.id)}`, {
+          method: 'PUT', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+          body: JSON.stringify({ calendarPrefs: migrated })
+        }).catch(() => {});
       }
       return migrated;
     }
@@ -6809,10 +7123,13 @@ function setCalCatVisibility(key, on) {
   const v = { ...getCalCatVisibility(), _v: CAL_VISIBILITY_VERSION };
   v[key] = on;
   const idx = store.users.findIndex(x => x.id === session.user.id);
-  if (idx >= 0) {
-    store.users[idx].calendarPrefs = v;
-    saveStore(); // auch Cloud-Push
-  }
+  if (idx < 0) return;
+  store.users[idx].calendarPrefs = v;
+  fetch(`${API_BASE}/users.php?id=${encodeURIComponent(session.user.id)}`, {
+    method: 'PUT', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+    body: JSON.stringify({ calendarPrefs: v })
+  }).catch(err => console.warn('[calendarPrefs save]', err));
 }
 function toggleCalCat(key) {
   const v = getCalCatVisibility();
@@ -8309,6 +8626,7 @@ async function saveMyProfile(e) {
   const u = store.users[idx];
 
   // Passwort-Wechsel: aktuelles Passwort prüfen
+  let newPasswordHash = null;
   if (data.newPassword) {
     if (!data.currentPassword) {
       appAlert('Bitte aktuelles Passwort eingeben um es zu ändern.', { title: 'Passwort ändern' });
@@ -8321,8 +8639,12 @@ async function saveMyProfile(e) {
       appAlert('Das aktuelle Passwort ist nicht korrekt.', { title: 'Passwort ändern' });
       return;
     }
-    u.password = await hashPassword(data.newPassword);
+    newPasswordHash = await hashPassword(data.newPassword);
+    u.password = newPasswordHash;
   }
+
+  // Snapshot für Rollback
+  const prevUser = { ...u };
 
   // Kontakt-Daten aktualisieren
   u.name = (data.name || '').trim() || u.name;
@@ -8335,13 +8657,47 @@ async function saveMyProfile(e) {
   // Avatar
   if (pendingUserAvatar) u.avatarImage = pendingUserAvatar;
   if (clearAvatarFlag) delete u.avatarImage;
+  const avatarForApi = pendingUserAvatar || null;
+  const clearAvatar = clearAvatarFlag;
   pendingUserAvatar = null;
   clearAvatarFlag = false;
 
-  saveStore();
   closeModal();
   renderPage();
   showToast('Profil gespeichert', '');
+
+  // Direkt in DB schreiben (nur API-kompatible Felder)
+  const apiPayload = {
+    name: u.name,
+    email: u.email
+  };
+  if (newPasswordHash) apiPayload.password_hash = newPasswordHash;
+  if (avatarForApi) apiPayload.avatarImage = avatarForApi;
+  if (clearAvatar) apiPayload.avatarImage = null;
+
+  try {
+    const res = await fetch(
+      `${API_BASE}/users.php?id=${encodeURIComponent(session.user.id)}`,
+      {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify(apiPayload)
+      }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const i = store.users.findIndex(x => x.id === session.user.id);
+      if (i >= 0) store.users[i] = { ...store.users[i], ...json.data };
+    }
+  } catch (err) {
+    // Rollback (restore the fields we changed)
+    const i = store.users.findIndex(x => x.id === session.user.id);
+    if (i >= 0) store.users[i] = prevUser;
+    renderPage();
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 function openCustomerSelfProfile(customer) {
@@ -8458,6 +8814,10 @@ async function saveUser(e, userId) {
     return;
   }
 
+  // Snapshot / insertedId für Rollback
+  let prevEntry = null;
+  let insertedId = null;
+
   if (userId) {
     const idx = store.users.findIndex(u => u.id === userId);
     if (idx >= 0) {
@@ -8470,6 +8830,7 @@ async function saveUser(e, userId) {
           return;
         }
       }
+      prevEntry = { ...existing };
       const avatarUpdate = pendingUserAvatar ? { avatarImage: pendingUserAvatar }
                           : clearAvatarFlag ? { avatarImage: null }
                           : {};
@@ -8486,8 +8847,9 @@ async function saveUser(e, userId) {
       if (clearAvatarFlag) delete store.users[idx].avatarImage;
     }
   } else {
+    insertedId = uid('u');
     store.users.push({
-      id: uid('u'),
+      id: insertedId,
       name: data.name,
       username: data.username,
       roles,
@@ -8496,9 +8858,10 @@ async function saveUser(e, userId) {
       avatarImage: pendingUserAvatar || null
     });
   }
+  const avatarForApi = pendingUserAvatar || null;
+  const clearAvatar = clearAvatarFlag;
   pendingUserAvatar = null;
   clearAvatarFlag = false;
-  saveStore();
   // Bei neu angelegten Usern: Gist sofort anlegen wenn Kalender konfiguriert
   if (!userId && calendarConfigured()) {
     const newUser = store.users[store.users.length - 1];
@@ -8508,6 +8871,58 @@ async function saveUser(e, userId) {
   }
   closeModal();
   renderPage();
+
+  // Direkt in DB schreiben
+  let apiPayload;
+  if (userId) {
+    // PUT: nur geänderte Felder
+    apiPayload = { name: data.name, email: data.email, roles };
+    if (data.password) apiPayload.password_hash = data.password;
+    if (avatarForApi) apiPayload.avatarImage = avatarForApi;
+    if (clearAvatar) apiPayload.avatarImage = null;
+  } else {
+    // POST: Pflichtfelder für neuen User
+    apiPayload = {
+      id: insertedId,
+      username: data.username,
+      name: data.name,
+      password_hash: data.password,
+      email: data.email || null,
+      roles,
+      avatarColor: data.avatarColor || null,
+      avatarImage: avatarForApi
+    };
+  }
+
+  try {
+    const url = userId
+      ? `${API_BASE}/users.php?id=${encodeURIComponent(userId)}`
+      : `${API_BASE}/users.php`;
+    const method = userId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(apiPayload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const targetId = userId || insertedId;
+      const i = store.users.findIndex(u => u.id === targetId);
+      if (i >= 0) store.users[i] = { ...store.users[i], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    if (userId && prevEntry) {
+      const i = store.users.findIndex(u => u.id === userId);
+      if (i >= 0) store.users[i] = prevEntry;
+    } else if (insertedId) {
+      store.users = store.users.filter(u => u.id !== insertedId);
+    }
+    renderPage();
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 async function deleteUser(userId) {
@@ -8529,6 +8944,13 @@ async function deleteUser(userId) {
     appAlert('Mindestens ein Admin muss vorhanden bleiben.', { title: 'Aktion blockiert' });
     return;
   }
+  // Snapshot für Rollback
+  const removedUser = store.users.find(u => u.id === userId);
+  const affectedCustomers = store.customers.filter(c => c.managerId === userId).map(c => c.id);
+  const affectedProjects = store.projects
+    .filter(p => p.videografId === userId || p.cutterId === userId)
+    .map(p => ({ id: p.id, videografId: p.videografId, cutterId: p.cutterId }));
+
   trackDeletion('users', userId);
   store.users = store.users.filter(u => u.id !== userId);
   // Unset references
@@ -8537,9 +8959,30 @@ async function deleteUser(userId) {
     if (p.videografId === userId) p.videografId = null;
     if (p.cutterId === userId) p.cutterId = null;
   });
-  saveStore();
   closeModal();
   renderPage();
+  // Direkt in DB löschen
+  try {
+    const res = await fetch(
+      `${API_BASE}/users.php?id=${encodeURIComponent(userId)}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+  } catch (err) {
+    // Rollback
+    if (removedUser) store.users.push(removedUser);
+    affectedCustomers.forEach(cId => {
+      const c = store.customers.find(x => x.id === cId);
+      if (c) c.managerId = userId;
+    });
+    affectedProjects.forEach(({ id, videografId, cutterId }) => {
+      const p = store.projects.find(x => x.id === id);
+      if (p) { p.videografId = videografId; p.cutterId = cutterId; }
+    });
+    await pullAllFromCloud().then(() => renderPage());
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 function exportData() {
@@ -8856,7 +9299,7 @@ function openTodoModal(todoId = null) {
   $('#modal-container').innerHTML = html;
 }
 
-function saveTodo(e, todoId) {
+async function saveTodo(e, todoId) {
   e.preventDefault();
   const session = getCurrentUser();
   if (!session || session.type !== 'staff') return;
@@ -8875,9 +9318,14 @@ function saveTodo(e, todoId) {
 
   const prevAssignees = todoId ? (store.todos.find(t => t.id === todoId)?.assigneeIds || []) : [];
 
+  // Snapshot für Rollback
+  let prevEntry = null;
+  let insertedId = null;
+
   if (todoId) {
     const idx = store.todos.findIndex(t => t.id === todoId);
     if (idx >= 0) {
+      prevEntry = { ...store.todos[idx] };
       store.todos[idx] = {
         ...store.todos[idx],
         title,
@@ -8887,8 +9335,9 @@ function saveTodo(e, todoId) {
       };
     }
   } else {
+    insertedId = uid('t');
     store.todos.push({
-      id: uid('t'),
+      id: insertedId,
       title,
       description,
       assigneeIds,
@@ -8899,7 +9348,6 @@ function saveTodo(e, todoId) {
       seenBy: [session.user.id]
     });
   }
-  saveStore();
 
   // Benachrichtigung an alle NEUEN Assignees (außer Creator selbst)
   assigneeIds.forEach(uid => {
@@ -8911,6 +9359,44 @@ function saveTodo(e, todoId) {
   closeModal();
   renderNav();
   renderPage();
+
+  // Direkt in DB schreiben
+  const apiPayload = { title, description, assigneeIds, dueDate };
+  if (!todoId) {
+    apiPayload.status = 'open';
+    apiPayload.id = insertedId;
+  }
+
+  try {
+    const url = todoId
+      ? `${API_BASE}/todos.php?id=${encodeURIComponent(todoId)}`
+      : `${API_BASE}/todos.php`;
+    const method = todoId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(apiPayload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const targetId = todoId || insertedId;
+      const i = store.todos.findIndex(t => t.id === targetId);
+      if (i >= 0) store.todos[i] = { ...store.todos[i], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    if (todoId && prevEntry) {
+      const i = store.todos.findIndex(t => t.id === todoId);
+      if (i >= 0) store.todos[i] = prevEntry;
+    } else if (insertedId) {
+      store.todos = store.todos.filter(t => t.id !== insertedId);
+    }
+    renderNav();
+    renderPage();
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 async function toggleTodoStatus(todoId) {
@@ -8979,12 +9465,26 @@ async function deleteTodo(todoId) {
     title: 'Aufgabe löschen?', okLabel: 'Löschen', danger: true
   });
   if (!ok) return;
+  const removedTodo = store.todos.find(x => x.id === todoId);
   trackDeletion('todos', todoId);
   store.todos = store.todos.filter(t => t.id !== todoId);
-  saveStore();
   closeModal();
   renderNav();
   renderPage();
+  // Direkt in DB löschen
+  try {
+    const res = await fetch(
+      `${API_BASE}/todos.php?id=${encodeURIComponent(todoId)}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+  } catch (err) {
+    // Rollback
+    if (removedTodo) store.todos.push(removedTodo);
+    await pullAllFromCloud().then(() => renderPage());
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 /* Benachrichtigungen */
@@ -9220,7 +9720,7 @@ function openVacationModal(vacationId = null) {
   $('#modal-container').innerHTML = html;
 }
 
-function saveVacation(e, vacationId) {
+async function saveVacation(e, vacationId) {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));
   const session = getCurrentUser();
@@ -9245,16 +9745,62 @@ function saveVacation(e, vacationId) {
     return;
   }
 
+  // Snapshot für Rollback
+  let prevEntry = null;
+  let insertedId = null;
+
   if (vacationId) {
     const idx = store.vacations.findIndex(v => v.id === vacationId);
-    if (idx >= 0) store.vacations[idx] = { ...store.vacations[idx], ...data };
+    if (idx >= 0) {
+      prevEntry = { ...store.vacations[idx] };
+      store.vacations[idx] = { ...store.vacations[idx], ...data };
+    }
   } else {
-    store.vacations.push({ id: uid('v'), ...data });
+    insertedId = uid('v');
+    store.vacations.push({ id: insertedId, ...data });
   }
-  saveStore();
   writeLiveICS();
   closeModal();
   renderPage();
+
+  // Direkt in DB schreiben
+  const apiPayload = {
+    userId: data.userId,
+    startDate: data.startDate,
+    endDate: data.endDate,
+    note: data.note || null
+  };
+  if (!vacationId) apiPayload.id = insertedId;
+
+  try {
+    const url = vacationId
+      ? `${API_BASE}/vacations.php?id=${encodeURIComponent(vacationId)}`
+      : `${API_BASE}/vacations.php`;
+    const method = vacationId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(apiPayload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const targetId = vacationId || insertedId;
+      const i = store.vacations.findIndex(v => v.id === targetId);
+      if (i >= 0) store.vacations[i] = { ...store.vacations[i], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    if (vacationId && prevEntry) {
+      const i = store.vacations.findIndex(v => v.id === vacationId);
+      if (i >= 0) store.vacations[i] = prevEntry;
+    } else if (insertedId) {
+      store.vacations = store.vacations.filter(v => v.id !== insertedId);
+    }
+    renderPage();
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 async function deleteVacation(vacationId) {
@@ -9271,12 +9817,26 @@ async function deleteVacation(vacationId) {
     title: 'Urlaub löschen?', okLabel: 'Löschen', danger: true
   });
   if (!ok) return;
+  const removedVacation = store.vacations.find(x => x.id === vacationId);
   trackDeletion('vacations', vacationId);
   store.vacations = store.vacations.filter(v => v.id !== vacationId);
-  saveStore();
   writeLiveICS();
   closeModal();
   renderPage();
+  // Direkt in DB löschen
+  try {
+    const res = await fetch(
+      `${API_BASE}/vacations.php?id=${encodeURIComponent(vacationId)}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+  } catch (err) {
+    // Rollback
+    if (removedVacation) store.vacations.push(removedVacation);
+    await pullAllFromCloud().then(() => renderPage());
+    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+  }
 }
 
 /* ----------- ICS EXPORT / KALENDER-ABO ----------- */
