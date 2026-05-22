@@ -8513,14 +8513,26 @@ function clearUserAvatar() {
 }
 
 /* ----------- MEIN PROFIL (Self-Service) ----------- */
-function openMyProfile() {
+async function openMyProfile() {
   const session = getCurrentUser();
   if (!session) return;
   if (session.type === 'customer') return openCustomerSelfProfile(session.customer);
   return openStaffSelfProfile(session.user);
 }
 
-function openStaffSelfProfile(user) {
+async function openStaffSelfProfile(user) {
+  // Fetch fresh data so calendarToken (not in bulk pull) is always current
+  try {
+    const res = await fetch(`${API_BASE}/users.php?id=${encodeURIComponent(user.id)}`, {
+      credentials: 'same-origin'
+    });
+    const json = await res.json();
+    if (res.ok && json.ok && json.data) {
+      user = json.data;
+      const idx = store.users.findIndex(u => u.id === user.id);
+      if (idx >= 0) store.users[idx] = { ...store.users[idx], ...json.data };
+    }
+  } catch (_) {}
   const avatarPreview = user.avatarImage
     ? `<div class="avatar-circle" style="width:64px;height:64px;background-image:url('${user.avatarImage}');"></div>`
     : renderAvatar(user, 64, 22);
@@ -9756,7 +9768,11 @@ function openVacationModal(vacationId = null) {
           <div class="modal-body">
             <div class="form-group">
               <label class="form-label">Mitarbeiter</label>
-              <select name="userId" ${isAdmin ? '' : 'disabled'}>${userOptions}</select>
+              ${isAdmin
+                ? `<select name="userId">${userOptions}</select>`
+                : `<input type="text" value="${escape(user.name)}" disabled style="color:var(--text-2);" />
+                   <input type="hidden" name="userId" value="${escape(user.id)}" />`
+              }
             </div>
             <div class="form-row">
               <div class="form-group">
