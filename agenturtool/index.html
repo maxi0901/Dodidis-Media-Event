@@ -4424,7 +4424,7 @@ function renderCutQueueItem(p, kind) {
   `;
 }
 
-function cutterAccept(projectId) {
+async function cutterAccept(projectId) {
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx < 0) return;
   const session = getCurrentUser();
@@ -4432,14 +4432,28 @@ function cutterAccept(projectId) {
     appAlert('Du hast keine Berechtigung dafür.', { title: 'Nicht erlaubt' });
     return;
   }
+  const prevStatus = store.projects[idx].status;
   store.projects[idx].status = STATUS.SCHNITT;
   logActivity('project', store.projects[idx].id, 'cutterAccept', { title: store.projects[idx].title });
-  saveStore();
   writeLiveICS();
   closeModal();
   renderPage();
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: STATUS.SCHNITT })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+  } catch (err) {
+    store.projects[idx].status = prevStatus;
+    renderPage();
+    showToast('Speichern fehlgeschlagen: ' + err.message, 'danger');
+  }
 }
-function cutterMarkDone(projectId) {
+async function cutterMarkDone(projectId) {
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx < 0) return;
   const session = getCurrentUser();
@@ -4447,9 +4461,9 @@ function cutterMarkDone(projectId) {
     appAlert('Du hast keine Berechtigung dafür.', { title: 'Nicht erlaubt' });
     return;
   }
+  const prevStatus = store.projects[idx].status;
   store.projects[idx].status = STATUS.FERTIG;
   logActivity('project', store.projects[idx].id, 'cutterMarkDone', { title: store.projects[idx].title });
-  saveStore();
   writeLiveICS();
   const p = store.projects[idx];
   const c = store.customers.find(x => x.id === p.customerId);
@@ -4458,6 +4472,20 @@ function cutterMarkDone(projectId) {
   }
   closeModal();
   renderPage();
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: STATUS.FERTIG })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+  } catch (err) {
+    store.projects[idx].status = prevStatus;
+    renderPage();
+    showToast('Speichern fehlgeschlagen: ' + err.message, 'danger');
+  }
 }
 function dashCalNav(delta) {
   if (dashboardView === 'week') {
@@ -5613,12 +5641,24 @@ async function cutterRevert(projectId, targetStatus) {
   if (!ok) return;
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx >= 0) {
+    const prevStatus = store.projects[idx].status;
     store.projects[idx].status = actualTarget;
     logActivity('project', store.projects[idx].id, 'cutterRevert', { title: store.projects[idx].title, from: targetStatus, to: actualTarget });
-    saveStore();
     writeLiveICS();
     closeModal();
     renderPage();
+    fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: actualTarget })
+    }).then(r => r.json()).then(json => {
+      if (!json.ok) throw new Error(json.error || 'Fehler');
+      if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    }).catch(err => {
+      store.projects[idx].status = prevStatus;
+      renderPage();
+      showToast('Speichern fehlgeschlagen: ' + err.message, 'danger');
+    });
   }
 }
 
@@ -6253,9 +6293,9 @@ function submitCorrection(projectId) {
   };
   if (!store.projects[idx].correctionNotes) store.projects[idx].correctionNotes = [];
   store.projects[idx].correctionNotes.push(note);
+  const prevStatus = store.projects[idx].status;
   store.projects[idx].status = STATUS.KORREKTUR;
   logActivity('project', store.projects[idx].id, 'correctionRequested', { title: store.projects[idx].title, text: (note.text || '').slice(0, 200) });
-  saveStore();
   writeLiveICS();
   // Cutter benachrichtigen
   const p = store.projects[idx];
@@ -6264,6 +6304,18 @@ function submitCorrection(projectId) {
   }
   closeModal();
   renderPage();
+  fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+    method: 'PUT', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+    body: JSON.stringify({ status: STATUS.KORREKTUR })
+  }).then(r => r.json()).then(json => {
+    if (!json.ok) throw new Error(json.error || 'Fehler');
+    if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+  }).catch(err => {
+    store.projects[idx].status = prevStatus;
+    renderPage();
+    showToast('Speichern fehlgeschlagen: ' + err.message, 'danger');
+  });
 }
 
 async function archiveProject(projectId) {
@@ -7054,7 +7106,11 @@ function getCalCatVisibility() {
       const idx = store.users.findIndex(x => x.id === u.id);
       if (idx >= 0) {
         store.users[idx].calendarPrefs = migrated;
-        saveStore();
+        fetch(`${API_BASE}/users.php?id=${encodeURIComponent(u.id)}`, {
+          method: 'PUT', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+          body: JSON.stringify({ calendarPrefs: migrated })
+        }).catch(() => {});
       }
       return migrated;
     }
@@ -7067,10 +7123,13 @@ function setCalCatVisibility(key, on) {
   const v = { ...getCalCatVisibility(), _v: CAL_VISIBILITY_VERSION };
   v[key] = on;
   const idx = store.users.findIndex(x => x.id === session.user.id);
-  if (idx >= 0) {
-    store.users[idx].calendarPrefs = v;
-    saveStore(); // auch Cloud-Push
-  }
+  if (idx < 0) return;
+  store.users[idx].calendarPrefs = v;
+  fetch(`${API_BASE}/users.php?id=${encodeURIComponent(session.user.id)}`, {
+    method: 'PUT', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+    body: JSON.stringify({ calendarPrefs: v })
+  }).catch(err => console.warn('[calendarPrefs save]', err));
 }
 function toggleCalCat(key) {
   const v = getCalCatVisibility();
