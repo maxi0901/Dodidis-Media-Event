@@ -31,13 +31,13 @@ switch ($method) {
             $t = db_one("$baseSelect WHERE id = ?", [$id]);
             if (!$t) json_err(404, 'Todo nicht gefunden.');
             hydrate_todo_join($t);
-            if (!has_role('admin', 'manager') && !in_array($uid, $t['assigneeIds'], true) && $t['createdById'] !== $uid) {
+            if (!has_role('admin') && !in_array($uid, $t['assigneeIds'], true) && $t['createdById'] !== $uid) {
                 json_err(403, 'Keine Berechtigung.');
             }
             json_ok($t);
         }
 
-        if (has_role('admin', 'manager')) {
+        if (has_role('admin')) {
             $rows = db_all("$baseSelect ORDER BY status='done', COALESCE(due_date, created_at)");
         } else {
             // Assignee oder Ersteller
