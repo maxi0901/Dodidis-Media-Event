@@ -1564,6 +1564,10 @@
     max-height: 720px;
     scroll-snap-type: x mandatory;
     overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  @media (max-width: 640px) {
+    .ical-scroll { scroll-snap-type: none; max-height: 480px; cursor: default; }
   }
   .ical-scroll.dragging { cursor: grabbing; }
   .ical-scroll::-webkit-scrollbar { height: 10px; width: 10px; background: #1c1c1e; }
@@ -1688,10 +1692,14 @@
     justify-content: center;
     font-size: 13px;
   }
-  .ical-cat-label.cat-shoot    .ical-cat-icon { background: rgba(167,139,250,0.25); }
-  .ical-cat-label.cat-vacation .ical-cat-icon { background: rgba(148,163,184,0.25); }
-  .ical-cat-label.cat-videos   .ical-cat-icon { background: rgba(74,161,152,0.22); }
-  .ical-cat-label.cat-todos    .ical-cat-icon { background: rgba(100,210,255,0.22); }
+  .ical-cat-label.cat-shoot    { border-top: 1px solid rgba(167,139,250,0.25); }
+  .ical-cat-label.cat-vacation { border-top: 1px solid rgba(148,163,184,0.20); }
+  .ical-cat-label.cat-videos   { border-top: 1px solid rgba(74,161,152,0.20); }
+  .ical-cat-label.cat-todos    { border-top: 1px solid rgba(100,210,255,0.20); }
+  .ical-cat-label.cat-shoot    .ical-cat-icon { background: rgba(167,139,250,0.30); }
+  .ical-cat-label.cat-vacation .ical-cat-icon { background: rgba(148,163,184,0.28); }
+  .ical-cat-label.cat-videos   .ical-cat-icon { background: rgba(20,184,166,0.28); }
+  .ical-cat-label.cat-todos    .ical-cat-icon { background: rgba(100,210,255,0.28); }
 
   .ical-cat-bg {
     border-right: 1px solid rgba(255,255,255,0.05);
@@ -1702,21 +1710,31 @@
   .ical-cat-bg.alt { background: rgba(255,255,255,0.012); }
 
   .ical-event {
-    height: 26px;
-    line-height: 26px;
+    height: 28px;
+    line-height: 28px;
     font-size: 12px;
     font-weight: 500;
-    border-radius: 5px;
+    border-radius: 6px;
     padding: 0 8px 0 11px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     cursor: pointer;
     white-space: nowrap;
-    overflow: hidden;
+    overflow: clip;
     margin: 2px 3px;
     transition: var(--transition);
     position: relative;
+  }
+  /* Text inside bars: sticky so it stays visible while scrolling horizontally */
+  .ical-event-label {
+    position: sticky;
+    left: var(--ical-sidebar, 150px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
   }
   .ical-event::before {
     content: "";
@@ -1732,14 +1750,28 @@
   .ical-event.cuts-left::before { display: none; }
   .ical-event.cuts-right { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
 
-  .ical-event.phase-shoot { background: rgba(191,90,242,0.20); color: #d4afff; }
-  .ical-event.phase-production { background: rgba(255,159,10,0.18); color: #ffd382; }
-  .ical-event.phase-editing { background: rgba(48,209,88,0.18); color: #93e8a8; }
-  .ical-event.phase-cutter { background: rgba(255,159,10,0.22); color: #ffcb82; }
-  .ical-event.phase-posting { background: rgba(74,161,152,0.25); color: #7adfcf; }
-  .ical-event.phase-vacation { background: rgba(148,163,184,0.30); color: #e2e8f0; border-color: rgba(148,163,184,0.55); }
-  .ical-event.phase-deadline { background: rgba(255,69,58,0.20); color: #ff9b94; }
-  .ical-event.phase-todo { background: rgba(74,161,152,0.22); color: #7adfcf; }
+  .ical-event.phase-shoot    { background: linear-gradient(90deg,rgba(167,139,250,0.32),rgba(139,92,246,0.22)); color: #ddd6fe; border: 1px solid rgba(167,139,250,0.25); }
+  .ical-event.phase-production { background: linear-gradient(90deg,rgba(251,191,36,0.22),rgba(245,158,11,0.14)); color: #fcd34d; border: 1px solid rgba(251,191,36,0.18); }
+  .ical-event.phase-editing  { background: linear-gradient(90deg,rgba(52,211,153,0.22),rgba(16,185,129,0.14)); color: #6ee7b7; border: 1px solid rgba(52,211,153,0.18); }
+  .ical-event.phase-cutter   { background: linear-gradient(90deg,rgba(251,191,36,0.28),rgba(245,158,11,0.18)); color: #fde68a; border: 1px solid rgba(251,191,36,0.22); }
+  .ical-event.phase-posting  { background: linear-gradient(90deg,rgba(20,184,166,0.32),rgba(45,212,191,0.22)); color: #5eead4; border: 1px solid rgba(20,184,166,0.28); }
+  .ical-event.phase-vacation { background: linear-gradient(90deg,rgba(148,163,184,0.30),rgba(100,116,139,0.22)); color: #e2e8f0; border: 1px solid rgba(148,163,184,0.28); }
+  .ical-event.phase-deadline { background: linear-gradient(90deg,rgba(239,68,68,0.30),rgba(220,38,38,0.20)); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
+  .ical-event.phase-todo     { background: linear-gradient(90deg,rgba(100,210,255,0.22),rgba(56,189,248,0.14)); color: #7dd3fc; border: 1px solid rgba(100,210,255,0.18); }
+
+  /* Mobile: compact columns, hide scrollbar, full-width filter bar */
+  @media (max-width: 640px) {
+    .ical-scroll::-webkit-scrollbar { height: 0; }
+    .ical-cat-label { font-size: 10px; padding: 4px 8px; letter-spacing: 0.2px; }
+    .ical-cat-label .ical-cat-icon { width: 18px; height: 18px; font-size: 11px; }
+    .ical-day-head { padding: 10px 8px 8px; min-height: 54px; }
+    .ical-day-head .ical-dname { font-size: 10px; }
+    .ical-day-head .ical-dnum { font-size: 14px; }
+    .ical-event { height: 24px; line-height: 24px; font-size: 11px; margin: 2px 1px; border-radius: 5px; }
+    .cal-filter-bar { gap: 6px; margin-bottom: 10px; }
+    .cal-filter-btn { padding: 4px 10px; font-size: 11.5px; }
+    .cal-filter-label { display: none; }
+  }
 
   .ical-empty-cell {
     color: rgba(255,255,255,0.15);
@@ -4338,7 +4370,7 @@ async function markAsShot(projectId) {
     p.status = prevStatus;
     p.shotAt = prevShotAt;
     renderPage();
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -4434,7 +4466,7 @@ async function cutterAccept(projectId) {
   } catch (err) {
     store.projects[idx].status = prevStatus;
     renderPage();
-    showToast('Speichern fehlgeschlagen: ' + err.message, 'danger');
+    showToast('Speichern fehlgeschlagen', err.message);
   }
 }
 async function cutterMarkDone(projectId) {
@@ -4468,7 +4500,7 @@ async function cutterMarkDone(projectId) {
   } catch (err) {
     store.projects[idx].status = prevStatus;
     renderPage();
-    showToast('Speichern fehlgeschlagen: ' + err.message, 'danger');
+    showToast('Speichern fehlgeschlagen', err.message);
   }
 }
 function dashCalNav(delta) {
@@ -5291,7 +5323,7 @@ async function saveShootDay(e, shootDayId) {
       store.shootDays = store.shootDays.filter(s => s.id !== insertedId);
     }
     renderPage();
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -5334,7 +5366,7 @@ async function deleteShootDay(shootDayId) {
     if (removedSd) store.shootDays.push(removedSd);
     unlinkedProjects.forEach(({ p }) => { p.shootDayId = shootDayId; });
     await pullAllFromCloud().then(() => renderPage());
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -5681,7 +5713,7 @@ async function cutterRevert(projectId, targetStatus) {
     }).catch(err => {
       store.projects[idx].status = prevStatus;
       renderPage();
-      showToast('Speichern fehlgeschlagen: ' + err.message, 'danger');
+      showToast('Speichern fehlgeschlagen', err.message);
     });
   }
 }
@@ -6041,7 +6073,7 @@ async function saveProject(e, projectId) {
       store.projects = store.projects.filter(p => p.id !== insertedId);
     }
     renderPage();
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -6172,7 +6204,7 @@ async function updateStatus(projectId, newStatus) {
   } catch (err) {
     store.projects[idx].status = prevStatus;
     renderPage();
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -6217,7 +6249,7 @@ async function approveProject(projectId) {
     p.status = prevStatus;
     p.approvedAt = prevApprovedAt;
     renderPage();
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -6369,7 +6401,7 @@ function submitCorrection(projectId) {
   }).catch(err => {
     store.projects[idx].status = prevStatus;
     renderPage();
-    showToast('Speichern fehlgeschlagen: ' + err.message, 'danger');
+    showToast('Speichern fehlgeschlagen', err.message);
   });
 }
 
@@ -6422,7 +6454,7 @@ async function deleteProject(projectId) {
     // Rollback
     if (removed) store.projects.push(removed);
     await pullAllFromCloud().then(() => renderPage());
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -6893,7 +6925,7 @@ async function uploadCustomerFile(input, customerId, kind) {
     showToast(file.name + ' hochgeladen', '');
     openCustomerModal(customerId);
   } catch (e) {
-    showToast(e.message, 'danger');
+    showToast('Fehler', e.message);
   } finally {
     input.value = '';
     if (label) label.style.opacity = '1';
@@ -6914,7 +6946,7 @@ async function deleteCustomerFile(fileId, customerId) {
     showToast('Datei gelöscht', '');
     openCustomerModal(customerId);
   } catch (e) {
-    showToast(e.message, 'danger');
+    showToast('Fehler', e.message);
   }
 }
 
@@ -7057,7 +7089,7 @@ async function saveCustomer(e, customerId) {
       store.customers = store.customers.filter(c => c.id !== insertedId);
     }
     renderPage();
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -7090,7 +7122,7 @@ async function deleteCustomer(customerId) {
     // Rollback
     if (removed) store.customers.push(removed);
     await pullAllFromCloud().then(() => renderPage());
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -7753,8 +7785,9 @@ function renderCategoryWeekView(elementId, session, mini = false) {
   const videoLayout    = visible('videos')   ? layoutCat(videoBars)    : [];
   const todoLayout     = visible('todos')    ? layoutCat(todoBars)     : [];
 
-  const colWidth = mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH;
-  const sidebarWidth = mini ? 120 : 150;
+  const isMobile = window.innerWidth < 640;
+  const colWidth = isMobile ? 88 : (mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH);
+  const sidebarWidth = isMobile ? 78 : (mini ? 120 : 150);
 
   // Dynamische Cat-Liste: nur sichtbare Kategorien rendern – Reihenfolge: Drehtag, Urlaub, Videos, Aufgaben
   let nextRow = 2;
@@ -7808,7 +7841,7 @@ function renderCategoryWeekView(elementId, session, mini = false) {
     })()}
     <div class="ical ${mini ? 'mini' : ''}">
       <div class="ical-scroll" id="${elementId}-scroller">
-        <div class="ical-track" style="width: ${sidebarWidth + totalDays * colWidth}px; grid-template-columns: ${sidebarWidth}px repeat(${totalDays}, ${colWidth}px);">
+        <div class="ical-track" style="width: ${sidebarWidth + totalDays * colWidth}px; grid-template-columns: ${sidebarWidth}px repeat(${totalDays}, ${colWidth}px); --ical-sidebar: ${sidebarWidth}px;">
           <!-- Top-left corner (sticky) -->
           <div class="ical-corner"></div>
           <!-- Day headers (Drehtag-Info steckt in der eigenen Drehtag-Lane unten) -->
@@ -7925,8 +7958,9 @@ function renderCategoryEvent(b, row, startCol, endCol) {
   } else if (!b.todoId && !b.shootDayId) {
     avatarUser = getBarPrimaryUser(b);
   }
-  const avatar = (!b.cutsLeft && avatarUser) ? renderAvatar(avatarUser, 16, 9) : '';
-  return `<div class="${cls}" style="grid-column: ${startCol} / ${endCol}; grid-row: ${row};" ${click} title="${escape(title)}">${avatar}<span style="overflow:hidden; text-overflow:ellipsis;">${escape(text)}</span></div>`;
+  const isMobile = window.innerWidth < 640;
+  const avatar = (!b.cutsLeft && avatarUser && !isMobile) ? renderAvatar(avatarUser, 16, 9) : '';
+  return `<div class="${cls}" style="grid-column: ${startCol} / ${endCol}; grid-row: ${row};" ${click} title="${escape(title)}">${avatar}<span class="ical-event-label">${escape(text)}</span></div>`;
 }
 
 function renderICWAllDay(b) {
@@ -8715,7 +8749,7 @@ async function generateCalendarToken(userId) {
     if (idx >= 0 && json.data) store.users[idx] = { ...store.users[idx], ...json.data };
     openMyProfile();
   } catch (err) {
-    showToast('Fehler: ' + err.message, 'danger');
+    showToast('Fehler', err.message);
   }
 }
 
@@ -8744,7 +8778,7 @@ async function removeCalendarToken(userId) {
     if (idx >= 0) store.users[idx] = { ...store.users[idx], calendarToken: null };
     openMyProfile();
   } catch (err) {
-    showToast('Fehler: ' + err.message, 'danger');
+    showToast('Fehler', err.message);
   }
 }
 
@@ -8829,7 +8863,7 @@ async function saveMyProfile(e) {
     const i = store.users.findIndex(x => x.id === session.user.id);
     if (i >= 0) store.users[i] = prevUser;
     renderPage();
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -9047,7 +9081,7 @@ async function saveUser(e, userId) {
       store.users = store.users.filter(u => u.id !== insertedId);
     }
     renderPage();
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -9107,7 +9141,7 @@ async function deleteUser(userId) {
       if (p) { p.videografId = videografId; p.cutterId = cutterId; }
     });
     await pullAllFromCloud().then(() => renderPage());
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -9549,7 +9583,7 @@ async function saveTodo(e, todoId) {
     }
     renderNav();
     renderPage();
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -9600,7 +9634,7 @@ async function toggleTodoStatus(todoId) {
     store.todos[idx].doneAt = prevDoneAt;
     renderNav();
     renderPage();
-    showToast('Speichern fehlgeschlagen: ' + e.message, 'danger');
+    showToast('Speichern fehlgeschlagen', e.message);
   }
 }
 
@@ -9637,7 +9671,7 @@ async function deleteTodo(todoId) {
     // Rollback
     if (removedTodo) store.todos.push(removedTodo);
     await pullAllFromCloud().then(() => renderPage());
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -9957,7 +9991,7 @@ async function saveVacation(e, vacationId) {
       store.vacations = store.vacations.filter(v => v.id !== insertedId);
     }
     renderPage();
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -9993,7 +10027,7 @@ async function deleteVacation(vacationId) {
     // Rollback
     if (removedVacation) store.vacations.push(removedVacation);
     await pullAllFromCloud().then(() => renderPage());
-    showToast('Fehler beim Speichern: ' + err.message, 'danger');
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
