@@ -3362,14 +3362,6 @@ const defaultData = {
   vacations: [],
   todos: [],
   shootDays: [],
-  // Zentrale Kalender-Konfiguration: nur Admin setzt einmalig den Token,
-  // Gists für ALLE Mitarbeiter laufen über diesen Account
-  calendarConfig: {
-    token: null,        // GitHub Personal Access Token (gist scope)
-    githubUser: null,   // GitHub Username
-    agencyGistId: null, // Gist mit allen Agentur-Projekten (Admin)
-    enabledAt: null
-  },
   session: null
 };
 
@@ -3400,26 +3392,6 @@ function loadStore() {
     });
     // Migration: Drehtag-Array sicherstellen
     if (!Array.isArray(merged.shootDays)) merged.shootDays = [];
-    // Migration: calendarConfig sicherstellen
-    if (!merged.calendarConfig) merged.calendarConfig = { token: null, githubUser: null, agencyGistId: null, enabledAt: null };
-    // Migration: Token aus altem per-user-localStorage übernehmen
-    try {
-      if (!merged.calendarConfig.token) {
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k && k.startsWith('agentur_calsync_v1_')) {
-            const v = JSON.parse(localStorage.getItem(k));
-            if (v?.token && v?.username) {
-              merged.calendarConfig.token = v.token;
-              merged.calendarConfig.githubUser = v.username;
-              merged.calendarConfig.enabledAt = v.lastSyncedAt || new Date().toISOString();
-              if (v.scope === 'agency' && v.gistId) merged.calendarConfig.agencyGistId = v.gistId;
-              break;
-            }
-          }
-        }
-      }
-    } catch {}
     return merged;
   } catch {
     return { ...defaultData };
@@ -3574,7 +3546,6 @@ let store = {
   todos: [],
   shootDays: [],
   customerFiles: [],
-  calendarConfig: { token: null, githubUser: null, agencyGistId: null, enabledAt: null },
   session: null,
   activity: []
 };
@@ -3674,8 +3645,7 @@ async function pushAllToCloud() {
     upserts[c.table] = (store[c.local] || []).map(r => ({ id: r.id, data: r }));
   });
   upserts.app_config = [
-    { key: 'calendarConfig', value: store.calendarConfig || {} },
-    { key: 'activity',       value: { entries: (store.activity || []).slice(0, 500) } }
+    { key: 'activity', value: { entries: (store.activity || []).slice(0, 500) } }
   ];
 
   const pending = store._pendingDeletions || {};
@@ -3739,8 +3709,6 @@ async function pullAllFromCloud() {
     });
     if (Array.isArray(data.customer_files)) store.customerFiles = data.customer_files;
     if (Array.isArray(data.app_config)) {
-      const cfg = data.app_config.find(r => r.key === 'calendarConfig');
-      if (cfg) store.calendarConfig = cfg.value;
       const act = data.app_config.find(r => r.key === 'activity');
       if (act && act.value && Array.isArray(act.value.entries)) store.activity = act.value.entries;
     }
@@ -4090,9 +4058,9 @@ function renderDashboard(session) {
   $('#page-title').textContent = 'Übersicht';
   $('#page-subtitle').textContent = `Hallo ${session.user.name.split(' ')[0]}, willkommen zurück.`;
   $('#topbar-actions').innerHTML = `
-    <button class="btn btn-secondary" onclick="openSubscribeModal()">
+    <button class="btn btn-secondary" onclick="openMyProfile()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Kalender abonnieren
+      Mein Kalender-Abo
     </button>
   `;
 
@@ -4328,8 +4296,6 @@ async function markAsShot(projectId) {
   }
   closeModal();
   renderPage();
-  // Hintergrund-Sync ohne UI-Block
-  setTimeout(() => { try { writeLiveICS(); } catch(e){ console.warn(e); } }, 50);
   showToast('Als abgedreht markiert', `„${p.title}" ist jetzt bereit für den Schnitt`);
   // Direkt in DB schreiben
   try {
@@ -4435,7 +4401,6 @@ async function cutterAccept(projectId) {
   const prevStatus = store.projects[idx].status;
   store.projects[idx].status = STATUS.SCHNITT;
   logActivity('project', store.projects[idx].id, 'cutterAccept', { title: store.projects[idx].title });
-  writeLiveICS();
   closeModal();
   renderPage();
   try {
@@ -4464,7 +4429,7 @@ async function cutterMarkDone(projectId) {
   const prevStatus = store.projects[idx].status;
   store.projects[idx].status = STATUS.FERTIG;
   logActivity('project', store.projects[idx].id, 'cutterMarkDone', { title: store.projects[idx].title });
-  writeLiveICS();
+
   const p = store.projects[idx];
   const c = store.customers.find(x => x.id === p.customerId);
   if (c?.managerId) {
@@ -4578,7 +4543,7 @@ async function bulkArchiveProjects() {
   if (!_bulkRequireAdmin()) return;
   const ids = [...bulkSelection.ids];
   ids.forEach(id => { const idx = store.projects.findIndex(p => p.id === id); if (idx >= 0) store.projects[idx].status = STATUS.ARCHIVIERT; });
-  saveStore(); writeLiveICS(); clearBulk(); renderPage(); showToast(`${ids.length} Projekte archiviert`, '');
+  saveStore(); clearBulk(); renderPage(); showToast(`${ids.length} Projekte archiviert`, '');
 }
 async function bulkDelete() {
   if (!_bulkRequireAdmin()) return;
@@ -5273,7 +5238,7 @@ async function saveShootDay(e, shootDayId) {
     insertedId = uid('sd');
     store.shootDays.push({ id: insertedId, ...data, createdAt: new Date().toISOString() });
   }
-  writeLiveICS();
+
   closeModal();
   renderPage();
   showToast('Drehtag gespeichert', fmtDate(data.date) + ' · ' + data.startTime + '–' + data.endTime);
@@ -5644,7 +5609,7 @@ async function cutterRevert(projectId, targetStatus) {
     const prevStatus = store.projects[idx].status;
     store.projects[idx].status = actualTarget;
     logActivity('project', store.projects[idx].id, 'cutterRevert', { title: store.projects[idx].title, from: targetStatus, to: actualTarget });
-    writeLiveICS();
+  
     closeModal();
     renderPage();
     fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
@@ -5946,7 +5911,7 @@ async function saveProject(e, projectId) {
       ...fileAdds
     });
   }
-  writeLiveICS();
+
   closeModal();
   renderPage();
 
@@ -6085,7 +6050,7 @@ async function removeScriptFile(projectId) {
     delete store.projects[idx].scriptFile;
     delete store.projects[idx].scriptFileName;
     saveStore();
-    writeLiveICS();
+  
     openProjectModal(projectId);
   }
 }
@@ -6095,7 +6060,7 @@ async function updateStatus(projectId, newStatus) {
   if (idx < 0) return;
   const prevStatus = store.projects[idx].status;
   store.projects[idx].status = newStatus;
-  writeLiveICS();
+
   closeModal();
   renderPage();
   try {
@@ -6135,7 +6100,7 @@ async function approveProject(projectId) {
   p.status = STATUS.FREIGEGEBEN;
   p.approvedAt = new Date().toISOString();
   logActivity('project', p.id, 'approve', { title: p.title });
-  writeLiveICS();
+
   // Cutter benachrichtigen
   if (p.cutterId) {
     notifyUser(p.cutterId, 'Video freigegeben ✓', `„${p.title}" wurde freigegeben.`);
@@ -6296,7 +6261,7 @@ function submitCorrection(projectId) {
   const prevStatus = store.projects[idx].status;
   store.projects[idx].status = STATUS.KORREKTUR;
   logActivity('project', store.projects[idx].id, 'correctionRequested', { title: store.projects[idx].title, text: (note.text || '').slice(0, 200) });
-  writeLiveICS();
+
   // Cutter benachrichtigen
   const p = store.projects[idx];
   if (p.cutterId) {
@@ -6352,7 +6317,7 @@ async function deleteProject(projectId) {
   const removed = store.projects.find(x => x.id === projectId);
   trackDeletion('projects', projectId);
   store.projects = store.projects.filter(p => p.id !== projectId);
-  writeLiveICS();
+
   closeModal();
   renderPage();
   // Direkt in DB löschen
@@ -6941,7 +6906,7 @@ async function saveCustomer(e, customerId) {
     });
   }
   // Auto-refresh live ICS file if active
-  writeLiveICS();
+
   closeModal();
   renderPage();
 
@@ -8250,9 +8215,9 @@ function renderCalendar(session) {
         <button class="${calendarView === 'week' ? 'active' : ''}" onclick="setCalendarView('week')">Woche</button>
         <button class="${calendarView === 'month' ? 'active' : ''}" onclick="setCalendarView('month')">Monat</button>
       </div>
-      <button class="btn btn-secondary" onclick="openSubscribeModal()">
+      <button class="btn btn-secondary" onclick="openMyProfile()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Abonnieren
+        Kalender-Abo
       </button>
     </div>
   `;
@@ -8939,13 +8904,6 @@ async function saveUser(e, userId) {
   const clearAvatar = clearAvatarFlag;
   pendingUserAvatar = null;
   clearAvatarFlag = false;
-  // Bei neu angelegten Usern: Gist sofort anlegen wenn Kalender konfiguriert
-  if (!userId && calendarConfigured()) {
-    const newUser = store.users[store.users.length - 1];
-    ensureUserGist(newUser).then(() => writeLiveICS());
-  } else {
-    writeLiveICS();
-  }
   closeModal();
   renderPage();
 
@@ -9107,7 +9065,7 @@ async function resetData() {
     title: 'Bist du dir sicher?', okLabel: 'Alles löschen', danger: true
   });
   if (!ok2) return;
-  store = { users: [], customers: [], projects: [], vacations: [], todos: [], shootDays: [], calendarConfig: { token: null, githubUser: null, agencyGistId: null, enabledAt: null }, session: null, activity: [] };
+  store = { users: [], customers: [], projects: [], vacations: [], todos: [], shootDays: [], session: null, activity: [] };
   saveStore();
   logout();
 }
@@ -9840,7 +9798,7 @@ async function saveVacation(e, vacationId) {
     insertedId = uid('v');
     store.vacations.push({ id: insertedId, ...data });
   }
-  writeLiveICS();
+
   closeModal();
   renderPage();
 
@@ -9901,7 +9859,7 @@ async function deleteVacation(vacationId) {
   const removedVacation = store.vacations.find(x => x.id === vacationId);
   trackDeletion('vacations', vacationId);
   store.vacations = store.vacations.filter(v => v.id !== vacationId);
-  writeLiveICS();
+
   closeModal();
   renderPage();
   // Direkt in DB löschen
@@ -10090,28 +10048,6 @@ function generateICS(forUser = null) {
 }
 
 
-// ZENTRALES Kalender-Setup:
-// - Admin gibt einmalig einen GitHub-Token ein (gist scope)
-// - Tool legt für JEDEN Mitarbeiter automatisch einen Gist an unter dem Admin-Account
-// - Mitarbeiter bekommen ihre fertige webcal://-URL – KEIN GitHub-Setup nötig
-
-// GitHub-Gist-Kalendersync wurde deaktiviert. Kalenderdaten liegen jetzt in MySQL,
-// die App rendert sie direkt aus store.projects/shootDays/vacations.
-function calendarConfigured() { return false; }
-function getUserGistUrl(_user) { return null; }
-function getAgencyGistUrl()    { return null; }
-
-async function calendarAdminSetup(_token) { /* GitHub-Sync deaktiviert */ }
-async function ensureAgencyGist()          { /* GitHub-Sync deaktiviert */ }
-async function ensureUserGist(_user)       { /* GitHub-Sync deaktiviert */ }
-async function pushSingleGist(_gistId, _filename, _content) { /* GitHub-Sync deaktiviert */ }
-
-// Legacy stubs damit alter Code nicht crasht – werden nicht mehr verwendet
-function loadCalSync() { return null; }
-function saveCalSync() {}
-async function setupGistSubscription(_token, _scope = 'personal') { /* GitHub-Sync deaktiviert */ return null; }
-async function pushGistSubscription(_scope)        { /* GitHub-Sync deaktiviert */ }
-async function disconnectGistSubscription(_scope)  { /* GitHub-Sync deaktiviert */ }
 
 function copyToClipboard(text, msg = 'In Zwischenablage kopiert') {
   navigator.clipboard.writeText(text).then(() => {
@@ -10121,377 +10057,6 @@ function copyToClipboard(text, msg = 'In Zwischenablage kopiert') {
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 1800);
   });
-}
-
-// GitHub-Gist-Kalendersync ist deaktiviert; Kalender wird direkt aus MySQL gerendert.
-async function writeLiveICS() { /* deaktiviert */ }
-
-function renderSubscriptionBlock(scope, opts) {
-  const data = loadCalSync(scope);
-  const isActive = data?.enabled;
-  const tone = opts.tone || 'accent';
-  const borderColor = tone === 'red' ? 'rgba(255,69,58,0.3)' : 'var(--accent)';
-  const bgColor = tone === 'red' ? 'rgba(255,69,58,0.04)' : 'var(--accent-soft)';
-  const iconColor = tone === 'red' ? '#ff453a' : 'var(--accent)';
-
-  const lastSync = data?.lastSyncedAt
-    ? new Date(data.lastSyncedAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-    : '–';
-
-  return `
-    <div class="subscribe-section" style="border-color:${borderColor}; background:${bgColor};">
-      <div class="subscribe-section-title">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="2">${opts.icon}</svg>
-        ${opts.title}
-        ${opts.badge ? `<span class="badge ${opts.badgeClass || ''}" style="margin-left:auto; font-size:10px;">${opts.badge}</span>` : ''}
-        ${isActive ? '<span class="badge badge-status-active" style="margin-left:auto;">Live</span>' : ''}
-      </div>
-      <div class="subscribe-section-desc">${opts.description}</div>
-
-      ${isActive ? `
-        <div class="form-group">
-          <label class="form-label">Abo-URL (in iCloud Kalender einfügen)</label>
-          <div class="url-box">
-            <input type="text" value="${escape(data.webcalUrl)}" readonly onclick="this.select()" />
-            <button type="button" class="btn btn-secondary btn-sm" onclick="copyToClipboard('${data.webcalUrl}','URL kopiert')">Kopieren</button>
-          </div>
-        </div>
-        <div class="flex gap-2" style="flex-wrap:wrap; align-items:center;">
-          <a class="btn btn-primary btn-sm" href="${data.webcalUrl}">In Kalender öffnen</a>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="pushGistSubscription('${scope}').then(()=>openSubscribeModal())">Jetzt syncen</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="disconnectGistSubscription('${scope}')" style="color:var(--danger);">Trennen</button>
-          <span class="text-sm text-muted" style="margin-left:auto;">Letzter Sync: ${lastSync}</span>
-        </div>
-        ${data.lastError ? `<div class="info-box" style="background:rgba(255,69,58,0.08); border-color:rgba(255,69,58,0.3); color:#ff453a; margin-top:10px;"><strong>Sync-Fehler:</strong> ${escape(data.lastError)}</div>` : ''}
-      ` : `
-        <button type="button" class="btn btn-primary btn-sm" onclick="startGistSetup('${scope}')">Jetzt einrichten</button>
-      `}
-    </div>
-  `;
-}
-
-function openSubscribeModal() {
-  const session = getCurrentUser();
-  if (!session || session.type !== 'staff') return;
-  const isAdmin = hasRole(session.user, ROLES.ADMIN);
-  const configured = calendarConfigured();
-  const userUrl = getUserGistUrl(session.user);
-  const userWebcal = userUrl ? userUrl.replace(/^https:\/\//, 'webcal://') : null;
-  const agencyUrl = getAgencyGistUrl();
-  const agencyWebcal = agencyUrl ? agencyUrl.replace(/^https:\/\//, 'webcal://') : null;
-  const projectCount = getRelevantProjects(session.user).length;
-  const totalCount = store.projects.filter(p => p.status !== STATUS.ARCHIVIERT).length;
-
-  // 1) Noch gar nicht eingerichtet → Hinweis für User, Setup für Admin
-  if (!configured) {
-    const html = `
-      <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
-        <div class="modal" style="max-width: 540px;">
-          <div class="modal-header">
-            <div class="modal-title">Kalender abonnieren</div>
-            <button class="modal-close" onclick="closeModal()">×</button>
-          </div>
-          <div class="modal-body">
-            ${isAdmin ? `
-              <div class="info-box">Als Admin richtest du den Kalender-Sync einmal für die ganze Agentur ein. Danach bekommt jeder Mitarbeiter automatisch seine eigene Abo-URL – ohne eigenen GitHub-Account.</div>
-              <button class="btn btn-primary" onclick="closeModal(); openAdminCalendarSetup();">Jetzt einrichten</button>
-            ` : `
-              <div class="info-box">Der Kalender-Sync wurde noch nicht eingerichtet. Bitte Raphael (Admin) Bescheid geben – er muss das einmal aktivieren, dann bekommst du sofort deine persönliche Abo-URL.</div>
-            `}
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeModal()">Schließen</button>
-          </div>
-        </div>
-      </div>
-    `;
-    $('#modal-container').innerHTML = html;
-    return;
-  }
-
-  // 2) Eingerichtet, aber für diesen User noch kein Gist
-  if (!userUrl) {
-    const html = `
-      <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
-        <div class="modal" style="max-width: 540px;">
-          <div class="modal-header">
-            <div class="modal-title">Kalender abonnieren</div>
-            <button class="modal-close" onclick="closeModal()">×</button>
-          </div>
-          <div class="modal-body">
-            <div class="info-box">Dein persönlicher Kalender wurde noch nicht generiert.</div>
-            ${isAdmin
-              ? `<button class="btn btn-primary" onclick="generateMissingGists()">Kalender jetzt generieren</button>`
-              : '<div class="text-sm text-muted">Bitte den Admin (Raphael) bitten, deinen Kalender freizuschalten.</div>'}
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeModal()">Schließen</button>
-          </div>
-        </div>
-      </div>
-    `;
-    $('#modal-container').innerHTML = html;
-    return;
-  }
-
-  // 3) Fertig konfiguriert → URL direkt anzeigen
-  const html = `
-    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
-      <div class="modal" style="max-width:560px;">
-        <div class="modal-header">
-          <div>
-            <div class="modal-title">Kalender abonnieren</div>
-            <div class="text-sm text-muted" style="margin-top:4px;">${escape(session.user.name)} · ${projectCount} Projekte</div>
-          </div>
-          <button class="modal-close" onclick="closeModal()">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="subscribe-section" style="border-color:var(--accent); background:var(--accent-soft);">
-            <div class="subscribe-section-title">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              Mein Kalender
-            </div>
-            <div class="subscribe-section-desc">Gefiltert auf deine Drehs, Schnitte und Postings. Aktualisiert sich automatisch bei jeder Änderung.</div>
-            <div class="url-box" style="margin-bottom:10px;">
-              <input type="text" value="${escape(userWebcal)}" readonly onclick="this.select()" />
-              <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('${userWebcal}','URL kopiert')">Kopieren</button>
-            </div>
-            <a class="btn btn-primary btn-sm" href="${userWebcal}">In Kalender öffnen</a>
-          </div>
-
-          ${isAdmin && agencyWebcal ? `
-            <div class="subscribe-section" style="border-color:rgba(255,69,58,0.3); background:rgba(255,69,58,0.04); margin-top:14px;">
-              <div class="subscribe-section-title">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                Agentur-Gesamtkalender
-                <span class="badge badge-role-admin" style="margin-left:auto; font-size:10px;">Nur Admin</span>
-              </div>
-              <div class="subscribe-section-desc">Alle ${totalCount} Projekte aller Kunden.</div>
-              <div class="url-box" style="margin-bottom:10px;">
-                <input type="text" value="${escape(agencyWebcal)}" readonly onclick="this.select()" />
-                <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('${agencyWebcal}','URL kopiert')">Kopieren</button>
-              </div>
-              <a class="btn btn-primary btn-sm" href="${agencyWebcal}">In Kalender öffnen</a>
-            </div>
-          ` : ''}
-
-          <div class="info-box" style="margin-top:14px;">
-            <strong>So abonnierst du den Kalender:</strong><br/>
-            <strong>Mac:</strong> URL kopieren → Apple Kalender → Ablage → „Neues Kalender-Abonnement…" → URL einfügen.<br/>
-            <strong>iPhone/iPad:</strong> Auf „In Kalender öffnen" tippen – iOS fragt automatisch.
-          </div>
-
-          ${isAdmin ? `
-            <div style="margin-top:14px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-              <button class="btn btn-ghost btn-sm" onclick="openAdminCalendarSetup()">Setup verwalten</button>
-              <button class="btn btn-ghost btn-sm" onclick="writeLiveICS().then(()=>showToast('Synchronisiert','Alle Kalender wurden aktualisiert'))">Jetzt syncen</button>
-            </div>
-          ` : ''}
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-ghost" onclick="closeModal()">Schließen</button>
-        </div>
-      </div>
-    </div>
-  `;
-  $('#modal-container').innerHTML = html;
-}
-
-/* Admin-Setup-Modal */
-function openAdminCalendarSetup() {
-  const session = getCurrentUser();
-  if (!session || !hasRole(session.user, ROLES.ADMIN)) return;
-  const configured = calendarConfigured();
-  const html = `
-    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
-      <div class="modal" style="max-width:620px;">
-        <div class="modal-header">
-          <div>
-            <div class="modal-title">Kalender-Sync (Admin)</div>
-            <div class="text-sm text-muted" style="margin-top:4px;">Einmaliges Setup für alle Mitarbeiter</div>
-          </div>
-          <button class="modal-close" onclick="closeModal()">×</button>
-        </div>
-        <div class="modal-body">
-          ${configured ? `
-            <div class="subscribe-section" style="border-color:rgba(48,209,88,0.3); background:rgba(48,209,88,0.05);">
-              <div class="subscribe-section-title">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#30d158" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                Verbunden mit GitHub: ${escape(store.calendarConfig.githubUser)}
-              </div>
-              <div class="subscribe-section-desc">Bei jeder Änderung im Tool werden alle Mitarbeiter-Kalender automatisch aktualisiert.</div>
-              <div class="flex gap-2" style="flex-wrap:wrap;">
-                <button class="btn btn-secondary btn-sm" onclick="generateMissingGists()">Fehlende Kalender generieren</button>
-                <button class="btn btn-ghost btn-sm" onclick="disconnectCalendar()" style="color:var(--danger);">Trennen</button>
-              </div>
-            </div>
-          ` : `
-            <div class="info-box">
-              <strong>Was passiert beim Setup?</strong><br/>
-              Du verbindest dein GitHub-Konto einmalig. Das Tool legt dann für jeden Mitarbeiter automatisch eine private Gist-Datei an. Jeder bekommt seine eigene <code>webcal://</code>-URL – ohne sich selbst irgendwo anzumelden.
-            </div>
-            <div class="section-title">Schritt 1: GitHub-Token erstellen</div>
-            <ol style="margin:0 0 14px 18px; font-size:13px; line-height:1.7; color:var(--text-2);">
-              <li>Öffne <a href="https://github.com/settings/tokens/new?description=Dodidis%20Media%20Kalender&scopes=gist" target="_blank" style="color:var(--accent);">github.com/settings/tokens/new</a></li>
-              <li>Scope: nur <code>gist</code>, Expiration: „No expiration"</li>
-              <li>„Generate token" klicken und kopieren (<code>ghp_…</code>)</li>
-            </ol>
-            <div class="form-group">
-              <label class="form-label">Token einfügen</label>
-              <input type="password" id="admin-cal-token" placeholder="ghp_… oder github_pat_…" autocomplete="off" />
-            </div>
-            <div id="admin-cal-error" class="info-box hide" style="background:rgba(255,69,58,0.08); border-color:rgba(255,69,58,0.3); color:#ff453a;"></div>
-          `}
-
-          <div class="section-title">Mitarbeiter-Kalender</div>
-          <div style="background:var(--bg-2); border:1px solid var(--border); border-radius:10px; overflow:hidden;">
-            ${store.users.map(u => {
-              const url = getUserGistUrl(u);
-              const webcal = url ? url.replace(/^https:\/\//,'webcal://') : null;
-              return `
-                <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border);">
-                  ${renderAvatar(u, 26, 11)}
-                  <div style="flex:1; min-width:0;">
-                    <div style="font-size:13px; font-weight:600;">${escape(u.name)}</div>
-                    <div class="text-sm text-muted">${escape(primaryRoleLabel(u))}</div>
-                  </div>
-                  ${webcal
-                    ? `<button class="btn btn-secondary btn-sm" onclick="copyToClipboard('${webcal}','URL für ${escape(u.name)} kopiert')">URL kopieren</button>`
-                    : `<span class="text-sm text-muted">Kein Kalender</span>`}
-                </div>
-              `;
-            }).join('')}
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-ghost" onclick="closeModal()">Schließen</button>
-          ${!configured ? '<button type="button" class="btn btn-primary" id="admin-cal-connect-btn" onclick="finishAdminCalendarSetup()">Verbinden &amp; Kalender generieren</button>' : ''}
-        </div>
-      </div>
-    </div>
-  `;
-  $('#modal-container').innerHTML = html;
-}
-
-async function finishAdminCalendarSetup() {
-  const tokenEl = $('#admin-cal-token');
-  const errEl = $('#admin-cal-error');
-  const btn = $('#admin-cal-connect-btn');
-  const token = tokenEl?.value.trim();
-  if (!token) {
-    errEl.textContent = 'Bitte ein Token eingeben.';
-    errEl.classList.remove('hide');
-    return;
-  }
-  btn.disabled = true;
-  btn.textContent = 'Verbinde …';
-  errEl.classList.add('hide');
-  try {
-    await calendarAdminSetup(token);
-    showToast('Kalender eingerichtet', 'Alle Mitarbeiter haben jetzt ihre persönliche Abo-URL.');
-    openAdminCalendarSetup();
-  } catch (e) {
-    errEl.textContent = e.message || 'Unbekannter Fehler';
-    errEl.classList.remove('hide');
-    btn.disabled = false;
-    btn.textContent = 'Verbinden & Kalender generieren';
-  }
-}
-
-async function generateMissingGists() {
-  if (!calendarConfigured()) return;
-  await ensureAgencyGist();
-  for (const u of store.users) {
-    if (!u.calendarGistId) await ensureUserGist(u);
-  }
-  await writeLiveICS();
-  showToast('Synchronisiert', 'Fehlende Kalender wurden generiert.');
-  openAdminCalendarSetup();
-}
-
-async function disconnectCalendar() {
-  const ok = await appConfirm('Wirklich trennen? Bestehende Gists bleiben auf GitHub – können dort manuell gelöscht werden.', {
-    title: 'Kalender-Sync trennen?', okLabel: 'Trennen', danger: true
-  });
-  if (!ok) return;
-  store.calendarConfig = { token: null, githubUser: null, agencyGistId: null, enabledAt: null };
-  store.users.forEach(u => { delete u.calendarGistId; delete u.calendarFilename; });
-  saveStore();
-  closeModal();
-  showToast('Kalender-Sync getrennt', 'Du kannst jederzeit neu verbinden.');
-}
-
-function startGistSetup(scope) {
-  const session = getCurrentUser();
-  if (!session || session.type !== 'staff') return;
-  const title = scope === 'agency' ? 'Agentur-Gesamtkalender' : 'Mein Kalender';
-  const html = `
-    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
-      <div class="modal" style="max-width:580px;">
-        <div class="modal-header">
-          <div>
-            <div class="modal-title">GitHub-Token verbinden</div>
-            <div class="text-sm text-muted" style="margin-top:4px;">${escape(title)} · Einmalige Einrichtung</div>
-          </div>
-          <button class="modal-close" onclick="closeModal()">×</button>
-        </div>
-        <div class="modal-body">
-
-          <div class="info-box">
-            <strong>Warum GitHub?</strong> iCloud kann nur Kalender abonnieren, die im Internet liegen. GitHub Gist hostet deine .ics-Datei kostenlos und stabil. Du brauchst nur einen kostenlosen GitHub-Account und ein „Personal Access Token" mit minimaler Berechtigung.
-          </div>
-
-          <div class="section-title">Schritt 1 – Token erstellen</div>
-          <ol style="margin:0 0 14px 18px; font-size:13px; line-height:1.7; color:var(--text-2);">
-            <li>Öffne <a href="https://github.com/settings/tokens/new?description=Dodidis%20Media%20Kalender&scopes=gist" target="_blank" style="color:var(--accent);">github.com/settings/tokens/new</a> (Login ggf. nötig)</li>
-            <li>Note: „Dodidis Media Kalender" · Expiration: „No expiration" oder dein Wunsch · Scope: nur <code>gist</code> aktivieren</li>
-            <li>Ganz unten auf <em>Generate token</em> klicken</li>
-            <li>Token kopieren (beginnt mit <code>ghp_</code> oder <code>github_pat_</code>)</li>
-          </ol>
-
-          <div class="section-title">Schritt 2 – Hier einfügen</div>
-          <div class="form-group">
-            <label class="form-label">Personal Access Token</label>
-            <input type="password" id="gist-token-input" placeholder="ghp_… oder github_pat_…" autocomplete="off" />
-            <div class="text-sm text-muted mt-2">Wird nur lokal auf diesem Gerät gespeichert. Der Token kann nur Gists lesen/schreiben – keine anderen Daten.</div>
-          </div>
-
-          <div id="gist-setup-error" class="info-box hide" style="background:rgba(255,69,58,0.08); border-color:rgba(255,69,58,0.3); color:#ff453a;"></div>
-
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-ghost" onclick="openSubscribeModal()">Zurück</button>
-          <button type="button" class="btn btn-primary" id="gist-setup-btn" onclick="finishGistSetup('${scope}')">Verbinden</button>
-        </div>
-      </div>
-    </div>
-  `;
-  $('#modal-container').innerHTML = html;
-  setTimeout(() => $('#gist-token-input')?.focus(), 60);
-}
-
-async function finishGistSetup(scope) {
-  const tokenEl = $('#gist-token-input');
-  const errEl = $('#gist-setup-error');
-  const btn = $('#gist-setup-btn');
-  const token = tokenEl?.value.trim();
-  if (!token) {
-    errEl.textContent = 'Bitte ein Token eingeben.';
-    errEl.classList.remove('hide');
-    return;
-  }
-  btn.disabled = true;
-  btn.textContent = 'Verbinde…';
-  errEl.classList.add('hide');
-  try {
-    await setupGistSubscription(token, scope);
-    openSubscribeModal();
-  } catch (e) {
-    errEl.textContent = e.message || 'Unbekannter Fehler';
-    errEl.classList.remove('hide');
-    btn.disabled = false;
-    btn.textContent = 'Verbinden';
-  }
 }
 
 /* ----------- INIT ----------- */
@@ -10524,9 +10089,7 @@ function initApp() {
       <style>@keyframes db-spin{to{transform:rotate(360deg)}}</style>`;
   }
 
-  // Bei jedem Login einmal aktuellen Kalender auf den Gist pushen
   if (session.type === 'staff') {
-    setTimeout(() => writeLiveICS(), 400);
     setTimeout(() => requestNotificationPermission(), 1000);
     setTimeout(() => checkPendingNotifications(session), 1200);
   }
