@@ -1841,18 +1841,54 @@
   .ical-event.phase-deadline { background: linear-gradient(90deg,rgba(239,68,68,0.30),rgba(220,38,38,0.20)); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
   .ical-event.phase-todo     { background: linear-gradient(90deg,rgba(100,210,255,0.22),rgba(56,189,248,0.14)); color: #7dd3fc; border: 1px solid rgba(100,210,255,0.18); }
 
-  /* Mobile: compact columns, hide scrollbar, full-width filter bar */
+  /* Mobile: ultra-compact calendar */
   @media (max-width: 640px) {
+    /* Grid rows kleiner */
+    .ical-track { grid-auto-rows: 24px; grid-row-gap: 2px; padding-bottom: 12px; }
+    /* Scrollbar verstecken */
     .ical-scroll::-webkit-scrollbar { height: 0; }
-    .ical-cat-label { font-size: 10px; padding: 4px 8px; letter-spacing: 0.2px; }
-    .ical-cat-label .ical-cat-icon { width: 18px; height: 18px; font-size: 11px; }
-    .ical-day-head { padding: 10px 8px 8px; min-height: 54px; }
-    .ical-day-head .ical-dname { font-size: 10px; }
-    .ical-day-head .ical-dnum { font-size: 14px; }
-    .ical-event { height: 24px; line-height: 24px; font-size: 11px; margin: 2px 1px; border-radius: 5px; }
-    .cal-filter-bar { gap: 6px; margin-bottom: 10px; }
-    .cal-filter-btn { padding: 4px 10px; font-size: 11.5px; }
+    .ical-scroll { max-height: 420px; }
+    /* Kategorie-Labels: nur Icon, kein Text */
+    .ical-cat-label {
+      font-size: 0;
+      padding: 0;
+      justify-content: center;
+      align-items: center;
+      border-right: 1px solid rgba(255,255,255,0.06);
+    }
+    .ical-cat-label > span:not(.ical-cat-icon) { display: none; }
+    .ical-cat-label .ical-cat-icon {
+      width: 24px; height: 24px; font-size: 13px;
+      margin: auto;
+      border-radius: 6px;
+    }
+    /* Tag-Header kompakter */
+    .ical-day-head { padding: 5px 2px 4px; min-height: 44px; gap: 1px; }
+    .ical-day-head .ical-dname { font-size: 9px; letter-spacing: 0.3px; }
+    .ical-day-head .ical-dnum { font-size: 13px; font-weight: 500; }
+    .ical-day-head.today .ical-dnum { width: 22px; height: 22px; font-size: 11px; font-weight: 700; }
+    /* Events: kompakt */
+    .ical-event {
+      height: 20px; line-height: 20px;
+      font-size: 9.5px; margin: 1px 1px;
+      border-radius: 4px; padding: 0 5px;
+    }
+    .ical-event::before { width: 3px; }
+    /* Filter-Bar: horizontal scrollbar statt wrap */
+    .cal-filter-bar {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 7px 12px;
+      gap: 6px;
+      scrollbar-width: none;
+    }
+    .cal-filter-bar::-webkit-scrollbar { display: none; }
+    .cal-filter-btn { flex-shrink: 0; padding: 4px 10px; font-size: 11px; }
     .cal-filter-label { display: none; }
+    /* Kalender-Header etwas kompakter */
+    .calendar-header { padding: 10px 12px; }
+    .calendar-month { font-size: 17px; }
   }
 
   .ical-empty-cell {
@@ -8027,8 +8063,8 @@ function renderCategoryWeekView(elementId, session, mini = false) {
   const todoLayout     = visible('todos')    ? layoutCat(todoBars)     : [];
 
   const isMobile = window.innerWidth < 640;
-  const colWidth = isMobile ? 88 : (mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH);
-  const sidebarWidth = isMobile ? 78 : (mini ? 120 : 150);
+  const colWidth = isMobile ? 70 : (mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH);
+  const sidebarWidth = isMobile ? 46 : (mini ? 120 : 150);
 
   // Dynamische Cat-Liste: nur sichtbare Kategorien rendern – Reihenfolge: Drehtag, Urlaub, Videos, Aufgaben
   let nextRow = 2;
