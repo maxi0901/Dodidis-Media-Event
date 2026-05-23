@@ -5502,17 +5502,13 @@ function openProjectModal(projectId = null) {
             <div class="form-row">
               <div class="form-group" id="posting-field" style="${isInternal ? 'display:none;' : ''}">
                 <label class="form-label">Posting-Datum* (18:00)</label>
-                <input type="date" name="postingDate" value="${project?.postingDate || ''}" ${!canEdit ? 'readonly' : ''} />
-                ${isNew ? '<div class="text-sm text-muted mt-2">Cutter-Deadline wird automatisch 48 h vorher gesetzt.</div>' : ''}
+                <input type="date" name="postingDate" id="proj-postingDate" value="${project?.postingDate || ''}" ${!canEdit ? 'readonly' : ''} onchange="autoFillDeadline()" />
               </div>
-              ${!isNew ? `
-                <div class="form-group">
-                  <label class="form-label">Cutter-Deadline (17:00)</label>
-                  <input type="date" name="deadline" value="${project?.deadline || defaultDeadline}" ${!canEdit ? 'readonly' : ''} />
-                </div>
-              ` : `
-                <input type="hidden" name="deadline" value="" />
-              `}
+              <div class="form-group">
+                <label class="form-label">Cutter-Deadline (17:00)</label>
+                <input type="date" name="deadline" id="proj-deadline" value="${project?.deadline || ''}" ${!canEdit ? 'readonly' : ''} />
+                ${isNew ? '<div class="text-sm text-muted mt-2">Wird automatisch 2 Tage vor Posting gesetzt, kann aber manuell überschrieben werden.</div>' : ''}
+              </div>
             </div>
 
             <div class="form-group">
@@ -5560,6 +5556,50 @@ function openProjectModal(projectId = null) {
     </div>
   `;
   $('#modal-container').innerHTML = html;
+
+  // Draft autosave for new projects
+  if (isNew && canEdit) {
+    restoreProjectDraft();
+    const form = document.getElementById('project-form');
+    if (form) {
+      form.addEventListener('input', saveProjectDraft);
+      form.addEventListener('change', saveProjectDraft);
+    }
+  }
+}
+
+const PROJECT_DRAFT_KEY = 'project_form_draft';
+
+function saveProjectDraft() {
+  const form = document.getElementById('project-form');
+  if (!form) return;
+  const data = Object.fromEntries(
+    [...form.querySelectorAll('input[name],select[name],textarea[name]')]
+      .filter(el => el.type !== 'file' && el.type !== 'submit')
+      .map(el => [el.name, el.type === 'checkbox' ? (el.checked ? '1' : '') : el.value])
+  );
+  localStorage.setItem(PROJECT_DRAFT_KEY, JSON.stringify(data));
+}
+
+function restoreProjectDraft() {
+  try {
+    const raw = localStorage.getItem(PROJECT_DRAFT_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    const form = document.getElementById('project-form');
+    if (!form) return;
+    for (const [name, val] of Object.entries(data)) {
+      const el = form.querySelector(`[name="${name}"]`);
+      if (!el || el.type === 'file') continue;
+      if (el.type === 'checkbox') { el.checked = !!val; el.dispatchEvent(new Event('change')); }
+      else { el.value = val; }
+    }
+    if (data.title) showToast('Entwurf wiederhergestellt', 'Dein letzter Entwurf wurde geladen.');
+  } catch (_) {}
+}
+
+function clearProjectDraft() {
+  localStorage.removeItem(PROJECT_DRAFT_KEY);
 }
 
 function getStatusActions(project, session) {
@@ -5844,8 +5884,8 @@ async function saveProject(e, projectId) {
     // Beim Anlegen: Cutter-Deadline = Posting − 48 h (= 2 Tage)
     // Beim Bearbeiten: Deadline editierbar, fällt zurück auf Posting − 2 Tage falls leer
     if (!projectId) {
-      // Neu angelegt → Deadline IMMER überschreiben
-      if (data.postingDate) {
+      // Neu angelegt → Deadline nur setzen wenn leer
+      if (!data.deadline && data.postingDate) {
         data.deadline = addDays(data.postingDate, -2);
       }
     } else {
@@ -5939,7 +5979,21 @@ async function saveProject(e, projectId) {
     });
   }
 
+  clearProjectDraft();
   closeModal();
+
+  // Neues Projekt → Kalender auf frühestes Datum springen
+  if (!projectId) {
+    const dates = [data.shootDate, data.deadline, data.postingDate].filter(Boolean).sort();
+    if (dates.length > 0) {
+      const earliest = new Date(dates[0] + 'T00:00:00');
+      calendarDate = new Date(earliest.getFullYear(), earliest.getMonth(), 1);
+      if (currentPage !== 'calendar') {
+        showToast('Projekt angelegt', 'Im Kalender sichtbar → Kalender öffnen', () => navigateTo('calendar'));
+      }
+    }
+  }
+
   renderPage();
 
   // Direkt in DB schreiben (nur DB-kompatible Felder, kein base64)
@@ -5997,6 +6051,15 @@ function toggleInternalProject(cb) {
   const post = document.getElementById('posting-field');
   if (ext) ext.style.display = isInternal ? 'none' : '';
   if (post) post.style.display = isInternal ? 'none' : '';
+}
+
+function autoFillDeadline() {
+  const postingInput = document.getElementById('proj-postingDate');
+  const deadlineInput = document.getElementById('proj-deadline');
+  if (!postingInput || !deadlineInput) return;
+  if (postingInput.value && !deadlineInput.value) {
+    deadlineInput.value = addDays(postingInput.value, -2);
+  }
 }
 
 function onShootDayChange(select) {
@@ -7240,8 +7303,8 @@ function buildCalendarBars(session) {
       bars.push({ ...base, phase: 'deadline', startDate: dl, endDate: dl, time: '17:00' });
     }
 
-    // Posting – nur für Manager/Admin/Videograf sichtbar
-    if (pd && pd !== dl && showsPostings) {
+    // Posting – auch anzeigen wenn Deadline = Posting-Tag
+    if (pd && showsPostings) {
       bars.push({ ...base, phase: 'posting', startDate: pd, endDate: pd, time: '18:00' });
     }
   });
@@ -7334,7 +7397,7 @@ function buildCalendarEvents(session) {
       add(pd, { kind: 'bar', projectId: p.id, phase: 'posting', isStart: true, isEnd: true, title: p.title, customer: customerName, fullTitle });
     }
 
-    if (p.deadline && p.deadline !== p.postingDate) {
+    if (p.deadline) {
       add(p.deadline, { kind: 'bar', projectId: p.id, phase: 'deadline', isStart: true, isEnd: true, title: p.title, customer: customerName, fullTitle });
     }
   });

@@ -146,8 +146,8 @@ $lines = [
     'X-WR-CALNAME:' . ics_escape($calName),
     'X-WR-TIMEZONE:Europe/Berlin',
     'X-WR-CALDESC:Persönlicher Kalender – Dodidis Media',
-    'REFRESH-INTERVAL;VALUE=DURATION:PT15M',
-    'X-PUBLISHED-TTL:PT15M',
+    'REFRESH-INTERVAL;VALUE=DURATION:PT5M',
+    'X-PUBLISHED-TTL:PT5M',
 ];
 
 // ── Projekte als Events ────────────────────────────────────────────────────
