@@ -3270,7 +3270,8 @@ const ROLES = {
   MANAGER: 'manager',
   VIDEOGRAF: 'videograf',
   CUTTER: 'cutter',
-  MITARBEITER: 'mitarbeiter'
+  MITARBEITER: 'mitarbeiter',
+  CONTRACT_UPLOADER: 'contract_uploader'
 };
 
 // Rollen-Hierarchie: höherer Wert = mehr Rechte
@@ -3331,7 +3332,8 @@ const ROLE_LABELS = {
   manager: 'Manager',
   videograf: 'Videograf',
   cutter: 'Cutter',
-  mitarbeiter: 'Mitarbeiter'
+  mitarbeiter: 'Mitarbeiter',
+  contract_uploader: 'Vertrags-Upload'
 };
 
 const CUSTOMER_STATUS = {
@@ -3546,6 +3548,7 @@ let store = {
   todos: [],
   shootDays: [],
   customerFiles: [],
+  notifications: [],
   session: null,
   activity: []
 };
@@ -3729,6 +3732,7 @@ async function initCloudSync() {
     return;
   }
   subscribeCloudChannel();
+  fetchNotifications();
   try { if (typeof runAutoArchive === 'function') runAutoArchive(); } catch {}
   try {
     if (typeof renderPage === 'function') renderPage();
@@ -3957,6 +3961,14 @@ function getNavItemsForUser(session) {
   if (hasRole(user, ROLES.ADMIN)) {
     items.push({ id: 'admin', label: 'Admin-Bereich', icon: 'shield' });
   }
+  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER)) {
+    items.push({ id: 'contracts', label: 'Verträge', icon: 'document' });
+  }
+  const unseenNotifs = (store.notifications || []).filter(n => !n.seen_at).length;
+  if (unseenNotifs > 0) {
+    const dashIdx = items.findIndex(i => i.id === 'dashboard');
+    if (dashIdx >= 0) items[dashIdx].badge = unseenNotifs;
+  }
   return items;
 }
 
@@ -3970,7 +3982,9 @@ const ICONS = {
   sun: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
   check: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
   camera: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
-  chart: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>'
+  chart: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  document: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+  bell: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
 };
 
 function renderNav() {
@@ -4037,6 +4051,7 @@ function renderPage() {
     todos: renderTodos,
     archive: renderArchive,
     admin: renderAdmin,
+    contracts: renderContracts,
     'customer-overview': renderCustomerOverview
   };
 
@@ -4046,6 +4061,9 @@ function renderPage() {
   }
   // Permission check: only admins see admin
   if (currentPage === 'admin' && (session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN))) {
+    currentPage = 'dashboard';
+  }
+  if (currentPage === 'contracts' && (session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER))) {
     currentPage = 'dashboard';
   }
 
@@ -4147,6 +4165,7 @@ function renderDashboard(session) {
           `}
         </div>
 
+        ${renderNotificationsCard()}
         ${renderVideografShootChecklist(user)}
         ${renderCutterQueue(user)}
 
@@ -5628,9 +5647,15 @@ async function cutterRevert(projectId, targetStatus) {
 }
 
 /* Reines Read-Only-Modal für Cutter, Videografen und Mitarbeiter – ohne Form-Inputs */
-function openProjectViewerModal(project) {
+async function openProjectViewerModal(project) {
   const session = getCurrentUser();
   const user = session.user;
+  // Fetch fresh project data including files
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(project.id)}`, { credentials: 'same-origin' });
+    const json = await res.json();
+    if (res.ok && json.ok && json.data) project = json.data;
+  } catch (_) {}
   const c = store.customers.find(x => x.id === project.customerId);
   const vg = store.users.find(u => u.id === project.videografId);
   const ct = store.users.find(u => u.id === project.cutterId);
@@ -5734,6 +5759,8 @@ function openProjectViewerModal(project) {
               </div>
             </div>
           ` : ''}
+
+          ${renderProjectFilesSection(project, session)}
 
         </div>
         <div class="modal-footer">
@@ -8358,7 +8385,8 @@ function openUserModal(userId = null) {
     manager: 'Kunden verwalten, Skripte schreiben, Videos freigeben',
     videograf: 'Drehtage und Rohaufnahmen verwalten',
     cutter: 'Videos schneiden und zur Freigabe vorlegen',
-    mitarbeiter: 'Allgemeiner Mitarbeiter – kann Aufgaben einsehen und bearbeiten'
+    mitarbeiter: 'Allgemeiner Mitarbeiter – kann Aufgaben einsehen und bearbeiten',
+    contract_uploader: 'Darf Verträge als DOCX hochladen und dem Kunden zuordnen'
   };
 
   const html = `
@@ -9065,7 +9093,7 @@ async function resetData() {
     title: 'Bist du dir sicher?', okLabel: 'Alles löschen', danger: true
   });
   if (!ok2) return;
-  store = { users: [], customers: [], projects: [], vacations: [], todos: [], shootDays: [], session: null, activity: [] };
+  store = { users: [], customers: [], projects: [], vacations: [], todos: [], shootDays: [], customerFiles: [], notifications: [], session: null, activity: [] };
   saveStore();
   logout();
 }
@@ -9161,7 +9189,35 @@ function renderCustomerOverview(session) {
         </table>
       </div>
     ` : ''}
+    <div id="customer-contracts-section"></div>
   `;
+
+  // Load confirmed contracts for this customer asynchronously
+  fetch(`${API_BASE}/contracts.php`, { credentials: 'same-origin' })
+    .then(r => r.json())
+    .then(json => {
+      const confirmed = (json.data || []).filter(ct => ct.customerId === c.id && ct.status === 'confirmed');
+      const el = $('#customer-contracts-section');
+      if (!el || !confirmed.length) return;
+      el.innerHTML = `
+        <div class="card" style="margin-top:16px;">
+          <div class="card-header"><div class="card-title">Meine Verträge</div></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:8px;">
+            ${confirmed.map(ct => `
+              <div class="file-uploaded">
+                <span style="font-size:20px;">📄</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:500;">${escape(ct.title)}</div>
+                  <div style="font-size:11px;color:var(--text-3);">${fmtDate(ct.createdAt)}</div>
+                </div>
+                ${ct.filename ? `<a class="btn btn-secondary btn-sm" href="${API_BASE}/download.php?scope=contract&id=${encodeURIComponent(ct.id)}" target="_blank">Herunterladen</a>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    })
+    .catch(() => {});
 }
 
 /* ----------- TODOS PAGE ----------- */
@@ -10057,6 +10113,528 @@ function copyToClipboard(text, msg = 'In Zwischenablage kopiert') {
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 1800);
   });
+}
+
+/* ----------- NOTIFICATIONS ----------- */
+
+async function fetchNotifications() {
+  const session = getCurrentUser();
+  if (!session || session.type !== 'staff') return;
+  try {
+    const res = await fetch(`${API_BASE}/notifications.php`, { credentials: 'same-origin' });
+    const json = await res.json();
+    if (res.ok && json.ok) {
+      store.notifications = json.data || [];
+      renderNav();
+    }
+  } catch (_) {}
+}
+
+async function markAllNotificationsSeen() {
+  try {
+    await fetch(`${API_BASE}/notifications.php`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'X-CSRF-Token': CSRF }
+    });
+    store.notifications.forEach(n => { if (!n.seen_at) n.seen_at = new Date().toISOString(); });
+    renderPage();
+  } catch (_) {}
+}
+
+function renderNotificationsCard() {
+  const unseen = (store.notifications || []).filter(n => !n.seen_at);
+  if (!unseen.length) return '';
+  const TYPE_LABELS = {
+    rohmaterial_uploaded: '📽️ Rohmaterial hochgeladen',
+    fertigstellung_uploaded: '✅ Fertigstellung hochgeladen',
+    contract_uploaded: '📄 Neuer Vertrag',
+    contract_comment: '💬 Kommentar auf Vertrag'
+  };
+  return `
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Benachrichtigungen <span class="badge badge-status-open" style="font-size:10px;">${unseen.length}</span></div>
+        <button class="btn btn-ghost btn-sm" onclick="markAllNotificationsSeen()">Alle gelesen</button>
+      </div>
+      <div class="deadline-list">
+        ${unseen.map(n => {
+          const click = n.ref_type === 'project'
+            ? `onclick="closeModal();const p=store.projects.find(x=>x.id==='${n.ref_id}');if(p)openProjectModal('${n.ref_id}')"`
+            : n.ref_type === 'contract'
+            ? `onclick="navigateTo('contracts');setTimeout(()=>openContractModal('${n.ref_id}'),100)"`
+            : '';
+          return `
+            <div class="deadline-item" style="cursor:pointer;" ${click}>
+              <div class="deadline-dot" style="background:var(--accent);"></div>
+              <div class="deadline-info">
+                <div class="deadline-title">${TYPE_LABELS[n.type] || n.type}</div>
+                <div class="deadline-meta">${escape(n.body || '')} · ${fmtDateTime(n.createdAt)}</div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+/* ----------- PROJECT FILES ----------- */
+
+function renderProjectFilesSection(project, session) {
+  const user = session.user;
+  const isAdmin    = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  const isVideograf = hasRole(user, ROLES.VIDEOGRAF) || isAdmin;
+  const isCutter   = hasRole(user, ROLES.CUTTER) || isAdmin;
+  const files = project.files || [];
+
+  const rohmaterial = files.filter(f => f.kind === 'rohmaterial');
+  const fertig = files.filter(f => f.kind === 'fertigstellung');
+  const other = files.filter(f => !['rohmaterial','fertigstellung'].includes(f.kind));
+
+  function fileRow(f) {
+    const icon = f.mime?.startsWith('video/') ? '🎞️' : '📄';
+    const size = f.size ? (f.size > 1048576 ? (f.size/1048576).toFixed(1) + ' MB' : Math.round(f.size/1024) + ' KB') : '';
+    return `
+      <div class="file-uploaded">
+        <span style="font-size:16px;">${icon}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(f.filename)}</div>
+          ${size ? `<div style="font-size:11px;color:var(--text-3);">${size}</div>` : ''}
+        </div>
+        <a class="btn btn-secondary btn-sm" href="${API_BASE}/download.php?scope=project&id=${f.id}" target="_blank">Öffnen</a>
+      </div>
+    `;
+  }
+
+  let html = '';
+
+  if (isVideograf) {
+    html += `
+      <div style="margin-top:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="cutter-detail-label">Rohmaterial</div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="uploadProjectFile('rohmaterial','${project.id}')">
+            + Rohmaterial hochladen
+          </button>
+        </div>
+        ${rohmaterial.length ? rohmaterial.map(fileRow).join('') : '<div class="text-sm text-muted">Noch kein Rohmaterial hochgeladen.</div>'}
+      </div>
+    `;
+  }
+
+  if (isCutter) {
+    html += `
+      <div style="margin-top:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="cutter-detail-label">Fertigstellung</div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="uploadProjectFile('fertigstellung','${project.id}')">
+            + Fertigstellung hochladen
+          </button>
+        </div>
+        ${fertig.length ? fertig.map(fileRow).join('') : '<div class="text-sm text-muted">Noch keine Fertigstellung hochgeladen.</div>'}
+      </div>
+    `;
+  }
+
+  if (isAdmin && other.length > 0) {
+    html += `
+      <div style="margin-top:18px;">
+        <div class="cutter-detail-label" style="margin-bottom:8px;">Weitere Dateien</div>
+        ${other.map(fileRow).join('')}
+      </div>
+    `;
+  }
+
+  return html;
+}
+
+async function uploadProjectFile(kind, projectId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'video/*,.mp4,.mov,.avi,.webm';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.onchange = async (e) => {
+    document.body.removeChild(input);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    showToast('Wird hochgeladen…', 'Bitte warten.');
+    try {
+      const res = await fetch(`${API_BASE}/upload.php?scope=project&kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(projectId)}`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'X-CSRF-Token': CSRF },
+        body: fd
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Upload fehlgeschlagen');
+      showToast('Hochgeladen', 'Datei erfolgreich gespeichert.');
+      fetchNotifications();
+      const project = store.projects.find(p => p.id === projectId);
+      if (project) openProjectViewerModal(project);
+    } catch (err) {
+      showToast('Fehler', err.message);
+    }
+  };
+  input.click();
+}
+
+/* ----------- CONTRACTS PAGE ----------- */
+
+function renderContracts(session) {
+  const user = session.user;
+  const canUpload = hasRole(user, ROLES.CONTRACT_UPLOADER);
+  const isPriv = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+
+  $('#page-title').textContent = 'Verträge';
+  $('#page-subtitle').textContent = 'Vertragsmanagement';
+  $('#topbar-actions').innerHTML = canUpload
+    ? `<button class="btn btn-primary" onclick="openNewContractModal()">+ Neuer Vertrag</button>`
+    : '';
+
+  $('#content').innerHTML = `<div id="contracts-list" style="max-width:800px;margin:0 auto;"><div style="color:var(--text-2);padding:32px;text-align:center;">Verträge werden geladen…</div></div>`;
+
+  fetch(`${API_BASE}/contracts.php`, { credentials: 'same-origin' })
+    .then(r => r.json())
+    .then(json => {
+      const contracts = json.data || [];
+      const el = $('#contracts-list');
+      if (!el) return;
+      if (!contracts.length) {
+        el.innerHTML = `<div class="empty-state" style="padding:60px 20px;"><div class="empty-state-icon">📄</div><div>Noch keine Verträge vorhanden.</div>${canUpload ? '<br/><button class="btn btn-primary" onclick="openNewContractModal()">Ersten Vertrag anlegen</button>' : ''}</div>`;
+        return;
+      }
+      el.innerHTML = contracts.map(c => {
+        const customer = store.customers.find(x => x.id === c.customerId);
+        const statusLabel = c.status === 'confirmed' ? '<span class="badge badge-status-active">Bestätigt</span>' : '<span class="badge badge-status-open">Entwurf</span>';
+        return `
+          <div class="card" style="margin-bottom:12px;cursor:pointer;" onclick="openContractModal('${c.id}')">
+            <div class="card-body" style="display:flex;align-items:center;gap:14px;padding:14px 18px;">
+              <div style="font-size:28px;">📄</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:600;font-size:14px;">${escape(c.title)}</div>
+                <div style="font-size:12px;color:var(--text-3);margin-top:2px;">${escape(customer?.name || 'Kein Kunde')} · ${fmtDate(c.createdAt)}</div>
+              </div>
+              ${statusLabel}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+          </div>
+        `;
+      }).join('');
+    })
+    .catch(() => {
+      const el = $('#contracts-list');
+      if (el) el.innerHTML = `<div class="info-box">Fehler beim Laden der Verträge.</div>`;
+    });
+}
+
+function openNewContractModal() {
+  const session = getCurrentUser();
+  if (!session || !hasRole(session.user, ROLES.CONTRACT_UPLOADER)) return;
+  const customerOptions = store.customers.map(c =>
+    `<option value="${escape(c.id)}">${escape(c.name)}</option>`
+  ).join('');
+  const html = `
+    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:480px;">
+        <div class="modal-header">
+          <div class="modal-title">Neuer Vertrag</div>
+          <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <form onsubmit="saveNewContract(event)">
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">Titel*</label>
+              <input type="text" name="title" required placeholder="z.B. Servicevertrag Q3 2026" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Kunde (optional)</label>
+              <select name="customerId">
+                <option value="">– Kein Kunde –</option>
+                ${customerOptions}
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+            <button type="submit" class="btn btn-primary">Anlegen & DOCX hochladen</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  $('#modal-container').innerHTML = html;
+}
+
+async function saveNewContract(e) {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  try {
+    const res = await fetch(`${API_BASE}/contracts.php`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ title: data.title, customerId: data.customerId || null })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    closeModal();
+    // Immediately prompt for file upload
+    await openContractModal(json.data.id);
+    setTimeout(() => uploadContractFile(json.data.id), 300);
+  } catch (err) {
+    showToast('Fehler', err.message);
+  }
+}
+
+async function openContractModal(contractId) {
+  const session = getCurrentUser();
+  if (!session || session.type !== 'staff') return;
+  const user = session.user;
+  const isPriv = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  const canUpload = hasRole(user, ROLES.CONTRACT_UPLOADER);
+
+  let contract;
+  try {
+    const res = await fetch(`${API_BASE}/contracts.php?id=${encodeURIComponent(contractId)}`, { credentials: 'same-origin' });
+    const json = await res.json();
+    if (!res.ok || !json.ok) { showToast('Vertrag nicht gefunden.', ''); return; }
+    contract = json.data;
+  } catch {
+    showToast('Fehler beim Laden', ''); return;
+  }
+
+  const customer = store.customers.find(x => x.id === contract.customerId);
+  const isDraft = contract.status === 'draft';
+  const comments = contract.comments || [];
+
+  const html = `
+    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:600px;">
+        <div class="modal-header">
+          <div>
+            <div class="modal-title">${escape(contract.title)}</div>
+            <div class="text-sm text-muted" style="margin-top:4px;">${escape(customer?.name || 'Kein Kunde')} · ${isDraft ? 'Entwurf' : 'Bestätigt'}</div>
+          </div>
+          <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+
+          ${isDraft ? `<div class="info-box" style="margin-bottom:12px;">Dieser Vertrag ist noch ein <strong>Entwurf</strong> und für den Kunden nicht sichtbar.</div>` : ''}
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
+            ${contract.filename
+              ? `<a class="btn btn-secondary btn-sm" href="${API_BASE}/download.php?scope=contract&id=${encodeURIComponent(contractId)}" target="_blank">📥 DOCX herunterladen</a>`
+              : canUpload ? `<button type="button" class="btn btn-primary btn-sm" onclick="uploadContractFile('${contractId}')">📎 DOCX hochladen</button>` : '<span class="text-sm text-muted">Kein Dokument hochgeladen.</span>'
+            }
+            ${contract.filename && canUpload ? `<button type="button" class="btn btn-ghost btn-sm" onclick="uploadContractFile('${contractId}')">Dokument ersetzen</button>` : ''}
+            ${isPriv && isDraft ? `<button type="button" class="btn btn-primary btn-sm" onclick="confirmContract('${contractId}')">✅ Bestätigen & Kunden freischalten</button>` : ''}
+            ${isPriv && !isDraft ? `<button type="button" class="btn btn-ghost btn-sm" onclick="revertContractToDraft('${contractId}')">Zurück zu Entwurf</button>` : ''}
+            ${isPriv ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deleteContract('${contractId}')">Löschen</button>` : ''}
+          </div>
+
+          <div class="section-title">Kommentare & Anmerkungen</div>
+          <div id="contract-comments-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+            ${comments.length === 0 ? '<div class="text-sm text-muted">Noch keine Kommentare.</div>' : ''}
+            ${comments.map(c => {
+              const author = store.users.find(u => u.id === c.userId);
+              return `
+                <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+                  <div class="text-sm text-muted" style="margin-bottom:6px;">${escape(author?.name || '–')} · ${fmtDateTime(c.createdAt)}</div>
+                  ${c.text ? `<div style="font-size:13px;white-space:pre-wrap;">${escape(c.text)}</div>` : ''}
+                  ${c.voicePath ? `<audio controls src="${API_BASE}/download.php?scope=voice&id=${encodeURIComponent(c.id)}" style="width:100%;margin-top:8px;"></audio>` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <div class="section-title">Kommentar hinzufügen</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <textarea id="contract-comment-text" rows="3" style="width:100%;box-sizing:border-box;padding:10px 12px;background:var(--bg-2);border:1px solid var(--border);border-radius:10px;color:var(--text-1);font-size:13px;resize:vertical;" placeholder="Anmerkung eingeben…"></textarea>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="submitContractComment('${contractId}')">Kommentar senden</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="voice-btn-start" onclick="startVoiceRecording('${contractId}')">🎙️ Sprachnachricht aufnehmen</button>
+              <button type="button" class="btn btn-danger btn-sm hide" id="voice-btn-stop" onclick="stopVoiceRecording()">⏹ Aufnahme stoppen</button>
+              <span id="voice-status" class="text-sm text-muted"></span>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeModal()">Schließen</button>
+        </div>
+      </div>
+    </div>
+  `;
+  $('#modal-container').innerHTML = html;
+}
+
+async function uploadContractFile(contractId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.onchange = async (e) => {
+    document.body.removeChild(input);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    showToast('Wird hochgeladen…', 'Bitte warten.');
+    try {
+      const res = await fetch(`${API_BASE}/upload.php?scope=contract&id=${encodeURIComponent(contractId)}`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'X-CSRF-Token': CSRF },
+        body: fd
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+      showToast('Vertrag hochgeladen', 'DOCX-Datei gespeichert.');
+      openContractModal(contractId);
+    } catch (err) {
+      showToast('Fehler', err.message);
+    }
+  };
+  input.click();
+}
+
+async function submitContractComment(contractId) {
+  const text = $('#contract-comment-text')?.value?.trim() || '';
+  if (!text) return;
+  try {
+    const res = await fetch(`${API_BASE}/contract_comments.php?contractId=${encodeURIComponent(contractId)}`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ text })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    showToast('Kommentar gespeichert', '');
+    openContractModal(contractId);
+  } catch (err) {
+    showToast('Fehler', err.message);
+  }
+}
+
+async function confirmContract(contractId) {
+  const ok = await appConfirm('Vertrag bestätigen? Der Kunde kann ihn danach in seinem Portal einsehen.', { title: 'Vertrag bestätigen', okLabel: 'Bestätigen' });
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API_BASE}/contracts.php?id=${encodeURIComponent(contractId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: 'confirmed' })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    showToast('Vertrag bestätigt', 'Jetzt für den Kunden sichtbar.');
+    openContractModal(contractId);
+  } catch (err) {
+    showToast('Fehler', err.message);
+  }
+}
+
+async function revertContractToDraft(contractId) {
+  try {
+    const res = await fetch(`${API_BASE}/contracts.php?id=${encodeURIComponent(contractId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: 'draft' })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    showToast('Zurück zu Entwurf', '');
+    openContractModal(contractId);
+  } catch (err) {
+    showToast('Fehler', err.message);
+  }
+}
+
+async function deleteContract(contractId) {
+  const ok = await appConfirm('Vertrag unwiderruflich löschen?', { title: 'Vertrag löschen', okLabel: 'Löschen', danger: true });
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API_BASE}/contracts.php?id=${encodeURIComponent(contractId)}`, {
+      method: 'DELETE', credentials: 'same-origin',
+      headers: { 'X-CSRF-Token': CSRF }
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    showToast('Vertrag gelöscht', '');
+    closeModal();
+    navigateTo('contracts');
+  } catch (err) {
+    showToast('Fehler', err.message);
+  }
+}
+
+/* ----------- VOICE RECORDING ----------- */
+
+let _mediaRecorder = null;
+let _audioChunks = [];
+let _activeVoiceContractId = null;
+
+async function startVoiceRecording(contractId) {
+  _activeVoiceContractId = contractId;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    _mediaRecorder = new MediaRecorder(stream);
+    _audioChunks = [];
+    _mediaRecorder.ondataavailable = e => { if (e.data.size > 0) _audioChunks.push(e.data); };
+    _mediaRecorder.start();
+    $('#voice-btn-start')?.classList.add('hide');
+    $('#voice-btn-stop')?.classList.remove('hide');
+    const s = $('#voice-status');
+    if (s) s.textContent = '⏺ Aufnahme läuft…';
+  } catch {
+    showToast('Kein Mikrofon-Zugriff', 'Bitte Mikrofon im Browser freigeben.');
+  }
+}
+
+async function stopVoiceRecording() {
+  if (!_mediaRecorder) return;
+  _mediaRecorder.stop();
+  _mediaRecorder.stream?.getTracks().forEach(t => t.stop());
+  $('#voice-btn-start')?.classList.remove('hide');
+  $('#voice-btn-stop')?.classList.add('hide');
+  const s = $('#voice-status');
+  if (s) s.textContent = '⏳ Wird gespeichert…';
+
+  await new Promise(resolve => { _mediaRecorder.onstop = resolve; });
+  const blob = new Blob(_audioChunks, { type: 'audio/webm' });
+  _mediaRecorder = null;
+
+  const contractId = _activeVoiceContractId;
+  const commentText = $('#contract-comment-text')?.value?.trim() || '';
+
+  try {
+    // 1. Create comment (with optional text)
+    const r1 = await fetch(`${API_BASE}/contract_comments.php?contractId=${encodeURIComponent(contractId)}`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ text: commentText })
+    });
+    const j1 = await r1.json();
+    if (!r1.ok || !j1.ok) throw new Error(j1.error || 'Fehler beim Anlegen');
+
+    // 2. Upload audio
+    const fd = new FormData();
+    fd.append('file', blob, 'voice.webm');
+    const r2 = await fetch(`${API_BASE}/upload.php?scope=voice&id=${encodeURIComponent(j1.data.id)}`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'X-CSRF-Token': CSRF },
+      body: fd
+    });
+    const j2 = await r2.json();
+    if (!r2.ok || !j2.ok) throw new Error(j2.error || 'Fehler beim Hochladen');
+
+    showToast('Sprachnachricht gespeichert', '');
+    openContractModal(contractId);
+  } catch (err) {
+    showToast('Fehler', err.message);
+    if (s) s.textContent = '✗ Fehler';
+  }
 }
 
 /* ----------- INIT ----------- */

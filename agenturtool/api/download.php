@@ -6,15 +6,15 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 $session = require_login();
-$fileId  = (int)($_GET['id']    ?? 0);
+$fileId  = $_GET['id'] ?? '';
 $scope   = trim($_GET['scope'] ?? '');
 
-if (!$fileId) json_err(400, 'id fehlt.');
+if ($fileId === '' || $fileId === '0') json_err(400, 'id fehlt.');
 
 if ($scope === 'customer') {
     $file = db_one(
         "SELECT id, customer_id, filename, mime, size, path FROM customer_files WHERE id = ?",
-        [$fileId]
+        [(int)$fileId]
     );
     if (!$file) json_err(404, 'Datei nicht gefunden.');
 
@@ -27,9 +27,25 @@ if ($scope === 'customer') {
     if ($session['type'] === 'customer') json_err(403, 'Keine Berechtigung.');
     $file = db_one(
         "SELECT id, project_id, filename, mime, size, path FROM project_files WHERE id = ?",
-        [$fileId]
+        [(int)$fileId]
     );
     if (!$file) json_err(404, 'Datei nicht gefunden.');
+} elseif ($scope === 'contract') {
+    if ($session['type'] === 'customer') json_err(403, 'Keine Berechtigung.');
+    if (!has_role('admin','manager','contract_uploader')) json_err(403, 'Keine Berechtigung.');
+    $file = db_one(
+        "SELECT id, filename, mime, size, path FROM contracts WHERE id = ?",
+        [$fileId]
+    );
+    if (!$file || !$file['path']) json_err(404, 'Datei nicht gefunden.');
+} elseif ($scope === 'voice') {
+    if ($session['type'] === 'customer') json_err(403, 'Keine Berechtigung.');
+    if (!has_role('admin','manager','contract_uploader')) json_err(403, 'Keine Berechtigung.');
+    $file = db_one(
+        "SELECT id, voice_filename AS filename, 'audio/webm' AS mime, voice_path AS path FROM contract_comments WHERE id = ?",
+        [$fileId]
+    );
+    if (!$file || !$file['path']) json_err(404, 'Datei nicht gefunden.');
 } else {
     json_err(400, 'Unbekannter scope.');
 }
