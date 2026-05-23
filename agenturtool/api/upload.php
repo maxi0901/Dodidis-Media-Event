@@ -11,7 +11,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_err(405, 'POST erwartet.');
 }
 require_csrf();
-require_role('admin', 'manager');
 
 $cfg = require __DIR__ . '/../config.php';
 
@@ -31,7 +30,7 @@ $kind  = $_GET['kind']  ?? 'other';
 $refId = $_GET['id']    ?? '';
 
 $customerKinds = ['vertrag','leistungsbeschreibung','avv','other'];
-$projectKinds  = ['script','contract','correction','other'];
+$projectKinds  = ['script','contract','correction','other','rohmaterial','fertigstellung'];
 if ($scope === 'customer' && !in_array($kind, $customerKinds, true)) {
     json_err(400, 'Ungültiger kind-Parameter für customer-Scope.');
 }
@@ -42,17 +41,71 @@ if ($scope === 'avatar' && $kind !== 'avatar') {
     $kind = 'avatar';
 }
 
+// ── Role-based access checks per scope + kind ────────────────────────────────
+if ($scope === 'avatar') {
+    // Already checked separately below; allow admin/manager only here
+    if (!has_role('admin', 'manager')) {
+        json_err(403, 'Keine Berechtigung.');
+    }
+} elseif ($scope === 'customer') {
+    if (!has_role('admin', 'manager')) {
+        json_err(403, 'Keine Berechtigung.');
+    }
+} elseif ($scope === 'project') {
+    if ($kind === 'rohmaterial') {
+        if (!has_role('admin', 'manager', 'videograf')) {
+            json_err(403, 'Keine Berechtigung.');
+        }
+    } elseif ($kind === 'fertigstellung') {
+        if (!has_role('admin', 'manager', 'cutter')) {
+            json_err(403, 'Keine Berechtigung.');
+        }
+    } else {
+        // script, contract, correction, other → admin/manager only
+        if (!has_role('admin', 'manager')) {
+            json_err(403, 'Keine Berechtigung.');
+        }
+    }
+} elseif ($scope === 'contract') {
+    if (!has_role('contract_uploader')) {
+        json_err(403, 'Keine Berechtigung.');
+    }
+} elseif ($scope === 'voice') {
+    // Any logged-in staff (not customer)
+    if ($session['type'] === 'customer') {
+        json_err(403, 'Keine Berechtigung.');
+    }
+} else {
+    json_err(400, 'Unbekannter scope.');
+}
+
 // MIME über finfo verifizieren (Browser-Header sind nicht vertrauenswürdig)
 $finfo = new finfo(FILEINFO_MIME_TYPE);
 $mime  = $finfo->file($file['tmp_name']);
-if (!in_array($mime, $cfg['allowed_mimes'], true)) {
-    json_err(415, 'Dateityp nicht erlaubt: ' . $mime);
+
+// Scope-specific MIME checks
+if ($scope === 'contract') {
+    $allowedContractMimes = [
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    ];
+    if (!in_array($mime, $allowedContractMimes, true)) {
+        json_err(415, 'Nur .docx Dateien sind für Verträge erlaubt.');
+    }
+} elseif ($scope === 'voice') {
+    $allowedVoiceMimes = ['audio/webm', 'audio/ogg', 'audio/wav', 'audio/mpeg'];
+    if (!in_array($mime, $allowedVoiceMimes, true)) {
+        json_err(415, 'Dateityp nicht erlaubt: ' . $mime);
+    }
+} else {
+    if (!in_array($mime, $cfg['allowed_mimes'], true)) {
+        json_err(415, 'Dateityp nicht erlaubt: ' . $mime);
+    }
 }
 
 // Zielpfad – Avatar: öffentlich (uploads/), Dokumente: privat (private_path/)
 if ($scope === 'project') {
     if (!$refId) json_err(400, 'id (project) fehlt.');
-    $proj = db_one("SELECT id FROM projects WHERE id = ?", [$refId]);
+    $proj = db_one("SELECT id, title, cutter_id FROM projects WHERE id = ?", [$refId]);
     if (!$proj) json_err(404, 'Projekt nicht gefunden.');
     $basePath = $cfg['private_path'];
     $relDir   = 'projects/' . $refId;
@@ -68,8 +121,20 @@ if ($scope === 'project') {
     $basePath = $cfg['private_path'];
     $relDir   = 'customers/' . $refId;
     $dir      = $basePath . '/' . $relDir;
-} else {
-    json_err(400, 'Unbekannter scope.');
+} elseif ($scope === 'contract') {
+    if (!$refId) json_err(400, 'id (contract) fehlt.');
+    $contract = db_one("SELECT id, customer_id FROM contracts WHERE id = ?", [$refId]);
+    if (!$contract) json_err(404, 'Vertrag nicht gefunden.');
+    $basePath = $cfg['private_path'];
+    $relDir   = 'contracts/' . $refId;
+    $dir      = $basePath . '/' . $relDir;
+} elseif ($scope === 'voice') {
+    if (!$refId) json_err(400, 'id (contract_comment) fehlt.');
+    $comment = db_one("SELECT id FROM contract_comments WHERE id = ?", [$refId]);
+    if (!$comment) json_err(404, 'Kommentar nicht gefunden.');
+    $basePath = $cfg['private_path'];
+    $relDir   = 'contract_comments/' . $refId;
+    $dir      = $basePath . '/' . $relDir;
 }
 
 if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
@@ -102,6 +167,29 @@ if ($scope === 'project') {
     $response['id']   = (int)db()->lastInsertId();
     $response['path'] = $relPath;
     log_activity('project', $refId, 'fileUploaded', ['kind' => $kind, 'filename' => $safeName]);
+
+    // Post-insert notifications
+    if ($kind === 'rohmaterial') {
+        $cutterId = $proj['cutter_id'] ?? null;
+        if ($cutterId) {
+            db_exec(
+                "INSERT INTO notifications (user_id, type, title, body, ref_id, ref_type)
+                 VALUES (?, 'rohmaterial_uploaded', 'Rohmaterial hochgeladen', ?, ?, 'project')",
+                [$cutterId, $proj['title'], $refId]
+            );
+        }
+    } elseif ($kind === 'fertigstellung') {
+        $adminsManagers = db_all(
+            "SELECT DISTINCT user_id FROM user_roles WHERE role_name IN ('admin','manager')"
+        );
+        foreach ($adminsManagers as $am) {
+            db_exec(
+                "INSERT INTO notifications (user_id, type, title, body, ref_id, ref_type)
+                 VALUES (?, 'fertigstellung_uploaded', 'Fertigstellung hochgeladen', ?, ?, 'project')",
+                [$am['user_id'], $proj['title'], $refId]
+            );
+        }
+    }
 } elseif ($scope === 'avatar') {
     $response['path'] = $urlDir . '/' . $filename;
 } elseif ($scope === 'customer') {
@@ -114,6 +202,24 @@ if ($scope === 'project') {
     $response['id']   = (int)db()->lastInsertId();
     $response['path'] = $relPath;
     log_activity('customer', $refId, 'fileUploaded', ['kind' => $kind, 'filename' => $safeName]);
+} elseif ($scope === 'contract') {
+    $relPath = $relDir . '/' . $filename;
+    db_exec(
+        "UPDATE contracts SET filename=?, mime=?, size=?, path=? WHERE id=?",
+        [$safeName, $mime, (int)$file['size'], $relPath, $refId]
+    );
+    $response['id']   = $refId;
+    $response['path'] = $relPath;
+    log_activity('contract', $refId, 'fileUploaded', ['filename' => $safeName]);
+} elseif ($scope === 'voice') {
+    $relPath = $relDir . '/' . $filename;
+    db_exec(
+        "UPDATE contract_comments SET voice_path=?, voice_filename=? WHERE id=?",
+        [$relPath, $safeName, $refId]
+    );
+    $response['id']   = $refId;
+    $response['path'] = $relPath;
+    log_activity('contract', $refId, 'voiceUploaded', ['filename' => $safeName]);
 }
 
 json_ok($response);

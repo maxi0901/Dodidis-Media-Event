@@ -40,6 +40,10 @@ return [
         'text/plain',
         'video/mp4',
         'video/quicktime',
+        'video/webm',
+        'audio/webm',
+        'audio/ogg',
+        'audio/wav',
     ],
     'max_upload_bytes' => 50 * 1024 * 1024, // 50 MB
 

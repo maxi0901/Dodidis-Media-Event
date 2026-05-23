@@ -639,6 +639,100 @@ if (!$privatePath) {
 }
 
 // ============================================================
+sect('Block E – notifications Tabelle');
+if (!tbl_exists($pdo, $db, 'notifications')) {
+    exec_sql($pdo,
+        "CREATE TABLE notifications (
+            id         INT AUTO_INCREMENT PRIMARY KEY,
+            user_id    VARCHAR(32) NOT NULL,
+            type       VARCHAR(64) NOT NULL,
+            title      VARCHAR(255) NOT NULL,
+            body       TEXT,
+            ref_id     VARCHAR(64),
+            ref_type   VARCHAR(32),
+            seen_at    DATETIME DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_notif_user (user_id),
+            INDEX idx_notif_seen (user_id, seen_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        'notifications Tabelle erstellt'
+    );
+} else {
+    skip('notifications existiert bereits');
+}
+
+sect('Block F2 – contracts + contract_comments Tabellen');
+if (!tbl_exists($pdo, $db, 'contracts')) {
+    exec_sql($pdo,
+        "CREATE TABLE contracts (
+            id          VARCHAR(32) PRIMARY KEY,
+            customer_id VARCHAR(32) DEFAULT NULL,
+            title       VARCHAR(255) NOT NULL,
+            status      ENUM('draft','confirmed') NOT NULL DEFAULT 'draft',
+            filename    VARCHAR(255) DEFAULT NULL,
+            mime        VARCHAR(100) DEFAULT NULL,
+            size        INT DEFAULT NULL,
+            path        VARCHAR(500) DEFAULT NULL,
+            uploaded_by VARCHAR(32) DEFAULT NULL,
+            created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        'contracts Tabelle erstellt'
+    );
+} else {
+    skip('contracts existiert bereits');
+}
+
+if (!tbl_exists($pdo, $db, 'contract_comments')) {
+    exec_sql($pdo,
+        "CREATE TABLE contract_comments (
+            id              VARCHAR(32) PRIMARY KEY,
+            contract_id     VARCHAR(32) NOT NULL,
+            user_id         VARCHAR(32) NOT NULL,
+            comment_text    TEXT,
+            voice_path      VARCHAR(500) DEFAULT NULL,
+            voice_filename  VARCHAR(255) DEFAULT NULL,
+            created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_cc_contract (contract_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        'contract_comments Tabelle erstellt'
+    );
+} else {
+    skip('contract_comments existiert bereits');
+}
+
+sect('Block G2 – project_files.kind ENUM erweitern');
+// Check if 'rohmaterial' is already in the ENUM
+$enumRow = $pdo->query("SHOW COLUMNS FROM project_files LIKE 'kind'")->fetch(PDO::FETCH_ASSOC);
+if ($enumRow && strpos($enumRow['Type'], 'rohmaterial') === false) {
+    exec_sql($pdo,
+        "ALTER TABLE project_files MODIFY COLUMN kind ENUM('script','contract','correction','other','rohmaterial','fertigstellung') NOT NULL DEFAULT 'other'",
+        'project_files.kind ENUM um rohmaterial/fertigstellung erweitert'
+    );
+} else {
+    skip('project_files.kind ENUM bereits aktuell');
+}
+
+sect('Block H2 – contract_uploader Rolle');
+// Check if any user has this role (skip seeding if already exists)
+$roleCount = (int)$pdo->query("SELECT COUNT(*) FROM user_roles WHERE role_name = 'contract_uploader'")->fetchColumn();
+if ($roleCount === 0) {
+    try {
+        $maxim = $pdo->query("SELECT id FROM users WHERE name LIKE '%Maxim%' OR username LIKE '%maxim%' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+        if ($maxim) {
+            $pdo->prepare("INSERT IGNORE INTO user_roles (user_id, role_name) VALUES (?, 'contract_uploader')")->execute([$maxim['id']]);
+            ok('contract_uploader Rolle für Maxim vergeben (User-ID: ' . $maxim['id'] . ')');
+        } else {
+            ok('contract_uploader Rolle bereit – bitte manuell in der Benutzerverwaltung vergeben');
+        }
+    } catch (Throwable $e) {
+        err('Konnte contract_uploader nicht vergeben: ' . $e->getMessage());
+    }
+} else {
+    skip('contract_uploader Rolle bereits vorhanden');
+}
+
+// ============================================================
 // ABSCHLUSS – Tabellenstatus
 // ============================================================
 sect('Status aller Tabellen');
@@ -647,6 +741,7 @@ $tables = [
     'users','user_roles','customers','customer_checklists','customer_files','projects','shoot_days',
     'todos','todo_assignees','todo_seen','vacations',
     'project_files','activity_log','app_config',
+    'notifications','contracts','contract_comments',
 ];
 $allOk = true;
 foreach ($tables as $t) {
