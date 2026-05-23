@@ -53,7 +53,7 @@ declare(strict_types=1);
             http_response_code(500);
             header('Content-Type: application/json; charset=utf-8');
         }
-        echo json_encode(['success' => false, 'error' => 'Interner Serverfehler.']);
+        echo json_encode(['ok' => false, 'success' => false, 'error' => 'Interner Serverfehler.']);
         exit;
     });
 
@@ -90,7 +90,7 @@ function json_ok($data = [], int $code = 200): void
     http_response_code($code);
     json_headers();
     echo json_encode(
-        ['success' => true, 'data' => $data],
+        ['ok' => true, 'success' => true, 'data' => $data],
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
     );
     exit;
@@ -100,7 +100,7 @@ function json_err(int $code, string $msg, $extra = null): void
 {
     http_response_code($code);
     json_headers();
-    $payload = ['success' => false, 'error' => $msg];
+    $payload = ['ok' => false, 'success' => false, 'error' => $msg];
     if ($extra !== null) {
         $payload['extra'] = $extra;
     }
