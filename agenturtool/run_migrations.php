@@ -95,6 +95,10 @@ step($pdo, "project_files.kind ENUM aktualisieren",
     "ALTER TABLE project_files MODIFY COLUMN kind ENUM('script','contract','correction','other','rohmaterial','fertigstellung') NOT NULL DEFAULT 'other'",
     $results);
 
+// ── 4b. shoot_days: rescheduled_from Spalte ──────────────────────────────────
+addCol($pdo, 'shoot_days', 'rescheduled_from',
+    "ALTER TABLE shoot_days ADD COLUMN rescheduled_from DATE NULL", $results);
+
 // ── 5. contracts Tabelle ──────────────────────────────────────────────────────
 if (!tableExists($pdo, 'contracts')) {
     step($pdo, "contracts: Tabelle anlegen",

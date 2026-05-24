@@ -1752,6 +1752,17 @@
   .month-day-bg.is-shoot { background: rgba(167,139,250,0.06); }
   .month-day-bg.is-shoot.today { background: rgba(255,69,58,0.04); border-left: 3px solid #a78bfa; }
 
+  /* Verschobener Drehtag: alter Termin grau gestrichelt */
+  .month-day-bg.is-rescheduled {
+    background: repeating-linear-gradient(135deg, transparent, transparent 5px, rgba(140,140,140,0.09) 5px, rgba(140,140,140,0.09) 10px) !important;
+    border: 1px dashed rgba(180,180,180,0.3);
+  }
+  .ical-day-head.is-rescheduled .ical-dname,
+  .ical-day-head.is-rescheduled .ical-dnum { color: rgba(180,180,180,0.45); text-decoration: line-through; }
+  .ical-cat-bg.is-rescheduled {
+    background: repeating-linear-gradient(135deg, transparent, transparent 5px, rgba(140,140,140,0.06) 5px, rgba(140,140,140,0.06) 10px);
+  }
+
   .ical-cat-label {
     grid-column: 1;
     position: sticky;
@@ -5841,7 +5852,7 @@ async function saveShootDay(e, shootDayId) {
     return;
   }
 
-  // Snapshot für Rollback
+  let rescheduledFrom = null;
   let prevEntry = null;
   let insertedId = null;
 
@@ -5849,16 +5860,21 @@ async function saveShootDay(e, shootDayId) {
     const idx = store.shootDays.findIndex(s => s.id === shootDayId);
     if (idx >= 0) {
       prevEntry = { ...store.shootDays[idx] };
-      store.shootDays[idx] = { ...store.shootDays[idx], ...data };
+      if (prevEntry.date && prevEntry.date !== data.date) rescheduledFrom = prevEntry.date;
+      store.shootDays[idx] = { ...prevEntry, ...data, rescheduledFrom: rescheduledFrom ?? prevEntry.rescheduledFrom ?? null };
     }
   } else {
     insertedId = uid('sd');
-    store.shootDays.push({ id: insertedId, ...data, createdAt: new Date().toISOString() });
+    store.shootDays.push({ id: insertedId, ...data, rescheduledFrom: null, createdAt: new Date().toISOString() });
   }
 
   closeModal();
   renderPage();
-  showToast('Drehtag gespeichert', fmtDate(data.date) + ' · ' + data.startTime + '–' + data.endTime);
+  if (rescheduledFrom) {
+    showToast('Drehtag verschoben', 'Von ' + fmtDate(rescheduledFrom) + ' auf ' + fmtDate(data.date) + ' – Kunde wird benachrichtigt.');
+  } else {
+    showToast('Drehtag gespeichert', fmtDate(data.date) + ' · ' + data.startTime + '–' + data.endTime);
+  }
 
   // Direkt in DB schreiben
   try {
@@ -5866,7 +5882,7 @@ async function saveShootDay(e, shootDayId) {
       ? `${API_BASE}/shootdays.php?id=${encodeURIComponent(shootDayId)}`
       : `${API_BASE}/shootdays.php`;
     const method = shootDayId ? 'PUT' : 'POST';
-    const payload = shootDayId ? data : { ...data, id: insertedId };
+    const payload = shootDayId ? { ...data, rescheduledFrom } : { ...data, id: insertedId, rescheduledFrom: null };
     const res = await fetch(url, {
       method,
       credentials: 'same-origin',
@@ -8047,6 +8063,10 @@ function renderMonthViewInto(elementId, session, mini = false) {
 
   // Drehtage aus store.shootDays (nur explizit eingetragene Drehtage)
   const shootDates = new Set((store.shootDays || []).map(s => s.date));
+  // Verschobene Drehtage: alte Termine grau gestrichelt anzeigen
+  const rescheduledDates = new Set(
+    (store.shootDays || []).filter(s => s.rescheduledFrom).map(s => s.rescheduledFrom)
+  );
 
   // Build weeks
   const weeks = [];
@@ -8063,7 +8083,8 @@ function renderMonthViewInto(elementId, session, mini = false) {
         firstOfMonth: d.getDate() === 1,
         month: d.getMonth(),
         year: d.getFullYear(),
-        isShoot: shootDates.has(dateStr)
+        isShoot: shootDates.has(dateStr),
+        isRescheduled: !shootDates.has(dateStr) && rescheduledDates.has(dateStr)
       });
     }
     weeks.push(cells);
@@ -8124,7 +8145,7 @@ function renderMonthViewInto(elementId, session, mini = false) {
           return `
             <div class="month-week-row" data-week-start="${weekStart}">
               ${week.map((cell, idx) => `
-                <div class="month-day-bg ${cell.dateStr === todayStr ? 'today' : ''} ${cell.isShoot ? 'is-shoot' : ''}" style="grid-column: ${idx+1};"></div>
+                <div class="month-day-bg ${cell.dateStr === todayStr ? 'today' : ''} ${cell.isShoot ? 'is-shoot' : ''} ${cell.isRescheduled ? 'is-rescheduled' : ''}" style="grid-column: ${idx+1};"></div>
               `).join('')}
               ${week.map((cell, idx) => {
                 const showMonth = cell.firstOfMonth || (idx === 0 && week.findIndex(c => c.firstOfMonth) === -1 && weeks.indexOf(week) === 0);
@@ -8301,6 +8322,10 @@ function renderCategoryWeekView(elementId, session, mini = false) {
 
   // Alle eingetragenen Drehtage sammeln (nur aus store.shootDays – nicht aus Projekt.shootDate)
   const shootDates = new Set((store.shootDays || []).map(s => s.date));
+  // Verschobene Drehtage: alte Termine grau gestrichelt
+  const rescheduledDates = new Set(
+    (store.shootDays || []).filter(s => s.rescheduledFrom).map(s => s.rescheduledFrom)
+  );
 
   const days = [];
   for (let i = 0; i < totalDays; i++) {
@@ -8313,7 +8338,8 @@ function renderCategoryWeekView(elementId, session, mini = false) {
       wdName: dayNames[(d.getDay() + 6) % 7],
       isToday: dateStr === todayStr,
       isWeekend: d.getDay() === 0 || d.getDay() === 6,
-      isShoot: shootDates.has(dateStr)
+      isShoot: shootDates.has(dateStr),
+      isRescheduled: !shootDates.has(dateStr) && rescheduledDates.has(dateStr)
     });
   }
 
@@ -8414,7 +8440,7 @@ function renderCategoryWeekView(elementId, session, mini = false) {
           <div class="ical-corner"></div>
           <!-- Day headers (Drehtag-Info steckt in der eigenen Drehtag-Lane unten) -->
           ${days.map((d, i) => `
-            <div class="ical-day-head ${d.isToday ? 'today' : ''} ${d.isShoot ? 'is-shoot' : ''}" style="grid-column:${i+2}; grid-row:1;">
+            <div class="ical-day-head ${d.isToday ? 'today' : ''} ${d.isShoot ? 'is-shoot' : ''} ${d.isRescheduled ? 'is-rescheduled' : ''}" style="grid-column:${i+2}; grid-row:1;">
               <div class="ical-dname">${d.wdName} · ${d.monthShort}</div>
               <div class="ical-dnum">${d.num}</div>
             </div>
@@ -8427,7 +8453,7 @@ function renderCategoryWeekView(elementId, session, mini = false) {
             const bgCells = [];
             for (let r = 0; r < c.lanes; r++) {
               days.forEach((d, i) => {
-                bgCells.push(`<div class="ical-cat-bg ${d.isToday ? 'today' : ''} ${altCat} ${d.isShoot ? 'is-shoot' : ''}" style="grid-column:${i+2}; grid-row:${c.start + r};"></div>`);
+                bgCells.push(`<div class="ical-cat-bg ${d.isToday ? 'today' : ''} ${altCat} ${d.isShoot ? 'is-shoot' : ''} ${d.isRescheduled ? 'is-rescheduled' : ''}" style="grid-column:${i+2}; grid-row:${c.start + r};"></div>`);
               });
             }
             const eventsHtml = c.items.map(b => {
@@ -10829,9 +10855,9 @@ function renderNotificationsCard() {
 
 function renderProjectFilesSection(project, session) {
   const user = session.user;
-  const isAdmin    = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
-  const canUploadRaw = isAdmin;
-  const isCutter   = hasRole(user, ROLES.CUTTER) || isAdmin;
+  const isAdmin      = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  const canUploadRaw = isAdmin || hasRole(user, ROLES.VIDEOGRAF);
+  const isCutter     = hasRole(user, ROLES.CUTTER) || isAdmin;
   const files = project.files || [];
 
   const rohmaterial = files.filter(f => f.kind === 'rohmaterial');

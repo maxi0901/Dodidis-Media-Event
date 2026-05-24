@@ -52,7 +52,7 @@ if ($scope === 'avatar') {
     }
 } elseif ($scope === 'project') {
     if ($kind === 'rohmaterial') {
-        if (!has_role('admin', 'manager')) {
+        if (!has_role('admin', 'manager', 'videograf')) {
             json_err(403, 'Keine Berechtigung.');
         }
     } elseif ($kind === 'fertigstellung') {
@@ -107,8 +107,11 @@ if ($scope === 'project') {
     if (!$proj) json_err(404, 'Projekt nicht gefunden.');
 
     if (!has_role('admin', 'manager')) {
-        $uid = (int)$session['uid'];
-        if ($kind === 'fertigstellung' && (int)($proj['cutter_id'] ?? 0) !== $uid) {
+        $uid = $session['uid'];
+        if ($kind === 'rohmaterial' && ($proj['videograf_id'] ?? null) !== $uid) {
+            json_err(403, 'Keine Berechtigung für dieses Projekt.');
+        }
+        if ($kind === 'fertigstellung' && ($proj['cutter_id'] ?? null) !== $uid) {
             json_err(403, 'Keine Berechtigung für dieses Projekt.');
         }
     }
