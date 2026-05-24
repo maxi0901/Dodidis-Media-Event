@@ -877,6 +877,7 @@
   .badge-korrektur { color: #ff453a; background: rgba(255,69,58,0.12); border-color: rgba(255,69,58,0.3); }
   .badge-freigegeben { color: #2dd4bf; background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.25); }
   .badge-archiviert { color: #6b7280; background: rgba(107,114,128,0.1); border-color: rgba(107,114,128,0.2); }
+  .badge-ueberfaellig { color: #ff453a; background: rgba(255,69,58,0.12); border-color: rgba(255,69,58,0.3); }
 
   .badge-role-admin { color: #ff453a; background: rgba(255,69,58,0.1); border-color: rgba(255,69,58,0.2); }
   .badge-role-manager { color: #2dd4bf; background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.25); }
@@ -3642,6 +3643,8 @@ const STATUS_LABELS = {
   freigegeben: 'Freigegeben',
   archiviert: 'Archiviert'
 };
+function statusLabel(s) { return STATUS_LABELS[s] ?? 'Überfällig'; }
+function statusCls(s)   { return STATUS_LABELS[s] ? s : 'ueberfaellig'; }
 
 const ROLE_LABELS = {
   admin: 'Admin',
@@ -5355,7 +5358,7 @@ function renderProjects(session) {
       <tr style="cursor:pointer" onclick="openProjectModal('${p.id}')">
         <td><strong>${escape(p.title)}</strong></td>
         <td>${customerCell}</td>
-        <td><span class="badge badge-${p.status}">${STATUS_LABELS[p.status]}</span></td>
+        <td><span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span></td>
         <td>${escape(vg?.name || '–')}</td>
         <td>${escape(ct?.name || '–')}</td>
         <td>${fmtDate(p.deadline)}</td>
@@ -5833,7 +5836,7 @@ function openShootDayModal(shootDayId = null) {
                         <div style="font-size:13px; font-weight:600;">${escape(p.title)}</div>
                         <div class="text-sm text-muted">${escape(c?.name || (p.isInternal ? 'Intern' : '–'))}</div>
                       </div>
-                      <span class="badge badge-${p.status}">${STATUS_LABELS[p.status]}</span>
+                      <span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span>
                     </div>
                   `;
                 }).join('')}
@@ -6057,7 +6060,7 @@ function openProjectModal(projectId = null) {
           <div class="modal-body">
             ${!isNew ? `
               <div class="info-box">
-                <strong>Status:</strong> <span class="badge badge-${project.status}">${STATUS_LABELS[project.status]}</span>
+                <strong>Status:</strong> <span class="badge badge-${statusCls(project.status)}">${statusLabel(project.status)}</span>
                 ${project.isInternal ? `<span class="badge" style="background: rgba(100,210,255,0.12); color: #64d2ff; border: 1px solid rgba(100,210,255,0.25); margin-left:6px;">Intern</span>` : ''}
                 ${statusActions ? `<div style="margin-top:10px;">${statusActions}</div>` : ''}
               </div>
@@ -6276,7 +6279,35 @@ function getStatusActions(project, session) {
   if (project.status === STATUS.FREIGEGEBEN && canActOnProject(project, session, 'archive')) {
     buttons.push(`<button class="btn btn-secondary btn-sm" onclick="archiveProject('${project.id}')">→ Archivieren</button>`);
   }
+  // Admin: Status manuell setzen wenn unbekannt/leer
+  if (!STATUS_LABELS[project.status] && isAdmin) {
+    const opts = Object.entries(STATUS_LABELS)
+      .filter(([k]) => k !== STATUS.ARCHIVIERT)
+      .map(([k,v]) => `<option value="${k}">${v}</option>`)
+      .join('');
+    buttons.push(`<select class="btn btn-sm btn-secondary" style="cursor:pointer;" onchange="setProjectStatus('${project.id}', this.value)"><option value="">Status setzen…</option>${opts}</select>`);
+  }
   return buttons.join(' ');
+}
+
+async function setProjectStatus(id, status) {
+  if (!status) return;
+  const p = store.projects.find(x => x.id === id);
+  if (!p) return;
+  p.status = status;
+  closeModal();
+  renderPage();
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+      body: JSON.stringify({ status })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    await pullAllFromCloud();
+  } catch(e) {
+    appAlert('Status konnte nicht gespeichert werden: ' + e.message);
+  }
 }
 
 async function cutterRevert(projectId, targetStatus) {
@@ -6359,7 +6390,7 @@ async function openProjectViewerModal(project) {
           <div class="cutter-status-bar">
             <div class="status-row">
               <span class="status-label">Status</span>
-              <span class="badge badge-${project.status}">${STATUS_LABELS[project.status]}</span>
+              <span class="badge badge-${statusCls(project.status)}">${statusLabel(project.status)}</span>
             </div>
             ${statusActions ? `<div class="cutter-action-row">${statusActions}</div>` : ''}
           </div>
@@ -7758,7 +7789,7 @@ function renderArchive(session) {
               <tr style="cursor:pointer" onclick="openProjectModal('${p.id}')">
                 <td><strong>${escape(p.title)}</strong></td>
                 <td>${escape(c?.name || '–')}</td>
-                <td><span class="badge badge-${p.status}">${STATUS_LABELS[p.status]}</span></td>
+                <td><span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span></td>
                 <td>${escape(ct?.name || '–')}</td>
                 <td>${fmtDate(p.postingDate)}</td>
                 <td><code style="font-size:11px;">${c ? escape(generateFolderName(c, p)) : ''}</code></td>
@@ -9837,7 +9868,7 @@ function renderCustomerOverview(session) {
             ${upcoming.map(p => `
               <tr>
                 <td><strong>${escape(p.title)}</strong></td>
-                <td><span class="badge badge-${p.status}">${STATUS_LABELS[p.status]}</span></td>
+                <td><span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span></td>
                 <td>${fmtDate(p.shootDate)}</td>
                 <td>${fmtDate(p.postingDate)} · 18:00</td>
               </tr>
@@ -9876,7 +9907,7 @@ function renderCustomerOverview(session) {
             ${finished.map(p => `
               <tr>
                 <td><strong>${escape(p.title)}</strong></td>
-                <td><span class="badge badge-${p.status}">${STATUS_LABELS[p.status]}</span></td>
+                <td><span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span></td>
                 <td>${fmtDate(p.postingDate)}</td>
               </tr>
             `).join('')}
@@ -10695,7 +10726,7 @@ function generateICS(forUser = null) {
       `Kunde: ${customerLabel}`,
       `Videograf: ${vg?.name || '–'}`,
       `Cutter: ${ct?.name || '–'}`,
-      `Status: ${STATUS_LABELS[p.status]}`,
+      `Status: ${statusLabel(p.status)}`,
       p.script ? `Skript: ${p.script}` : null
     ].filter(Boolean).join('\\n');
 
