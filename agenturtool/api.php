@@ -130,14 +130,15 @@ function vacation_to_doc(array $v): array
 function shootday_to_doc(array $s): array
 {
     return [
-        'id'          => (string)$s['id'],
-        'date'        => $s['date'],
-        'startTime'   => $s['start_time'],
-        'endTime'     => $s['end_time'],
-        'videografId' => $s['videograf_id'],
-        'customerId'  => $s['customer_id'],
-        'note'        => $s['note'] ?? '',
-        'createdAt'   => $s['created_at'],
+        'id'              => (string)$s['id'],
+        'date'            => $s['date'],
+        'startTime'       => $s['start_time'],
+        'endTime'         => $s['end_time'],
+        'videografId'     => $s['videograf_id'],
+        'customerId'      => $s['customer_id'],
+        'note'            => $s['note'] ?? '',
+        'rescheduledFrom' => $s['rescheduled_from'] ?? null,
+        'createdAt'       => $s['created_at'],
     ];
 }
 
@@ -433,23 +434,42 @@ if ($action === 'push') {
         if (!empty($upserts['shoot_days']) && is_array($upserts['shoot_days'])) {
             if (!$isManager) json_err(403, 'Keine Berechtigung.');
             $stmtSD = $pdo->prepare(
-                "INSERT INTO shoot_days (id, date, start_time, end_time, videograf_id, customer_id, note)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)
+                "INSERT INTO shoot_days (id, date, start_time, end_time, videograf_id, customer_id, note, rescheduled_from)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                  ON DUPLICATE KEY UPDATE
+                    rescheduled_from = IF(date <> VALUES(date), date, rescheduled_from),
                     date = VALUES(date), start_time = VALUES(start_time), end_time = VALUES(end_time),
                     videograf_id = VALUES(videograf_id), customer_id = VALUES(customer_id), note = VALUES(note)"
             );
             foreach ($upserts['shoot_days'] as $s) {
                 if (!isset($s['id'], $s['data']) || !is_array($s['data'])) continue;
                 $d = $s['data'];
+                $newDate   = as_date($d['date'] ?? null) ?? '1970-01-01';
+                $customerId = !empty($d['customerId']) ? (string)$d['customerId'] : null;
+
+                // Datum-Änderung erkennen → Kundenbenachrichtigung eintragen
+                $existing = db_one("SELECT date, customer_id FROM shoot_days WHERE id = ?", [(string)$s['id']]);
+                if ($existing && $existing['date'] !== $newDate) {
+                    $notifCustomerId = $customerId ?? $existing['customer_id'];
+                    if ($notifCustomerId) {
+                        $pdo->prepare(
+                            "INSERT INTO notifications (user_id, type, title, body, ref_id, ref_type)
+                             VALUES (?, 'shoot_day_rescheduled', 'Drehtag verschoben',
+                                     CONCAT('Ihr Drehtag am ', ?, ' wurde auf ', ?, ' verschoben.'),
+                                     ?, 'shootDay')"
+                        )->execute([$notifCustomerId, $existing['date'], $newDate, (string)$s['id']]);
+                    }
+                }
+
                 $stmtSD->execute([
                     (string)$s['id'],
-                    as_date($d['date'] ?? null) ?? '1970-01-01',
+                    $newDate,
                     as_time($d['startTime'] ?? null),
                     as_time($d['endTime']   ?? null),
                     !empty($d['videografId']) ? (string)$d['videografId'] : null,
-                    !empty($d['customerId'])  ? (string)$d['customerId']  : null,
+                    $customerId,
                     !empty($d['note']) ? (string)$d['note'] : null,
+                    !empty($d['rescheduledFrom']) ? (string)$d['rescheduledFrom'] : null,
                 ]);
             }
         }

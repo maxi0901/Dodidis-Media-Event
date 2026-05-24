@@ -11,7 +11,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_err(405, 'POST erwartet.');
 }
 require_csrf();
-require_role('admin', 'manager');
 
 $cfg = require __DIR__ . '/../config.php';
 
@@ -30,8 +29,29 @@ $scope = $_GET['scope'] ?? 'project';
 $kind  = $_GET['kind']  ?? 'other';
 $refId = $_GET['id']    ?? '';
 
-if (!in_array($kind, ['script','contract','correction','other','avatar'], true)) {
+$validKinds = ['script','contract','correction','other','avatar','rohmaterial','fertigstellung'];
+if (!in_array($kind, $validKinds, true)) {
     json_err(400, 'Ungültiger kind-Parameter.');
+}
+
+// Rollen-Prüfung: abhängig von kind
+if ($kind === 'rohmaterial') {
+    if (!has_role('admin', 'manager', 'videograf')) {
+        json_err(403, 'Keine Berechtigung für Rohmaterial-Upload.');
+    }
+} elseif ($kind === 'fertigstellung') {
+    if (!has_role('admin', 'manager', 'cutter')) {
+        json_err(403, 'Keine Berechtigung für Fertigstellung-Upload.');
+    }
+} elseif ($scope === 'avatar') {
+    if (!has_role('admin', 'manager')) {
+        json_err(403, 'Keine Berechtigung.');
+    }
+} else {
+    // script, contract, correction, other
+    if (!has_role('admin', 'manager')) {
+        json_err(403, 'Keine Berechtigung.');
+    }
 }
 
 // MIME über finfo verifizieren (Browser-Header sind nicht vertrauenswürdig)

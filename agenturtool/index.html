@@ -1663,6 +1663,17 @@
   .month-day-bg.is-shoot { background: rgba(167,139,250,0.06); }
   .month-day-bg.is-shoot.today { background: rgba(255,69,58,0.04); border-left: 3px solid #a78bfa; }
 
+  /* Verschobener Drehtag: alter Termin grau gestrichelt */
+  .month-day-bg.is-rescheduled {
+    background: repeating-linear-gradient(135deg, transparent, transparent 5px, rgba(140,140,140,0.09) 5px, rgba(140,140,140,0.09) 10px) !important;
+    border: 1px dashed rgba(180,180,180,0.3);
+  }
+  .ical-day-head.is-rescheduled .ical-dname,
+  .ical-day-head.is-rescheduled .ical-dnum { color: rgba(180,180,180,0.45); text-decoration: line-through; }
+  .ical-cat-bg.is-rescheduled {
+    background: repeating-linear-gradient(135deg, transparent, transparent 5px, rgba(140,140,140,0.06) 5px, rgba(140,140,140,0.06) 10px);
+  }
+
   .ical-cat-label {
     grid-column: 1;
     position: sticky;
@@ -5203,17 +5214,28 @@ function saveShootDay(e, shootDayId) {
     return;
   }
 
+  let rescheduledFrom = null;
   if (shootDayId) {
     const idx = store.shootDays.findIndex(s => s.id === shootDayId);
-    if (idx >= 0) store.shootDays[idx] = { ...store.shootDays[idx], ...data };
+    if (idx >= 0) {
+      const prev = store.shootDays[idx];
+      if (prev.date && prev.date !== data.date) {
+        rescheduledFrom = prev.date;
+      }
+      store.shootDays[idx] = { ...prev, ...data, rescheduledFrom: rescheduledFrom ?? prev.rescheduledFrom ?? null };
+    }
   } else {
-    store.shootDays.push({ id: uid('sd'), ...data, createdAt: new Date().toISOString() });
+    store.shootDays.push({ id: uid('sd'), ...data, rescheduledFrom: null, createdAt: new Date().toISOString() });
   }
   saveStore();
   writeLiveICS();
   closeModal();
   renderPage();
-  showToast('Drehtag gespeichert', fmtDate(data.date) + ' · ' + data.startTime + '–' + data.endTime);
+  if (rescheduledFrom) {
+    showToast('Drehtag verschoben', 'Von ' + fmtDate(rescheduledFrom) + ' auf ' + fmtDate(data.date) + ' – bitte Kunden informieren.');
+  } else {
+    showToast('Drehtag gespeichert', fmtDate(data.date) + ' · ' + data.startTime + '–' + data.endTime);
+  }
 }
 
 async function deleteShootDay(shootDayId) {
@@ -5534,9 +5556,15 @@ async function cutterRevert(projectId, targetStatus) {
 }
 
 /* Reines Read-Only-Modal für Cutter, Videografen und Mitarbeiter – ohne Form-Inputs */
-function openProjectViewerModal(project) {
+async function openProjectViewerModal(project) {
   const session = getCurrentUser();
   const user = session.user;
+  // Projektdateien nachladen (werden nicht im globalen Store gespeichert)
+  try {
+    const r = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(project.id)}`, { credentials: 'same-origin' });
+    const j = await r.json();
+    if (j.ok && j.data) project = { ...project, ...j.data };
+  } catch { /* kein Netz – zeige Projekt ohne Dateien */ }
   const c = store.customers.find(x => x.id === project.customerId);
   const vg = store.users.find(u => u.id === project.videografId);
   const ct = store.users.find(u => u.id === project.cutterId);
@@ -5641,6 +5669,8 @@ function openProjectViewerModal(project) {
             </div>
           ` : ''}
 
+          ${renderProjectFilesSection(project, session)}
+
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-ghost" onclick="closeModal()">Schließen</button>
@@ -5649,6 +5679,97 @@ function openProjectViewerModal(project) {
     </div>
   `;
   $('#modal-container').innerHTML = html;
+}
+
+function renderProjectFilesSection(project, session) {
+  const user = session.user;
+  const isAdmin    = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  const isVideograf = hasRole(user, ROLES.VIDEOGRAF) || isAdmin;
+  const isCutter   = hasRole(user, ROLES.CUTTER) || isAdmin;
+  const files = project.files || [];
+
+  const rohmaterial = files.filter(f => f.kind === 'rohmaterial');
+  const fertig      = files.filter(f => f.kind === 'fertigstellung');
+
+  const canUploadRohmaterial = hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF);
+  const canSeeRohmaterial    = canUploadRohmaterial || hasRole(user, ROLES.CUTTER);
+  const canUploadFertig      = hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CUTTER);
+
+  function fileRow(f) {
+    const icon = f.mime?.startsWith('video/') ? '🎞️' : f.mime?.startsWith('image/') ? '🖼️' : '📄';
+    const size = f.size ? (f.size > 1048576 ? (f.size/1048576).toFixed(1) + ' MB' : Math.round(f.size/1024) + ' KB') : '';
+    const url = f.path?.startsWith('/') ? f.path : (f.path || '');
+    return `
+      <div class="file-uploaded">
+        <span style="font-size:16px;">${icon}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(f.filename || f.path || '–')}</div>
+          ${size ? `<div style="font-size:11px;color:var(--text-3);">${size}</div>` : ''}
+        </div>
+        <a class="btn btn-secondary btn-sm" href="${url}" target="_blank" rel="noopener">Öffnen</a>
+      </div>
+    `;
+  }
+
+  let html = '';
+
+  if (canSeeRohmaterial) {
+    html += `
+      <div style="margin-top:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="cutter-detail-label">Rohmaterial</div>
+          ${canUploadRohmaterial ? `<button type="button" class="btn btn-secondary btn-sm" onclick="uploadProjectFile('rohmaterial','${project.id}')">+ Hochladen</button>` : ''}
+        </div>
+        ${rohmaterial.length ? rohmaterial.map(fileRow).join('') : '<div class="text-sm text-muted">Noch kein Rohmaterial hochgeladen.</div>'}
+      </div>
+    `;
+  }
+
+  if (canUploadFertig || fertig.length > 0) {
+    html += `
+      <div style="margin-top:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="cutter-detail-label">Fertigstellung</div>
+          ${canUploadFertig ? `<button type="button" class="btn btn-secondary btn-sm" onclick="uploadProjectFile('fertigstellung','${project.id}')">+ Hochladen</button>` : ''}
+        </div>
+        ${fertig.length ? fertig.map(fileRow).join('') : '<div class="text-sm text-muted">Noch keine Fertigstellung hochgeladen.</div>'}
+      </div>
+    `;
+  }
+
+  return html;
+}
+
+async function uploadProjectFile(kind, projectId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = kind === 'fertigstellung' || kind === 'rohmaterial'
+    ? 'video/*,.mp4,.mov,.avi,.webm'
+    : '*/*';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.onchange = async (e) => {
+    document.body.removeChild(input);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    showToast('Wird hochgeladen…', file.name);
+    try {
+      const res = await fetch(
+        `${API_BASE}/upload.php?scope=project&kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(projectId)}`,
+        { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF }, body: fd }
+      );
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Upload fehlgeschlagen');
+      showToast('Hochgeladen', 'Datei erfolgreich gespeichert.');
+      const project = store.projects.find(p => p.id === projectId);
+      if (project) openProjectViewerModal(project);
+    } catch (err) {
+      showToast('Fehler', err.message);
+    }
+  };
+  input.click();
 }
 
 function saveProject(e, projectId) {
@@ -7069,6 +7190,10 @@ function renderMonthViewInto(elementId, session, mini = false) {
 
   // Drehtage aus store.shootDays (nur explizit eingetragene Drehtage)
   const shootDates = new Set((store.shootDays || []).map(s => s.date));
+  // Verschobene Drehtage: alte Termine grau gestrichelt anzeigen
+  const rescheduledDates = new Set(
+    (store.shootDays || []).filter(s => s.rescheduledFrom).map(s => s.rescheduledFrom)
+  );
 
   // Build weeks
   const weeks = [];
@@ -7085,7 +7210,8 @@ function renderMonthViewInto(elementId, session, mini = false) {
         firstOfMonth: d.getDate() === 1,
         month: d.getMonth(),
         year: d.getFullYear(),
-        isShoot: shootDates.has(dateStr)
+        isShoot: shootDates.has(dateStr),
+        isRescheduled: !shootDates.has(dateStr) && rescheduledDates.has(dateStr)
       });
     }
     weeks.push(cells);
@@ -7145,7 +7271,7 @@ function renderMonthViewInto(elementId, session, mini = false) {
           return `
             <div class="month-week-row" data-week-start="${weekStart}">
               ${week.map((cell, idx) => `
-                <div class="month-day-bg ${cell.dateStr === todayStr ? 'today' : ''} ${cell.isShoot ? 'is-shoot' : ''}" style="grid-column: ${idx+1};"></div>
+                <div class="month-day-bg ${cell.dateStr === todayStr ? 'today' : ''} ${cell.isShoot ? 'is-shoot' : ''} ${cell.isRescheduled ? 'is-rescheduled' : ''}" style="grid-column: ${idx+1};"></div>
               `).join('')}
               ${week.map((cell, idx) => {
                 const showMonth = cell.firstOfMonth || (idx === 0 && week.findIndex(c => c.firstOfMonth) === -1 && weeks.indexOf(week) === 0);
@@ -7322,6 +7448,10 @@ function renderCategoryWeekView(elementId, session, mini = false) {
 
   // Alle eingetragenen Drehtage sammeln (nur aus store.shootDays – nicht aus Projekt.shootDate)
   const shootDates = new Set((store.shootDays || []).map(s => s.date));
+  // Verschobene Drehtage: alte Termine grau gestrichelt
+  const rescheduledDates = new Set(
+    (store.shootDays || []).filter(s => s.rescheduledFrom).map(s => s.rescheduledFrom)
+  );
 
   const days = [];
   for (let i = 0; i < totalDays; i++) {
@@ -7334,7 +7464,8 @@ function renderCategoryWeekView(elementId, session, mini = false) {
       wdName: dayNames[(d.getDay() + 6) % 7],
       isToday: dateStr === todayStr,
       isWeekend: d.getDay() === 0 || d.getDay() === 6,
-      isShoot: shootDates.has(dateStr)
+      isShoot: shootDates.has(dateStr),
+      isRescheduled: !shootDates.has(dateStr) && rescheduledDates.has(dateStr)
     });
   }
 
@@ -7433,7 +7564,7 @@ function renderCategoryWeekView(elementId, session, mini = false) {
           <div class="ical-corner"></div>
           <!-- Day headers (Drehtag-Info steckt in der eigenen Drehtag-Lane unten) -->
           ${days.map((d, i) => `
-            <div class="ical-day-head ${d.isToday ? 'today' : ''} ${d.isShoot ? 'is-shoot' : ''}" style="grid-column:${i+2}; grid-row:1;">
+            <div class="ical-day-head ${d.isToday ? 'today' : ''} ${d.isShoot ? 'is-shoot' : ''} ${d.isRescheduled ? 'is-rescheduled' : ''}" style="grid-column:${i+2}; grid-row:1;">
               <div class="ical-dname">${d.wdName} · ${d.monthShort}</div>
               <div class="ical-dnum">${d.num}</div>
             </div>
@@ -7446,7 +7577,7 @@ function renderCategoryWeekView(elementId, session, mini = false) {
             const bgCells = [];
             for (let r = 0; r < c.lanes; r++) {
               days.forEach((d, i) => {
-                bgCells.push(`<div class="ical-cat-bg ${d.isToday ? 'today' : ''} ${altCat} ${d.isShoot ? 'is-shoot' : ''}" style="grid-column:${i+2}; grid-row:${c.start + r};"></div>`);
+                bgCells.push(`<div class="ical-cat-bg ${d.isToday ? 'today' : ''} ${altCat} ${d.isShoot ? 'is-shoot' : ''} ${d.isRescheduled ? 'is-rescheduled' : ''}" style="grid-column:${i+2}; grid-row:${c.start + r};"></div>`);
               });
             }
             const eventsHtml = c.items.map(b => {
@@ -8793,18 +8924,24 @@ function openTodoModal(todoId = null) {
 
             <div class="section-title">Verantwortliche (Mehrfachauswahl)</div>
             <div>
-              ${store.users.map(u => `
-                <label class="checkbox-row" for="todo-assignee-${u.id}">
-                  <input type="checkbox" id="todo-assignee-${u.id}" name="assignee_${u.id}" ${currentAssignees.includes(u.id) ? 'checked' : ''} ${!canEdit ? 'disabled' : ''} />
-                  <div class="checkbox-content">
-                    <div class="checkbox-title" style="display:flex; align-items:center; gap:8px;">
-                      ${renderAvatar(u, 22, 10)}
-                      ${escape(u.name)}
+              ${(() => {
+                const isCutterOnly = hasRole(user, ROLES.CUTTER) && !hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+                const assignableUsers = isCutterOnly
+                  ? store.users.filter(u => (u.roles || []).some(r => r === 'admin' || r === 'manager'))
+                  : store.users;
+                return assignableUsers.map(u => `
+                  <label class="checkbox-row" for="todo-assignee-${u.id}">
+                    <input type="checkbox" id="todo-assignee-${u.id}" name="assignee_${u.id}" ${currentAssignees.includes(u.id) ? 'checked' : ''} ${!canEdit ? 'disabled' : ''} />
+                    <div class="checkbox-content">
+                      <div class="checkbox-title" style="display:flex; align-items:center; gap:8px;">
+                        ${renderAvatar(u, 22, 10)}
+                        ${escape(u.name)}
+                      </div>
+                      <div class="checkbox-desc">${escape(primaryRoleLabel(u))}</div>
                     </div>
-                    <div class="checkbox-desc">${escape(primaryRoleLabel(u))}</div>
-                  </div>
-                </label>
-              `).join('')}
+                  </label>
+                `).join('');
+              })()}
             </div>
 
             <div class="form-group" style="margin-top:18px;">

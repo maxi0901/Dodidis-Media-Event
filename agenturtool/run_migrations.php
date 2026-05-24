@@ -102,6 +102,28 @@ try {
 // ============================================================
 sect('Block A – Fehlende Tabellen');
 
+// notifications
+if (!tbl_exists($pdo, $db, 'notifications')) {
+    exec_sql($pdo, "
+        CREATE TABLE notifications (
+          id         BIGINT      NOT NULL AUTO_INCREMENT,
+          user_id    VARCHAR(64) NOT NULL,
+          type       VARCHAR(64) NOT NULL,
+          title      VARCHAR(255) NULL,
+          body       TEXT        NULL,
+          ref_id     VARCHAR(64) NULL,
+          ref_type   VARCHAR(32) NULL,
+          read_at    DATETIME    NULL,
+          created_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (id),
+          KEY idx_notif_user (user_id),
+          KEY idx_notif_created (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ", 'notifications erstellt');
+} else {
+    skip('notifications existiert bereits');
+}
+
 // activity_log
 if (!tbl_exists($pdo, $db, 'activity_log')) {
     exec_sql($pdo, "
@@ -270,6 +292,19 @@ if (!col_exists($pdo, $db, 'users', 'updated_at')) {
 // ============================================================
 sect('Block C – Spalten-Ergänzungen');
 
+// shoot_days.rescheduled_from (alter Drehtag bei Verschiebung)
+if (!col_exists($pdo, $db, 'shoot_days', 'rescheduled_from')) {
+    exec_sql($pdo, "ALTER TABLE shoot_days ADD COLUMN rescheduled_from DATE NULL DEFAULT NULL", 'shoot_days.rescheduled_from hinzugefügt');
+} else {
+    skip('shoot_days.rescheduled_from existiert bereits');
+}
+
+// project_files.kind ENUM erweitern (rohmaterial, fertigstellung)
+exec_sql($pdo, "
+    ALTER TABLE project_files MODIFY COLUMN kind
+    ENUM('script','contract','correction','other','avatar','rohmaterial','fertigstellung') NOT NULL DEFAULT 'other'
+", 'project_files.kind ENUM erweitert (rohmaterial, fertigstellung)');
+
 // customers.package_name (Umbenennung von package)
 if (!col_exists($pdo, $db, 'customers', 'package_name')) {
     exec_sql($pdo, "ALTER TABLE customers ADD COLUMN package_name VARCHAR(190) NULL DEFAULT NULL", 'customers.package_name hinzugefügt');
@@ -433,7 +468,7 @@ sect('Status aller Tabellen');
 $tables = [
     'users','user_roles','customers','customer_checklists','projects','shoot_days',
     'todos','todo_assignees','todo_seen','vacations',
-    'project_files','activity_log','app_config',
+    'project_files','activity_log','app_config','notifications',
 ];
 $allOk = true;
 foreach ($tables as $t) {
