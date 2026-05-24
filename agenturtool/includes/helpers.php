@@ -125,7 +125,7 @@ function log_err(string $msg, array $ctx = []): void
 function hydrate_user(string $userId): ?array
 {
     $nameCol = users_name_column();
-    $u = db_one("SELECT id, username, {$nameCol} AS name, email, avatar_color, avatar_image, calendar_prefs
+    $u = db_one("SELECT id, username, {$nameCol} AS name, email, avatar_color, avatar_image, calendar_prefs, calendar_token AS calendarToken
                  FROM users WHERE id = ?", [$userId]);
     if (!$u) return null;
     $roles = db_all("SELECT role_name FROM user_roles WHERE user_id = ?", [$userId]);

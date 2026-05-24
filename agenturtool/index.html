@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes" />
-<meta name="theme-color" content="#0a0b0f" />
+<meta name="theme-color" content="#0a0c10" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Dodidis Media" />
@@ -13,21 +13,21 @@
      DESIGN TOKENS – Modern Dark Theme
      ========================================= */
   :root {
-    /* Apple-inspired dark theme with turquoise accent */
-    --bg-0: #000000;
-    --bg-1: #0d0f12;
-    --bg-2: #151820;
-    --bg-3: #1c2029;
-    --bg-hover: #232833;
-    --border: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.14);
-    --text-1: #f5f5f7;
-    --text-2: #a1a1aa;
-    --text-3: #6b6b75;
-    --accent: #4aa198;
-    --accent-hover: #5fb5ac;
-    --accent-soft: rgba(74, 161, 152, 0.13);
-    --accent-glow: rgba(74, 161, 152, 0.32);
+    /* Dark theme with bright green accent */
+    --bg-0: #0a0b0f;
+    --bg-1: #0d0f14;
+    --bg-2: #141720;
+    --bg-3: #1b1e2a;
+    --bg-hover: #20243a;
+    --border: rgba(255, 255, 255, 0.07);
+    --border-strong: rgba(255, 255, 255, 0.13);
+    --text-1: #f0f2f5;
+    --text-2: #9aa0b2;
+    --text-3: #5e6577;
+    --accent: #00C896;
+    --accent-hover: #00d9a8;
+    --accent-soft: rgba(0, 200, 150, 0.12);
+    --accent-glow: rgba(0, 200, 150, 0.28);
     --success: #30d158;
     --warning: #ff9f0a;
     --danger: #ff453a;
@@ -82,13 +82,12 @@
   }
 
   .sidebar {
-    width: 252px;
-    background: rgba(13, 15, 18, 0.85);
-    backdrop-filter: var(--blur);
+    width: 240px;
+    background: #0a0c10;
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    padding: 24px 14px 20px;
+    padding: 20px 12px 20px;
     flex-shrink: 0;
   }
 
@@ -106,7 +105,7 @@
   .logo {
     width: 34px;
     height: 34px;
-    background: linear-gradient(135deg, #4aa198, #2e6e68);
+    background: linear-gradient(135deg, #00C896, #007a5c);
     border-radius: 9px;
     display: flex;
     align-items: center;
@@ -166,20 +165,25 @@
   }
 
   .nav-item.active {
-    background: var(--accent-soft);
-    color: var(--accent-hover);
+    background: rgba(0, 200, 150, 0.12);
+    color: var(--accent);
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--accent);
   }
-
   .nav-item .icon {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
+    opacity: 0.7;
+    transition: opacity 0.15s;
   }
+  .nav-item.active .icon,
+  .nav-item:hover .icon { opacity: 1; }
 
   .nav-badge {
     margin-left: auto;
     background: var(--accent);
-    color: #042f2e;
+    color: #002a1e;
     font-size: 10.5px;
     font-weight: 700;
     padding: 1px 7px;
@@ -399,17 +403,31 @@
     align-items: center;
     cursor: pointer;
     transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+  }
+  .cutter-card::before {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0; left: 0;
+    width: 4px;
+    border-radius: 0;
   }
   .cutter-card:hover {
     border-color: var(--border-strong);
     transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 6px 24px -6px rgba(0,0,0,0.5);
   }
-  .cutter-card.correction { border-left: 4px solid #ff453a; }
-  .cutter-card.ready { border-left: 4px solid #2dd4bf; }
-  .cutter-card.progress { border-left: 4px solid #fbbf24; }
-  .cutter-card.wait { border-left: 4px solid #64d2ff; opacity: 0.85; }
-  .cutter-card.done { border-left: 4px solid #6b7280; opacity: 0.7; }
+  .cutter-card.correction::before { background: #ff453a; }
+  .cutter-card.correction { background: linear-gradient(90deg, rgba(255,69,58,0.05) 0%, var(--bg-1) 40%); }
+  .cutter-card.ready::before { background: #2dd4bf; }
+  .cutter-card.ready { background: linear-gradient(90deg, rgba(45,212,191,0.05) 0%, var(--bg-1) 40%); }
+  .cutter-card.progress::before { background: #fbbf24; }
+  .cutter-card.progress { background: linear-gradient(90deg, rgba(251,191,36,0.05) 0%, var(--bg-1) 40%); }
+  .cutter-card.wait::before { background: #64d2ff; }
+  .cutter-card.wait { background: linear-gradient(90deg, rgba(100,210,255,0.04) 0%, var(--bg-1) 40%); opacity: 0.9; }
+  .cutter-card.done::before { background: #6b7280; }
+  .cutter-card.done { opacity: 0.65; }
 
   .cutter-card-main { flex: 1; min-width: 0; }
   .cutter-card-title {
@@ -510,20 +528,26 @@
 
   .user-card {
     margin-top: auto;
-    padding: 12px;
-    background: var(--bg-2);
-    border-radius: var(--radius);
+    padding: 11px 12px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 12px;
     display: flex;
     align-items: center;
     gap: 10px;
     border: 1px solid var(--border);
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  .user-card:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: var(--border-strong);
   }
 
   .avatar {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #4aa198, #2e6e68);
+    background: linear-gradient(135deg, #00C896, #007a5c);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -595,13 +619,14 @@
   }
 
   .topbar {
-    padding: 22px 36px;
+    padding: 16px 32px;
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    background: rgba(0,0,0,0.65);
+    gap: 16px;
+    background: rgba(10,11,16,0.88);
     backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
     position: sticky;
     top: 0;
     z-index: 10;
@@ -611,19 +636,19 @@
   }
 
   .page-title {
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 700;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.4px;
   }
 
   .page-subtitle {
-    font-size: 13px;
+    font-size: 12.5px;
     color: var(--text-3);
-    margin-top: 3px;
+    margin-top: 2px;
   }
 
   .content {
-    padding: 28px 36px 60px;
+    padding: 28px 32px 60px;
     min-width: 0;
     max-width: 100%;
     overflow-x: hidden;
@@ -649,14 +674,16 @@
 
   .btn-primary {
     background: var(--accent);
-    color: #042f2e;
-    font-weight: 600;
+    color: #002a1e;
+    font-weight: 700;
+    letter-spacing: -0.1px;
+    box-shadow: 0 2px 12px -4px rgba(0,200,150,0.35);
   }
 
   .btn-primary:hover {
     background: var(--accent-hover);
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px -6px var(--accent-glow);
+    box-shadow: 0 6px 24px -4px rgba(0,200,150,0.5);
   }
 
   .btn-secondary {
@@ -691,31 +718,62 @@
   .card {
     background: var(--bg-1);
     border: 1px solid var(--border);
-    border-radius: 16px;
+    border-radius: 18px;
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 2px 12px -4px rgba(0,0,0,0.4);
   }
+  .card + .card { margin-top: 14px; }
 
   .stat {
     background: var(--bg-1);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 20px 22px;
+    border-radius: 18px;
+    padding: 22px 24px;
     transition: var(--transition);
+    position: relative;
+    overflow: hidden;
   }
-  .stat:hover { border-color: var(--border-strong); }
+  .stat::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0.6;
+    border-radius: 18px 18px 0 0;
+  }
+  .stat:hover {
+    border-color: rgba(0,200,150,0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px -8px rgba(0,200,150,0.15), var(--shadow-sm);
+  }
+  .stat-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--accent-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    color: var(--accent);
+  }
+  .stat-icon svg { width: 18px; height: 18px; }
 
   .card-header {
-    padding: 16px 20px;
+    padding: 14px 20px;
     border-bottom: 1px solid var(--border);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background: rgba(255,255,255,0.015);
   }
 
   .card-title {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
+    letter-spacing: -0.1px;
+    color: var(--text-1);
   }
 
   .card-body { padding: 20px; }
@@ -744,12 +802,11 @@
   }
 
   tbody tr {
-    transition: var(--transition);
+    transition: background 0.12s;
   }
-
   tr:last-child td { border-bottom: none; }
-
-  tbody tr:hover td { background: rgba(255,255,255,0.025); }
+  tbody tr:hover td { background: rgba(255,255,255,0.03); cursor: pointer; }
+  tbody tr:hover td:first-child { color: var(--accent); }
 
   /* =========================================
      STAT GRID
@@ -762,24 +819,29 @@
   }
 
   .stat-label {
-    font-size: 12px;
+    font-size: 11.5px;
     color: var(--text-3);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.7px;
     font-weight: 600;
   }
 
   .stat-value {
-    font-size: 28px;
-    font-weight: 700;
-    margin-top: 6px;
-    letter-spacing: -0.5px;
+    font-size: 38px;
+    font-weight: 800;
+    margin-top: 4px;
+    letter-spacing: -2px;
+    line-height: 1;
+    color: var(--text-1);
   }
 
   .stat-sub {
-    font-size: 12px;
+    font-size: 11.5px;
     color: var(--text-3);
-    margin-top: 4px;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
   }
 
   /* =========================================
@@ -789,20 +851,22 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 3px 9px;
+    padding: 3px 10px;
     border-radius: 99px;
-    font-size: 11.5px;
-    font-weight: 600;
-    text-transform: capitalize;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
     border: 1px solid;
   }
 
   .badge::before {
     content: "";
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
     background: currentColor;
+    flex-shrink: 0;
   }
 
   .badge-skript { color: #94a3b8; background: rgba(148,163,184,0.1); border-color: rgba(148,163,184,0.2); }
@@ -819,6 +883,7 @@
   .badge-role-videograf { color: #a78bfa; background: rgba(167,139,250,0.1); border-color: rgba(167,139,250,0.2); }
   .badge-role-cutter { color: #fbbf24; background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.2); }
   .badge-role-mitarbeiter { color: #64d2ff; background: rgba(100,210,255,0.1); border-color: rgba(100,210,255,0.2); }
+  .badge-role-contract_uploader { color: #30d158; background: rgba(48,209,88,0.1); border-color: rgba(48,209,88,0.2); }
 
   .badge-status-onboarding { color: #ff9f0a; background: rgba(255,159,10,0.12); border-color: rgba(255,159,10,0.25); }
   .badge-status-active { color: #30d158; background: rgba(48,209,88,0.12); border-color: rgba(48,209,88,0.25); }
@@ -1086,8 +1151,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: radial-gradient(circle at 30% 20%, rgba(45,212,191,0.10), transparent 50%),
-                radial-gradient(circle at 70% 80%, rgba(6,182,212,0.08), transparent 50%),
+    background: radial-gradient(circle at 30% 20%, rgba(0,200,150,0.10), transparent 50%),
+                radial-gradient(circle at 70% 80%, rgba(0,200,150,0.06), transparent 50%),
                 var(--bg-0);
     padding: 20px;
   }
@@ -1105,7 +1170,7 @@
   .login-logo {
     width: 76px;
     height: 76px;
-    background: linear-gradient(135deg, #4aa198, #2e6e68);
+    background: linear-gradient(135deg, #00C896, #007a5c);
     border-radius: 18px;
     display: flex;
     align-items: center;
@@ -1186,81 +1251,81 @@
      CALENDAR – iCloud / Apple Calendar style
      ========================================= */
   .calendar {
-    background: var(--bg-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: #111113;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
     padding: 0;
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.55), 0 1px 0 rgba(255,255,255,0.04) inset;
   }
 
+  /* ─── Calendar shared header ─────────────────────────────────── */
   .calendar-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 18px 24px;
-    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+    background: rgba(28,28,30,0.95);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 
-  .calendar-title-block {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-  }
+  .calendar-title-block { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cal-inline-toggle { display: flex; background: rgba(255,255,255,0.06); border-radius: 8px; padding: 2px; gap: 2px; }
+  .cal-inline-toggle button { background: none; border: none; border-radius: 6px; padding: 3px 10px; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.45); cursor: pointer; transition: var(--transition); font-family: inherit; }
+  .cal-inline-toggle button.active { background: rgba(255,255,255,0.12); color: var(--text-1); }
 
   .calendar-month {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 700;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.4px;
+    color: var(--text-1);
   }
 
   .calendar-year {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 300;
     color: var(--text-3);
-    letter-spacing: -0.5px;
+    letter-spacing: -0.4px;
   }
 
-  .calendar-nav {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-  }
+  .calendar-nav { display: flex; gap: 2px; align-items: center; }
 
   .cal-nav-btn {
-    width: 30px;
-    height: 30px;
+    width: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    border: none;
-    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
     color: var(--text-2);
     cursor: pointer;
     transition: var(--transition);
     font-size: 16px;
+    font-weight: 400;
   }
-
-  .cal-nav-btn:hover {
-    background: rgba(255,255,255,0.08);
-    color: var(--text-1);
-  }
+  .cal-nav-btn:hover { background: rgba(255,255,255,0.12); color: var(--text-1); border-color: rgba(255,255,255,0.14); }
 
   .cal-today-btn {
-    padding: 5px 12px;
-    border-radius: 6px;
-    background: transparent;
-    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
     color: var(--accent);
-    font-size: 12.5px;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
     transition: var(--transition);
-    margin: 0 6px;
+    margin: 0 4px;
+    letter-spacing: 0.1px;
   }
-
-  .cal-today-btn:hover { background: var(--accent-soft); }
+  .cal-today-btn:hover { background: var(--accent-soft); border-color: var(--accent); }
 
   .calendar-grid {
     display: grid;
@@ -1406,154 +1471,173 @@
   }
 
   /* =========================================
-     MONTH VIEW – sauberes Multi-Day-Bar-Layout
+     MONTH VIEW – Redesign
      ========================================= */
   .month-grid {
     display: flex;
     flex-direction: column;
-    background: var(--bg-1);
+    background: #111113;
   }
   .month-weekday-header {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-1);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    background: rgba(28,28,30,0.7);
+    position: sticky;
+    top: 0;
+    z-index: 9;
   }
   .month-weekday-header > div {
-    padding: 10px 12px;
-    text-align: right;
+    padding: 9px 10px;
+    text-align: center;
     font-size: 11px;
     font-weight: 600;
     color: var(--text-3);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-right: 1px solid var(--border);
+    letter-spacing: 0.6px;
+    border-right: 1px solid rgba(255,255,255,0.05);
   }
+  .month-weekday-header > div:nth-child(6),
+  .month-weekday-header > div:nth-child(7) { color: rgba(255,107,107,0.7); }
   .month-weekday-header > div:last-child { border-right: none; }
 
   .month-week-row {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    grid-template-rows: 28px;
-    grid-auto-rows: 22px;
+    grid-template-rows: 32px;
+    grid-auto-rows: 24px;
     grid-row-gap: 2px;
-    border-bottom: 1px solid var(--border);
-    min-height: 112px;
-    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.055);
+    min-height: 120px;
+    padding-bottom: 8px;
     position: relative;
   }
   .month-week-row:last-child { border-bottom: none; }
 
   .month-day-bg {
     grid-row: 1 / -1;
-    border-right: 1px solid var(--border);
-    transition: var(--transition);
+    border-right: 1px solid rgba(255,255,255,0.05);
+    transition: background 0.15s;
     cursor: default;
   }
+  .month-day-bg:nth-child(6n+6),
+  .month-day-bg:nth-child(7n) { background: rgba(255,255,255,0.012); }
   .month-day-bg:nth-child(7n) { border-right: none; }
-  .month-day-bg:hover { background: rgba(255,255,255,0.02); }
-  .month-day-bg.today { background: rgba(255,69,58,0.04); }
-  .month-day-bg.outside { background: var(--bg-0); opacity: 0.4; }
+  .month-day-bg.today { background: rgba(255,69,58,0.06) !important; border-right-color: rgba(255,69,58,0.15); }
+  .month-day-bg.is-shoot { background: rgba(167,139,250,0.06) !important; }
 
   .month-day-num {
     grid-row: 1;
-    padding: 6px 10px 4px;
+    padding: 6px 8px 2px;
     font-size: 13px;
-    font-weight: 500;
-    color: var(--text-1);
-    text-align: left;
+    font-weight: 400;
+    color: var(--text-2);
+    text-align: center;
     pointer-events: none;
     align-self: start;
-    justify-self: start;
+    justify-self: center;
+    line-height: 20px;
   }
-  .month-day-num.outside { color: var(--text-3); opacity: 0.55; }
+  .month-day-num.outside { color: var(--text-3); opacity: 0.38; }
   .month-day-num.today {
     color: white;
     background: var(--apple-red);
     border-radius: 50%;
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 0;
-    margin: 5px 0 0 6px;
-    font-weight: 600;
-    line-height: 24px;
+    margin: 3px auto 0;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1;
   }
 
   .month-scroller {
-    height: 720px;
+    height: 680px;
     min-height: 0;
     overflow-y: scroll;
     overflow-x: hidden;
     scroll-behavior: smooth;
     overscroll-behavior-y: contain;
   }
-  .month-scroller::-webkit-scrollbar { width: 10px; }
-  .month-scroller::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
-  .month-scroller::-webkit-scrollbar-thumb {
-    background: var(--border-strong);
-    border-radius: 5px;
-    border: 2px solid var(--bg-1);
+  .month-scroller::-webkit-scrollbar { width: 4px; }
+  .month-scroller::-webkit-scrollbar-track { background: transparent; }
+  .month-scroller::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+  @media (max-width: 640px) {
+    .month-scroller { height: 440px; }
   }
-  .month-scroller::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 
+  /* Month event bars */
   .month-bar {
     height: 22px;
     line-height: 22px;
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 600;
-    border-radius: 6px;
-    padding: 0 8px 0 4px;
+    border-radius: 5px;
+    padding: 0 7px 0 6px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
-    margin: 0 3px;
+    margin: 1px 2px;
     z-index: 1;
-    transition: var(--transition);
-    border: 1px solid transparent;
+    transition: filter 0.15s, transform 0.1s;
+    position: relative;
   }
-  .month-bar:hover { transform: translateY(-1px); filter: brightness(1.15); z-index: 5; }
-  .month-bar.cuts-left { border-top-left-radius: 0; border-bottom-left-radius: 0; padding-left: 4px; margin-left: 0; border-left: none; }
-  .month-bar.cuts-right { border-top-right-radius: 0; border-bottom-right-radius: 0; padding-right: 6px; margin-right: 0; border-right: none; }
-
-  .month-bar .avatar-circle { box-shadow: 0 0 0 1.5px rgba(255,255,255,0.08); }
-
+  .month-bar::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: currentColor;
+    opacity: 0.7;
+    border-radius: 5px 0 0 5px;
+  }
+  .month-bar:hover { filter: brightness(1.2); transform: translateY(-1px); z-index: 5; }
+  .month-bar.cuts-left {
+    border-top-left-radius: 0; border-bottom-left-radius: 0;
+    margin-left: 0; padding-left: 7px;
+  }
+  .month-bar.cuts-left::before { display: none; }
+  .month-bar.cuts-right { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
+  .month-bar .avatar-circle { box-shadow: 0 0 0 1.5px rgba(0,0,0,0.3); }
   .month-bar-title { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-  .month-bar-time { margin-right: 4px; font-weight: 500; font-size: 10.5px; opacity: 0.75; }
+  .month-bar-time { font-size: 10px; opacity: 0.7; font-weight: 500; flex-shrink: 0; }
 
-  /* Phasen-Farben – identisch zur Wochenansicht (.ical-event) für konsistente Optik */
-  .month-bar.phase-shoot      { background: rgba(191,90,242,0.20); color: #d4afff; border-color: rgba(191,90,242,0.45); }
-  .month-bar.phase-production { background: rgba(255,159,10,0.18); color: #ffd382; border-color: rgba(255,159,10,0.45); }
-  .month-bar.phase-cutter     { background: rgba(255,159,10,0.22); color: #ffcb82; border-color: rgba(255,159,10,0.50); }
-  .month-bar.phase-editing    { background: rgba(48,209,88,0.18); color: #93e8a8; border-color: rgba(48,209,88,0.45); }
-  .month-bar.phase-posting    { background: rgba(74,161,152,0.25); color: #7adfcf; border-color: rgba(74,161,152,0.50); }
-  .month-bar.phase-vacation   { background: rgba(148,163,184,0.30); color: #e2e8f0; border-color: rgba(148,163,184,0.55); }
-  .month-bar.phase-deadline   { background: rgba(255,69,58,0.20); color: #ff9b94; border-color: rgba(255,69,58,0.50); }
-  .month-bar.phase-todo       { background: rgba(74,161,152,0.22); color: #7adfcf; border-color: rgba(74,161,152,0.50); }
+  /* Phase colours – rich gradients matching ical-event */
+  .month-bar.phase-shoot      { background: linear-gradient(90deg,rgba(167,139,250,0.32),rgba(139,92,246,0.22)); color: #ddd6fe; }
+  .month-bar.phase-production { background: linear-gradient(90deg,rgba(251,191,36,0.22),rgba(245,158,11,0.14)); color: #fcd34d; }
+  .month-bar.phase-cutter     { background: linear-gradient(90deg,rgba(251,191,36,0.28),rgba(245,158,11,0.18)); color: #fde68a; }
+  .month-bar.phase-editing    { background: linear-gradient(90deg,rgba(52,211,153,0.22),rgba(16,185,129,0.14)); color: #6ee7b7; }
+  .month-bar.phase-posting    { background: linear-gradient(90deg,rgba(20,184,166,0.32),rgba(45,212,191,0.22)); color: #5eead4; }
+  .month-bar.phase-vacation   { background: linear-gradient(90deg,rgba(148,163,184,0.28),rgba(100,116,139,0.18)); color: #cbd5e1; }
+  .month-bar.phase-deadline   { background: linear-gradient(90deg,rgba(239,68,68,0.30),rgba(220,38,38,0.20)); color: #fca5a5; }
+  .month-bar.phase-todo       { background: linear-gradient(90deg,rgba(100,210,255,0.22),rgba(56,189,248,0.14)); color: #7dd3fc; }
+
   .month-bar-more {
-    grid-row: -2;
-    font-size: 10.5px;
+    font-size: 10px;
     padding: 0 8px;
     color: var(--text-3);
-    font-weight: 500;
+    font-weight: 600;
     align-self: end;
     cursor: pointer;
+    margin-bottom: 3px;
   }
 
   /* =========================================
      KATEGORIE-WOCHENANSICHT (Swim-Lanes)
      ========================================= */
   .ical {
-    background: #1c1c1e;
-    border-radius: 14px;
+    background: #111113;
+    border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
-    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.04) inset;
+    border: 1px solid rgba(255,255,255,0.07);
     width: 100%;
     max-width: 100%;
   }
@@ -1564,6 +1648,10 @@
     max-height: 720px;
     scroll-snap-type: x mandatory;
     overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  @media (max-width: 640px) {
+    .ical-scroll { scroll-snap-type: none; max-height: 480px; cursor: default; }
   }
   .ical-scroll.dragging { cursor: grabbing; }
   .ical-scroll::-webkit-scrollbar { height: 10px; width: 10px; background: #1c1c1e; }
@@ -1574,90 +1662,91 @@
   }
   .ical-track {
     display: grid;
-    grid-auto-rows: 34px;
-    grid-row-gap: 4px;
-    padding-bottom: 18px;
-    /* grid-template-columns wird inline gesetzt */
-    /* erste Spalte: Sidebar mit Kategorie-Labels (sticky), Rest: Tage */
+    grid-auto-rows: 36px;
+    grid-row-gap: 3px;
+    padding-bottom: 20px;
   }
 
   .ical-corner {
     grid-row: 1;
     grid-column: 1;
-    background: #1c1c1e;
+    background: #111113;
     position: sticky;
+    top: 0;
     left: 0;
-    z-index: 4;
-    border-right: 1px solid rgba(255,255,255,0.08);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    z-index: 6;
+    border-right: 1px solid rgba(255,255,255,0.07);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
   }
   .ical-day-head {
     grid-row: 1;
-    padding: 14px 16px 12px;
-    border-right: 1px solid rgba(255,255,255,0.06);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 12px 10px 10px;
+    border-right: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
     display: flex;
-    align-items: baseline;
-    gap: 8px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
     scroll-snap-align: start;
-    background: #1c1c1e;
+    background: #111113;
     position: sticky;
     top: 0;
-    z-index: 3;
-    min-height: 70px;
+    z-index: 5;
+    min-height: 64px;
+    text-align: center;
   }
   .ical-day-head .ical-dname {
-    font-size: 14px;
-    font-weight: 400;
-    color: #8e8e93;
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
   }
   .ical-day-head .ical-dnum {
-    font-size: 17px;
-    font-weight: 400;
-    letter-spacing: -0.4px;
-    color: #8e8e93;
+    font-size: 18px;
+    font-weight: 300;
+    letter-spacing: -0.5px;
+    color: rgba(255,255,255,0.65);
     line-height: 1;
   }
-  .ical-day-head.today .ical-dname { color: #f5f5f7; font-weight: 500; }
+  .ical-day-head.today .ical-dname { color: rgba(255,255,255,0.75); font-weight: 700; }
   .ical-day-head.today .ical-dnum {
     color: white;
     background: var(--apple-red);
     border-radius: 50%;
-    width: 22px;
-    height: 22px;
+    width: 30px;
+    height: 30px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 700;
   }
-  /* Drehtag-Markierung: subtile lila Spalte */
   .ical-day-head { position: relative; }
   .ical-day-head.is-shoot {
-    background: linear-gradient(180deg, rgba(167,139,250,0.16), rgba(167,139,250,0.06));
-    border-bottom: 2px solid #a78bfa;
+    background: linear-gradient(180deg, rgba(167,139,250,0.14), rgba(167,139,250,0.04));
+    border-bottom: 2px solid rgba(167,139,250,0.6);
   }
-  .ical-day-head.is-shoot .ical-dname,
-  .ical-day-head.is-shoot .ical-dnum {
-    color: #c4b5fd;
-  }
+  .ical-day-head.is-shoot .ical-dname { color: rgba(196,181,253,0.8); }
+  .ical-day-head.is-shoot .ical-dnum { color: #c4b5fd; }
   .ical-shoot-badge {
     position: absolute;
-    top: 8px;
-    right: 10px;
-    background: rgba(167,139,250,0.25);
+    top: 7px;
+    right: 8px;
+    background: rgba(167,139,250,0.22);
     color: #ddd6fe;
-    border: 1px solid rgba(167,139,250,0.4);
+    border: 1px solid rgba(167,139,250,0.35);
     border-radius: 999px;
-    padding: 2px 8px 2px 6px;
-    font-size: 10px;
+    padding: 2px 6px;
+    font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.3px;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
   }
-  .ical-cat-bg.is-shoot { background: rgba(167,139,250,0.05); }
+  .ical-cat-bg.is-shoot { background: rgba(167,139,250,0.04); }
 
   /* Monatsansicht: Drehtag-Tag-Hintergrund */
   .month-day-bg.is-shoot { background: rgba(167,139,250,0.06); }
@@ -1678,56 +1767,72 @@
     grid-column: 1;
     position: sticky;
     left: 0;
-    z-index: 2;
-    background: #232325;
-    border-right: 1px solid rgba(255,255,255,0.08);
-    padding: 6px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    color: #f5f5f7;
+    z-index: 1;
+    background: #181819;
+    border-right: 1px solid rgba(255,255,255,0.07);
+    padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.55);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
     text-transform: uppercase;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.5px;
   }
   .ical-cat-label .ical-cat-icon {
-    width: 22px; height: 22px;
+    width: 20px; height: 20px;
     border-radius: 6px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    font-size: 12px;
+    flex-shrink: 0;
   }
-  .ical-cat-label.cat-shoot    .ical-cat-icon { background: rgba(167,139,250,0.25); }
-  .ical-cat-label.cat-vacation .ical-cat-icon { background: rgba(148,163,184,0.25); }
-  .ical-cat-label.cat-videos   .ical-cat-icon { background: rgba(74,161,152,0.22); }
+  .ical-cat-label.cat-shoot    { border-top: 1px solid rgba(167,139,250,0.20); color: rgba(196,181,253,0.7); }
+  .ical-cat-label.cat-vacation { border-top: 1px solid rgba(148,163,184,0.16); color: rgba(203,213,225,0.6); }
+  .ical-cat-label.cat-videos   { border-top: 1px solid rgba(20,184,166,0.18); color: rgba(94,234,212,0.6); }
+  .ical-cat-label.cat-todos    { border-top: 1px solid rgba(100,210,255,0.18); color: rgba(125,211,252,0.6); }
+  .ical-cat-label.cat-shoot    .ical-cat-icon { background: rgba(167,139,250,0.22); }
+  .ical-cat-label.cat-vacation .ical-cat-icon { background: rgba(148,163,184,0.22); }
+  .ical-cat-label.cat-videos   .ical-cat-icon { background: rgba(20,184,166,0.22); }
   .ical-cat-label.cat-todos    .ical-cat-icon { background: rgba(100,210,255,0.22); }
 
   .ical-cat-bg {
-    border-right: 1px solid rgba(255,255,255,0.05);
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    border-right: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
     scroll-snap-align: start;
   }
-  .ical-cat-bg.today { background: rgba(255,69,58,0.04); }
-  .ical-cat-bg.alt { background: rgba(255,255,255,0.012); }
+  .ical-cat-bg.today { background: rgba(255,69,58,0.035); }
+  .ical-cat-bg.alt { background: rgba(255,255,255,0.008); }
+  .ical-cat-bg.is-shoot { background: rgba(167,139,250,0.03); }
 
   .ical-event {
-    height: 26px;
-    line-height: 26px;
+    height: 28px;
+    line-height: 28px;
     font-size: 12px;
     font-weight: 500;
-    border-radius: 5px;
+    border-radius: 6px;
     padding: 0 8px 0 11px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     cursor: pointer;
     white-space: nowrap;
-    overflow: hidden;
+    overflow: clip;
     margin: 2px 3px;
     transition: var(--transition);
     position: relative;
+  }
+  /* Text inside bars: sticky so it stays visible while scrolling horizontally */
+  .ical-event-label {
+    position: sticky;
+    left: var(--ical-sidebar, 150px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
   }
   .ical-event::before {
     content: "";
@@ -1743,14 +1848,64 @@
   .ical-event.cuts-left::before { display: none; }
   .ical-event.cuts-right { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
 
-  .ical-event.phase-shoot { background: rgba(191,90,242,0.20); color: #d4afff; }
-  .ical-event.phase-production { background: rgba(255,159,10,0.18); color: #ffd382; }
-  .ical-event.phase-editing { background: rgba(48,209,88,0.18); color: #93e8a8; }
-  .ical-event.phase-cutter { background: rgba(255,159,10,0.22); color: #ffcb82; }
-  .ical-event.phase-posting { background: rgba(74,161,152,0.25); color: #7adfcf; }
-  .ical-event.phase-vacation { background: rgba(148,163,184,0.30); color: #e2e8f0; border-color: rgba(148,163,184,0.55); }
-  .ical-event.phase-deadline { background: rgba(255,69,58,0.20); color: #ff9b94; }
-  .ical-event.phase-todo { background: rgba(74,161,152,0.22); color: #7adfcf; }
+  .ical-event.phase-shoot    { background: linear-gradient(90deg,rgba(167,139,250,0.32),rgba(139,92,246,0.22)); color: #ddd6fe; border: 1px solid rgba(167,139,250,0.25); }
+  .ical-event.phase-production { background: linear-gradient(90deg,rgba(251,191,36,0.22),rgba(245,158,11,0.14)); color: #fcd34d; border: 1px solid rgba(251,191,36,0.18); }
+  .ical-event.phase-editing  { background: linear-gradient(90deg,rgba(52,211,153,0.22),rgba(16,185,129,0.14)); color: #6ee7b7; border: 1px solid rgba(52,211,153,0.18); }
+  .ical-event.phase-cutter   { background: linear-gradient(90deg,rgba(251,191,36,0.28),rgba(245,158,11,0.18)); color: #fde68a; border: 1px solid rgba(251,191,36,0.22); }
+  .ical-event.phase-posting  { background: linear-gradient(90deg,rgba(20,184,166,0.32),rgba(45,212,191,0.22)); color: #5eead4; border: 1px solid rgba(20,184,166,0.28); }
+  .ical-event.phase-vacation { background: linear-gradient(90deg,rgba(148,163,184,0.30),rgba(100,116,139,0.22)); color: #e2e8f0; border: 1px solid rgba(148,163,184,0.28); }
+  .ical-event.phase-deadline { background: linear-gradient(90deg,rgba(239,68,68,0.30),rgba(220,38,38,0.20)); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
+  .ical-event.phase-todo     { background: linear-gradient(90deg,rgba(100,210,255,0.22),rgba(56,189,248,0.14)); color: #7dd3fc; border: 1px solid rgba(100,210,255,0.18); }
+
+  /* Mobile: ultra-compact calendar */
+  @media (max-width: 640px) {
+    /* Grid rows kleiner */
+    .ical-track { grid-auto-rows: minmax(24px, auto); grid-row-gap: 2px; padding-bottom: 12px; }
+    /* Scrollbar verstecken */
+    .ical-scroll::-webkit-scrollbar { height: 0; }
+    .ical-scroll { max-height: 420px; }
+    /* Kategorie-Labels: nur Icon, kein Text */
+    .ical-cat-label {
+      font-size: 0;
+      padding: 0;
+      justify-content: center;
+      align-items: center;
+      border-right: 1px solid rgba(255,255,255,0.06);
+    }
+    .ical-cat-label > span:not(.ical-cat-icon) { display: none; }
+    .ical-cat-label .ical-cat-icon {
+      width: 24px; height: 24px; font-size: 13px;
+      margin: auto;
+      border-radius: 6px;
+    }
+    /* Tag-Header kompakter */
+    .ical-day-head { padding: 5px 2px 4px; min-height: 44px; gap: 1px; }
+    .ical-day-head .ical-dname { font-size: 9px; letter-spacing: 0.3px; }
+    .ical-day-head .ical-dnum { font-size: 13px; font-weight: 500; }
+    .ical-day-head.today .ical-dnum { width: 22px; height: 22px; font-size: 11px; font-weight: 700; }
+    /* Events: kompakt */
+    .ical-event {
+      height: 20px; line-height: 20px;
+      font-size: 9.5px; margin: 1px 1px;
+      border-radius: 4px; padding: 0 5px;
+    }
+    .ical-event::before { width: 3px; }
+    /* Filter-Bar: horizontal scrollbar statt wrap */
+    .cal-filter-bar {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 7px 12px;
+      gap: 6px;
+      scrollbar-width: none;
+    }
+    .cal-filter-bar::-webkit-scrollbar { display: none; }
+    .cal-filter-btn { flex-shrink: 0; padding: 4px 10px; font-size: 11px; }
+    .cal-filter-label { display: none; }
+    /* Kalender-Header etwas kompakter */
+    .calendar-header { padding: 10px 12px; }
+    .calendar-month { font-size: 17px; }
+  }
 
   .ical-empty-cell {
     color: rgba(255,255,255,0.15);
@@ -1761,41 +1916,49 @@
   /* Kategorie-Filter-Buttons */
   .cal-filter-bar {
     display: flex;
-    gap: 8px;
-    margin: 0 0 12px;
-    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 16px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
     align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.012);
   }
+  .cal-filter-bar::-webkit-scrollbar { display: none; }
   .cal-filter-label {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-3);
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-right: 4px;
+    letter-spacing: 0.6px;
+    margin-right: 2px;
+    opacity: 0.6;
   }
   .cal-filter-btn {
-    background: var(--bg-2);
-    border: 1px solid var(--border);
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.09);
     border-radius: 999px;
-    padding: 5px 14px;
-    font-size: 12.5px;
+    padding: 5px 12px;
+    font-size: 12px;
     font-weight: 500;
-    color: var(--text-3);
+    color: rgba(255,255,255,0.5);
     cursor: pointer;
     transition: var(--transition);
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     font-family: inherit;
   }
   .cal-filter-btn.active {
-    background: var(--accent-soft);
-    border-color: var(--accent);
-    color: var(--accent-hover);
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.18);
+    color: var(--text-1);
   }
-  .cal-filter-btn:not(.active) { opacity: 0.55; }
-  .cal-filter-btn:hover { opacity: 1; }
+  .cal-filter-btn:not(.active) { opacity: 0.6; }
+  .cal-filter-btn:hover { opacity: 1; background: rgba(255,255,255,0.1); }
 
   /* =========================================
      iCLOUD WEEK VIEW – Dark Mode wie macOS Apple Kalender (alte Variante)
@@ -2046,7 +2209,7 @@
   .icw-timed:hover { filter: brightness(1.15); z-index: 4; }
   .icw-timed .icw-time { font-size: 10.5px; opacity: 0.85; font-weight: 500; }
   .icw-timed.phase-cutter { background: rgba(255,159,10,0.22); color: #ffcb82; }
-  .icw-timed.phase-posting { background: rgba(74,161,152,0.25); color: #7adfcf; }
+  .icw-timed.phase-posting { background: rgba(0,200,150,0.22); color: #00e8ac; }
 
   .icw-now {
     position: absolute;
@@ -2317,7 +2480,7 @@
   .cal-week-event.phase-production { background: linear-gradient(135deg, rgba(167,139,250,0.4), rgba(251,191,36,0.4)); color: var(--text-1); }
   .cal-week-event.phase-cutter { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
   .cal-week-event.phase-editing { background: linear-gradient(135deg, rgba(251,191,36,0.4), rgba(45,212,191,0.4)); color: var(--text-1); }
-  .cal-week-event.phase-posting { background: linear-gradient(135deg, #2dd4bf, #14b8a6); color: #042f2e; }
+  .cal-week-event.phase-posting { background: linear-gradient(135deg, #2dd4bf, #14b8a6); color: #002a1e; }
   .cal-week-event.phase-vacation { background: linear-gradient(135deg, #94a3b8, #64748b); }
   .cal-week-event.phase-deadline { background: linear-gradient(135deg, #ef4444, #ff453a); }
 
@@ -2331,37 +2494,42 @@
   }
 
   /* Mini calendar for dashboard */
-  .mini-calendar { padding: 18px 20px; }
-  .mini-calendar .calendar-header {
-    padding: 0 0 14px;
-    border-bottom: none;
-  }
-  .mini-calendar .calendar-month { font-size: 17px; }
-  .mini-calendar .calendar-year { font-size: 17px; }
-  .mini-calendar .calendar-day { min-height: 56px; padding: 4px 6px; }
-  .mini-calendar .calendar-event { font-size: 10px; padding: 1px 4px; }
-  .mini-calendar .calendar-event::before { width: 5px; height: 5px; }
+  .mini-calendar { padding: 0; }
+  .mini-calendar .calendar-header { padding: 12px 16px; }
+  .mini-calendar .calendar-month { font-size: 16px; }
+  .mini-calendar .calendar-year { font-size: 16px; }
+  .mini-calendar .month-week-row { min-height: 90px; }
+  .mini-calendar .ical-cat-label { font-size: 9px; padding: 3px 8px; }
+  .mini-calendar .ical-day-head { min-height: 52px; padding: 8px 6px 6px; }
+  .mini-calendar .ical-day-head .ical-dname { font-size: 9px; }
+  .mini-calendar .ical-day-head .ical-dnum { font-size: 15px; }
 
   /* Legend */
   .cal-legend {
     display: flex;
-    gap: 16px;
-    padding: 12px 24px;
-    border-top: 1px solid var(--border);
-    background: var(--bg-1);
+    gap: 6px;
+    padding: 10px 16px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.015);
     flex-wrap: wrap;
+    backdrop-filter: blur(8px);
   }
   .cal-legend-item {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 6px;
-    font-size: 11.5px;
-    color: var(--text-2);
+    gap: 5px;
+    font-size: 11px;
+    color: var(--text-3);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 999px;
+    padding: 3px 9px 3px 7px;
   }
   .cal-legend-dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
+    flex-shrink: 0;
   }
 
   /* =========================================
@@ -2421,31 +2589,33 @@
   }
 
   /* Deadline list */
-  .deadline-list { padding: 6px 0; }
+  .deadline-list { padding: 4px 0; }
   .deadline-item {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 20px;
+    padding: 11px 18px;
     cursor: pointer;
     transition: var(--transition);
     border-bottom: 1px solid var(--border);
   }
   .deadline-item:last-child { border-bottom: none; }
-  .deadline-item:hover { background: var(--bg-2); }
+  .deadline-item:hover { background: rgba(255,255,255,0.025); }
   .deadline-dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
+    box-shadow: 0 0 6px currentColor;
   }
   .deadline-info { flex: 1; min-width: 0; }
   .deadline-title {
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    color: var(--text-1);
   }
   .deadline-meta {
     font-size: 11.5px;
@@ -2453,12 +2623,20 @@
     margin-top: 2px;
   }
   .deadline-days {
-    font-size: 11.5px;
+    font-size: 11px;
     color: var(--text-2);
-    font-weight: 500;
+    font-weight: 600;
     white-space: nowrap;
+    background: rgba(255,255,255,0.05);
+    padding: 2px 8px;
+    border-radius: 99px;
+    border: 1px solid var(--border);
   }
-  .deadline-days.overdue { color: var(--apple-red); font-weight: 600; }
+  .deadline-days.overdue {
+    color: var(--apple-red);
+    background: rgba(255,69,58,0.1);
+    border-color: rgba(255,69,58,0.25);
+  }
 
   /* Tabbed modal */
   .modal-tabs {
@@ -2531,7 +2709,7 @@
   .checklist-item.done .checklist-check {
     background: var(--accent);
     border-color: var(--accent);
-    color: #042f2e;
+    color: #002a1e;
   }
   .checklist-label {
     flex: 1;
@@ -2545,15 +2723,16 @@
 
   .progress-bar {
     width: 100%;
-    height: 6px;
-    background: var(--bg-2);
+    height: 4px;
+    background: rgba(255,255,255,0.06);
     border-radius: 99px;
     overflow: hidden;
-    margin-top: 6px;
+    margin-top: 8px;
   }
   .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--accent), #06b6d4);
+    background: var(--accent);
+    border-radius: 99px;
     transition: width 0.4s ease;
   }
 
@@ -2600,6 +2779,24 @@
     gap: 8px;
   }
   .section-title:first-child { margin-top: 0; }
+
+  .cal-abo-card {
+    display: flex;
+    gap: 14px;
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-top: 18px;
+  }
+  .cal-abo-icon {
+    width: 48px; height: 48px; min-width: 48px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent);
+  }
 
   /* Subscribe modal styling */
   .subscribe-section {
@@ -2662,6 +2859,79 @@
   ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 
   /* =========================================
+     BOTTOM NAVIGATION (Mobile)
+     ========================================= */
+  .bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: calc(58px + var(--safe-bottom));
+    padding-bottom: var(--safe-bottom);
+    background: rgba(13, 15, 20, 0.97);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    border-top: 1px solid var(--border);
+    z-index: 70;
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    font-size: 10px;
+    font-family: inherit;
+    font-weight: 500;
+    padding: 6px 4px 4px;
+    transition: color 0.15s;
+    position: relative;
+    letter-spacing: 0.2px;
+  }
+  .bottom-nav-item svg { flex-shrink: 0; transition: transform 0.15s; }
+  .bottom-nav-item.active { color: var(--accent); }
+  .bottom-nav-item.active svg { transform: scale(1.05); }
+  .bottom-nav-item:active { opacity: 0.7; }
+  .bottom-nav-badge {
+    position: absolute;
+    top: 5px;
+    right: calc(50% - 14px);
+    background: var(--danger);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 99px;
+    padding: 1px 5px;
+    min-width: 16px;
+    text-align: center;
+    line-height: 14px;
+    pointer-events: none;
+  }
+
+  @media (max-width: 768px) {
+    .bottom-nav { display: flex; }
+    /* Hide hamburger — bottom nav replaces it */
+    .mobile-menu-btn { display: none !important; }
+    /* Extra bottom padding so content doesn't hide under bottom nav */
+    .content { padding-bottom: calc(74px + var(--safe-bottom)) !important; }
+    /* Sidebar now only used for "Mehr" overflow sheet */
+    .sidebar {
+      padding-top: calc(28px + var(--safe-top));
+    }
+    /* Keep topbar clean on mobile */
+    .topbar {
+      padding: calc(12px + var(--safe-top)) 16px 12px;
+    }
+    .page-title { font-size: 20px; }
+  }
+
+  /* =========================================
      MOBILE OPTIMIERUNG
      ========================================= */
   .mobile-menu-btn {
@@ -2710,8 +2980,8 @@
       grid-template-columns: repeat(2, 1fr);
       gap: 10px;
     }
-    .stat { padding: 14px 16px; }
-    .stat-value { font-size: 22px; }
+    .stat { padding: 16px 18px; }
+    .stat-value { font-size: 30px; letter-spacing: -0.8px; }
 
     /* Dashboard, Cards */
     .dashboard-grid { gap: 14px; }
@@ -2833,12 +3103,14 @@
 
     /* Sidebar: Safe-Area-Padding */
     .sidebar {
-      padding-top: calc(20px + var(--safe-top));
-      padding-bottom: calc(16px + var(--safe-bottom));
+      padding-top: calc(16px + var(--safe-top));
+      padding-bottom: calc(80px + var(--safe-bottom));
       padding-left: calc(14px + var(--safe-left));
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
+    /* Logo/Brand im Mobile-Sheet redundant – verstecken */
+    .sidebar-header { display: none; }
 
     /* Topbar: Safe-Area + sticky-blur */
     .topbar {
@@ -3184,6 +3456,8 @@
   </main>
 </div>
 
+<nav class="bottom-nav" id="bottom-nav"></nav>
+
 <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleMobileSidebar()"></div>
 
 <!-- MODAL CONTAINER -->
@@ -3281,7 +3555,8 @@ const ROLES = {
   MANAGER: 'manager',
   VIDEOGRAF: 'videograf',
   CUTTER: 'cutter',
-  MITARBEITER: 'mitarbeiter'
+  MITARBEITER: 'mitarbeiter',
+  CONTRACT_UPLOADER: 'contract_uploader'
 };
 
 // Rollen-Hierarchie: höherer Wert = mehr Rechte
@@ -3291,7 +3566,8 @@ const ROLE_LEVEL = {
   manager: 3,
   videograf: 2,
   cutter: 1,
-  mitarbeiter: 1
+  mitarbeiter: 1,
+  contract_uploader: 1
 };
 
 // Höchstes Rollen-Level eines Users (oder 0 falls keine bekannte Rolle)
@@ -3342,7 +3618,8 @@ const ROLE_LABELS = {
   manager: 'Manager',
   videograf: 'Videograf',
   cutter: 'Cutter',
-  mitarbeiter: 'Mitarbeiter'
+  mitarbeiter: 'Mitarbeiter',
+  contract_uploader: 'Vertrags-Upload'
 };
 
 const CUSTOMER_STATUS = {
@@ -3373,14 +3650,6 @@ const defaultData = {
   vacations: [],
   todos: [],
   shootDays: [],
-  // Zentrale Kalender-Konfiguration: nur Admin setzt einmalig den Token,
-  // Gists für ALLE Mitarbeiter laufen über diesen Account
-  calendarConfig: {
-    token: null,        // GitHub Personal Access Token (gist scope)
-    githubUser: null,   // GitHub Username
-    agencyGistId: null, // Gist mit allen Agentur-Projekten (Admin)
-    enabledAt: null
-  },
   session: null
 };
 
@@ -3411,26 +3680,6 @@ function loadStore() {
     });
     // Migration: Drehtag-Array sicherstellen
     if (!Array.isArray(merged.shootDays)) merged.shootDays = [];
-    // Migration: calendarConfig sicherstellen
-    if (!merged.calendarConfig) merged.calendarConfig = { token: null, githubUser: null, agencyGistId: null, enabledAt: null };
-    // Migration: Token aus altem per-user-localStorage übernehmen
-    try {
-      if (!merged.calendarConfig.token) {
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k && k.startsWith('agentur_calsync_v1_')) {
-            const v = JSON.parse(localStorage.getItem(k));
-            if (v?.token && v?.username) {
-              merged.calendarConfig.token = v.token;
-              merged.calendarConfig.githubUser = v.username;
-              merged.calendarConfig.enabledAt = v.lastSyncedAt || new Date().toISOString();
-              if (v.scope === 'agency' && v.gistId) merged.calendarConfig.agencyGistId = v.gistId;
-              break;
-            }
-          }
-        }
-      }
-    } catch {}
     return merged;
   } catch {
     return { ...defaultData };
@@ -3584,7 +3833,8 @@ let store = {
   vacations: [],
   todos: [],
   shootDays: [],
-  calendarConfig: { token: null, githubUser: null, agencyGistId: null, enabledAt: null },
+  customerFiles: [],
+  notifications: [],
   session: null,
   activity: []
 };
@@ -3684,8 +3934,7 @@ async function pushAllToCloud() {
     upserts[c.table] = (store[c.local] || []).map(r => ({ id: r.id, data: r }));
   });
   upserts.app_config = [
-    { key: 'calendarConfig', value: store.calendarConfig || {} },
-    { key: 'activity',       value: { entries: (store.activity || []).slice(0, 500) } }
+    { key: 'activity', value: { entries: (store.activity || []).slice(0, 500) } }
   ];
 
   const pending = store._pendingDeletions || {};
@@ -3747,9 +3996,8 @@ async function pullAllFromCloud() {
     CLOUD_COLLECTIONS.forEach(c => {
       if (Array.isArray(data[c.table])) store[c.local] = data[c.table];
     });
+    if (Array.isArray(data.customer_files)) store.customerFiles = data.customer_files;
     if (Array.isArray(data.app_config)) {
-      const cfg = data.app_config.find(r => r.key === 'calendarConfig');
-      if (cfg) store.calendarConfig = cfg.value;
       const act = data.app_config.find(r => r.key === 'activity');
       if (act && act.value && Array.isArray(act.value.entries)) store.activity = act.value.entries;
     }
@@ -3770,6 +4018,7 @@ async function initCloudSync() {
     return;
   }
   subscribeCloudChannel();
+  fetchNotifications();
   try { if (typeof runAutoArchive === 'function') runAutoArchive(); } catch {}
   try {
     if (typeof renderPage === 'function') renderPage();
@@ -3995,8 +4244,19 @@ function getNavItemsForUser(session) {
   if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF, ROLES.CUTTER)) {
     items.push({ id: 'archive', label: 'Archiv', icon: 'archive' });
   }
+  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER)) {
+    items.push({ id: 'contracts', label: 'Verträge', icon: 'file' });
+  }
   if (hasRole(user, ROLES.ADMIN)) {
     items.push({ id: 'admin', label: 'Admin-Bereich', icon: 'shield' });
+  }
+  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER)) {
+    items.push({ id: 'contracts', label: 'Verträge', icon: 'document' });
+  }
+  const unseenNotifs = (store.notifications || []).filter(n => !n.seen_at).length;
+  if (unseenNotifs > 0) {
+    const dashIdx = items.findIndex(i => i.id === 'dashboard');
+    if (dashIdx >= 0) items[dashIdx].badge = unseenNotifs;
   }
   return items;
 }
@@ -4011,7 +4271,10 @@ const ICONS = {
   sun: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
   check: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
   camera: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
-  chart: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>'
+  chart: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  file: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+  document: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+  bell: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
 };
 
 function renderNav() {
@@ -4027,9 +4290,50 @@ function renderNav() {
   `).join('');
 }
 
+function renderBottomNav() {
+  const session = getCurrentUser();
+  const bn = $('#bottom-nav');
+  if (!bn) return;
+  if (!session || session.type === 'customer') { bn.innerHTML = ''; return; }
+
+  const allItems = getNavItemsForUser(session);
+  // Pick the 4 most important tabs; 5th is "Mehr" (opens sidebar)
+  const pinned = ['dashboard', 'projects', 'calendar', 'todos'];
+  const primary = pinned.map(id => allItems.find(i => i.id === id)).filter(Boolean);
+  // Fill up to 4 if some are missing (role-based)
+  if (primary.length < 4) {
+    for (const it of allItems) {
+      if (primary.length >= 4) break;
+      if (!primary.find(p => p.id === it.id)) primary.push(it);
+    }
+  }
+
+  const icon20 = id => {
+    const svg = ICONS[id] || '';
+    return svg.replace('class="icon"', 'width="22" height="22"');
+  };
+
+  const tabs = primary.map(item => `
+    <button class="bottom-nav-item ${item.id === currentPage ? 'active' : ''}" onclick="navigateTo('${item.id}')">
+      ${item.badge ? `<span class="bottom-nav-badge">${item.badge}</span>` : ''}
+      ${icon20(item.icon)}
+      <span>${item.label}</span>
+    </button>
+  `).join('');
+
+  const meerActive = !primary.find(p => p.id === currentPage);
+  bn.innerHTML = tabs + `
+    <button class="bottom-nav-item ${meerActive ? 'active' : ''}" onclick="toggleMobileSidebar()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg>
+      <span>Mehr</span>
+    </button>
+  `;
+}
+
 function navigateTo(page) {
   currentPage = page;
   renderNav();
+  renderBottomNav();
   renderPage();
   // Mobile Sidebar automatisch schließen
   document.querySelector('.sidebar')?.classList.remove('open');
@@ -4048,6 +4352,8 @@ function toggleMobileSidebar() {
 function renderPage() {
   const session = getCurrentUser();
   if (!session) return logout();
+
+  renderBottomNav();
 
   // Update user card
   const name = session.type === 'staff' ? session.user.name : session.customer.name;
@@ -4077,7 +4383,9 @@ function renderPage() {
     vacation: renderVacation,
     todos: renderTodos,
     archive: renderArchive,
+    contracts: renderContracts,
     admin: renderAdmin,
+    contracts: renderContracts,
     'customer-overview': renderCustomerOverview
   };
 
@@ -4089,21 +4397,288 @@ function renderPage() {
   if (currentPage === 'admin' && (session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN))) {
     currentPage = 'dashboard';
   }
+  if (currentPage === 'contracts' && (session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER))) {
+    currentPage = 'dashboard';
+  }
 
   const render = pages[currentPage] || renderDashboard;
   render(session);
+}
+
+/* ----------- VERTRÄGE ----------- */
+let contractsCache = null;
+
+async function fetchContractsFromAPI() {
+  try {
+    contractsCache = await apiGet('/contracts.php');
+  } catch (e) {
+    showToast('Verträge konnten nicht geladen werden: ' + e.message, 'error');
+    contractsCache = contractsCache || [];
+  }
+  return contractsCache || [];
+}
+
+async function renderContracts(session) {
+  $('#page-title').textContent = 'Verträge';
+  const user = session.user;
+  const canUpload = hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER);
+  const isPriv = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+
+  if (!canUpload) { navigateTo('dashboard'); return; }
+
+  $('#topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="openNewContractModal()">+ Neuer Vertrag</button>`;
+  $('#content').innerHTML = '<div class="text-muted text-center" style="padding:40px">Wird geladen…</div>';
+
+  const contracts = await fetchContractsFromAPI();
+
+  if (!contracts.length) {
+    $('#content').innerHTML = `<div class="card"><div class="empty-state">
+      <div class="empty-state-icon">📄</div>
+      <div>Noch keine Verträge vorhanden.</div>
+      <br/><button class="btn btn-primary" onclick="openNewContractModal()">Ersten Vertrag anlegen</button>
+    </div></div>`;
+    return;
+  }
+
+  $('#content').innerHTML = `<div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Titel</th>
+          <th>Kunde</th>
+          <th>Status</th>
+          <th>Datei</th>
+          <th>Erstellt</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${contracts.map(c => {
+          const cust = store.customers.find(x => x.id === c.customerId);
+          return `<tr class="row-clickable" onclick="openContractDetailModal('${c.id}')">
+            <td><strong>${escape(c.title)}</strong></td>
+            <td>${escape(cust?.name || '–')}</td>
+            <td><span class="badge ${c.status === 'confirmed' ? 'badge-freigegeben' : 'badge-skript'}">${c.status === 'confirmed' ? 'Bestätigt' : 'Entwurf'}</span></td>
+            <td>${c.path ? '<span style="color:var(--accent)">📎 PDF</span>' : '<span class="text-muted">–</span>'}</td>
+            <td class="text-sm text-muted">${fmtDate(c.createdAt)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function openNewContractModal() {
+  const session = getCurrentUser();
+  const user = session?.user;
+  if (!user) return;
+
+  const html = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Neuer Vertrag</div>
+        <button class="btn btn-ghost" onclick="closeModal()">×</button>
+      </div>
+      <form onsubmit="submitNewContract(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Titel *</label>
+            <input type="text" name="title" required maxlength="255" placeholder="Vertragsname…" autofocus />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Kunde</label>
+            <select name="customerId">
+              <option value="">– kein Kunde –</option>
+              ${store.customers.map(c => `<option value="${c.id}">${escape(c.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">PDF-Datei</label>
+            <label class="file-upload" for="new-contract-file">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.5" style="margin-bottom:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <div id="new-contract-file-label" style="font-size:13px;font-weight:500;">PDF hochladen (optional)</div>
+              <input type="file" id="new-contract-file" accept=".pdf,application/pdf" style="display:none;" onchange="previewContractFile(event,'new-contract-file-label')" />
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+          <button type="submit" class="btn btn-primary" id="contract-submit-btn">Anlegen</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+  $('#modal-container').innerHTML = html;
+}
+
+function previewContractFile(e, labelId) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const labelEl = document.getElementById(labelId);
+  const parent = e.target.closest('.file-upload');
+  if (parent) {
+    parent.style.borderColor = 'var(--accent)';
+    parent.style.background = 'var(--accent-soft)';
+  }
+  if (labelEl) labelEl.textContent = '✓ ' + file.name;
+}
+
+async function submitNewContract(e) {
+  e.preventDefault();
+  const form = e.target;
+  const btn = document.getElementById('contract-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Wird angelegt…';
+
+  try {
+    const title = form.title.value.trim();
+    const customerId = form.customerId?.value || null;
+    const contract = await apiPost('/contracts.php', { title, customerId });
+
+    const fileInput = document.getElementById('new-contract-file');
+    if (fileInput?.files[0]) {
+      await uploadContractPdf(contract.id, fileInput.files[0]);
+    }
+
+    contractsCache = null;
+    closeModal();
+    showToast('Vertrag angelegt', 'success');
+    renderContracts(getCurrentUser());
+  } catch (err) {
+    showToast('Fehler beim Anlegen: ' + err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Anlegen';
+  }
+}
+
+async function uploadContractPdf(contractId, file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch(API_BASE + '/upload.php?scope=contract&id=' + contractId, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'X-CSRF-Token': CSRF },
+    body: fd
+  });
+  const j = await res.json().catch(() => ({ success: false, error: 'HTTP ' + res.status }));
+  if (!res.ok || !j.success) throw new Error(j.error || 'Upload fehlgeschlagen');
+  return j.data;
+}
+
+async function openContractDetailModal(contractId) {
+  const session = getCurrentUser();
+  const user = session?.user;
+  if (!user) return;
+  const isPriv = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  const canUpload = hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER);
+  const isAdmin = hasRole(user, ROLES.ADMIN);
+
+  let contract;
+  try {
+    contract = await apiGet('/contracts.php?id=' + contractId);
+  } catch (e) {
+    showToast('Fehler beim Laden: ' + e.message, 'error');
+    return;
+  }
+
+  const cust = store.customers.find(x => x.id === contract.customerId);
+
+  const html = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">${escape(contract.title)}</div>
+        <button class="btn btn-ghost" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <div class="text-sm text-muted">Kunde</div>
+          <div style="font-weight:500;margin-top:2px;">${escape(cust?.name || '–')}</div>
+        </div>
+        <div class="form-group">
+          <div class="text-sm text-muted">Status</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+            <span class="badge ${contract.status === 'confirmed' ? 'badge-freigegeben' : 'badge-skript'}">${contract.status === 'confirmed' ? 'Bestätigt' : 'Entwurf'}</span>
+            ${isPriv ? `<button class="btn btn-ghost btn-sm" onclick="toggleContractStatus('${contractId}','${contract.status === 'confirmed' ? 'draft' : 'confirmed'}')">${contract.status === 'confirmed' ? 'Zurück zu Entwurf' : 'Bestätigen'}</button>` : ''}
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="text-sm text-muted">PDF-Datei</div>
+          <div style="margin-top:6px;">
+            ${contract.path ? `
+              <div style="display:flex;align-items:center;gap:10px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span style="flex:1;">${escape(contract.filename || 'Vertrag.pdf')}</span>
+                <a href="${contract.path}" target="_blank" class="btn btn-ghost btn-sm">Öffnen</a>
+              </div>` : '<span class="text-muted text-sm">Kein PDF hochgeladen</span>'}
+            ${canUpload ? `
+              <label class="file-upload" for="contract-pdf-input" style="margin-top:10px;">
+                <div id="contract-pdf-label" style="font-size:13px;font-weight:500;">${contract.path ? 'PDF ersetzen' : 'PDF hochladen'}</div>
+                <input type="file" id="contract-pdf-input" accept=".pdf,application/pdf" style="display:none;" onchange="previewContractFile(event,'contract-pdf-label')" />
+              </label>
+              <button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="replaceContractPdf('${contractId}',this)">${contract.path ? 'PDF ersetzen' : 'PDF hochladen'}</button>
+            ` : ''}
+          </div>
+        </div>
+        <div class="text-sm text-muted">Erstellt: ${fmtDateTime(contract.createdAt)}</div>
+        ${isAdmin ? `<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><button class="btn btn-danger btn-sm" onclick="deleteContractConfirm('${contractId}')">Vertrag löschen</button></div>` : ''}
+      </div>
+    </div>
+  </div>`;
+  $('#modal-container').innerHTML = html;
+}
+
+async function replaceContractPdf(contractId, btn) {
+  const fileInput = document.getElementById('contract-pdf-input');
+  if (!fileInput?.files[0]) {
+    showToast('Bitte zuerst eine PDF-Datei auswählen.', 'warn');
+    return;
+  }
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Wird hochgeladen…';
+  try {
+    await uploadContractPdf(contractId, fileInput.files[0]);
+    contractsCache = null;
+    closeModal();
+    showToast('PDF erfolgreich hochgeladen', 'success');
+    openContractDetailModal(contractId);
+  } catch (e) {
+    showToast('Upload fehlgeschlagen: ' + e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
+async function toggleContractStatus(contractId, newStatus) {
+  try {
+    await apiPut('/contracts.php?id=' + contractId, { status: newStatus });
+    contractsCache = null;
+    closeModal();
+    showToast('Status aktualisiert', 'success');
+    renderContracts(getCurrentUser());
+  } catch (e) {
+    showToast('Fehler: ' + e.message, 'error');
+  }
+}
+
+async function deleteContractConfirm(contractId) {
+  const ok = await appConfirm('Vertrag und alle zugehörigen Daten unwiderruflich löschen?', { title: 'Vertrag löschen?', okLabel: 'Löschen', danger: true });
+  if (!ok) return;
+  try {
+    await apiDel('/contracts.php?id=' + contractId);
+    contractsCache = null;
+    closeModal();
+    showToast('Vertrag gelöscht', 'success');
+    renderContracts(getCurrentUser());
+  } catch (e) {
+    showToast('Fehler: ' + e.message, 'error');
+  }
 }
 
 /* ----------- DASHBOARD ----------- */
 function renderDashboard(session) {
   $('#page-title').textContent = 'Übersicht';
   $('#page-subtitle').textContent = `Hallo ${session.user.name.split(' ')[0]}, willkommen zurück.`;
-  $('#topbar-actions').innerHTML = `
-    <button class="btn btn-secondary" onclick="openSubscribeModal()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Kalender abonnieren
-    </button>
-  `;
+  $('#topbar-actions').innerHTML = '';
 
   const user = session.user;
   const userId = user.id;
@@ -4125,21 +4700,25 @@ function renderDashboard(session) {
   $('#content').innerHTML = `
     <div class="stat-grid">
       <div class="stat">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>
         <div class="stat-label">Aktive Projekte</div>
         <div class="stat-value">${active.length}</div>
         <div class="stat-sub">${myProjects.length} gesamt</div>
       </div>
       <div class="stat">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
         <div class="stat-label">Warten auf Freigabe</div>
         <div class="stat-value">${pendingApproval.length}</div>
         <div class="stat-sub">Status: Fertig</div>
       </div>
       <div class="stat">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
         <div class="stat-label">Kunden</div>
         <div class="stat-value">${myCustomersCount}</div>
         <div class="stat-sub">${hasRole(user, ROLES.MANAGER) && !hasRole(user, ROLES.ADMIN) ? 'Meine Kunden' : 'Gesamt'}</div>
       </div>
       <div class="stat">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
         <div class="stat-label">Team</div>
         <div class="stat-value">${store.users.length}</div>
         <div class="stat-sub">Mitglieder</div>
@@ -4188,6 +4767,7 @@ function renderDashboard(session) {
           `}
         </div>
 
+        ${renderNotificationsCard()}
         ${renderVideografShootChecklist(user)}
         ${renderCutterQueue(user)}
 
@@ -4309,7 +4889,7 @@ function canActOnProject(project, session, action) {
   return false;
 }
 
-function markAsShot(projectId) {
+async function markAsShot(projectId) {
   const p = store.projects.find(x => x.id === projectId);
   if (!p) { appAlert('Projekt nicht gefunden.', { title: 'Fehler' }); return; }
   const session = getCurrentUser();
@@ -4317,11 +4897,13 @@ function markAsShot(projectId) {
     appAlert('Du hast keine Berechtigung, dieses Projekt zu ändern.', { title: 'Nicht erlaubt' });
     return;
   }
-  // Direkt Status setzen – kein Confirm-Dialog, der irgendwo hängen kann
+  // Snapshot für Rollback
+  const prevStatus = p.status;
+  const prevShotAt = p.shotAt;
+  // Optimistisch lokal updaten
   p.status = STATUS.GEDREHT;
   p.shotAt = new Date().toISOString();
   logActivity('project', p.id, 'markAsShot', { title: p.title });
-  saveStore();
   console.log('[markAsShot] Status gesetzt auf:', p.status, 'für Projekt:', p.title);
   // Cutter informieren
   if (p.cutterId) {
@@ -4335,9 +4917,31 @@ function markAsShot(projectId) {
   }
   closeModal();
   renderPage();
-  // Hintergrund-Sync ohne UI-Block
-  setTimeout(() => { try { writeLiveICS(); } catch(e){ console.warn(e); } }, 50);
   showToast('Als abgedreht markiert', `„${p.title}" ist jetzt bereit für den Schnitt`);
+  // Direkt in DB schreiben
+  try {
+    const res = await fetch(
+      `${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`,
+      {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ status: 'gedreht' })
+      }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const idx = store.projects.findIndex(x => x.id === projectId);
+      if (idx >= 0) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    p.status = prevStatus;
+    p.shotAt = prevShotAt;
+    renderPage();
+    showToast('Fehler beim Speichern', err.message);
+  }
 }
 
 /* Cutter-Queue fürs Dashboard */
@@ -4407,7 +5011,7 @@ function renderCutQueueItem(p, kind) {
   `;
 }
 
-function cutterAccept(projectId) {
+async function cutterAccept(projectId) {
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx < 0) return;
   const session = getCurrentUser();
@@ -4415,14 +5019,27 @@ function cutterAccept(projectId) {
     appAlert('Du hast keine Berechtigung dafür.', { title: 'Nicht erlaubt' });
     return;
   }
+  const prevStatus = store.projects[idx].status;
   store.projects[idx].status = STATUS.SCHNITT;
   logActivity('project', store.projects[idx].id, 'cutterAccept', { title: store.projects[idx].title });
-  saveStore();
-  writeLiveICS();
   closeModal();
   renderPage();
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: STATUS.SCHNITT })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+  } catch (err) {
+    store.projects[idx].status = prevStatus;
+    renderPage();
+    showToast('Speichern fehlgeschlagen', err.message);
+  }
 }
-function cutterMarkDone(projectId) {
+async function cutterMarkDone(projectId) {
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx < 0) return;
   const session = getCurrentUser();
@@ -4430,10 +5047,10 @@ function cutterMarkDone(projectId) {
     appAlert('Du hast keine Berechtigung dafür.', { title: 'Nicht erlaubt' });
     return;
   }
+  const prevStatus = store.projects[idx].status;
   store.projects[idx].status = STATUS.FERTIG;
   logActivity('project', store.projects[idx].id, 'cutterMarkDone', { title: store.projects[idx].title });
-  saveStore();
-  writeLiveICS();
+
   const p = store.projects[idx];
   const c = store.customers.find(x => x.id === p.customerId);
   if (c?.managerId) {
@@ -4441,6 +5058,20 @@ function cutterMarkDone(projectId) {
   }
   closeModal();
   renderPage();
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: STATUS.FERTIG })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+  } catch (err) {
+    store.projects[idx].status = prevStatus;
+    renderPage();
+    showToast('Speichern fehlgeschlagen', err.message);
+  }
 }
 function dashCalNav(delta) {
   if (dashboardView === 'week') {
@@ -4533,7 +5164,7 @@ async function bulkArchiveProjects() {
   if (!_bulkRequireAdmin()) return;
   const ids = [...bulkSelection.ids];
   ids.forEach(id => { const idx = store.projects.findIndex(p => p.id === id); if (idx >= 0) store.projects[idx].status = STATUS.ARCHIVIERT; });
-  saveStore(); writeLiveICS(); clearBulk(); renderPage(); showToast(`${ids.length} Projekte archiviert`, '');
+  saveStore(); clearBulk(); renderPage(); showToast(`${ids.length} Projekte archiviert`, '');
 }
 async function bulkDelete() {
   if (!_bulkRequireAdmin()) return;
@@ -5194,7 +5825,7 @@ function openShootDayModal(shootDayId = null) {
   $('#modal-container').innerHTML = html;
 }
 
-function saveShootDay(e, shootDayId) {
+async function saveShootDay(e, shootDayId) {
   e.preventDefault();
   const fd = new FormData(e.target);
   const data = {
@@ -5215,26 +5846,59 @@ function saveShootDay(e, shootDayId) {
   }
 
   let rescheduledFrom = null;
+  let prevEntry = null;
+  let insertedId = null;
+
   if (shootDayId) {
     const idx = store.shootDays.findIndex(s => s.id === shootDayId);
     if (idx >= 0) {
-      const prev = store.shootDays[idx];
-      if (prev.date && prev.date !== data.date) {
-        rescheduledFrom = prev.date;
-      }
-      store.shootDays[idx] = { ...prev, ...data, rescheduledFrom: rescheduledFrom ?? prev.rescheduledFrom ?? null };
+      prevEntry = { ...store.shootDays[idx] };
+      if (prevEntry.date && prevEntry.date !== data.date) rescheduledFrom = prevEntry.date;
+      store.shootDays[idx] = { ...prevEntry, ...data, rescheduledFrom: rescheduledFrom ?? prevEntry.rescheduledFrom ?? null };
     }
   } else {
-    store.shootDays.push({ id: uid('sd'), ...data, rescheduledFrom: null, createdAt: new Date().toISOString() });
+    insertedId = uid('sd');
+    store.shootDays.push({ id: insertedId, ...data, rescheduledFrom: null, createdAt: new Date().toISOString() });
   }
-  saveStore();
-  writeLiveICS();
+
   closeModal();
   renderPage();
   if (rescheduledFrom) {
     showToast('Drehtag verschoben', 'Von ' + fmtDate(rescheduledFrom) + ' auf ' + fmtDate(data.date) + ' – bitte Kunden informieren.');
   } else {
     showToast('Drehtag gespeichert', fmtDate(data.date) + ' · ' + data.startTime + '–' + data.endTime);
+  }
+
+  // Direkt in DB schreiben
+  try {
+    const url = shootDayId
+      ? `${API_BASE}/shootdays.php?id=${encodeURIComponent(shootDayId)}`
+      : `${API_BASE}/shootdays.php`;
+    const method = shootDayId ? 'PUT' : 'POST';
+    const payload = shootDayId ? { ...data, rescheduledFrom } : { ...data, id: insertedId, rescheduledFrom: null };
+    const res = await fetch(url, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const targetId = shootDayId || insertedId;
+      const idx = store.shootDays.findIndex(s => s.id === targetId);
+      if (idx >= 0) store.shootDays[idx] = { ...store.shootDays[idx], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    if (shootDayId && prevEntry) {
+      const idx = store.shootDays.findIndex(s => s.id === shootDayId);
+      if (idx >= 0) store.shootDays[idx] = prevEntry;
+    } else if (insertedId) {
+      store.shootDays = store.shootDays.filter(s => s.id !== insertedId);
+    }
+    renderPage();
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -5250,13 +5914,35 @@ async function deleteShootDay(shootDayId) {
     : 'Der Drehtag wird gelöscht.';
   const ok = await appConfirm(msg, { title: 'Drehtag löschen?', okLabel: 'Löschen', danger: true });
   if (!ok) return;
+  // Snapshot für Rollback
+  const removedSd = store.shootDays.find(s => s.id === shootDayId);
+  const unlinkedProjects = [];
   // Verlinkung in Projekten entfernen
-  store.projects.forEach(p => { if (p.shootDayId === shootDayId) { delete p.shootDayId; } });
+  store.projects.forEach(p => {
+    if (p.shootDayId === shootDayId) {
+      unlinkedProjects.push({ p, id: p.shootDayId });
+      delete p.shootDayId;
+    }
+  });
   trackDeletion('shootDays', shootDayId);
   store.shootDays = store.shootDays.filter(s => s.id !== shootDayId);
-  saveStore();
   closeModal();
   renderPage();
+  // Direkt in DB löschen
+  try {
+    const res = await fetch(
+      `${API_BASE}/shootdays.php?id=${encodeURIComponent(shootDayId)}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+  } catch (err) {
+    // Rollback
+    if (removedSd) store.shootDays.push(removedSd);
+    unlinkedProjects.forEach(({ p }) => { p.shootDayId = shootDayId; });
+    await pullAllFromCloud().then(() => renderPage());
+    showToast('Fehler beim Speichern', err.message);
+  }
 }
 
 function openProjectModal(projectId = null) {
@@ -5423,17 +6109,13 @@ function openProjectModal(projectId = null) {
             <div class="form-row">
               <div class="form-group" id="posting-field" style="${isInternal ? 'display:none;' : ''}">
                 <label class="form-label">Posting-Datum* (18:00)</label>
-                <input type="date" name="postingDate" value="${project?.postingDate || ''}" ${!canEdit ? 'readonly' : ''} />
-                ${isNew ? '<div class="text-sm text-muted mt-2">Cutter-Deadline wird automatisch 48 h vorher gesetzt.</div>' : ''}
+                <input type="date" name="postingDate" id="proj-postingDate" value="${project?.postingDate || ''}" ${!canEdit ? 'readonly' : ''} onchange="autoFillDeadline()" />
               </div>
-              ${!isNew ? `
-                <div class="form-group">
-                  <label class="form-label">Cutter-Deadline (17:00)</label>
-                  <input type="date" name="deadline" value="${project?.deadline || defaultDeadline}" ${!canEdit ? 'readonly' : ''} />
-                </div>
-              ` : `
-                <input type="hidden" name="deadline" value="" />
-              `}
+              <div class="form-group">
+                <label class="form-label">Cutter-Deadline (17:00)</label>
+                <input type="date" name="deadline" id="proj-deadline" value="${project?.deadline || ''}" ${!canEdit ? 'readonly' : ''} />
+                ${isNew ? '<div class="text-sm text-muted mt-2">Wird automatisch 2 Tage vor Posting gesetzt, kann aber manuell überschrieben werden.</div>' : ''}
+              </div>
             </div>
 
             <div class="form-group">
@@ -5481,6 +6163,50 @@ function openProjectModal(projectId = null) {
     </div>
   `;
   $('#modal-container').innerHTML = html;
+
+  // Draft autosave for new projects
+  if (isNew && canEdit) {
+    restoreProjectDraft();
+    const form = document.getElementById('project-form');
+    if (form) {
+      form.addEventListener('input', saveProjectDraft);
+      form.addEventListener('change', saveProjectDraft);
+    }
+  }
+}
+
+const PROJECT_DRAFT_KEY = 'project_form_draft';
+
+function saveProjectDraft() {
+  const form = document.getElementById('project-form');
+  if (!form) return;
+  const data = Object.fromEntries(
+    [...form.querySelectorAll('input[name],select[name],textarea[name]')]
+      .filter(el => el.type !== 'file' && el.type !== 'submit')
+      .map(el => [el.name, el.type === 'checkbox' ? (el.checked ? '1' : '') : el.value])
+  );
+  localStorage.setItem(PROJECT_DRAFT_KEY, JSON.stringify(data));
+}
+
+function restoreProjectDraft() {
+  try {
+    const raw = localStorage.getItem(PROJECT_DRAFT_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    const form = document.getElementById('project-form');
+    if (!form) return;
+    for (const [name, val] of Object.entries(data)) {
+      const el = form.querySelector(`[name="${name}"]`);
+      if (!el || el.type === 'file') continue;
+      if (el.type === 'checkbox') { el.checked = !!val; el.dispatchEvent(new Event('change')); }
+      else { el.value = val; }
+    }
+    if (data.title) showToast('Entwurf wiederhergestellt', 'Dein letzter Entwurf wurde geladen.');
+  } catch (_) {}
+}
+
+function clearProjectDraft() {
+  localStorage.removeItem(PROJECT_DRAFT_KEY);
 }
 
 function getStatusActions(project, session) {
@@ -5546,12 +6272,24 @@ async function cutterRevert(projectId, targetStatus) {
   if (!ok) return;
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx >= 0) {
+    const prevStatus = store.projects[idx].status;
     store.projects[idx].status = actualTarget;
     logActivity('project', store.projects[idx].id, 'cutterRevert', { title: store.projects[idx].title, from: targetStatus, to: actualTarget });
-    saveStore();
-    writeLiveICS();
+  
     closeModal();
     renderPage();
+    fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: actualTarget })
+    }).then(r => r.json()).then(json => {
+      if (!json.ok) throw new Error(json.error || 'Fehler');
+      if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    }).catch(err => {
+      store.projects[idx].status = prevStatus;
+      renderPage();
+      showToast('Speichern fehlgeschlagen', err.message);
+    });
   }
 }
 
@@ -5559,12 +6297,12 @@ async function cutterRevert(projectId, targetStatus) {
 async function openProjectViewerModal(project) {
   const session = getCurrentUser();
   const user = session.user;
-  // Projektdateien nachladen (werden nicht im globalen Store gespeichert)
+  // Fetch fresh project data including files
   try {
-    const r = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(project.id)}`, { credentials: 'same-origin' });
-    const j = await r.json();
-    if (j.ok && j.data) project = { ...project, ...j.data };
-  } catch { /* kein Netz – zeige Projekt ohne Dateien */ }
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(project.id)}`, { credentials: 'same-origin' });
+    const json = await res.json();
+    if (res.ok && json.ok && json.data) project = json.data;
+  } catch (_) {}
   const c = store.customers.find(x => x.id === project.customerId);
   const vg = store.users.find(u => u.id === project.videografId);
   const ct = store.users.find(u => u.id === project.cutterId);
@@ -5772,7 +6510,7 @@ async function uploadProjectFile(kind, projectId) {
   input.click();
 }
 
-function saveProject(e, projectId) {
+async function saveProject(e, projectId) {
   e.preventDefault();
   const session = getCurrentUser();
   if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) {
@@ -5844,8 +6582,8 @@ function saveProject(e, projectId) {
     // Beim Anlegen: Cutter-Deadline = Posting − 48 h (= 2 Tage)
     // Beim Bearbeiten: Deadline editierbar, fällt zurück auf Posting − 2 Tage falls leer
     if (!projectId) {
-      // Neu angelegt → Deadline IMMER überschreiben
-      if (data.postingDate) {
+      // Neu angelegt → Deadline nur setzen wenn leer
+      if (!data.deadline && data.postingDate) {
         data.deadline = addDays(data.postingDate, -2);
       }
     } else {
@@ -5897,17 +6635,33 @@ function saveProject(e, projectId) {
     const sdIdx = store.shootDays.findIndex(s => s.id === data.shootDayId);
     if (sdIdx >= 0 && !store.shootDays[sdIdx].customerId) {
       store.shootDays[sdIdx].customerId = data.customerId;
+      // Fire-and-forget: shootDay übernimmt den Kunden in der DB
+      fetch(
+        `${API_BASE}/shootdays.php?id=${encodeURIComponent(data.shootDayId)}`,
+        {
+          method: 'PUT',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+          body: JSON.stringify({ customerId: data.customerId })
+        }
+      ).catch(err => console.warn('[saveProject] shootDay customerId sync failed:', err));
     }
   }
+
+  // Snapshot für Rollback
+  let prevEntry = null;
+  let insertedId = null;
 
   if (projectId) {
     const idx = store.projects.findIndex(p => p.id === projectId);
     if (idx >= 0) {
+      prevEntry = { ...store.projects[idx] };
       store.projects[idx] = { ...store.projects[idx], ...data, ...fileAdds };
     }
   } else {
+    insertedId = uid('p');
     store.projects.push({
-      id: uid('p'),
+      id: insertedId,
       title: data.title,
       customerId: data.customerId,
       videografId: data.videografId || null,
@@ -5922,10 +6676,71 @@ function saveProject(e, projectId) {
       ...fileAdds
     });
   }
-  saveStore();
-  writeLiveICS();
+
+  clearProjectDraft();
   closeModal();
+
+  // Neues Projekt → Kalender auf frühestes Datum springen
+  if (!projectId) {
+    const dates = [data.shootDate, data.deadline, data.postingDate].filter(Boolean).sort();
+    if (dates.length > 0) {
+      const earliest = new Date(dates[0] + 'T00:00:00');
+      calendarDate = new Date(earliest.getFullYear(), earliest.getMonth(), 1);
+      if (currentPage !== 'calendar') {
+        showToast('Projekt angelegt', 'Im Kalender sichtbar → Kalender öffnen', () => navigateTo('calendar'));
+      }
+    }
+  }
+
   renderPage();
+
+  // Direkt in DB schreiben (nur DB-kompatible Felder, kein base64)
+  const apiPayload = {
+    title: data.title,
+    customerId: data.customerId || null,
+    videografId: data.videografId || null,
+    cutterId: data.cutterId || null,
+    shootDate: data.shootDate || null,
+    shootDayId: data.shootDayId || null,
+    deadline: data.deadline || null,
+    postingDate: data.postingDate || null,
+    script: data.script || '',
+    isInternal: data.isInternal ? 1 : 0,
+    status: data.status || undefined
+  };
+  // Für neue Projekte: id mitschicken
+  if (!projectId) apiPayload.id = insertedId;
+
+  try {
+    const url = projectId
+      ? `${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`
+      : `${API_BASE}/projects.php`;
+    const method = projectId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(apiPayload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const targetId = projectId || insertedId;
+      const i = store.projects.findIndex(p => p.id === targetId);
+      // Merge server response but keep local-only fields (scriptFile, scriptFileName)
+      if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    if (projectId && prevEntry) {
+      const i = store.projects.findIndex(p => p.id === projectId);
+      if (i >= 0) store.projects[i] = prevEntry;
+    } else if (insertedId) {
+      store.projects = store.projects.filter(p => p.id !== insertedId);
+    }
+    renderPage();
+    showToast('Fehler beim Speichern', err.message);
+  }
 }
 
 function toggleInternalProject(cb) {
@@ -5934,6 +6749,15 @@ function toggleInternalProject(cb) {
   const post = document.getElementById('posting-field');
   if (ext) ext.style.display = isInternal ? 'none' : '';
   if (post) post.style.display = isInternal ? 'none' : '';
+}
+
+function autoFillDeadline() {
+  const postingInput = document.getElementById('proj-postingDate');
+  const deadlineInput = document.getElementById('proj-deadline');
+  if (!postingInput || !deadlineInput) return;
+  if (postingInput.value && !deadlineInput.value) {
+    deadlineInput.value = addDays(postingInput.value, -2);
+  }
 }
 
 function onShootDayChange(select) {
@@ -6014,23 +6838,43 @@ async function removeScriptFile(projectId) {
     delete store.projects[idx].scriptFile;
     delete store.projects[idx].scriptFileName;
     saveStore();
-    writeLiveICS();
+  
     openProjectModal(projectId);
   }
 }
 
-function updateStatus(projectId, newStatus) {
+async function updateStatus(projectId, newStatus) {
   const idx = store.projects.findIndex(p => p.id === projectId);
-  if (idx >= 0) {
-    store.projects[idx].status = newStatus;
-    saveStore();
-    writeLiveICS();
-    closeModal();
+  if (idx < 0) return;
+  const prevStatus = store.projects[idx].status;
+  store.projects[idx].status = newStatus;
+
+  closeModal();
+  renderPage();
+  try {
+    const res = await fetch(
+      `${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`,
+      {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ status: newStatus })
+      }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const i = store.projects.findIndex(p => p.id === projectId);
+      if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
+    }
+  } catch (err) {
+    store.projects[idx].status = prevStatus;
     renderPage();
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
-function approveProject(projectId) {
+async function approveProject(projectId) {
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx < 0) return;
   const session = getCurrentUser();
@@ -6039,17 +6883,40 @@ function approveProject(projectId) {
     return;
   }
   const p = store.projects[idx];
+  const prevStatus = p.status;
+  const prevApprovedAt = p.approvedAt;
   p.status = STATUS.FREIGEGEBEN;
   p.approvedAt = new Date().toISOString();
   logActivity('project', p.id, 'approve', { title: p.title });
-  saveStore();
-  writeLiveICS();
+
   // Cutter benachrichtigen
   if (p.cutterId) {
     notifyUser(p.cutterId, 'Video freigegeben ✓', `„${p.title}" wurde freigegeben.`);
   }
   closeModal();
   renderPage();
+  try {
+    const res = await fetch(
+      `${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`,
+      {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ status: 'freigegeben' })
+      }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const i = store.projects.findIndex(x => x.id === projectId);
+      if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
+    }
+  } catch (err) {
+    p.status = prevStatus;
+    p.approvedAt = prevApprovedAt;
+    renderPage();
+    showToast('Fehler beim Speichern', err.message);
+  }
 }
 
 function notifyUser(userId, title, body) {
@@ -6179,10 +7046,10 @@ function submitCorrection(projectId) {
   };
   if (!store.projects[idx].correctionNotes) store.projects[idx].correctionNotes = [];
   store.projects[idx].correctionNotes.push(note);
+  const prevStatus = store.projects[idx].status;
   store.projects[idx].status = STATUS.KORREKTUR;
   logActivity('project', store.projects[idx].id, 'correctionRequested', { title: store.projects[idx].title, text: (note.text || '').slice(0, 200) });
-  saveStore();
-  writeLiveICS();
+
   // Cutter benachrichtigen
   const p = store.projects[idx];
   if (p.cutterId) {
@@ -6190,6 +7057,18 @@ function submitCorrection(projectId) {
   }
   closeModal();
   renderPage();
+  fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+    method: 'PUT', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+    body: JSON.stringify({ status: STATUS.KORREKTUR })
+  }).then(r => r.json()).then(json => {
+    if (!json.ok) throw new Error(json.error || 'Fehler');
+    if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+  }).catch(err => {
+    store.projects[idx].status = prevStatus;
+    renderPage();
+    showToast('Speichern fehlgeschlagen', err.message);
+  });
 }
 
 async function archiveProject(projectId) {
@@ -6222,27 +7101,26 @@ async function deleteProject(projectId) {
     danger: true
   });
   if (!ok) return;
-  // Snapshot für Undo
+  // Snapshot für Rollback
   const removed = store.projects.find(x => x.id === projectId);
-  const removedIdx = store.projects.findIndex(x => x.id === projectId);
   trackDeletion('projects', projectId);
   store.projects = store.projects.filter(p => p.id !== projectId);
-  saveStore();
-  writeLiveICS();
+
   closeModal();
   renderPage();
-  if (removed) {
-    showUndoToast(`Projekt „${removed.title}" gelöscht`, () => {
-      // Aus Pending-Deletions wieder rausnehmen
-      if (store._pendingDeletions?.projects) {
-        store._pendingDeletions.projects = store._pendingDeletions.projects.filter(id => id !== projectId);
-      }
-      store.projects.splice(Math.min(removedIdx, store.projects.length), 0, removed);
-      saveStore();
-      writeLiveICS();
-      renderPage();
-      showToast('Wiederhergestellt', `„${removed.title}"`);
-    });
+  // Direkt in DB löschen
+  try {
+    const res = await fetch(
+      `${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+  } catch (err) {
+    // Rollback
+    if (removed) store.projects.push(removed);
+    await pullAllFromCloud().then(() => renderPage());
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -6606,20 +7484,32 @@ function openCustomerModal(customerId = null) {
                 </div>
               </div>
 
-              <div class="section-title">Vertragsdokument</div>
-              ${c.contractFile ? `
-                <div class="file-uploaded">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  <span style="flex:1;">${escape(c.contractFileName || 'Vertrag.pdf')}</span>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="downloadContractFile('${customer.id}')">Öffnen</button>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="removeContractFile('${customer.id}')" style="color:var(--danger);">×</button>
+              <div class="section-title">Vertragsdokumente</div>
+              ${!customer?.id ? `
+                <div style="font-size:13px;color:var(--text-3);padding:10px 0;">
+                  Bitte Kunden zuerst speichern, um Dokumente hochladen zu können.
                 </div>
-              ` : ''}
-              <label class="file-upload" for="contract-upload">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.5" style="margin-bottom:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <div style="font-size:13px;font-weight:500;">${c.contractFile ? 'Datei ersetzen' : 'Vertrag hochladen (PDF)'}</div>
-                <input type="file" id="contract-upload" accept=".pdf,application/pdf" style="display:none;" onchange="uploadContractFile(event)" />
-              </label>
+              ` : [
+                {kind:'vertrag',              label:'Vertrag'},
+                {kind:'leistungsbeschreibung',label:'Leistungsbeschreibung'},
+                {kind:'avv',                  label:'AVV (Auftragsverarbeitung)'},
+              ].map(({kind, label}) => {
+                const docs = (store.customerFiles||[]).filter(f => f.customerId === customer.id && f.kind === kind);
+                return `<div class="form-group" style="margin-bottom:14px;">
+                  <label class="form-label" style="margin-bottom:6px;">${escape(label)}</label>
+                  ${docs.map(f => `
+                    <div class="file-uploaded" style="margin-bottom:4px;">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      <span style="flex:1;font-size:12px;">${escape(f.filename)}</span>
+                      <a class="btn btn-ghost btn-sm" href="${API_BASE}/download.php?scope=customer&id=${f.id}" target="_blank">Öffnen</a>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="deleteCustomerFile(${f.id},'${customer.id}')" style="color:var(--danger);">×</button>
+                    </div>`).join('')}
+                  <label class="file-upload" style="padding:8px 12px;cursor:pointer;">
+                    <input type="file" accept=".pdf,.doc,.docx,.odt" style="display:none;" onchange="uploadCustomerFile(this,'${customer.id}','${kind}')" />
+                    <span style="font-size:12px;color:var(--text-3);">+ ${escape(label)} hochladen (PDF, DOCX, ODT)</span>
+                  </label>
+                </div>`;
+              }).join('')}
             </div>
 
             <!-- TAB: ONBOARDING CHECKLIST -->
@@ -6677,49 +7567,52 @@ function updateChecklistVisual() {
   // No-op kept for hookability.
 }
 
-// Contract file upload (base64, stored in localStorage – warn if > 4MB)
-let pendingContractFile = null;
-function uploadContractFile(e) {
-  const file = e.target.files[0];
+async function uploadCustomerFile(input, customerId, kind) {
+  const file = input.files[0];
   if (!file) return;
-  if (file.size > 4 * 1024 * 1024) {
-    alert('Datei ist zu groß (max. 4 MB für LocalStorage).');
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = ev => {
-    pendingContractFile = { name: file.name, data: ev.target.result };
-    // Visual feedback
-    const labelEl = e.target.closest('.file-upload');
-    if (labelEl) {
-      labelEl.style.borderColor = 'var(--accent)';
-      labelEl.style.background = 'var(--accent-soft)';
-      labelEl.querySelector('div').textContent = '✓ ' + file.name + ' bereit zum Speichern';
-    }
-  };
-  reader.readAsDataURL(file);
-}
-
-function downloadContractFile(customerId) {
-  const c = store.customers.find(x => x.id === customerId);
-  if (!c?.contractFile) return;
-  const a = document.createElement('a');
-  a.href = c.contractFile;
-  a.download = c.contractFileName || 'Vertrag.pdf';
-  a.click();
-}
-
-async function removeContractFile(customerId) {
-  const ok = await appConfirm('Die hochgeladene Vertrags-PDF wird entfernt.', {
-    title: 'Vertragsdatei entfernen?', okLabel: 'Entfernen', danger: true
-  });
-  if (!ok) return;
-  const idx = store.customers.findIndex(c => c.id === customerId);
-  if (idx >= 0) {
-    delete store.customers[idx].contractFile;
-    delete store.customers[idx].contractFileName;
-    saveStore();
+  const label = input.closest('label');
+  if (label) label.style.opacity = '0.5';
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(
+      `${API_BASE}/upload.php?scope=customer&kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(customerId)}`,
+      { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF }, body: formData }
+    );
+    const json = await res.json();
+    if (!json.ok && !json.success) throw new Error(json.error || 'Upload fehlgeschlagen');
+    const f = json.data;
+    if (!store.customerFiles) store.customerFiles = [];
+    store.customerFiles.unshift({
+      id: f.id, customerId, kind,
+      filename: f.filename, mime: f.mime, size: f.size,
+      uploadedAt: new Date().toISOString(),
+    });
+    showToast(file.name + ' hochgeladen', '');
     openCustomerModal(customerId);
+  } catch (e) {
+    showToast('Fehler', e.message);
+  } finally {
+    input.value = '';
+    if (label) label.style.opacity = '1';
+  }
+}
+
+async function deleteCustomerFile(fileId, customerId) {
+  const ok = await appConfirm('Datei unwiderruflich löschen?', { title: 'Datei löschen', okLabel: 'Löschen', danger: true });
+  if (!ok) return;
+  try {
+    const res = await fetch(
+      `${API_BASE}/customer_files.php?id=${fileId}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!json.ok && !json.success) throw new Error(json.error || 'Löschen fehlgeschlagen');
+    store.customerFiles = (store.customerFiles || []).filter(f => f.id !== fileId);
+    showToast('Datei gelöscht', '');
+    openCustomerModal(customerId);
+  } catch (e) {
+    showToast('Fehler', e.message);
   }
 }
 
@@ -6779,35 +7672,91 @@ async function saveCustomer(e, customerId) {
   delete data.manualStatus;
   data.status = manualStatus === 'paused' ? 'paused' : null;
 
-  // Add contract file if pending
-  const fileAdds = {};
-  if (pendingContractFile) {
-    fileAdds.contractFile = pendingContractFile.data;
-    fileAdds.contractFileName = pendingContractFile.name;
-    pendingContractFile = null;
-  }
+  // Snapshot für Rollback
+  let prevEntry = null;
+  let insertedId = null;
 
   if (customerId) {
     const idx = store.customers.findIndex(c => c.id === customerId);
     if (idx >= 0) {
-      store.customers[idx] = { ...store.customers[idx], ...data, ...fileAdds, checklist };
+      prevEntry = { ...store.customers[idx] };
+      store.customers[idx] = { ...store.customers[idx], ...data, checklist };
       if (pinHashUpdate) store.customers[idx].pinHash = pinHashUpdate;
     }
   } else {
+    insertedId = uid('c');
     store.customers.push({
-      id: uid('c'),
+      id: insertedId,
       ...data,
-      ...fileAdds,
       checklist,
       ...(pinHashUpdate ? { pinHash: pinHashUpdate } : {}),
       createdAt: new Date().toISOString()
     });
   }
-  saveStore();
   // Auto-refresh live ICS file if active
-  writeLiveICS();
+
   closeModal();
   renderPage();
+
+  // Direkt in DB schreiben
+  const apiPayload = {
+    name: data.name,
+    customerNumber: data.customerNumber,
+    managerId: data.managerId || null,
+    email: data.email || null,
+    phone: data.phone || null,
+    contactName: data.contactName || null,
+    socialInstagram: data.socialInstagram || null,
+    socialTiktok: data.socialTiktok || null,
+    notes: data.notes || null,
+    addressStreet: data.addressStreet || null,
+    addressZip: data.addressZip || null,
+    addressCity: data.addressCity || null,
+    billingSameAsAddress: data.billingSameAsAddress ? 1 : 0,
+    billingStreet: data.billingStreet || null,
+    billingZip: data.billingZip || null,
+    billingCity: data.billingCity || null,
+    vatId: data.vatId || null,
+    billingEmail: data.billingEmail || null,
+    contractStart: data.contractStart || null,
+    package: data.package || null,
+    monthlyRate: data.monthlyRate || null,
+    videosPerMonth: data.videosPerMonth || null,
+    status: data.status || null,
+    checklist,
+    ...(pinHashUpdate ? { pinHash: pinHashUpdate } : {})
+  };
+  if (!customerId) apiPayload.id = insertedId;
+
+  try {
+    const url = customerId
+      ? `${API_BASE}/customers.php?id=${encodeURIComponent(customerId)}`
+      : `${API_BASE}/customers.php`;
+    const method = customerId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(apiPayload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const targetId = customerId || insertedId;
+      const i = store.customers.findIndex(c => c.id === targetId);
+      if (i >= 0) store.customers[i] = { ...store.customers[i], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    if (customerId && prevEntry) {
+      const i = store.customers.findIndex(c => c.id === customerId);
+      if (i >= 0) store.customers[i] = prevEntry;
+    } else if (insertedId) {
+      store.customers = store.customers.filter(c => c.id !== insertedId);
+    }
+    renderPage();
+    showToast('Fehler beim Speichern', err.message);
+  }
 }
 
 async function deleteCustomer(customerId) {
@@ -6823,22 +7772,23 @@ async function deleteCustomer(customerId) {
   const ok = await appConfirm(msg, { title: 'Kunde löschen?', okLabel: 'Löschen', danger: true });
   if (!ok) return;
   const removed = store.customers.find(c => c.id === customerId);
-  const removedIdx = store.customers.findIndex(c => c.id === customerId);
   trackDeletion('customers', customerId);
   store.customers = store.customers.filter(c => c.id !== customerId);
-  saveStore();
   closeModal();
   renderPage();
-  if (removed) {
-    showUndoToast(`Kunde „${removed.name}" gelöscht`, () => {
-      if (store._pendingDeletions?.customers) {
-        store._pendingDeletions.customers = store._pendingDeletions.customers.filter(id => id !== customerId);
-      }
-      store.customers.splice(Math.min(removedIdx, store.customers.length), 0, removed);
-      saveStore();
-      renderPage();
-      showToast('Wiederhergestellt', removed.name);
-    });
+  // Direkt in DB löschen
+  try {
+    const res = await fetch(
+      `${API_BASE}/customers.php?id=${encodeURIComponent(customerId)}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+  } catch (err) {
+    // Rollback
+    if (removed) store.customers.push(removed);
+    await pullAllFromCloud().then(() => renderPage());
+    showToast('Fehler beim Speichern', err.message);
   }
 }
 
@@ -6909,7 +7859,11 @@ function getCalCatVisibility() {
       const idx = store.users.findIndex(x => x.id === u.id);
       if (idx >= 0) {
         store.users[idx].calendarPrefs = migrated;
-        saveStore();
+        fetch(`${API_BASE}/users.php?id=${encodeURIComponent(u.id)}`, {
+          method: 'PUT', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+          body: JSON.stringify({ calendarPrefs: migrated })
+        }).catch(() => {});
       }
       return migrated;
     }
@@ -6922,10 +7876,13 @@ function setCalCatVisibility(key, on) {
   const v = { ...getCalCatVisibility(), _v: CAL_VISIBILITY_VERSION };
   v[key] = on;
   const idx = store.users.findIndex(x => x.id === session.user.id);
-  if (idx >= 0) {
-    store.users[idx].calendarPrefs = v;
-    saveStore(); // auch Cloud-Push
-  }
+  if (idx < 0) return;
+  store.users[idx].calendarPrefs = v;
+  fetch(`${API_BASE}/users.php?id=${encodeURIComponent(session.user.id)}`, {
+    method: 'PUT', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+    body: JSON.stringify({ calendarPrefs: v })
+  }).catch(err => console.warn('[calendarPrefs save]', err));
 }
 function toggleCalCat(key) {
   const v = getCalCatVisibility();
@@ -7044,8 +8001,8 @@ function buildCalendarBars(session) {
       bars.push({ ...base, phase: 'deadline', startDate: dl, endDate: dl, time: '17:00' });
     }
 
-    // Posting – nur für Manager/Admin/Videograf sichtbar
-    if (pd && pd !== dl && showsPostings) {
+    // Posting – auch anzeigen wenn Deadline = Posting-Tag
+    if (pd && showsPostings) {
       bars.push({ ...base, phase: 'posting', startDate: pd, endDate: pd, time: '18:00' });
     }
   });
@@ -7138,7 +8095,7 @@ function buildCalendarEvents(session) {
       add(pd, { kind: 'bar', projectId: p.id, phase: 'posting', isStart: true, isEnd: true, title: p.title, customer: customerName, fullTitle });
     }
 
-    if (p.deadline && p.deadline !== p.postingDate) {
+    if (p.deadline) {
       add(p.deadline, { kind: 'bar', projectId: p.id, phase: 'deadline', isStart: true, isEnd: true, title: p.title, customer: customerName, fullTitle });
     }
   });
@@ -7235,6 +8192,7 @@ function renderMonthViewInto(elementId, session, mini = false) {
     <div class="calendar-header">
       <div class="calendar-title-block">
         <div class="calendar-month" id="${elementId}-month-label">…</div>
+        ${!mini ? `<div class="view-toggle cal-inline-toggle"><button class="${calendarView==='week'?'active':''}" onclick="setCalendarView('week')">Woche</button><button class="${calendarView==='month'?'active':''}" onclick="setCalendarView('month')">Monat</button></div>` : ''}
       </div>
       <div class="calendar-nav">
         <button class="cal-nav-btn" onclick="${mini ? 'dashCalNav(-1)' : "calNav('full',-1)"}" title="Woche zurück">‹</button>
@@ -7300,7 +8258,7 @@ function renderMonthViewInto(elementId, session, mini = false) {
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#94a3b8"></div>Urlaub</div>
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#fbbf24"></div>Produktion</div>
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#ff453a"></div>Deadline</div>
-        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#4aa198"></div>Posting</div>
+        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#00C896"></div>Posting</div>
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#64d2ff"></div>Aufgabe</div>
       </div>
     ` : ''}
@@ -7504,8 +8462,9 @@ function renderCategoryWeekView(elementId, session, mini = false) {
   const videoLayout    = visible('videos')   ? layoutCat(videoBars)    : [];
   const todoLayout     = visible('todos')    ? layoutCat(todoBars)     : [];
 
-  const colWidth = mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH;
-  const sidebarWidth = mini ? 120 : 150;
+  const isMobile = window.innerWidth < 640;
+  const colWidth = isMobile ? 70 : (mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH);
+  const sidebarWidth = isMobile ? 46 : (mini ? 120 : 150);
 
   // Dynamische Cat-Liste: nur sichtbare Kategorien rendern – Reihenfolge: Drehtag, Urlaub, Videos, Aufgaben
   let nextRow = 2;
@@ -7535,6 +8494,7 @@ function renderCategoryWeekView(elementId, session, mini = false) {
     <div class="calendar-header">
       <div class="calendar-title-block">
         <div class="calendar-month" id="${elementId}-range-label">…</div>
+        ${!mini ? `<div class="view-toggle cal-inline-toggle"><button class="${calendarView==='week'?'active':''}" onclick="setCalendarView('week')">Woche</button><button class="${calendarView==='month'?'active':''}" onclick="setCalendarView('month')">Monat</button></div>` : ''}
       </div>
       <div class="calendar-nav">
         <button class="cal-nav-btn" onclick="${mini ? 'dashCalNav(-1)' : "calNav('full',-1)"}" title="Tag zurück">‹</button>
@@ -7559,7 +8519,7 @@ function renderCategoryWeekView(elementId, session, mini = false) {
     })()}
     <div class="ical ${mini ? 'mini' : ''}">
       <div class="ical-scroll" id="${elementId}-scroller">
-        <div class="ical-track" style="width: ${sidebarWidth + totalDays * colWidth}px; grid-template-columns: ${sidebarWidth}px repeat(${totalDays}, ${colWidth}px);">
+        <div class="ical-track" style="width: ${sidebarWidth + totalDays * colWidth}px; grid-template-columns: ${sidebarWidth}px repeat(${totalDays}, ${colWidth}px); --ical-sidebar: ${sidebarWidth}px;">
           <!-- Top-left corner (sticky) -->
           <div class="ical-corner"></div>
           <!-- Day headers (Drehtag-Info steckt in der eigenen Drehtag-Lane unten) -->
@@ -7603,7 +8563,7 @@ function renderCategoryWeekView(elementId, session, mini = false) {
           <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#94a3b8"></div>Urlaub</div>
           <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#fbbf24"></div>Produktion</div>
           <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#ff453a"></div>Deadline</div>
-          <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#4aa198"></div>Posting</div>
+          <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#00C896"></div>Posting</div>
           <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#64d2ff"></div>Aufgabe</div>
         </div>
       ` : ''}
@@ -7676,8 +8636,9 @@ function renderCategoryEvent(b, row, startCol, endCol) {
   } else if (!b.todoId && !b.shootDayId) {
     avatarUser = getBarPrimaryUser(b);
   }
-  const avatar = (!b.cutsLeft && avatarUser) ? renderAvatar(avatarUser, 16, 9) : '';
-  return `<div class="${cls}" style="grid-column: ${startCol} / ${endCol}; grid-row: ${row};" ${click} title="${escape(title)}">${avatar}<span style="overflow:hidden; text-overflow:ellipsis;">${escape(text)}</span></div>`;
+  const isMobile = window.innerWidth < 640;
+  const avatar = (!b.cutsLeft && avatarUser && !isMobile) ? renderAvatar(avatarUser, 16, 9) : '';
+  return `<div class="${cls}" style="grid-column: ${startCol} / ${endCol}; grid-row: ${row};" ${click} title="${escape(title)}">${avatar}<span class="ical-event-label">${escape(text)}</span></div>`;
 }
 
 function renderICWAllDay(b) {
@@ -8051,16 +9012,10 @@ function renderCalendar(session) {
   $('#page-title').textContent = 'Kalender';
   $('#page-subtitle').textContent = 'Alle Projekte, Drehtage und Deadlines';
   $('#topbar-actions').innerHTML = `
-    <div class="flex gap-2" style="align-items:center;">
-      <div class="view-toggle">
-        <button class="${calendarView === 'week' ? 'active' : ''}" onclick="setCalendarView('week')">Woche</button>
-        <button class="${calendarView === 'month' ? 'active' : ''}" onclick="setCalendarView('month')">Monat</button>
-      </div>
-      <button class="btn btn-secondary" onclick="openSubscribeModal()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Abonnieren
-      </button>
-    </div>
+    <button class="btn btn-secondary" onclick="openMyProfile()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Kalender-Abo
+    </button>
   `;
   $('#content').innerHTML = `<div class="calendar" id="main-calendar"></div>`;
   if (calendarView === 'week') renderWeekViewInto('main-calendar', session);
@@ -8199,7 +9154,8 @@ function openUserModal(userId = null) {
     manager: 'Kunden verwalten, Skripte schreiben, Videos freigeben',
     videograf: 'Drehtage und Rohaufnahmen verwalten',
     cutter: 'Videos schneiden und zur Freigabe vorlegen',
-    mitarbeiter: 'Allgemeiner Mitarbeiter – kann Aufgaben einsehen und bearbeiten'
+    mitarbeiter: 'Allgemeiner Mitarbeiter – kann Aufgaben einsehen und bearbeiten',
+    contract_uploader: 'Darf Verträge als DOCX hochladen und dem Kunden zuordnen'
   };
 
   const html = `
@@ -8211,24 +9167,6 @@ function openUserModal(userId = null) {
         </div>
         <form onsubmit="saveUser(event, '${user?.id || ''}')">
           <div class="modal-body">
-
-            <!-- Profilbild -->
-            <div class="flex" style="gap:16px; align-items:center; margin-bottom:18px;">
-              <div id="user-avatar-preview">
-                ${renderAvatar(user || { id: 'preview', name: 'NN' }, 64, 22)}
-              </div>
-              <div style="flex:1;">
-                <label class="form-label">Profilbild</label>
-                <div class="flex gap-2">
-                  <label class="btn btn-secondary btn-sm" for="user-avatar-upload" style="cursor:pointer;">
-                    ${user?.avatarImage ? 'Bild ersetzen' : 'Bild hochladen'}
-                    <input type="file" id="user-avatar-upload" accept="image/*" style="display:none;" onchange="uploadUserAvatar(event)" />
-                  </label>
-                  ${user?.avatarImage ? `<button type="button" class="btn btn-ghost btn-sm" onclick="clearUserAvatar()" style="color:var(--danger);">Entfernen</button>` : ''}
-                </div>
-                <div class="text-sm text-muted mt-2">Standard: Initialen. Empfohlen: quadratisches Bild, max. 2 MB.</div>
-              </div>
-            </div>
 
             <div class="form-group">
               <label class="form-label">Vollständiger Name*</label>
@@ -8319,14 +9257,26 @@ function clearUserAvatar() {
 }
 
 /* ----------- MEIN PROFIL (Self-Service) ----------- */
-function openMyProfile() {
+async function openMyProfile() {
   const session = getCurrentUser();
   if (!session) return;
   if (session.type === 'customer') return openCustomerSelfProfile(session.customer);
   return openStaffSelfProfile(session.user);
 }
 
-function openStaffSelfProfile(user) {
+async function openStaffSelfProfile(user) {
+  // Fetch fresh data so calendarToken (not in bulk pull) is always current
+  try {
+    const res = await fetch(`${API_BASE}/users.php?id=${encodeURIComponent(user.id)}`, {
+      credentials: 'same-origin'
+    });
+    const json = await res.json();
+    if (res.ok && json.ok && json.data) {
+      user = json.data;
+      const idx = store.users.findIndex(u => u.id === user.id);
+      if (idx >= 0) store.users[idx] = { ...store.users[idx], ...json.data };
+    }
+  } catch (_) {}
   const avatarPreview = user.avatarImage
     ? `<div class="avatar-circle" style="width:64px;height:64px;background-image:url('${user.avatarImage}');"></div>`
     : renderAvatar(user, 64, 22);
@@ -8344,21 +9294,6 @@ function openStaffSelfProfile(user) {
         </div>
         <form onsubmit="saveMyProfile(event)">
           <div class="modal-body">
-            <div class="form-group">
-              <label class="form-label">Profilbild</label>
-              <div style="display:flex; align-items:center; gap:14px;">
-                <div id="user-avatar-preview">${avatarPreview}</div>
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                  <label class="btn btn-secondary btn-sm" for="user-avatar-upload" style="cursor:pointer;">
-                    Bild wählen
-                    <input type="file" id="user-avatar-upload" accept="image/*" style="display:none;" onchange="uploadUserAvatar(event)" />
-                  </label>
-                  ${user.avatarImage ? '<button type="button" class="btn btn-ghost btn-sm" onclick="clearUserAvatar()">Entfernen</button>' : ''}
-                </div>
-              </div>
-              <div class="text-sm text-muted mt-2">PNG/JPG, max. 2 MB. Wird auf 256×256 zentriert.</div>
-            </div>
-
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Name</label>
@@ -8409,6 +9344,45 @@ function openStaffSelfProfile(user) {
                 <input type="password" name="newPassword" autocomplete="new-password" />
               </div>
             </div>
+
+            <div class="cal-abo-card">
+              <div class="cal-abo-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:14px;font-weight:600;color:var(--text-1);margin-bottom:4px;">Kalender-Abo</div>
+                <div style="font-size:12px;color:var(--text-3);line-height:1.5;margin-bottom:12px;">
+                  ${user.calendarToken
+                    ? 'Dein persönlicher Abo-Link ist aktiv. Tippe auf den Button um ihn in Apple Kalender, Google Calendar oder Outlook hinzuzufügen.'
+                    : 'Erstelle einen persönlichen Abo-Link für Apple Kalender, Google Calendar oder Outlook – aktualisiert sich alle 5 Minuten.'}
+                </div>
+                ${user.calendarToken ? (() => {
+                  const tok = encodeURIComponent(user.calendarToken);
+                  const httpsUrl = 'https://' + location.host + APP_BASE + 'api/calendar.php?token=' + tok;
+                  const webcalUrl = 'webcal://' + location.host + APP_BASE + 'api/calendar.php?token=' + tok;
+                  return `
+                  <a href="${webcalUrl}"
+                     style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;text-decoration:none;margin-bottom:10px;"
+                     onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <div>
+                      <div style="font-size:13px;font-weight:600;color:var(--accent);">In Kalender abonnieren</div>
+                      <div style="font-size:11px;color:var(--text-3);margin-top:1px;">Öffnet Apple Kalender / Google Calendar</div>
+                    </div>
+                  </a>
+                  <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text-3);word-break:break-all;margin-bottom:10px;font-family:monospace;line-height:1.4;">${httpsUrl}</div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText('${httpsUrl.replace(/'/g,'\\x27')}').then(()=>showToast('Link kopiert',''),()=>showToast('Fehler','Manuell kopieren.'))">Link kopieren</button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="regenerateCalendarToken('${escape(user.id)}')">Token erneuern</button>
+                    <button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="removeCalendarToken('${escape(user.id)}')">Abo löschen</button>
+                  </div>`;
+                })() : `
+                  <button type="button" class="btn btn-primary" style="width:100%;" onclick="generateCalendarToken('${escape(user.id)}')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Kalender-Abo erstellen
+                  </button>`}
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
@@ -8419,6 +9393,52 @@ function openStaffSelfProfile(user) {
     </div>
   `;
   $('#modal-container').innerHTML = html;
+}
+
+async function generateCalendarToken(userId) {
+  try {
+    const res = await fetch(`${API_BASE}/users.php?id=${encodeURIComponent(userId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ generateCalendarToken: true })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    const idx = store.users.findIndex(u => u.id === userId);
+    if (idx >= 0 && json.data) store.users[idx] = { ...store.users[idx], ...json.data };
+    openMyProfile();
+  } catch (err) {
+    showToast('Fehler', err.message);
+  }
+}
+
+async function regenerateCalendarToken(userId) {
+  const ok = await appConfirm('Der alte Abo-Link wird ungültig. Alle bestehenden Kalender-Abos müssen neu eingerichtet werden.', {
+    title: 'Token erneuern?', okLabel: 'Erneuern'
+  });
+  if (!ok) return;
+  generateCalendarToken(userId);
+}
+
+async function removeCalendarToken(userId) {
+  const ok = await appConfirm('Das Kalender-Abo wird deaktiviert. Bestehende Abos erhalten keine Daten mehr.', {
+    title: 'Abo löschen?', okLabel: 'Löschen', danger: true
+  });
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API_BASE}/users.php?id=${encodeURIComponent(userId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ removeCalendarToken: true })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    const idx = store.users.findIndex(u => u.id === userId);
+    if (idx >= 0) store.users[idx] = { ...store.users[idx], calendarToken: null };
+    openMyProfile();
+  } catch (err) {
+    showToast('Fehler', err.message);
+  }
 }
 
 async function saveMyProfile(e) {
@@ -8432,6 +9452,7 @@ async function saveMyProfile(e) {
   const u = store.users[idx];
 
   // Passwort-Wechsel: aktuelles Passwort prüfen
+  let newPasswordHash = null;
   if (data.newPassword) {
     if (!data.currentPassword) {
       appAlert('Bitte aktuelles Passwort eingeben um es zu ändern.', { title: 'Passwort ändern' });
@@ -8444,8 +9465,12 @@ async function saveMyProfile(e) {
       appAlert('Das aktuelle Passwort ist nicht korrekt.', { title: 'Passwort ändern' });
       return;
     }
-    u.password = await hashPassword(data.newPassword);
+    newPasswordHash = await hashPassword(data.newPassword);
+    u.password = newPasswordHash;
   }
+
+  // Snapshot für Rollback
+  const prevUser = { ...u };
 
   // Kontakt-Daten aktualisieren
   u.name = (data.name || '').trim() || u.name;
@@ -8458,13 +9483,47 @@ async function saveMyProfile(e) {
   // Avatar
   if (pendingUserAvatar) u.avatarImage = pendingUserAvatar;
   if (clearAvatarFlag) delete u.avatarImage;
+  const avatarForApi = pendingUserAvatar || null;
+  const clearAvatar = clearAvatarFlag;
   pendingUserAvatar = null;
   clearAvatarFlag = false;
 
-  saveStore();
   closeModal();
   renderPage();
   showToast('Profil gespeichert', '');
+
+  // Direkt in DB schreiben (nur API-kompatible Felder)
+  const apiPayload = {
+    name: u.name,
+    email: u.email
+  };
+  if (newPasswordHash) apiPayload.password_hash = newPasswordHash;
+  if (avatarForApi) apiPayload.avatarImage = avatarForApi;
+  if (clearAvatar) apiPayload.avatarImage = null;
+
+  try {
+    const res = await fetch(
+      `${API_BASE}/users.php?id=${encodeURIComponent(session.user.id)}`,
+      {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify(apiPayload)
+      }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const i = store.users.findIndex(x => x.id === session.user.id);
+      if (i >= 0) store.users[i] = { ...store.users[i], ...json.data };
+    }
+  } catch (err) {
+    // Rollback (restore the fields we changed)
+    const i = store.users.findIndex(x => x.id === session.user.id);
+    if (i >= 0) store.users[i] = prevUser;
+    renderPage();
+    showToast('Fehler beim Speichern', err.message);
+  }
 }
 
 function openCustomerSelfProfile(customer) {
@@ -8581,6 +9640,10 @@ async function saveUser(e, userId) {
     return;
   }
 
+  // Snapshot / insertedId für Rollback
+  let prevEntry = null;
+  let insertedId = null;
+
   if (userId) {
     const idx = store.users.findIndex(u => u.id === userId);
     if (idx >= 0) {
@@ -8593,6 +9656,7 @@ async function saveUser(e, userId) {
           return;
         }
       }
+      prevEntry = { ...existing };
       const avatarUpdate = pendingUserAvatar ? { avatarImage: pendingUserAvatar }
                           : clearAvatarFlag ? { avatarImage: null }
                           : {};
@@ -8609,8 +9673,9 @@ async function saveUser(e, userId) {
       if (clearAvatarFlag) delete store.users[idx].avatarImage;
     }
   } else {
+    insertedId = uid('u');
     store.users.push({
-      id: uid('u'),
+      id: insertedId,
       name: data.name,
       username: data.username,
       roles,
@@ -8619,18 +9684,64 @@ async function saveUser(e, userId) {
       avatarImage: pendingUserAvatar || null
     });
   }
+  const avatarForApi = pendingUserAvatar || null;
+  const clearAvatar = clearAvatarFlag;
   pendingUserAvatar = null;
   clearAvatarFlag = false;
-  saveStore();
-  // Bei neu angelegten Usern: Gist sofort anlegen wenn Kalender konfiguriert
-  if (!userId && calendarConfigured()) {
-    const newUser = store.users[store.users.length - 1];
-    ensureUserGist(newUser).then(() => writeLiveICS());
-  } else {
-    writeLiveICS();
-  }
   closeModal();
   renderPage();
+
+  // Direkt in DB schreiben
+  let apiPayload;
+  if (userId) {
+    // PUT: nur geänderte Felder
+    apiPayload = { name: data.name, email: data.email, roles };
+    if (data.password) apiPayload.password_hash = data.password;
+    if (avatarForApi) apiPayload.avatarImage = avatarForApi;
+    if (clearAvatar) apiPayload.avatarImage = null;
+  } else {
+    // POST: Pflichtfelder für neuen User
+    apiPayload = {
+      id: insertedId,
+      username: data.username,
+      name: data.name,
+      password_hash: data.password,
+      email: data.email || null,
+      roles,
+      avatarColor: data.avatarColor || null,
+      avatarImage: avatarForApi
+    };
+  }
+
+  try {
+    const url = userId
+      ? `${API_BASE}/users.php?id=${encodeURIComponent(userId)}`
+      : `${API_BASE}/users.php`;
+    const method = userId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(apiPayload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const targetId = userId || insertedId;
+      const i = store.users.findIndex(u => u.id === targetId);
+      if (i >= 0) store.users[i] = { ...store.users[i], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    if (userId && prevEntry) {
+      const i = store.users.findIndex(u => u.id === userId);
+      if (i >= 0) store.users[i] = prevEntry;
+    } else if (insertedId) {
+      store.users = store.users.filter(u => u.id !== insertedId);
+    }
+    renderPage();
+    showToast('Fehler beim Speichern', err.message);
+  }
 }
 
 async function deleteUser(userId) {
@@ -8652,6 +9763,13 @@ async function deleteUser(userId) {
     appAlert('Mindestens ein Admin muss vorhanden bleiben.', { title: 'Aktion blockiert' });
     return;
   }
+  // Snapshot für Rollback
+  const removedUser = store.users.find(u => u.id === userId);
+  const affectedCustomers = store.customers.filter(c => c.managerId === userId).map(c => c.id);
+  const affectedProjects = store.projects
+    .filter(p => p.videografId === userId || p.cutterId === userId)
+    .map(p => ({ id: p.id, videografId: p.videografId, cutterId: p.cutterId }));
+
   trackDeletion('users', userId);
   store.users = store.users.filter(u => u.id !== userId);
   // Unset references
@@ -8660,9 +9778,30 @@ async function deleteUser(userId) {
     if (p.videografId === userId) p.videografId = null;
     if (p.cutterId === userId) p.cutterId = null;
   });
-  saveStore();
   closeModal();
   renderPage();
+  // Direkt in DB löschen
+  try {
+    const res = await fetch(
+      `${API_BASE}/users.php?id=${encodeURIComponent(userId)}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+  } catch (err) {
+    // Rollback
+    if (removedUser) store.users.push(removedUser);
+    affectedCustomers.forEach(cId => {
+      const c = store.customers.find(x => x.id === cId);
+      if (c) c.managerId = userId;
+    });
+    affectedProjects.forEach(({ id, videografId, cutterId }) => {
+      const p = store.projects.find(x => x.id === id);
+      if (p) { p.videografId = videografId; p.cutterId = cutterId; }
+    });
+    await pullAllFromCloud().then(() => renderPage());
+    showToast('Fehler beim Speichern', err.message);
+  }
 }
 
 function exportData() {
@@ -8710,7 +9849,7 @@ async function resetData() {
     title: 'Bist du dir sicher?', okLabel: 'Alles löschen', danger: true
   });
   if (!ok2) return;
-  store = { users: [], customers: [], projects: [], vacations: [], todos: [], shootDays: [], calendarConfig: { token: null, githubUser: null, agencyGistId: null, enabledAt: null }, session: null, activity: [] };
+  store = { users: [], customers: [], projects: [], vacations: [], todos: [], shootDays: [], customerFiles: [], notifications: [], session: null, activity: [] };
   saveStore();
   logout();
 }
@@ -8769,18 +9908,25 @@ function renderCustomerOverview(session) {
       `}
     </div>
 
-    ${c.contractFile ? `
-      <div class="card mb-4">
-        <div class="card-header"><div class="card-title">Mein Vertrag</div></div>
-        <div class="card-body">
-          <div class="file-uploaded">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <span style="flex:1;">${escape(c.contractFileName || 'Vertrag.pdf')}</span>
-            <button class="btn btn-secondary btn-sm" onclick="downloadContractFile('${c.id}')">Herunterladen</button>
-          </div>
+    ${(() => {
+      const myDocs = (store.customerFiles || []).filter(f => f.customerId === c.id);
+      if (!myDocs.length) return '';
+      const DOC_LABELS = { vertrag: 'Vertrag', leistungsbeschreibung: 'Leistungsbeschreibung', avv: 'AVV', other: 'Dokument' };
+      return `<div class="card mb-4">
+        <div class="card-header"><div class="card-title">Meine Dokumente</div></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:8px;">
+          ${myDocs.map(f => `
+            <div class="file-uploaded">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:500;">${escape(DOC_LABELS[f.kind] || f.kind)}</div>
+                <div style="font-size:11px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(f.filename)}</div>
+              </div>
+              <a class="btn btn-secondary btn-sm" href="${API_BASE}/download.php?scope=customer&id=${f.id}" target="_blank">Herunterladen</a>
+            </div>`).join('')}
         </div>
-      </div>
-    ` : ''}
+      </div>`;
+    })()}
 
     ${finished.length > 0 ? `
       <div class="card">
@@ -8799,7 +9945,35 @@ function renderCustomerOverview(session) {
         </table>
       </div>
     ` : ''}
+    <div id="customer-contracts-section"></div>
   `;
+
+  // Load confirmed contracts for this customer asynchronously
+  fetch(`${API_BASE}/contracts.php`, { credentials: 'same-origin' })
+    .then(r => r.json())
+    .then(json => {
+      const confirmed = (json.data || []).filter(ct => ct.customerId === c.id && ct.status === 'confirmed');
+      const el = $('#customer-contracts-section');
+      if (!el || !confirmed.length) return;
+      el.innerHTML = `
+        <div class="card" style="margin-top:16px;">
+          <div class="card-header"><div class="card-title">Meine Verträge</div></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:8px;">
+            ${confirmed.map(ct => `
+              <div class="file-uploaded">
+                <span style="font-size:20px;">📄</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:500;">${escape(ct.title)}</div>
+                  <div style="font-size:11px;color:var(--text-3);">${fmtDate(ct.createdAt)}</div>
+                </div>
+                ${ct.filename ? `<a class="btn btn-secondary btn-sm" href="${API_BASE}/download.php?scope=contract&id=${encodeURIComponent(ct.id)}" target="_blank">Herunterladen</a>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    })
+    .catch(() => {});
 }
 
 /* ----------- TODOS PAGE ----------- */
@@ -8978,7 +10152,7 @@ function openTodoModal(todoId = null) {
   $('#modal-container').innerHTML = html;
 }
 
-function saveTodo(e, todoId) {
+async function saveTodo(e, todoId) {
   e.preventDefault();
   const session = getCurrentUser();
   if (!session || session.type !== 'staff') return;
@@ -8997,9 +10171,14 @@ function saveTodo(e, todoId) {
 
   const prevAssignees = todoId ? (store.todos.find(t => t.id === todoId)?.assigneeIds || []) : [];
 
+  // Snapshot für Rollback
+  let prevEntry = null;
+  let insertedId = null;
+
   if (todoId) {
     const idx = store.todos.findIndex(t => t.id === todoId);
     if (idx >= 0) {
+      prevEntry = { ...store.todos[idx] };
       store.todos[idx] = {
         ...store.todos[idx],
         title,
@@ -9009,8 +10188,9 @@ function saveTodo(e, todoId) {
       };
     }
   } else {
+    insertedId = uid('t');
     store.todos.push({
-      id: uid('t'),
+      id: insertedId,
       title,
       description,
       assigneeIds,
@@ -9021,7 +10201,6 @@ function saveTodo(e, todoId) {
       seenBy: [session.user.id]
     });
   }
-  saveStore();
 
   // Benachrichtigung an alle NEUEN Assignees (außer Creator selbst)
   assigneeIds.forEach(uid => {
@@ -9033,9 +10212,47 @@ function saveTodo(e, todoId) {
   closeModal();
   renderNav();
   renderPage();
+
+  // Direkt in DB schreiben
+  const apiPayload = { title, description, assigneeIds, dueDate };
+  if (!todoId) {
+    apiPayload.status = 'open';
+    apiPayload.id = insertedId;
+  }
+
+  try {
+    const url = todoId
+      ? `${API_BASE}/todos.php?id=${encodeURIComponent(todoId)}`
+      : `${API_BASE}/todos.php`;
+    const method = todoId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(apiPayload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const targetId = todoId || insertedId;
+      const i = store.todos.findIndex(t => t.id === targetId);
+      if (i >= 0) store.todos[i] = { ...store.todos[i], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    if (todoId && prevEntry) {
+      const i = store.todos.findIndex(t => t.id === todoId);
+      if (i >= 0) store.todos[i] = prevEntry;
+    } else if (insertedId) {
+      store.todos = store.todos.filter(t => t.id !== insertedId);
+    }
+    renderNav();
+    renderPage();
+    showToast('Fehler beim Speichern', err.message);
+  }
 }
 
-function toggleTodoStatus(todoId) {
+async function toggleTodoStatus(todoId) {
   const session = getCurrentUser();
   if (!session || session.type !== 'staff') return;
   const idx = store.todos.findIndex(t => t.id === todoId);
@@ -9050,16 +10267,40 @@ function toggleTodoStatus(todoId) {
     appAlert('Du darfst diese Aufgabe nicht ändern.', { title: 'Nicht erlaubt' });
     return;
   }
-  if (t.status === 'open') {
-    t.status = 'done';
-    t.doneAt = new Date().toISOString();
-  } else {
-    t.status = 'open';
-    t.doneAt = null;
-  }
-  saveStore();
+  const newStatus = t.status === 'open' ? 'done' : 'open';
+  // Optimistisch lokal updaten
+  const prevStatus = t.status;
+  const prevDoneAt = t.doneAt;
+  t.status = newStatus;
+  t.doneAt = newStatus === 'done' ? new Date().toISOString() : null;
   renderNav();
   renderPage();
+  // Direkt an DB schreiben (kein Warten auf Bulk-Push)
+  try {
+    const res = await fetch(
+      `${API_BASE}/todos.php?id=${encodeURIComponent(todoId)}`,
+      {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ status: newStatus })
+      }
+    );
+    const json = await res.json();
+    if (!res.ok || !(json.ok || json.success)) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    // Server-Response übernehmen (updatedAt etc.)
+    if (json.data) {
+      const updated = json.data;
+      store.todos[idx] = { ...store.todos[idx], ...updated };
+    }
+  } catch (e) {
+    // Rollback bei Fehler
+    store.todos[idx].status = prevStatus;
+    store.todos[idx].doneAt = prevDoneAt;
+    renderNav();
+    renderPage();
+    showToast('Speichern fehlgeschlagen', e.message);
+  }
 }
 
 async function deleteTodo(todoId) {
@@ -9077,12 +10318,26 @@ async function deleteTodo(todoId) {
     title: 'Aufgabe löschen?', okLabel: 'Löschen', danger: true
   });
   if (!ok) return;
+  const removedTodo = store.todos.find(x => x.id === todoId);
   trackDeletion('todos', todoId);
   store.todos = store.todos.filter(t => t.id !== todoId);
-  saveStore();
   closeModal();
   renderNav();
   renderPage();
+  // Direkt in DB löschen
+  try {
+    const res = await fetch(
+      `${API_BASE}/todos.php?id=${encodeURIComponent(todoId)}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+  } catch (err) {
+    // Rollback
+    if (removedTodo) store.todos.push(removedTodo);
+    await pullAllFromCloud().then(() => renderPage());
+    showToast('Fehler beim Speichern', err.message);
+  }
 }
 
 /* Benachrichtigungen */
@@ -9289,7 +10544,11 @@ function openVacationModal(vacationId = null) {
           <div class="modal-body">
             <div class="form-group">
               <label class="form-label">Mitarbeiter</label>
-              <select name="userId" ${isAdmin ? '' : 'disabled'}>${userOptions}</select>
+              ${isAdmin
+                ? `<select name="userId">${userOptions}</select>`
+                : `<input type="text" value="${escape(user.name)}" disabled style="color:var(--text-2);" />
+                   <input type="hidden" name="userId" value="${escape(user.id)}" />`
+              }
             </div>
             <div class="form-row">
               <div class="form-group">
@@ -9318,7 +10577,7 @@ function openVacationModal(vacationId = null) {
   $('#modal-container').innerHTML = html;
 }
 
-function saveVacation(e, vacationId) {
+async function saveVacation(e, vacationId) {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));
   const session = getCurrentUser();
@@ -9343,16 +10602,62 @@ function saveVacation(e, vacationId) {
     return;
   }
 
+  // Snapshot für Rollback
+  let prevEntry = null;
+  let insertedId = null;
+
   if (vacationId) {
     const idx = store.vacations.findIndex(v => v.id === vacationId);
-    if (idx >= 0) store.vacations[idx] = { ...store.vacations[idx], ...data };
+    if (idx >= 0) {
+      prevEntry = { ...store.vacations[idx] };
+      store.vacations[idx] = { ...store.vacations[idx], ...data };
+    }
   } else {
-    store.vacations.push({ id: uid('v'), ...data });
+    insertedId = uid('v');
+    store.vacations.push({ id: insertedId, ...data });
   }
-  saveStore();
-  writeLiveICS();
+
   closeModal();
   renderPage();
+
+  // Direkt in DB schreiben
+  const apiPayload = {
+    userId: data.userId,
+    startDate: data.startDate,
+    endDate: data.endDate,
+    note: data.note || null
+  };
+  if (!vacationId) apiPayload.id = insertedId;
+
+  try {
+    const url = vacationId
+      ? `${API_BASE}/vacations.php?id=${encodeURIComponent(vacationId)}`
+      : `${API_BASE}/vacations.php`;
+    const method = vacationId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(apiPayload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const targetId = vacationId || insertedId;
+      const i = store.vacations.findIndex(v => v.id === targetId);
+      if (i >= 0) store.vacations[i] = { ...store.vacations[i], ...json.data };
+    }
+  } catch (err) {
+    // Rollback
+    if (vacationId && prevEntry) {
+      const i = store.vacations.findIndex(v => v.id === vacationId);
+      if (i >= 0) store.vacations[i] = prevEntry;
+    } else if (insertedId) {
+      store.vacations = store.vacations.filter(v => v.id !== insertedId);
+    }
+    renderPage();
+    showToast('Fehler beim Speichern', err.message);
+  }
 }
 
 async function deleteVacation(vacationId) {
@@ -9369,12 +10674,26 @@ async function deleteVacation(vacationId) {
     title: 'Urlaub löschen?', okLabel: 'Löschen', danger: true
   });
   if (!ok) return;
+  const removedVacation = store.vacations.find(x => x.id === vacationId);
   trackDeletion('vacations', vacationId);
   store.vacations = store.vacations.filter(v => v.id !== vacationId);
-  saveStore();
-  writeLiveICS();
+
   closeModal();
   renderPage();
+  // Direkt in DB löschen
+  try {
+    const res = await fetch(
+      `${API_BASE}/vacations.php?id=${encodeURIComponent(vacationId)}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+  } catch (err) {
+    // Rollback
+    if (removedVacation) store.vacations.push(removedVacation);
+    await pullAllFromCloud().then(() => renderPage());
+    showToast('Fehler beim Speichern', err.message);
+  }
 }
 
 /* ----------- ICS EXPORT / KALENDER-ABO ----------- */
@@ -9547,28 +10866,6 @@ function generateICS(forUser = null) {
 }
 
 
-// ZENTRALES Kalender-Setup:
-// - Admin gibt einmalig einen GitHub-Token ein (gist scope)
-// - Tool legt für JEDEN Mitarbeiter automatisch einen Gist an unter dem Admin-Account
-// - Mitarbeiter bekommen ihre fertige webcal://-URL – KEIN GitHub-Setup nötig
-
-// GitHub-Gist-Kalendersync wurde deaktiviert. Kalenderdaten liegen jetzt in MySQL,
-// die App rendert sie direkt aus store.projects/shootDays/vacations.
-function calendarConfigured() { return false; }
-function getUserGistUrl(_user) { return null; }
-function getAgencyGistUrl()    { return null; }
-
-async function calendarAdminSetup(_token) { /* GitHub-Sync deaktiviert */ }
-async function ensureAgencyGist()          { /* GitHub-Sync deaktiviert */ }
-async function ensureUserGist(_user)       { /* GitHub-Sync deaktiviert */ }
-async function pushSingleGist(_gistId, _filename, _content) { /* GitHub-Sync deaktiviert */ }
-
-// Legacy stubs damit alter Code nicht crasht – werden nicht mehr verwendet
-function loadCalSync() { return null; }
-function saveCalSync() {}
-async function setupGistSubscription(_token, _scope = 'personal') { /* GitHub-Sync deaktiviert */ return null; }
-async function pushGistSubscription(_scope)        { /* GitHub-Sync deaktiviert */ }
-async function disconnectGistSubscription(_scope)  { /* GitHub-Sync deaktiviert */ }
 
 function copyToClipboard(text, msg = 'In Zwischenablage kopiert') {
   navigator.clipboard.writeText(text).then(() => {
@@ -9580,249 +10877,353 @@ function copyToClipboard(text, msg = 'In Zwischenablage kopiert') {
   });
 }
 
-// GitHub-Gist-Kalendersync ist deaktiviert; Kalender wird direkt aus MySQL gerendert.
-async function writeLiveICS() { /* deaktiviert */ }
+/* ----------- NOTIFICATIONS ----------- */
 
-function renderSubscriptionBlock(scope, opts) {
-  const data = loadCalSync(scope);
-  const isActive = data?.enabled;
-  const tone = opts.tone || 'accent';
-  const borderColor = tone === 'red' ? 'rgba(255,69,58,0.3)' : 'var(--accent)';
-  const bgColor = tone === 'red' ? 'rgba(255,69,58,0.04)' : 'var(--accent-soft)';
-  const iconColor = tone === 'red' ? '#ff453a' : 'var(--accent)';
+async function fetchNotifications() {
+  const session = getCurrentUser();
+  if (!session || session.type !== 'staff') return;
+  try {
+    const res = await fetch(`${API_BASE}/notifications.php`, { credentials: 'same-origin' });
+    const json = await res.json();
+    if (res.ok && json.ok) {
+      store.notifications = json.data || [];
+      renderNav();
+    }
+  } catch (_) {}
+}
 
-  const lastSync = data?.lastSyncedAt
-    ? new Date(data.lastSyncedAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-    : '–';
+async function markAllNotificationsSeen() {
+  try {
+    await fetch(`${API_BASE}/notifications.php`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'X-CSRF-Token': CSRF }
+    });
+    store.notifications.forEach(n => { if (!n.seen_at) n.seen_at = new Date().toISOString(); });
+    renderPage();
+  } catch (_) {}
+}
 
+function renderNotificationsCard() {
+  const unseen = (store.notifications || []).filter(n => !n.seen_at);
+  if (!unseen.length) return '';
+  const TYPE_LABELS = {
+    rohmaterial_uploaded: '📽️ Rohmaterial hochgeladen',
+    fertigstellung_uploaded: '✅ Fertigstellung hochgeladen',
+    contract_uploaded: '📄 Neuer Vertrag',
+    contract_comment: '💬 Kommentar auf Vertrag'
+  };
   return `
-    <div class="subscribe-section" style="border-color:${borderColor}; background:${bgColor};">
-      <div class="subscribe-section-title">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="2">${opts.icon}</svg>
-        ${opts.title}
-        ${opts.badge ? `<span class="badge ${opts.badgeClass || ''}" style="margin-left:auto; font-size:10px;">${opts.badge}</span>` : ''}
-        ${isActive ? '<span class="badge badge-status-active" style="margin-left:auto;">Live</span>' : ''}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Benachrichtigungen <span class="badge badge-status-open" style="font-size:10px;">${unseen.length}</span></div>
+        <button class="btn btn-ghost btn-sm" onclick="markAllNotificationsSeen()">Alle gelesen</button>
       </div>
-      <div class="subscribe-section-desc">${opts.description}</div>
-
-      ${isActive ? `
-        <div class="form-group">
-          <label class="form-label">Abo-URL (in iCloud Kalender einfügen)</label>
-          <div class="url-box">
-            <input type="text" value="${escape(data.webcalUrl)}" readonly onclick="this.select()" />
-            <button type="button" class="btn btn-secondary btn-sm" onclick="copyToClipboard('${data.webcalUrl}','URL kopiert')">Kopieren</button>
-          </div>
-        </div>
-        <div class="flex gap-2" style="flex-wrap:wrap; align-items:center;">
-          <a class="btn btn-primary btn-sm" href="${data.webcalUrl}">In Kalender öffnen</a>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="pushGistSubscription('${scope}').then(()=>openSubscribeModal())">Jetzt syncen</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="disconnectGistSubscription('${scope}')" style="color:var(--danger);">Trennen</button>
-          <span class="text-sm text-muted" style="margin-left:auto;">Letzter Sync: ${lastSync}</span>
-        </div>
-        ${data.lastError ? `<div class="info-box" style="background:rgba(255,69,58,0.08); border-color:rgba(255,69,58,0.3); color:#ff453a; margin-top:10px;"><strong>Sync-Fehler:</strong> ${escape(data.lastError)}</div>` : ''}
-      ` : `
-        <button type="button" class="btn btn-primary btn-sm" onclick="startGistSetup('${scope}')">Jetzt einrichten</button>
-      `}
+      <div class="deadline-list">
+        ${unseen.map(n => {
+          const click = n.ref_type === 'project'
+            ? `onclick="closeModal();const p=store.projects.find(x=>x.id==='${n.ref_id}');if(p)openProjectModal('${n.ref_id}')"`
+            : n.ref_type === 'contract'
+            ? `onclick="navigateTo('contracts');setTimeout(()=>openContractModal('${n.ref_id}'),100)"`
+            : '';
+          return `
+            <div class="deadline-item" style="cursor:pointer;" ${click}>
+              <div class="deadline-dot" style="background:var(--accent);"></div>
+              <div class="deadline-info">
+                <div class="deadline-title">${TYPE_LABELS[n.type] || n.type}</div>
+                <div class="deadline-meta">${escape(n.body || '')} · ${fmtDateTime(n.createdAt)}</div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
     </div>
   `;
 }
 
-function openSubscribeModal() {
+/* ----------- PROJECT FILES ----------- */
+
+function renderProjectFilesSection(project, session) {
+  const user = session.user;
+  const isAdmin    = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  const isVideograf = hasRole(user, ROLES.VIDEOGRAF) || isAdmin;
+  const isCutter   = hasRole(user, ROLES.CUTTER) || isAdmin;
+  const files = project.files || [];
+
+  const rohmaterial = files.filter(f => f.kind === 'rohmaterial');
+  const fertig = files.filter(f => f.kind === 'fertigstellung');
+  const other = files.filter(f => !['rohmaterial','fertigstellung'].includes(f.kind));
+
+  function fileRow(f) {
+    const icon = f.mime?.startsWith('video/') ? '🎞️' : '📄';
+    const size = f.size ? (f.size > 1048576 ? (f.size/1048576).toFixed(1) + ' MB' : Math.round(f.size/1024) + ' KB') : '';
+    return `
+      <div class="file-uploaded">
+        <span style="font-size:16px;">${icon}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(f.filename)}</div>
+          ${size ? `<div style="font-size:11px;color:var(--text-3);">${size}</div>` : ''}
+        </div>
+        <a class="btn btn-secondary btn-sm" href="${API_BASE}/download.php?scope=project&id=${f.id}" target="_blank">Öffnen</a>
+      </div>
+    `;
+  }
+
+  let html = '';
+
+  if (isVideograf) {
+    html += `
+      <div style="margin-top:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="cutter-detail-label">Rohmaterial</div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="uploadProjectFile('rohmaterial','${project.id}')">
+            + Rohmaterial hochladen
+          </button>
+        </div>
+        ${rohmaterial.length ? rohmaterial.map(fileRow).join('') : '<div class="text-sm text-muted">Noch kein Rohmaterial hochgeladen.</div>'}
+      </div>
+    `;
+  }
+
+  if (isCutter) {
+    html += `
+      <div style="margin-top:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="cutter-detail-label">Fertigstellung</div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="uploadProjectFile('fertigstellung','${project.id}')">
+            + Fertigstellung hochladen
+          </button>
+        </div>
+        ${fertig.length ? fertig.map(fileRow).join('') : '<div class="text-sm text-muted">Noch keine Fertigstellung hochgeladen.</div>'}
+      </div>
+    `;
+  }
+
+  if (isAdmin && other.length > 0) {
+    html += `
+      <div style="margin-top:18px;">
+        <div class="cutter-detail-label" style="margin-bottom:8px;">Weitere Dateien</div>
+        ${other.map(fileRow).join('')}
+      </div>
+    `;
+  }
+
+  return html;
+}
+
+async function uploadProjectFile(kind, projectId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'video/*,.mp4,.mov,.avi,.webm';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.onchange = async (e) => {
+    document.body.removeChild(input);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    showToast('Wird hochgeladen…', 'Bitte warten.');
+    try {
+      const res = await fetch(`${API_BASE}/upload.php?scope=project&kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(projectId)}`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'X-CSRF-Token': CSRF },
+        body: fd
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Upload fehlgeschlagen');
+      showToast('Hochgeladen', 'Datei erfolgreich gespeichert.');
+      fetchNotifications();
+      const project = store.projects.find(p => p.id === projectId);
+      if (project) openProjectViewerModal(project);
+    } catch (err) {
+      showToast('Fehler', err.message);
+    }
+  };
+  input.click();
+}
+
+/* ----------- CONTRACTS PAGE ----------- */
+
+function renderContracts(session) {
+  const user = session.user;
+  const canUpload = hasRole(user, ROLES.CONTRACT_UPLOADER);
+  const isPriv = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+
+  $('#page-title').textContent = 'Verträge';
+  $('#page-subtitle').textContent = 'Vertragsmanagement';
+  $('#topbar-actions').innerHTML = canUpload
+    ? `<button class="btn btn-primary" onclick="openNewContractModal()">+ Neuer Vertrag</button>`
+    : '';
+
+  $('#content').innerHTML = `<div id="contracts-list" style="max-width:800px;margin:0 auto;"><div style="color:var(--text-2);padding:32px;text-align:center;">Verträge werden geladen…</div></div>`;
+
+  fetch(`${API_BASE}/contracts.php`, { credentials: 'same-origin' })
+    .then(r => r.json())
+    .then(json => {
+      const contracts = json.data || [];
+      const el = $('#contracts-list');
+      if (!el) return;
+      if (!contracts.length) {
+        el.innerHTML = `<div class="empty-state" style="padding:60px 20px;"><div class="empty-state-icon">📄</div><div>Noch keine Verträge vorhanden.</div>${canUpload ? '<br/><button class="btn btn-primary" onclick="openNewContractModal()">Ersten Vertrag anlegen</button>' : ''}</div>`;
+        return;
+      }
+      el.innerHTML = contracts.map(c => {
+        const customer = store.customers.find(x => x.id === c.customerId);
+        const statusLabel = c.status === 'confirmed' ? '<span class="badge badge-status-active">Bestätigt</span>' : '<span class="badge badge-status-open">Entwurf</span>';
+        return `
+          <div class="card" style="margin-bottom:12px;cursor:pointer;" onclick="openContractModal('${c.id}')">
+            <div class="card-body" style="display:flex;align-items:center;gap:14px;padding:14px 18px;">
+              <div style="font-size:28px;">📄</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:600;font-size:14px;">${escape(c.title)}</div>
+                <div style="font-size:12px;color:var(--text-3);margin-top:2px;">${escape(customer?.name || 'Kein Kunde')} · ${fmtDate(c.createdAt)}</div>
+              </div>
+              ${statusLabel}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+          </div>
+        `;
+      }).join('');
+    })
+    .catch(() => {
+      const el = $('#contracts-list');
+      if (el) el.innerHTML = `<div class="info-box">Fehler beim Laden der Verträge.</div>`;
+    });
+}
+
+function openNewContractModal() {
   const session = getCurrentUser();
-  if (!session || session.type !== 'staff') return;
-  const isAdmin = hasRole(session.user, ROLES.ADMIN);
-  const configured = calendarConfigured();
-  const userUrl = getUserGistUrl(session.user);
-  const userWebcal = userUrl ? userUrl.replace(/^https:\/\//, 'webcal://') : null;
-  const agencyUrl = getAgencyGistUrl();
-  const agencyWebcal = agencyUrl ? agencyUrl.replace(/^https:\/\//, 'webcal://') : null;
-  const projectCount = getRelevantProjects(session.user).length;
-  const totalCount = store.projects.filter(p => p.status !== STATUS.ARCHIVIERT).length;
-
-  // 1) Noch gar nicht eingerichtet → Hinweis für User, Setup für Admin
-  if (!configured) {
-    const html = `
-      <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
-        <div class="modal" style="max-width: 540px;">
-          <div class="modal-header">
-            <div class="modal-title">Kalender abonnieren</div>
-            <button class="modal-close" onclick="closeModal()">×</button>
-          </div>
-          <div class="modal-body">
-            ${isAdmin ? `
-              <div class="info-box">Als Admin richtest du den Kalender-Sync einmal für die ganze Agentur ein. Danach bekommt jeder Mitarbeiter automatisch seine eigene Abo-URL – ohne eigenen GitHub-Account.</div>
-              <button class="btn btn-primary" onclick="closeModal(); openAdminCalendarSetup();">Jetzt einrichten</button>
-            ` : `
-              <div class="info-box">Der Kalender-Sync wurde noch nicht eingerichtet. Bitte Raphael (Admin) Bescheid geben – er muss das einmal aktivieren, dann bekommst du sofort deine persönliche Abo-URL.</div>
-            `}
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeModal()">Schließen</button>
-          </div>
-        </div>
-      </div>
-    `;
-    $('#modal-container').innerHTML = html;
-    return;
-  }
-
-  // 2) Eingerichtet, aber für diesen User noch kein Gist
-  if (!userUrl) {
-    const html = `
-      <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
-        <div class="modal" style="max-width: 540px;">
-          <div class="modal-header">
-            <div class="modal-title">Kalender abonnieren</div>
-            <button class="modal-close" onclick="closeModal()">×</button>
-          </div>
-          <div class="modal-body">
-            <div class="info-box">Dein persönlicher Kalender wurde noch nicht generiert.</div>
-            ${isAdmin
-              ? `<button class="btn btn-primary" onclick="generateMissingGists()">Kalender jetzt generieren</button>`
-              : '<div class="text-sm text-muted">Bitte den Admin (Raphael) bitten, deinen Kalender freizuschalten.</div>'}
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeModal()">Schließen</button>
-          </div>
-        </div>
-      </div>
-    `;
-    $('#modal-container').innerHTML = html;
-    return;
-  }
-
-  // 3) Fertig konfiguriert → URL direkt anzeigen
+  if (!session || !hasRole(session.user, ROLES.CONTRACT_UPLOADER)) return;
+  const customerOptions = store.customers.map(c =>
+    `<option value="${escape(c.id)}">${escape(c.name)}</option>`
+  ).join('');
   const html = `
     <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
-      <div class="modal" style="max-width:560px;">
+      <div class="modal" style="max-width:480px;">
         <div class="modal-header">
-          <div>
-            <div class="modal-title">Kalender abonnieren</div>
-            <div class="text-sm text-muted" style="margin-top:4px;">${escape(session.user.name)} · ${projectCount} Projekte</div>
-          </div>
+          <div class="modal-title">Neuer Vertrag</div>
           <button class="modal-close" onclick="closeModal()">×</button>
         </div>
-        <div class="modal-body">
-          <div class="subscribe-section" style="border-color:var(--accent); background:var(--accent-soft);">
-            <div class="subscribe-section-title">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              Mein Kalender
+        <form onsubmit="saveNewContract(event)">
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">Titel*</label>
+              <input type="text" name="title" required placeholder="z.B. Servicevertrag Q3 2026" />
             </div>
-            <div class="subscribe-section-desc">Gefiltert auf deine Drehs, Schnitte und Postings. Aktualisiert sich automatisch bei jeder Änderung.</div>
-            <div class="url-box" style="margin-bottom:10px;">
-              <input type="text" value="${escape(userWebcal)}" readonly onclick="this.select()" />
-              <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('${userWebcal}','URL kopiert')">Kopieren</button>
+            <div class="form-group">
+              <label class="form-label">Kunde (optional)</label>
+              <select name="customerId">
+                <option value="">– Kein Kunde –</option>
+                ${customerOptions}
+              </select>
             </div>
-            <a class="btn btn-primary btn-sm" href="${userWebcal}">In Kalender öffnen</a>
           </div>
-
-          ${isAdmin && agencyWebcal ? `
-            <div class="subscribe-section" style="border-color:rgba(255,69,58,0.3); background:rgba(255,69,58,0.04); margin-top:14px;">
-              <div class="subscribe-section-title">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                Agentur-Gesamtkalender
-                <span class="badge badge-role-admin" style="margin-left:auto; font-size:10px;">Nur Admin</span>
-              </div>
-              <div class="subscribe-section-desc">Alle ${totalCount} Projekte aller Kunden.</div>
-              <div class="url-box" style="margin-bottom:10px;">
-                <input type="text" value="${escape(agencyWebcal)}" readonly onclick="this.select()" />
-                <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('${agencyWebcal}','URL kopiert')">Kopieren</button>
-              </div>
-              <a class="btn btn-primary btn-sm" href="${agencyWebcal}">In Kalender öffnen</a>
-            </div>
-          ` : ''}
-
-          <div class="info-box" style="margin-top:14px;">
-            <strong>So abonnierst du den Kalender:</strong><br/>
-            <strong>Mac:</strong> URL kopieren → Apple Kalender → Ablage → „Neues Kalender-Abonnement…" → URL einfügen.<br/>
-            <strong>iPhone/iPad:</strong> Auf „In Kalender öffnen" tippen – iOS fragt automatisch.
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+            <button type="submit" class="btn btn-primary">Anlegen & DOCX hochladen</button>
           </div>
-
-          ${isAdmin ? `
-            <div style="margin-top:14px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-              <button class="btn btn-ghost btn-sm" onclick="openAdminCalendarSetup()">Setup verwalten</button>
-              <button class="btn btn-ghost btn-sm" onclick="writeLiveICS().then(()=>showToast('Synchronisiert','Alle Kalender wurden aktualisiert'))">Jetzt syncen</button>
-            </div>
-          ` : ''}
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-ghost" onclick="closeModal()">Schließen</button>
-        </div>
+        </form>
       </div>
     </div>
   `;
   $('#modal-container').innerHTML = html;
 }
 
-/* Admin-Setup-Modal */
-function openAdminCalendarSetup() {
+async function saveNewContract(e) {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  try {
+    const res = await fetch(`${API_BASE}/contracts.php`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ title: data.title, customerId: data.customerId || null })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    closeModal();
+    // Immediately prompt for file upload
+    await openContractModal(json.data.id);
+    setTimeout(() => uploadContractFile(json.data.id), 300);
+  } catch (err) {
+    showToast('Fehler', err.message);
+  }
+}
+
+async function openContractModal(contractId) {
   const session = getCurrentUser();
-  if (!session || !hasRole(session.user, ROLES.ADMIN)) return;
-  const configured = calendarConfigured();
+  if (!session || session.type !== 'staff') return;
+  const user = session.user;
+  const isPriv = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  const canUpload = hasRole(user, ROLES.CONTRACT_UPLOADER);
+
+  let contract;
+  try {
+    const res = await fetch(`${API_BASE}/contracts.php?id=${encodeURIComponent(contractId)}`, { credentials: 'same-origin' });
+    const json = await res.json();
+    if (!res.ok || !json.ok) { showToast('Vertrag nicht gefunden.', ''); return; }
+    contract = json.data;
+  } catch {
+    showToast('Fehler beim Laden', ''); return;
+  }
+
+  const customer = store.customers.find(x => x.id === contract.customerId);
+  const isDraft = contract.status === 'draft';
+  const comments = contract.comments || [];
+
   const html = `
     <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
-      <div class="modal" style="max-width:620px;">
+      <div class="modal" style="max-width:600px;">
         <div class="modal-header">
           <div>
-            <div class="modal-title">Kalender-Sync (Admin)</div>
-            <div class="text-sm text-muted" style="margin-top:4px;">Einmaliges Setup für alle Mitarbeiter</div>
+            <div class="modal-title">${escape(contract.title)}</div>
+            <div class="text-sm text-muted" style="margin-top:4px;">${escape(customer?.name || 'Kein Kunde')} · ${isDraft ? 'Entwurf' : 'Bestätigt'}</div>
           </div>
           <button class="modal-close" onclick="closeModal()">×</button>
         </div>
         <div class="modal-body">
-          ${configured ? `
-            <div class="subscribe-section" style="border-color:rgba(48,209,88,0.3); background:rgba(48,209,88,0.05);">
-              <div class="subscribe-section-title">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#30d158" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                Verbunden mit GitHub: ${escape(store.calendarConfig.githubUser)}
-              </div>
-              <div class="subscribe-section-desc">Bei jeder Änderung im Tool werden alle Mitarbeiter-Kalender automatisch aktualisiert.</div>
-              <div class="flex gap-2" style="flex-wrap:wrap;">
-                <button class="btn btn-secondary btn-sm" onclick="generateMissingGists()">Fehlende Kalender generieren</button>
-                <button class="btn btn-ghost btn-sm" onclick="disconnectCalendar()" style="color:var(--danger);">Trennen</button>
-              </div>
-            </div>
-          ` : `
-            <div class="info-box">
-              <strong>Was passiert beim Setup?</strong><br/>
-              Du verbindest dein GitHub-Konto einmalig. Das Tool legt dann für jeden Mitarbeiter automatisch eine private Gist-Datei an. Jeder bekommt seine eigene <code>webcal://</code>-URL – ohne sich selbst irgendwo anzumelden.
-            </div>
-            <div class="section-title">Schritt 1: GitHub-Token erstellen</div>
-            <ol style="margin:0 0 14px 18px; font-size:13px; line-height:1.7; color:var(--text-2);">
-              <li>Öffne <a href="https://github.com/settings/tokens/new?description=Dodidis%20Media%20Kalender&scopes=gist" target="_blank" style="color:var(--accent);">github.com/settings/tokens/new</a></li>
-              <li>Scope: nur <code>gist</code>, Expiration: „No expiration"</li>
-              <li>„Generate token" klicken und kopieren (<code>ghp_…</code>)</li>
-            </ol>
-            <div class="form-group">
-              <label class="form-label">Token einfügen</label>
-              <input type="password" id="admin-cal-token" placeholder="ghp_… oder github_pat_…" autocomplete="off" />
-            </div>
-            <div id="admin-cal-error" class="info-box hide" style="background:rgba(255,69,58,0.08); border-color:rgba(255,69,58,0.3); color:#ff453a;"></div>
-          `}
 
-          <div class="section-title">Mitarbeiter-Kalender</div>
-          <div style="background:var(--bg-2); border:1px solid var(--border); border-radius:10px; overflow:hidden;">
-            ${store.users.map(u => {
-              const url = getUserGistUrl(u);
-              const webcal = url ? url.replace(/^https:\/\//,'webcal://') : null;
+          ${isDraft ? `<div class="info-box" style="margin-bottom:12px;">Dieser Vertrag ist noch ein <strong>Entwurf</strong> und für den Kunden nicht sichtbar.</div>` : ''}
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
+            ${contract.filename
+              ? `<a class="btn btn-secondary btn-sm" href="${API_BASE}/download.php?scope=contract&id=${encodeURIComponent(contractId)}" target="_blank">📥 DOCX herunterladen</a>`
+              : canUpload ? `<button type="button" class="btn btn-primary btn-sm" onclick="uploadContractFile('${contractId}')">📎 DOCX hochladen</button>` : '<span class="text-sm text-muted">Kein Dokument hochgeladen.</span>'
+            }
+            ${contract.filename && canUpload ? `<button type="button" class="btn btn-ghost btn-sm" onclick="uploadContractFile('${contractId}')">Dokument ersetzen</button>` : ''}
+            ${isPriv && isDraft ? `<button type="button" class="btn btn-primary btn-sm" onclick="confirmContract('${contractId}')">✅ Bestätigen & Kunden freischalten</button>` : ''}
+            ${isPriv && !isDraft ? `<button type="button" class="btn btn-ghost btn-sm" onclick="revertContractToDraft('${contractId}')">Zurück zu Entwurf</button>` : ''}
+            ${isPriv ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deleteContract('${contractId}')">Löschen</button>` : ''}
+          </div>
+
+          <div class="section-title">Kommentare & Anmerkungen</div>
+          <div id="contract-comments-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+            ${comments.length === 0 ? '<div class="text-sm text-muted">Noch keine Kommentare.</div>' : ''}
+            ${comments.map(c => {
+              const author = store.users.find(u => u.id === c.userId);
               return `
-                <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border);">
-                  ${renderAvatar(u, 26, 11)}
-                  <div style="flex:1; min-width:0;">
-                    <div style="font-size:13px; font-weight:600;">${escape(u.name)}</div>
-                    <div class="text-sm text-muted">${escape(primaryRoleLabel(u))}</div>
-                  </div>
-                  ${webcal
-                    ? `<button class="btn btn-secondary btn-sm" onclick="copyToClipboard('${webcal}','URL für ${escape(u.name)} kopiert')">URL kopieren</button>`
-                    : `<span class="text-sm text-muted">Kein Kalender</span>`}
+                <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+                  <div class="text-sm text-muted" style="margin-bottom:6px;">${escape(author?.name || '–')} · ${fmtDateTime(c.createdAt)}</div>
+                  ${c.text ? `<div style="font-size:13px;white-space:pre-wrap;">${escape(c.text)}</div>` : ''}
+                  ${c.voicePath ? `<audio controls src="${API_BASE}/download.php?scope=voice&id=${encodeURIComponent(c.id)}" style="width:100%;margin-top:8px;"></audio>` : ''}
                 </div>
               `;
             }).join('')}
           </div>
+
+          <div class="section-title">Kommentar hinzufügen</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <textarea id="contract-comment-text" rows="3" style="width:100%;box-sizing:border-box;padding:10px 12px;background:var(--bg-2);border:1px solid var(--border);border-radius:10px;color:var(--text-1);font-size:13px;resize:vertical;" placeholder="Anmerkung eingeben…"></textarea>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="submitContractComment('${contractId}')">Kommentar senden</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="voice-btn-start" onclick="startVoiceRecording('${contractId}')">🎙️ Sprachnachricht aufnehmen</button>
+              <button type="button" class="btn btn-danger btn-sm hide" id="voice-btn-stop" onclick="stopVoiceRecording()">⏹ Aufnahme stoppen</button>
+              <span id="voice-status" class="text-sm text-muted"></span>
+            </div>
+          </div>
+
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-ghost" onclick="closeModal()">Schließen</button>
-          ${!configured ? '<button type="button" class="btn btn-primary" id="admin-cal-connect-btn" onclick="finishAdminCalendarSetup()">Verbinden &amp; Kalender generieren</button>' : ''}
         </div>
       </div>
     </div>
@@ -9830,124 +11231,171 @@ function openAdminCalendarSetup() {
   $('#modal-container').innerHTML = html;
 }
 
-async function finishAdminCalendarSetup() {
-  const tokenEl = $('#admin-cal-token');
-  const errEl = $('#admin-cal-error');
-  const btn = $('#admin-cal-connect-btn');
-  const token = tokenEl?.value.trim();
-  if (!token) {
-    errEl.textContent = 'Bitte ein Token eingeben.';
-    errEl.classList.remove('hide');
-    return;
-  }
-  btn.disabled = true;
-  btn.textContent = 'Verbinde …';
-  errEl.classList.add('hide');
+async function uploadContractFile(contractId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.onchange = async (e) => {
+    document.body.removeChild(input);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    showToast('Wird hochgeladen…', 'Bitte warten.');
+    try {
+      const res = await fetch(`${API_BASE}/upload.php?scope=contract&id=${encodeURIComponent(contractId)}`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'X-CSRF-Token': CSRF },
+        body: fd
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+      showToast('Vertrag hochgeladen', 'DOCX-Datei gespeichert.');
+      openContractModal(contractId);
+    } catch (err) {
+      showToast('Fehler', err.message);
+    }
+  };
+  input.click();
+}
+
+async function submitContractComment(contractId) {
+  const text = $('#contract-comment-text')?.value?.trim() || '';
+  if (!text) return;
   try {
-    await calendarAdminSetup(token);
-    showToast('Kalender eingerichtet', 'Alle Mitarbeiter haben jetzt ihre persönliche Abo-URL.');
-    openAdminCalendarSetup();
-  } catch (e) {
-    errEl.textContent = e.message || 'Unbekannter Fehler';
-    errEl.classList.remove('hide');
-    btn.disabled = false;
-    btn.textContent = 'Verbinden & Kalender generieren';
+    const res = await fetch(`${API_BASE}/contract_comments.php?contractId=${encodeURIComponent(contractId)}`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ text })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    showToast('Kommentar gespeichert', '');
+    openContractModal(contractId);
+  } catch (err) {
+    showToast('Fehler', err.message);
   }
 }
 
-async function generateMissingGists() {
-  if (!calendarConfigured()) return;
-  await ensureAgencyGist();
-  for (const u of store.users) {
-    if (!u.calendarGistId) await ensureUserGist(u);
-  }
-  await writeLiveICS();
-  showToast('Synchronisiert', 'Fehlende Kalender wurden generiert.');
-  openAdminCalendarSetup();
-}
-
-async function disconnectCalendar() {
-  const ok = await appConfirm('Wirklich trennen? Bestehende Gists bleiben auf GitHub – können dort manuell gelöscht werden.', {
-    title: 'Kalender-Sync trennen?', okLabel: 'Trennen', danger: true
-  });
+async function confirmContract(contractId) {
+  const ok = await appConfirm('Vertrag bestätigen? Der Kunde kann ihn danach in seinem Portal einsehen.', { title: 'Vertrag bestätigen', okLabel: 'Bestätigen' });
   if (!ok) return;
-  store.calendarConfig = { token: null, githubUser: null, agencyGistId: null, enabledAt: null };
-  store.users.forEach(u => { delete u.calendarGistId; delete u.calendarFilename; });
-  saveStore();
-  closeModal();
-  showToast('Kalender-Sync getrennt', 'Du kannst jederzeit neu verbinden.');
-}
-
-function startGistSetup(scope) {
-  const session = getCurrentUser();
-  if (!session || session.type !== 'staff') return;
-  const title = scope === 'agency' ? 'Agentur-Gesamtkalender' : 'Mein Kalender';
-  const html = `
-    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
-      <div class="modal" style="max-width:580px;">
-        <div class="modal-header">
-          <div>
-            <div class="modal-title">GitHub-Token verbinden</div>
-            <div class="text-sm text-muted" style="margin-top:4px;">${escape(title)} · Einmalige Einrichtung</div>
-          </div>
-          <button class="modal-close" onclick="closeModal()">×</button>
-        </div>
-        <div class="modal-body">
-
-          <div class="info-box">
-            <strong>Warum GitHub?</strong> iCloud kann nur Kalender abonnieren, die im Internet liegen. GitHub Gist hostet deine .ics-Datei kostenlos und stabil. Du brauchst nur einen kostenlosen GitHub-Account und ein „Personal Access Token" mit minimaler Berechtigung.
-          </div>
-
-          <div class="section-title">Schritt 1 – Token erstellen</div>
-          <ol style="margin:0 0 14px 18px; font-size:13px; line-height:1.7; color:var(--text-2);">
-            <li>Öffne <a href="https://github.com/settings/tokens/new?description=Dodidis%20Media%20Kalender&scopes=gist" target="_blank" style="color:var(--accent);">github.com/settings/tokens/new</a> (Login ggf. nötig)</li>
-            <li>Note: „Dodidis Media Kalender" · Expiration: „No expiration" oder dein Wunsch · Scope: nur <code>gist</code> aktivieren</li>
-            <li>Ganz unten auf <em>Generate token</em> klicken</li>
-            <li>Token kopieren (beginnt mit <code>ghp_</code> oder <code>github_pat_</code>)</li>
-          </ol>
-
-          <div class="section-title">Schritt 2 – Hier einfügen</div>
-          <div class="form-group">
-            <label class="form-label">Personal Access Token</label>
-            <input type="password" id="gist-token-input" placeholder="ghp_… oder github_pat_…" autocomplete="off" />
-            <div class="text-sm text-muted mt-2">Wird nur lokal auf diesem Gerät gespeichert. Der Token kann nur Gists lesen/schreiben – keine anderen Daten.</div>
-          </div>
-
-          <div id="gist-setup-error" class="info-box hide" style="background:rgba(255,69,58,0.08); border-color:rgba(255,69,58,0.3); color:#ff453a;"></div>
-
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-ghost" onclick="openSubscribeModal()">Zurück</button>
-          <button type="button" class="btn btn-primary" id="gist-setup-btn" onclick="finishGistSetup('${scope}')">Verbinden</button>
-        </div>
-      </div>
-    </div>
-  `;
-  $('#modal-container').innerHTML = html;
-  setTimeout(() => $('#gist-token-input')?.focus(), 60);
-}
-
-async function finishGistSetup(scope) {
-  const tokenEl = $('#gist-token-input');
-  const errEl = $('#gist-setup-error');
-  const btn = $('#gist-setup-btn');
-  const token = tokenEl?.value.trim();
-  if (!token) {
-    errEl.textContent = 'Bitte ein Token eingeben.';
-    errEl.classList.remove('hide');
-    return;
-  }
-  btn.disabled = true;
-  btn.textContent = 'Verbinde…';
-  errEl.classList.add('hide');
   try {
-    await setupGistSubscription(token, scope);
-    openSubscribeModal();
-  } catch (e) {
-    errEl.textContent = e.message || 'Unbekannter Fehler';
-    errEl.classList.remove('hide');
-    btn.disabled = false;
-    btn.textContent = 'Verbinden';
+    const res = await fetch(`${API_BASE}/contracts.php?id=${encodeURIComponent(contractId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: 'confirmed' })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    showToast('Vertrag bestätigt', 'Jetzt für den Kunden sichtbar.');
+    openContractModal(contractId);
+  } catch (err) {
+    showToast('Fehler', err.message);
+  }
+}
+
+async function revertContractToDraft(contractId) {
+  try {
+    const res = await fetch(`${API_BASE}/contracts.php?id=${encodeURIComponent(contractId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: 'draft' })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    showToast('Zurück zu Entwurf', '');
+    openContractModal(contractId);
+  } catch (err) {
+    showToast('Fehler', err.message);
+  }
+}
+
+async function deleteContract(contractId) {
+  const ok = await appConfirm('Vertrag unwiderruflich löschen?', { title: 'Vertrag löschen', okLabel: 'Löschen', danger: true });
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API_BASE}/contracts.php?id=${encodeURIComponent(contractId)}`, {
+      method: 'DELETE', credentials: 'same-origin',
+      headers: { 'X-CSRF-Token': CSRF }
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    showToast('Vertrag gelöscht', '');
+    closeModal();
+    navigateTo('contracts');
+  } catch (err) {
+    showToast('Fehler', err.message);
+  }
+}
+
+/* ----------- VOICE RECORDING ----------- */
+
+let _mediaRecorder = null;
+let _audioChunks = [];
+let _activeVoiceContractId = null;
+
+async function startVoiceRecording(contractId) {
+  _activeVoiceContractId = contractId;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    _mediaRecorder = new MediaRecorder(stream);
+    _audioChunks = [];
+    _mediaRecorder.ondataavailable = e => { if (e.data.size > 0) _audioChunks.push(e.data); };
+    _mediaRecorder.start();
+    $('#voice-btn-start')?.classList.add('hide');
+    $('#voice-btn-stop')?.classList.remove('hide');
+    const s = $('#voice-status');
+    if (s) s.textContent = '⏺ Aufnahme läuft…';
+  } catch {
+    showToast('Kein Mikrofon-Zugriff', 'Bitte Mikrofon im Browser freigeben.');
+  }
+}
+
+async function stopVoiceRecording() {
+  if (!_mediaRecorder) return;
+  _mediaRecorder.stop();
+  _mediaRecorder.stream?.getTracks().forEach(t => t.stop());
+  $('#voice-btn-start')?.classList.remove('hide');
+  $('#voice-btn-stop')?.classList.add('hide');
+  const s = $('#voice-status');
+  if (s) s.textContent = '⏳ Wird gespeichert…';
+
+  await new Promise(resolve => { _mediaRecorder.onstop = resolve; });
+  const blob = new Blob(_audioChunks, { type: 'audio/webm' });
+  _mediaRecorder = null;
+
+  const contractId = _activeVoiceContractId;
+  const commentText = $('#contract-comment-text')?.value?.trim() || '';
+
+  try {
+    // 1. Create comment (with optional text)
+    const r1 = await fetch(`${API_BASE}/contract_comments.php?contractId=${encodeURIComponent(contractId)}`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ text: commentText })
+    });
+    const j1 = await r1.json();
+    if (!r1.ok || !j1.ok) throw new Error(j1.error || 'Fehler beim Anlegen');
+
+    // 2. Upload audio
+    const fd = new FormData();
+    fd.append('file', blob, 'voice.webm');
+    const r2 = await fetch(`${API_BASE}/upload.php?scope=voice&id=${encodeURIComponent(j1.data.id)}`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'X-CSRF-Token': CSRF },
+      body: fd
+    });
+    const j2 = await r2.json();
+    if (!r2.ok || !j2.ok) throw new Error(j2.error || 'Fehler beim Hochladen');
+
+    showToast('Sprachnachricht gespeichert', '');
+    openContractModal(contractId);
+  } catch (err) {
+    showToast('Fehler', err.message);
+    if (s) s.textContent = '✗ Fehler';
   }
 }
 
@@ -9981,9 +11429,7 @@ function initApp() {
       <style>@keyframes db-spin{to{transform:rotate(360deg)}}</style>`;
   }
 
-  // Bei jedem Login einmal aktuellen Kalender auf den Gist pushen
   if (session.type === 'staff') {
-    setTimeout(() => writeLiveICS(), 400);
     setTimeout(() => requestNotificationPermission(), 1000);
     setTimeout(() => checkPendingNotifications(session), 1200);
   }

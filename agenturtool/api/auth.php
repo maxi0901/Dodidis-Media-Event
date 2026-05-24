@@ -100,15 +100,18 @@ switch ($action) {
             );
 
             if (!$u) {
-                json_err(401, 'Benutzername oder Passwort ist falsch.');
+                json_err(401, 'Benutzername „' . $username . '" nicht gefunden.');
             }
 
             $noPasswordSet = !isset($u['password_hash']) || (string)$u['password_hash'] === '';
 
-            if ($noPasswordSet) {
-                // Erst-Login: kein Passwort hinterlegt → ohne Passwort-Check einloggen
-            } elseif ($hash === '' || !hash_equals((string)$u['password_hash'], $hash)) {
-                json_err(401, 'Benutzername oder Passwort ist falsch.');
+            if ($noPasswordSet && $hash !== '') {
+                // Hat ein Passwort eingegeben, aber keins gesetzt → Hinweis auf Erst-Login
+                json_err(401, 'Für diesen Account ist noch kein Passwort gesetzt. Passwortfeld leer lassen für den Erst-Login.');
+            } elseif (!$noPasswordSet && $hash === '') {
+                json_err(401, 'Bitte Passwort eingeben.');
+            } elseif (!$noPasswordSet && !hash_equals((string)$u['password_hash'], $hash)) {
+                json_err(401, 'Passwort ist falsch.');
             }
 
             $rolesRows = db_all("SELECT role_name FROM user_roles WHERE user_id = ?", [$u['id']]);
