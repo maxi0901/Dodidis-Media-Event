@@ -84,7 +84,7 @@ switch ($method) {
 
     case 'PUT': {
         if (!$id) json_err(400, 'id fehlt.');
-        $cur = db_one("SELECT id, videograf_id, cutter_id, customer_id, status FROM projects WHERE id = ?", [$id]);
+        $cur = db_one("SELECT id, title, videograf_id, cutter_id, customer_id, status, shoot_date FROM projects WHERE id = ?", [$id]);
         if (!$cur) json_err(404, 'Projekt nicht gefunden.');
 
         $b = input_json();
@@ -117,6 +117,28 @@ switch ($method) {
         } catch (Throwable $e) {
             log_err('project update', ['msg' => $e->getMessage()]);
             json_err(500, 'Konnte Projekt nicht speichern.');
+        }
+
+        // Drehtag-Verschiebung protokollieren + Kunden benachrichtigen
+        if ($isPriv && array_key_exists('shoot_date', $params)) {
+            $oldShootDate = $cur['shoot_date'] ?? null;
+            $newShootDate = $params['shoot_date'] ?? null;
+            if ($oldShootDate && $newShootDate && $oldShootDate !== $newShootDate) {
+                db_exec(
+                    "INSERT INTO project_shootdate_history (project_id, old_shoot_date, new_shoot_date, changed_by)
+                     VALUES (?, ?, ?, ?)",
+                    [$id, $oldShootDate, $newShootDate, $session['uid']]
+                );
+                $customerManager = db_one("SELECT manager_id FROM customers WHERE id = ?", [$cur['customer_id']]);
+                if (!empty($customerManager['manager_id'])) {
+                    db_exec(
+                        "INSERT INTO notifications (user_id, type, title, body, ref_id, ref_type)
+                         VALUES (?, 'shootdate_moved', 'Drehtag verschoben',
+                                 CONCAT('Ihr Drehtag wurde verschoben: ', ?, ' → ', ?), ?, 'project')",
+                        [$customerManager['manager_id'], $oldShootDate, $newShootDate, $id]
+                    );
+                }
+            }
         }
 
         log_activity('project', $id, 'edited', ['fields' => array_keys($params)]);
