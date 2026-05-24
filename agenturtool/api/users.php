@@ -161,7 +161,7 @@ switch ($method) {
 
 function insert_roles(string $userId, array $roles): void
 {
-    $valid = ['admin','manager','videograf','cutter','mitarbeiter'];
+    $valid = ['admin','manager','videograf','cutter','mitarbeiter','contract_uploader'];
     $stmt  = db()->prepare("INSERT INTO user_roles (user_id, role_name) VALUES (?, ?)");
     foreach (array_unique($roles) as $r) {
         if (!in_array($r, $valid, true)) continue;

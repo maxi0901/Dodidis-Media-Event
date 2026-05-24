@@ -53,7 +53,7 @@ declare(strict_types=1);
             http_response_code(500);
             header('Content-Type: application/json; charset=utf-8');
         }
-        echo json_encode(['success' => false, 'error' => 'Interner Serverfehler.']);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         exit;
     });
 
