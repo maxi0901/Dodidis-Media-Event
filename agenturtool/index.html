@@ -1671,8 +1671,9 @@
     grid-column: 1;
     background: #111113;
     position: sticky;
+    top: 0;
     left: 0;
-    z-index: 4;
+    z-index: 6;
     border-right: 1px solid rgba(255,255,255,0.07);
     border-bottom: 1px solid rgba(255,255,255,0.07);
   }
@@ -1690,7 +1691,7 @@
     background: #111113;
     position: sticky;
     top: 0;
-    z-index: 3;
+    z-index: 5;
     min-height: 64px;
     text-align: center;
   }
@@ -1754,7 +1755,7 @@
     grid-column: 1;
     position: sticky;
     left: 0;
-    z-index: 2;
+    z-index: 1;
     background: #181819;
     border-right: 1px solid rgba(255,255,255,0.07);
     padding: 4px 10px;
@@ -1847,7 +1848,7 @@
   /* Mobile: ultra-compact calendar */
   @media (max-width: 640px) {
     /* Grid rows kleiner */
-    .ical-track { grid-auto-rows: 24px; grid-row-gap: 2px; padding-bottom: 12px; }
+    .ical-track { grid-auto-rows: minmax(24px, auto); grid-row-gap: 2px; padding-bottom: 12px; }
     /* Scrollbar verstecken */
     .ical-scroll::-webkit-scrollbar { height: 0; }
     .ical-scroll { max-height: 420px; }
