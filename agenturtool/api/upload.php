@@ -11,7 +11,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_err(405, 'POST erwartet.');
 }
 require_csrf();
-require_role('admin', 'manager');
 
 $cfg = require __DIR__ . '/../config.php';
 
@@ -41,17 +40,26 @@ if (!in_array($mime, $cfg['allowed_mimes'], true)) {
     json_err(415, 'Dateityp nicht erlaubt: ' . $mime);
 }
 
-// Zielpfad
+// Zielpfad + Rechteprüfung pro Scope
 if ($scope === 'project') {
+    require_role('admin', 'manager');
     if (!$refId) json_err(400, 'id (project) fehlt.');
     $proj = db_one("SELECT id FROM projects WHERE id = ?", [$refId]);
     if (!$proj) json_err(404, 'Projekt nicht gefunden.');
     $dir = $cfg['uploads_path'] . '/projects/' . $refId;
     $urlDir = $cfg['uploads_url'] . '/projects/' . $refId;
 } elseif ($scope === 'avatar') {
+    require_role('admin', 'manager');
     if (!$refId) json_err(400, 'id (user) fehlt.');
     $dir = $cfg['uploads_path'] . '/avatars/' . $refId;
     $urlDir = $cfg['uploads_url'] . '/avatars/' . $refId;
+} elseif ($scope === 'contract') {
+    require_role('admin', 'manager', 'contract_uploader');
+    if (!$refId) json_err(400, 'id (contract) fehlt.');
+    $ct = db_one("SELECT id FROM contracts WHERE id = ?", [$refId]);
+    if (!$ct) json_err(404, 'Vertrag nicht gefunden.');
+    $dir = $cfg['uploads_path'] . '/contracts/' . $refId;
+    $urlDir = $cfg['uploads_url'] . '/contracts/' . $refId;
 } else {
     json_err(400, 'Unbekannter scope.');
 }
@@ -86,6 +94,14 @@ if ($scope === 'project') {
     );
     $response['id'] = (int)db()->lastInsertId();
     log_activity('project', $refId, 'fileUploaded', ['kind' => $kind, 'filename' => $safeName]);
+}
+
+if ($scope === 'contract') {
+    db_exec(
+        "UPDATE contracts SET filename = ?, mime = ?, size = ?, path = ? WHERE id = ?",
+        [$safeName, $mime, (int)$file['size'], $relPath, $refId]
+    );
+    log_activity('contract', $refId, 'fileUploaded', ['filename' => $safeName]);
 }
 
 json_ok($response);
