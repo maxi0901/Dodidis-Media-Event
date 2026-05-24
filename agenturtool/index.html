@@ -3091,12 +3091,14 @@
 
     /* Sidebar: Safe-Area-Padding */
     .sidebar {
-      padding-top: calc(20px + var(--safe-top));
-      padding-bottom: calc(16px + var(--safe-bottom));
+      padding-top: calc(16px + var(--safe-top));
+      padding-bottom: calc(80px + var(--safe-bottom));
       padding-left: calc(14px + var(--safe-left));
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
+    /* Logo/Brand im Mobile-Sheet redundant – verstecken */
+    .sidebar-header { display: none; }
 
     /* Topbar: Safe-Area + sticky-blur */
     .topbar {
