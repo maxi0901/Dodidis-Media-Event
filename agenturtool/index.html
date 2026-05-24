@@ -3566,6 +3566,13 @@ function getRoleLevel(user) {
   return roles.reduce((max, r) => Math.max(max, ROLE_LEVEL[r] || 0), 0);
 }
 
+function getAssignableUsersFor(viewer) {
+  if (!viewer) return [];
+  if (!hasRole(viewer, ROLES.CUTTER)) return store.users;
+  const myLevel = getRoleLevel(viewer);
+  return store.users.filter(u => getRoleLevel(u) > myLevel);
+}
+
 // Darf "viewer" den Urlaub von "target" sehen?
 // Regel: Jeder Mitarbeiter sieht alle Urlaube (volle Transparenz).
 function canViewVacationOf(viewer, target) {
@@ -9961,6 +9968,7 @@ function openTodoModal(todoId = null) {
   const currentAssignees = todo?.assigneeIds || [];
   const canEdit = isNew || todo?.createdById === user.id || currentAssignees.includes(user.id) || isAdmin;
 
+  const assigneeOptions = getAssignableUsersFor(session.user);
   const html = `
     <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
       <div class="modal">
@@ -9981,7 +9989,7 @@ function openTodoModal(todoId = null) {
 
             <div class="section-title">Verantwortliche (Mehrfachauswahl)</div>
             <div>
-              ${store.users.map(u => `
+              ${assigneeOptions.map(u => `
                 <label class="checkbox-row" for="todo-assignee-${u.id}">
                   <input type="checkbox" id="todo-assignee-${u.id}" name="assignee_${u.id}" ${currentAssignees.includes(u.id) ? 'checked' : ''} ${!canEdit ? 'disabled' : ''} />
                   <div class="checkbox-content">
@@ -10038,7 +10046,7 @@ async function saveTodo(e, todoId) {
   const description = form.description.value;
   if (!title) { alert('Bitte einen Titel angeben.'); return; }
 
-  const assigneeIds = store.users
+  const assigneeIds = getAssignableUsersFor(session.user)
     .map(u => u.id)
     .filter(id => form.querySelector(`#todo-assignee-${id}`)?.checked);
 
@@ -10822,7 +10830,7 @@ function renderNotificationsCard() {
 function renderProjectFilesSection(project, session) {
   const user = session.user;
   const isAdmin    = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
-  const isVideograf = hasRole(user, ROLES.VIDEOGRAF) || isAdmin;
+  const canUploadRaw = isAdmin;
   const isCutter   = hasRole(user, ROLES.CUTTER) || isAdmin;
   const files = project.files || [];
 
@@ -10847,16 +10855,23 @@ function renderProjectFilesSection(project, session) {
 
   let html = '';
 
-  if (isVideograf) {
+  if (canUploadRaw) {
     html += `
       <div style="margin-top:18px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div class="cutter-detail-label">Rohmaterial</div>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="uploadProjectFile('rohmaterial','${project.id}')">
-            + Rohmaterial hochladen
-          </button>
+          <div class="cutter-detail-label">Rohmaterial (Upload)</div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="uploadProjectFile('rohmaterial','${project.id}')">+ Rohmaterial hochladen</button>
         </div>
         ${rohmaterial.length ? rohmaterial.map(fileRow).join('') : '<div class="text-sm text-muted">Noch kein Rohmaterial hochgeladen.</div>'}
+      </div>
+    `;
+  }
+
+  if (hasRole(user, ROLES.CUTTER)) {
+    html += `
+      <div style="margin-top:18px;">
+        <div class="cutter-detail-label" style="margin-bottom:8px;">Rohmaterial (Download)</div>
+        ${rohmaterial.length ? rohmaterial.map(fileRow).join('') : '<div class="text-sm text-muted">Noch kein Rohmaterial verfügbar.</div>'}
       </div>
     `;
   }

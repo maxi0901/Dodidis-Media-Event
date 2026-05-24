@@ -178,6 +178,24 @@ if (!tableExists($pdo, 'app_config')) {
     $results[] = ['ok' => true, 'label' => "app_config: bereits vorhanden"];
 }
 
+// ── 10. project_shootdate_history ─────────────────────────────────────────────
+if (!tableExists($pdo, 'project_shootdate_history')) {
+    step($pdo, "project_shootdate_history: Tabelle anlegen",
+        "CREATE TABLE project_shootdate_history (
+           id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+           project_id VARCHAR(64) NOT NULL,
+           old_shoot_date DATE NOT NULL,
+           new_shoot_date DATE NOT NULL,
+           changed_by VARCHAR(64) NULL,
+           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           PRIMARY KEY (id), KEY idx_psh_project (project_id),
+           KEY idx_psh_old_date (old_shoot_date), KEY idx_psh_new_date (new_shoot_date)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "project_shootdate_history: bereits vorhanden"];
+}
+
 $fails = array_filter($results, fn($r) => !$r['ok']);
 ?>
 <!DOCTYPE html>
