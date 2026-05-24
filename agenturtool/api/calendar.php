@@ -47,18 +47,22 @@ $isCutterOnly = $isCutter && !$isAdmin && !$isManager && !$isVideograf;
 
 // ── Projekte holen ──────────────────────────────────────────────────────────
 $pCols = "p.id, p.title, p.customer_id AS customerId, p.videograf_id AS videografId,
-          p.cutter_id AS cutterId, p.shoot_date AS shootDate, p.deadline,
+          p.cutter_id AS cutterId, COALESCE(p.shoot_date, sd.date) AS shootDate, p.deadline,
           p.posting_date AS postingDate, p.script, p.status";
 
 if ($isAdmin || $isManager) {
     $projects = db_all(
-        "SELECT $pCols FROM projects p WHERE p.status != 'archiviert' ORDER BY p.shoot_date"
+        "SELECT $pCols FROM projects p
+          LEFT JOIN shoot_days sd ON sd.id = p.shoot_day_id
+          WHERE p.status != 'archiviert'
+          ORDER BY COALESCE(p.shoot_date, sd.date)"
     );
 } elseif ($isVideograf || $isCutter) {
     $projects = db_all(
         "SELECT $pCols FROM projects p
+          LEFT JOIN shoot_days sd ON sd.id = p.shoot_day_id
           WHERE (p.videograf_id = ? OR p.cutter_id = ?) AND p.status != 'archiviert'
-          ORDER BY p.shoot_date",
+          ORDER BY COALESCE(p.shoot_date, sd.date)",
         [$uid, $uid]
     );
 } else {
