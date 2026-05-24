@@ -46,20 +46,20 @@ if ($scope === 'project') {
     if (!$refId) json_err(400, 'id (project) fehlt.');
     $proj = db_one("SELECT id FROM projects WHERE id = ?", [$refId]);
     if (!$proj) json_err(404, 'Projekt nicht gefunden.');
-    $dir = $cfg['uploads_path'] . '/projects/' . $refId;
-    $urlDir = $cfg['uploads_url'] . '/projects/' . $refId;
+    $dir    = $cfg['uploads_path'] . '/projects/' . $refId;
+    $urlDir = $cfg['uploads_url']  . '/projects/' . $refId;
 } elseif ($scope === 'avatar') {
     require_role('admin', 'manager');
     if (!$refId) json_err(400, 'id (user) fehlt.');
-    $dir = $cfg['uploads_path'] . '/avatars/' . $refId;
-    $urlDir = $cfg['uploads_url'] . '/avatars/' . $refId;
+    $dir    = $cfg['uploads_path'] . '/avatars/' . $refId;
+    $urlDir = $cfg['uploads_url']  . '/avatars/' . $refId;
 } elseif ($scope === 'contract') {
     require_role('admin', 'manager', 'contract_uploader');
     if (!$refId) json_err(400, 'id (contract) fehlt.');
     $ct = db_one("SELECT id FROM contracts WHERE id = ?", [$refId]);
     if (!$ct) json_err(404, 'Vertrag nicht gefunden.');
-    $dir = $cfg['uploads_path'] . '/contracts/' . $refId;
-    $urlDir = $cfg['uploads_url'] . '/contracts/' . $refId;
+    $dir    = $cfg['uploads_path'] . '/contracts/' . $refId;
+    $urlDir = $cfg['uploads_url']  . '/contracts/' . $refId;
 } else {
     json_err(400, 'Unbekannter scope.');
 }
@@ -68,11 +68,11 @@ if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
     json_err(500, 'Upload-Ordner konnte nicht angelegt werden.');
 }
 
-$safeName  = preg_replace('/[^a-zA-Z0-9._\-]+/', '_', $file['name']);
-$safeName  = substr($safeName, 0, 100);
-$filename  = uid('f') . '_' . $safeName;
-$fullPath  = $dir . '/' . $filename;
-$relPath   = $urlDir . '/' . $filename;
+$safeName = preg_replace('/[^a-zA-Z0-9._\-]+/', '_', $file['name']);
+$safeName = substr($safeName, 0, 100);
+$filename = uid('f') . '_' . $safeName;
+$fullPath = $dir . '/' . $filename;
+$relPath  = $urlDir . '/' . $filename;
 
 if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
     json_err(500, 'Datei konnte nicht gespeichert werden.');
