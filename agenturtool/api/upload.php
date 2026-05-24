@@ -41,9 +41,8 @@ if ($scope === 'avatar' && $kind !== 'avatar') {
     $kind = 'avatar';
 }
 
-// ── Role-based access checks per scope + kind ────────────────────────────────
+// ── Role-based access checks per scope ──────────────────────────────────────
 if ($scope === 'avatar') {
-    // Already checked separately below; allow admin/manager only here
     if (!has_role('admin', 'manager')) {
         json_err(403, 'Keine Berechtigung.');
     }
@@ -61,17 +60,15 @@ if ($scope === 'avatar') {
             json_err(403, 'Keine Berechtigung.');
         }
     } else {
-        // script, contract, correction, other → admin/manager only
         if (!has_role('admin', 'manager')) {
             json_err(403, 'Keine Berechtigung.');
         }
     }
 } elseif ($scope === 'contract') {
-    if (!has_role('contract_uploader')) {
+    if (!has_role('admin', 'manager', 'contract_uploader')) {
         json_err(403, 'Keine Berechtigung.');
     }
 } elseif ($scope === 'voice') {
-    // Any logged-in staff (not customer)
     if ($session['type'] === 'customer') {
         json_err(403, 'Keine Berechtigung.');
     }
@@ -86,10 +83,11 @@ $mime  = $finfo->file($file['tmp_name']);
 // Scope-specific MIME checks
 if ($scope === 'contract') {
     $allowedContractMimes = [
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     ];
     if (!in_array($mime, $allowedContractMimes, true)) {
-        json_err(415, 'Nur .docx Dateien sind für Verträge erlaubt.');
+        json_err(415, 'Nur PDF oder .docx Dateien sind für Verträge erlaubt.');
     }
 } elseif ($scope === 'voice') {
     $allowedVoiceMimes = ['audio/webm', 'audio/ogg', 'audio/wav', 'audio/mpeg'];
@@ -112,8 +110,8 @@ if ($scope === 'project') {
     $dir      = $basePath . '/' . $relDir;
 } elseif ($scope === 'avatar') {
     if (!$refId) json_err(400, 'id (user) fehlt.');
-    $dir      = $cfg['uploads_path'] . '/avatars/' . $refId;
-    $urlDir   = $cfg['uploads_url']  . '/avatars/' . $refId;
+    $dir    = $cfg['uploads_path'] . '/avatars/' . $refId;
+    $urlDir = $cfg['uploads_url']  . '/avatars/' . $refId;
 } elseif ($scope === 'customer') {
     if (!$refId) json_err(400, 'id (customer) fehlt.');
     $cust = db_one("SELECT id FROM customers WHERE id = ?", [$refId]);
@@ -168,7 +166,6 @@ if ($scope === 'project') {
     $response['path'] = $relPath;
     log_activity('project', $refId, 'fileUploaded', ['kind' => $kind, 'filename' => $safeName]);
 
-    // Post-insert notifications
     if ($kind === 'rohmaterial') {
         $cutterId = $proj['cutter_id'] ?? null;
         if ($cutterId) {

@@ -8,7 +8,6 @@ require_once __DIR__ . '/../includes/auth-check.php';
 $session = require_login();
 if ($session['type'] === 'customer') json_err(403, 'Keine Berechtigung.');
 
-// Only admin, manager, contract_uploader can access contracts
 if (!has_role('admin', 'manager', 'contract_uploader')) {
     json_err(403, 'Keine Berechtigung.');
 }
@@ -26,7 +25,6 @@ switch ($method) {
         if ($id) {
             $c = db_one("$baseSelect WHERE id = ?", [$id]);
             if (!$c) json_err(404, 'Vertrag nicht gefunden.');
-            // attach comments
             $c['comments'] = db_all(
                 "SELECT id, user_id AS userId, comment_text AS text, voice_path AS voicePath,
                         voice_filename AS voiceFilename, created_at AS createdAt
@@ -39,7 +37,6 @@ switch ($method) {
         json_ok($rows);
 
     case 'POST':
-        if (!has_role('contract_uploader')) json_err(403, 'Nur der autorisierte Vertrags-Hochlader darf Verträge anlegen.');
         $b = input_json();
         $title = s($b['title'] ?? null, 255);
         if (!$title) json_err(400, 'title ist Pflicht.');
@@ -48,14 +45,16 @@ switch ($method) {
             "INSERT INTO contracts (id, customer_id, title, status, uploaded_by) VALUES (?, ?, ?, 'draft', ?)",
             [$newId, $b['customerId'] ?? null, $title, $session['uid']]
         );
-        // Notify admins and managers
-        $admins = db_all("SELECT DISTINCT user_id FROM user_roles WHERE role_name IN ('admin','manager')");
-        foreach ($admins as $a) {
-            if ($a['user_id'] === $session['uid']) continue;
-            db_exec(
-                "INSERT INTO notifications (user_id, type, title, body, ref_id, ref_type) VALUES (?, 'contract_uploaded', ?, ?, ?, 'contract')",
-                [$a['user_id'], 'Neuer Vertrag', $title, $newId]
-            );
+        // Notify admins and managers when contract_uploader creates a contract
+        if (!has_role('admin', 'manager')) {
+            $admins = db_all("SELECT DISTINCT user_id FROM user_roles WHERE role_name IN ('admin','manager')");
+            foreach ($admins as $a) {
+                if ($a['user_id'] === $session['uid']) continue;
+                db_exec(
+                    "INSERT INTO notifications (user_id, type, title, body, ref_id, ref_type) VALUES (?, 'contract_uploaded', ?, ?, ?, 'contract')",
+                    [$a['user_id'], 'Neuer Vertrag', $title, $newId]
+                );
+            }
         }
         log_activity('contract', $newId, 'created');
         $row = db_one("$baseSelect WHERE id = ?", [$newId]);
