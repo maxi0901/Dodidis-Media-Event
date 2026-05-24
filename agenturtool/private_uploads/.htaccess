@@ -1,0 +1,7 @@
+# Direkter HTTP-Zugriff auf dieses Verzeichnis wird verweigert.
+# Dateien sind nur über api/download.php abrufbar (Auth-Prüfung).
+Order deny,allow
+Deny from all
+
+# Nginx-Nutzer: Folgende Zeile in die Nginx-Server-Config einfügen:
+# location /agenturtool/private_uploads/ { deny all; return 403; }

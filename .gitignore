@@ -20,3 +20,6 @@ pids
 Thumbs.db
 .vscode/
 .idea/
+
+# PHP runtime log (environment-specific, never commit)
+agenturtool/Fehler.log

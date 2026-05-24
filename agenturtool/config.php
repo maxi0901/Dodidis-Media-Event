@@ -18,10 +18,21 @@ return [
     'cookie_path'     => '/agenturtool/',
 
     // --- Uploads ---
+    // Avatare + öffentliche Bilder (innerhalb Webroot, per URL erreichbar)
     'uploads_path'     => __DIR__ . '/uploads',
     'uploads_url'      => '/agenturtool/uploads',
+    // Vertrauliche Dokumente (Verträge, Projektdateien)
+    // Liegt innerhalb von agenturtool/ → PHP hat immer Schreibrechte.
+    // Zugriff wird durch .htaccess + index.php blockiert (Apache + nginx).
+    // Dateinamen enthalten einen zufälligen Prefix (uid), sind also nicht erratbar.
+    'private_path'     => __DIR__ . '/private_uploads',
     'allowed_mimes'    => [
         'application/pdf',
+        'application/msword',                                                                    // .doc
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',              // .docx
+        'application/vnd.oasis.opendocument.text',                                              // .odt
+        'application/vnd.ms-excel',                                                             // .xls
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',                   // .xlsx
         'image/png',
         'image/jpeg',
         'image/webp',
@@ -29,6 +40,10 @@ return [
         'text/plain',
         'video/mp4',
         'video/quicktime',
+        'video/webm',
+        'audio/webm',
+        'audio/ogg',
+        'audio/wav',
     ],
     'max_upload_bytes' => 50 * 1024 * 1024, // 50 MB
 

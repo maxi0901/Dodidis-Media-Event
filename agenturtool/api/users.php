@@ -127,6 +127,17 @@ switch ($method) {
             $params[] = $b['calendarPrefs'] ? json_encode($b['calendarPrefs'], JSON_UNESCAPED_UNICODE) : null;
         }
 
+        // Kalender-Token generieren oder entfernen
+        if (!empty($b['generateCalendarToken'])) {
+            $newToken = bin2hex(random_bytes(24));   // 48 Hex-Zeichen
+            $fields[] = 'calendar_token = ?';
+            $params[] = $newToken;
+        }
+        if (!empty($b['removeCalendarToken'])) {
+            $fields[] = 'calendar_token = ?';
+            $params[] = null;
+        }
+
         if ($fields) {
             $params[] = $id;
             db_exec("UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?", $params);

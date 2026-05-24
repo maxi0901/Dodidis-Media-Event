@@ -121,6 +121,19 @@ if (!tbl_exists($pdo, $db, 'activity_log')) {
     ", 'activity_log erstellt');
 } else {
     skip('activity_log existiert bereits');
+    // Fehlende Spalten nachrüsten (ältere Schema-Versionen hatten nicht alle Spalten)
+    if (!col_exists($pdo, $db, 'activity_log', 'scope')) {
+        exec_sql($pdo, "ALTER TABLE activity_log ADD COLUMN scope VARCHAR(32) NOT NULL DEFAULT 'system' AFTER ts", 'activity_log.scope hinzugefügt');
+    } else { skip('activity_log.scope existiert bereits'); }
+    if (!col_exists($pdo, $db, 'activity_log', 'ref_id')) {
+        exec_sql($pdo, "ALTER TABLE activity_log ADD COLUMN ref_id VARCHAR(64) NULL DEFAULT NULL AFTER scope", 'activity_log.ref_id hinzugefügt');
+    } else { skip('activity_log.ref_id existiert bereits'); }
+    if (!col_exists($pdo, $db, 'activity_log', 'actor_id')) {
+        exec_sql($pdo, "ALTER TABLE activity_log ADD COLUMN actor_id VARCHAR(64) NULL DEFAULT NULL AFTER action", 'activity_log.actor_id hinzugefügt');
+    } else { skip('activity_log.actor_id existiert bereits'); }
+    if (!col_exists($pdo, $db, 'activity_log', 'details')) {
+        exec_sql($pdo, "ALTER TABLE activity_log ADD COLUMN details JSON NULL DEFAULT NULL", 'activity_log.details hinzugefügt');
+    } else { skip('activity_log.details existiert bereits'); }
 }
 
 // project_files
@@ -263,6 +276,12 @@ if (!col_exists($pdo, $db, 'users', 'updated_at')) {
     exec_sql($pdo, "ALTER TABLE users ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP", 'users.updated_at hinzugefügt');
 } else {
     skip('users.updated_at existiert bereits');
+}
+
+if (!col_exists($pdo, $db, 'users', 'calendar_token')) {
+    exec_sql($pdo, "ALTER TABLE users ADD COLUMN calendar_token VARCHAR(48) NULL DEFAULT NULL, ADD UNIQUE KEY uk_users_calendar_token (calendar_token)", 'users.calendar_token hinzugefügt');
+} else {
+    skip('users.calendar_token existiert bereits');
 }
 
 // ============================================================
@@ -426,14 +445,303 @@ if (tbl_exists($pdo, $db, 'user_roles')) {
 }
 
 // ============================================================
+sect('Block F – App-Daten aus LocalStorage einpflegen');
+
+$pdo->exec('SET FOREIGN_KEY_CHECKS=0');
+
+// -- Drehtage (müssen vor Projekten existieren) --
+$stmtSD = $pdo->prepare(
+    "INSERT IGNORE INTO shoot_days (id, date, videograf_id, start_time, end_time, customer_id, note, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+);
+$seedShootDays = [
+    ['sd_pnnj1ja','2026-05-20','u_raphael','09:00:00','12:00:00','c_g1qg7ew',
+     'Timo & Raphael - Monatscontent 05.-06. 2026','2026-05-19 12:54:12'],
+];
+$sdOk = 0;
+foreach ($seedShootDays as $r) {
+    try { $stmtSD->execute($r); $sdOk++; } catch (Throwable $e) { err("ShootDay {$r[0]}: ".$e->getMessage()); }
+}
+ok("$sdOk Drehtage eingespielt");
+
+// -- Projekte --
+$stmtP = $pdo->prepare(
+    "INSERT IGNORE INTO projects
+       (id, title, customer_id, videograf_id, cutter_id, shoot_date, shoot_day_id,
+        deadline, posting_date, script, status, is_internal, created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
+);
+$seedProjects = [
+    ['p_3e91q09','Anbau Detail','c_g1qg7ew','u_raphael','u_06hdf5r',
+     '2026-05-20','sd_pnnj1ja','2026-06-01','2026-06-03',
+     "B Roll von dem Anbau Filmen\n\nÄsthetische Shorts in Kombination mit schönem motions Gimbal dazu atmosphärischer Musik",
+     'skript',0,'2026-05-19 12:57:16'],
+    ['p_qzwt7fs','Onboardingprozess im Video erklärt','c_g1qg7ew','u_raphael','u_163qsdr',
+     '2026-05-20','sd_pnnj1ja','2026-06-05','2026-06-07',
+     "Kein festes Skript. Wir filmen von A bis Z den Onboarding Prozess von der ersten Minute im Blu bis zum ersten finalen Training dort was für Schritte werden durchlaufen.\nCheck Mescan zum Beispiel.",
+     'skript',0,'2026-05-19 13:40:44'],
+    ['p_isamf67','Fahrtweg -> Metime','c_g1qg7ew','u_raphael','u_163qsdr',
+     '2026-05-20','sd_pnnj1ja','2026-06-05','2026-06-10',
+     '','skript',0,'2026-05-19 13:42:23'],
+    ['p_k6ibbj9','Ibiza - Coco Beach After Movie','c_mudcxh1','u_raphael','u_raphael',
+     '2026-05-23',null,'2026-05-22','2026-05-24',
+     'Modern viele Effekte die Energie im Coco Beach zeigen','skript',0,'2026-05-19 17:10:09'],
+];
+$pOk = 0;
+foreach ($seedProjects as $r) {
+    try { $stmtP->execute($r); $pOk++; } catch (Throwable $e) { err("Projekt {$r[0]}: ".$e->getMessage()); }
+}
+ok("$pOk Projekte eingespielt");
+
+// -- Urlaube --
+$stmtV = $pdo->prepare(
+    "INSERT IGNORE INTO vacations (id, user_id, start_date, end_date, note) VALUES (?,?,?,?,?)"
+);
+$seedVacations = [
+    ['v_dlxvq03','u_raphael', '2026-06-11','2026-06-14',''],
+    ['v_mle0bqp','u_163qsdr','2026-05-26','2026-06-02',''],
+    ['v_aufp9zn','u_163qsdr','2026-06-25','2026-07-02',''],
+    ['v_fashv2v','u_raphael', '2026-05-29','2026-05-29',''],
+];
+$vOk = 0;
+foreach ($seedVacations as $r) {
+    try { $stmtV->execute($r); $vOk++; } catch (Throwable $e) { err("Urlaub {$r[0]}: ".$e->getMessage()); }
+}
+ok("$vOk Urlaube eingespielt");
+
+// -- Todos --
+$stmtT = $pdo->prepare(
+    "INSERT IGNORE INTO todos (id, title, description, created_by_id, status, created_at)
+     VALUES (?,?,?,?,?,?)"
+);
+$seedTodos = [
+    ['t_09fnzwh','Projekte Strukturieren und in neues Portal einbetten','','u_raphael','open','2026-05-19 00:50:00'],
+    ['t_13t6rcj','Webseite Fertigstellen',                               '','u_raphael','open','2026-05-19 00:50:33'],
+    ['t_1zc57ra','Orga Tool auf Domain bringen',                         '','u_raphael','open','2026-05-19 00:50:48'],
+    ['t_oshg99c','Add online Bringen',                                   '','u_raphael','open','2026-05-19 14:10:20'],
+    ['t_cq3kp7s','Landing Page für Add',                                 '','u_raphael','open','2026-05-19 14:10:32'],
+];
+$tOk = 0;
+foreach ($seedTodos as $r) {
+    try { $stmtT->execute($r); $tOk++; } catch (Throwable $e) { err("Todo {$r[0]}: ".$e->getMessage()); }
+}
+ok("$tOk Todos eingespielt");
+
+// -- Todo-Zuweisungen --
+if (tbl_exists($pdo, $db, 'todo_assignees')) {
+    $stmtTA = $pdo->prepare("INSERT IGNORE INTO todo_assignees (todo_id, user_id) VALUES (?,?)");
+    $seedTA = [
+        ['t_09fnzwh','u_raphael'],['t_09fnzwh','u_06hdf5r'],
+        ['t_13t6rcj','u_uya5a9e'],
+        ['t_1zc57ra','u_raphael'],['t_1zc57ra','u_uya5a9e'],
+        ['t_oshg99c','u_06hdf5r'],
+        ['t_cq3kp7s','u_06hdf5r'],['t_cq3kp7s','u_uya5a9e'],
+    ];
+    $taOk = 0;
+    foreach ($seedTA as [$tid,$uid]) {
+        try { $stmtTA->execute([$tid,$uid]); $taOk++; } catch (Throwable $e) { err("TA $tid/$uid: ".$e->getMessage()); }
+    }
+    ok("$taOk Todo-Zuweisungen eingespielt");
+} else { skip('todo_assignees nicht vorhanden – übersprungen'); }
+
+// -- Todo-gelesen --
+if (tbl_exists($pdo, $db, 'todo_seen')) {
+    $stmtTS = $pdo->prepare("INSERT IGNORE INTO todo_seen (todo_id, user_id) VALUES (?,?)");
+    $seedTS = [
+        ['t_09fnzwh','u_raphael'],['t_09fnzwh','u_06hdf5r'],
+        ['t_13t6rcj','u_raphael'],
+        ['t_1zc57ra','u_raphael'],
+        ['t_oshg99c','u_raphael'],['t_oshg99c','u_06hdf5r'],
+        ['t_cq3kp7s','u_raphael'],['t_cq3kp7s','u_06hdf5r'],
+    ];
+    $tsOk = 0;
+    foreach ($seedTS as [$tid,$uid]) {
+        try { $stmtTS->execute([$tid,$uid]); $tsOk++; } catch (Throwable $e) { err("TS $tid/$uid: ".$e->getMessage()); }
+    }
+    ok("$tsOk Todo-gelesen eingespielt");
+} else { skip('todo_seen nicht vorhanden – übersprungen'); }
+
+$pdo->exec('SET FOREIGN_KEY_CHECKS=1');
+skip('calendarConfig: GitHub-Token wird nicht eingespielt (Security). Bitte nach Login unter Admin → Einstellungen neu eintragen.');
+
+// ============================================================
+sect('Block G – customer_files Tabelle');
+
+if (!tbl_exists($pdo, $db, 'customer_files')) {
+    exec_sql($pdo, "
+        CREATE TABLE customer_files (
+          id          BIGINT       NOT NULL AUTO_INCREMENT,
+          customer_id VARCHAR(64)  NOT NULL,
+          kind        ENUM('vertrag','leistungsbeschreibung','avv','other') NOT NULL DEFAULT 'other',
+          filename    VARCHAR(255) NOT NULL,
+          mime        VARCHAR(100) NOT NULL,
+          size        INT          NOT NULL DEFAULT 0,
+          path        VARCHAR(500) NOT NULL,
+          uploaded_by VARCHAR(64)  NULL,
+          uploaded_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (id),
+          KEY idx_cf_customer (customer_id),
+          CONSTRAINT fk_cf_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+          CONSTRAINT fk_cf_uploader FOREIGN KEY (uploaded_by) REFERENCES users(id)     ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ", 'customer_files erstellt');
+} else {
+    skip('customer_files existiert bereits');
+}
+
+// ============================================================
+// Block H – Private Upload-Ordner (außerhalb Webroot)
+// ============================================================
+sect('Block H – Private Upload-Verzeichnisse anlegen');
+
+$cfg_h = require __DIR__ . '/config.php';
+$privatePath = $cfg_h['private_path'] ?? null;
+
+if (!$privatePath) {
+    warn('config.php hat keinen private_path definiert – übersprungen.');
+} else {
+    ok('Ziel-Pfad: ' . $privatePath);
+    $dirs = [
+        $privatePath,
+        $privatePath . '/customers',
+        $privatePath . '/projects',
+    ];
+    foreach ($dirs as $d) {
+        if (!is_dir($d)) {
+            if (@mkdir($d, 0755, true)) {
+                ok('Verzeichnis angelegt: ' . basename($d));
+            } else {
+                warn('mkdir() fehlgeschlagen für: ' . $d);
+                warn('→ Bitte Ordner manuell anlegen und PHP-Schreibrechte setzen.');
+            }
+        } else {
+            skip('Existiert bereits: ' . basename($d));
+        }
+    }
+    // .htaccess schreiben (überschreibt falls veraltet)
+    $htaccess = $privatePath . '/.htaccess';
+    $htContent = "Order deny,allow\nDeny from all\n";
+    if (file_put_contents($htaccess, $htContent) !== false) {
+        ok('.htaccess Zugriffsschutz gesetzt');
+    } else {
+        warn('.htaccess konnte nicht geschrieben werden.');
+    }
+    // index.php als Fallback
+    $idxFile = $privatePath . '/index.php';
+    if (!file_exists($idxFile)) {
+        file_put_contents($idxFile, "<?php http_response_code(403); exit;\n");
+        ok('index.php Fallback erstellt');
+    } else {
+        skip('index.php bereits vorhanden');
+    }
+    ok('Nginx-Hinweis: Falls nginx statische Dateien direkt ausliefert, bitte in der Server-Config ergänzen:');
+    ok('  location /agenturtool/private_uploads/ { deny all; return 403; }');
+}
+
+// ============================================================
+sect('Block E – notifications Tabelle');
+if (!tbl_exists($pdo, $db, 'notifications')) {
+    exec_sql($pdo,
+        "CREATE TABLE notifications (
+            id         INT AUTO_INCREMENT PRIMARY KEY,
+            user_id    VARCHAR(32) NOT NULL,
+            type       VARCHAR(64) NOT NULL,
+            title      VARCHAR(255) NOT NULL,
+            body       TEXT,
+            ref_id     VARCHAR(64),
+            ref_type   VARCHAR(32),
+            seen_at    DATETIME DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_notif_user (user_id),
+            INDEX idx_notif_seen (user_id, seen_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        'notifications Tabelle erstellt'
+    );
+} else {
+    skip('notifications existiert bereits');
+}
+
+sect('Block F2 – contracts + contract_comments Tabellen');
+if (!tbl_exists($pdo, $db, 'contracts')) {
+    exec_sql($pdo,
+        "CREATE TABLE contracts (
+            id          VARCHAR(32) PRIMARY KEY,
+            customer_id VARCHAR(32) DEFAULT NULL,
+            title       VARCHAR(255) NOT NULL,
+            status      ENUM('draft','confirmed') NOT NULL DEFAULT 'draft',
+            filename    VARCHAR(255) DEFAULT NULL,
+            mime        VARCHAR(100) DEFAULT NULL,
+            size        INT DEFAULT NULL,
+            path        VARCHAR(500) DEFAULT NULL,
+            uploaded_by VARCHAR(32) DEFAULT NULL,
+            created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        'contracts Tabelle erstellt'
+    );
+} else {
+    skip('contracts existiert bereits');
+}
+
+if (!tbl_exists($pdo, $db, 'contract_comments')) {
+    exec_sql($pdo,
+        "CREATE TABLE contract_comments (
+            id              VARCHAR(32) PRIMARY KEY,
+            contract_id     VARCHAR(32) NOT NULL,
+            user_id         VARCHAR(32) NOT NULL,
+            comment_text    TEXT,
+            voice_path      VARCHAR(500) DEFAULT NULL,
+            voice_filename  VARCHAR(255) DEFAULT NULL,
+            created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_cc_contract (contract_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        'contract_comments Tabelle erstellt'
+    );
+} else {
+    skip('contract_comments existiert bereits');
+}
+
+sect('Block G2 – project_files.kind ENUM erweitern');
+// Check if 'rohmaterial' is already in the ENUM
+$enumRow = $pdo->query("SHOW COLUMNS FROM project_files LIKE 'kind'")->fetch(PDO::FETCH_ASSOC);
+if ($enumRow && strpos($enumRow['Type'], 'rohmaterial') === false) {
+    exec_sql($pdo,
+        "ALTER TABLE project_files MODIFY COLUMN kind ENUM('script','contract','correction','other','rohmaterial','fertigstellung') NOT NULL DEFAULT 'other'",
+        'project_files.kind ENUM um rohmaterial/fertigstellung erweitert'
+    );
+} else {
+    skip('project_files.kind ENUM bereits aktuell');
+}
+
+sect('Block H2 – contract_uploader Rolle');
+// Check if any user has this role (skip seeding if already exists)
+$roleCount = (int)$pdo->query("SELECT COUNT(*) FROM user_roles WHERE role_name = 'contract_uploader'")->fetchColumn();
+if ($roleCount === 0) {
+    try {
+        $maxim = $pdo->query("SELECT id FROM users WHERE name LIKE '%Maxim%' OR username LIKE '%maxim%' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+        if ($maxim) {
+            $pdo->prepare("INSERT IGNORE INTO user_roles (user_id, role_name) VALUES (?, 'contract_uploader')")->execute([$maxim['id']]);
+            ok('contract_uploader Rolle für Maxim vergeben (User-ID: ' . $maxim['id'] . ')');
+        } else {
+            ok('contract_uploader Rolle bereit – bitte manuell in der Benutzerverwaltung vergeben');
+        }
+    } catch (Throwable $e) {
+        err('Konnte contract_uploader nicht vergeben: ' . $e->getMessage());
+    }
+} else {
+    skip('contract_uploader Rolle bereits vorhanden');
+}
+
+// ============================================================
 // ABSCHLUSS – Tabellenstatus
 // ============================================================
 sect('Status aller Tabellen');
 
 $tables = [
-    'users','user_roles','customers','customer_checklists','projects','shoot_days',
+    'users','user_roles','customers','customer_checklists','customer_files','projects','shoot_days',
     'todos','todo_assignees','todo_seen','vacations',
     'project_files','activity_log','app_config',
+    'notifications','contracts','contract_comments',
 ];
 $allOk = true;
 foreach ($tables as $t) {
