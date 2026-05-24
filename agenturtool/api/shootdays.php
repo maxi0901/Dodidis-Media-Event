@@ -99,21 +99,6 @@ switch ($method) {
             db_exec("UPDATE shoot_days SET " . implode(', ', $set) . " WHERE id = ?", $vals);
         }
 
-        // Kundenbenachrichtigung bei Verschiebung
-        if ($rescheduled) {
-            $customerId = $b['customerId'] ?? $cur['customer_id'] ?? null;
-            if ($customerId) {
-                $custUser = db_one("SELECT id FROM users WHERE customer_id = ? LIMIT 1", [$customerId]);
-                if ($custUser) {
-                    db_exec(
-                        "INSERT INTO notifications (user_id, type, title, body, ref_id, ref_type)
-                         VALUES (?, 'shoot_day_rescheduled', 'Drehtag verschoben', ?, ?, 'shoot_day')",
-                        [$custUser['id'], 'Neues Datum: ' . $newDate, $id]
-                    );
-                }
-            }
-        }
-
         log_activity('shootDay', $id, $rescheduled ? 'rescheduled' : 'edited');
         json_ok(db_one("SELECT $cols FROM shoot_days WHERE id = ?", [$id]));
     }
