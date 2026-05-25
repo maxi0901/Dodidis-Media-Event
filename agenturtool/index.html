@@ -1681,6 +1681,7 @@
   }
   .ical-track {
     display: grid;
+    grid-template-rows: 64px;
     grid-auto-rows: 36px;
     grid-row-gap: 3px;
     padding-bottom: 20px;
@@ -1742,7 +1743,6 @@
     font-size: 15px;
     font-weight: 700;
   }
-  .ical-day-head { position: relative; }
   .ical-day-head.is-shoot {
     background: linear-gradient(180deg, rgba(167,139,250,0.14), rgba(167,139,250,0.04));
     border-bottom: 2px solid rgba(167,139,250,0.6);
@@ -1789,25 +1789,34 @@
     z-index: 1;
     background: #181819;
     border-right: 1px solid rgba(255,255,255,0.07);
-    padding: 4px 10px;
-    font-size: 10px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.55);
+    padding: 0;
+    font-size: 0;
     display: flex;
+    justify-content: center;
     align-items: center;
-    gap: 7px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
   }
+  .ical-cat-label > span:not(.ical-cat-icon) { display: none; }
   .ical-cat-label .ical-cat-icon {
-    width: 20px; height: 20px;
-    border-radius: 6px;
+    width: 26px; height: 26px;
+    border-radius: 7px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 13px;
     flex-shrink: 0;
   }
+  /* Mini-Kalender: weiterhin mit Text */
+  .mini-calendar .ical-cat-label {
+    padding: 3px 8px;
+    font-size: 9px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.55);
+    gap: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    justify-content: flex-start;
+  }
+  .mini-calendar .ical-cat-label > span:not(.ical-cat-icon) { display: inline; }
   .ical-cat-label.cat-shoot    { border-top: 1px solid rgba(167,139,250,0.20); color: rgba(196,181,253,0.7); }
   .ical-cat-label.cat-vacation { border-top: 1px solid rgba(148,163,184,0.16); color: rgba(203,213,225,0.6); }
   .ical-cat-label.cat-videos   { border-top: 1px solid rgba(20,184,166,0.18); color: rgba(94,234,212,0.6); }
@@ -1883,20 +1892,8 @@
     /* Scrollbar verstecken */
     .ical-scroll::-webkit-scrollbar { height: 0; }
     .ical-scroll { max-height: 420px; }
-    /* Kategorie-Labels: nur Icon, kein Text */
-    .ical-cat-label {
-      font-size: 0;
-      padding: 0;
-      justify-content: center;
-      align-items: center;
-      border-right: 1px solid rgba(255,255,255,0.06);
-    }
-    .ical-cat-label > span:not(.ical-cat-icon) { display: none; }
-    .ical-cat-label .ical-cat-icon {
-      width: 24px; height: 24px; font-size: 13px;
-      margin: auto;
-      border-radius: 6px;
-    }
+    /* Kategorie-Labels: nur Icon – bereits in Base-CSS, hier nur compact override */
+    .ical-cat-label .ical-cat-icon { width: 22px; height: 22px; font-size: 12px; }
     /* Tag-Header kompakter */
     .ical-day-head { padding: 5px 2px 4px; min-height: 44px; gap: 1px; }
     .ical-day-head .ical-dname { font-size: 9px; letter-spacing: 0.3px; }
@@ -4027,7 +4024,18 @@ async function pullAllFromCloud() {
     if (totalRows === 0) return false; // DB leer → Bootstrap erwünscht
 
     CLOUD_COLLECTIONS.forEach(c => {
-      if (Array.isArray(data[c.table])) store[c.local] = data[c.table];
+      if (!Array.isArray(data[c.table])) return;
+      if (c.local === 'projects') {
+        // Null-Status aus DB (alte Rows ohne ENUM-Default) nicht als "Überfällig" zeigen.
+        // Bewahre den lokalen Status wenn er gültig ist, sonst falle auf 'skript' zurück.
+        store.projects = data.projects.map(incoming => {
+          if (STATUS_LABELS[incoming.status]) return incoming;
+          const existing = store.projects.find(p => p.id === incoming.id);
+          return { ...incoming, status: STATUS_LABELS[existing?.status] ? existing.status : 'skript' };
+        });
+      } else {
+        store[c.local] = data[c.table];
+      }
     });
     if (Array.isArray(data.customer_files)) store.customerFiles = data.customer_files;
     if (Array.isArray(data.app_config)) {
@@ -4282,9 +4290,6 @@ function getNavItemsForUser(session) {
   }
   if (hasRole(user, ROLES.ADMIN)) {
     items.push({ id: 'admin', label: 'Admin-Bereich', icon: 'shield' });
-  }
-  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER)) {
-    items.push({ id: 'contracts', label: 'Verträge', icon: 'document' });
   }
   const unseenNotifs = (store.notifications || []).filter(n => !n.seen_at).length;
   if (unseenNotifs > 0) {
@@ -6300,7 +6305,7 @@ async function setProjectStatus(id, status) {
   try {
     const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(id)}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
       body: JSON.stringify({ status })
     });
     if (!res.ok) throw new Error(await res.text());
@@ -8434,7 +8439,7 @@ function renderCategoryWeekView(elementId, session, mini = false) {
 
   const isMobile = window.innerWidth < 640;
   const colWidth = isMobile ? 70 : (mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH);
-  const sidebarWidth = isMobile ? 46 : (mini ? 120 : 150);
+  const sidebarWidth = mini ? 120 : 48;
 
   // Dynamische Cat-Liste: nur sichtbare Kategorien rendern – Reihenfolge: Drehtag, Urlaub, Videos, Aufgaben
   let nextRow = 2;
