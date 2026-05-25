@@ -4027,7 +4027,18 @@ async function pullAllFromCloud() {
     if (totalRows === 0) return false; // DB leer → Bootstrap erwünscht
 
     CLOUD_COLLECTIONS.forEach(c => {
-      if (Array.isArray(data[c.table])) store[c.local] = data[c.table];
+      if (!Array.isArray(data[c.table])) return;
+      if (c.local === 'projects') {
+        // Null-Status aus DB (alte Rows ohne ENUM-Default) nicht als "Überfällig" zeigen.
+        // Bewahre den lokalen Status wenn er gültig ist, sonst falle auf 'skript' zurück.
+        store.projects = data.projects.map(incoming => {
+          if (STATUS_LABELS[incoming.status]) return incoming;
+          const existing = store.projects.find(p => p.id === incoming.id);
+          return { ...incoming, status: STATUS_LABELS[existing?.status] ? existing.status : 'skript' };
+        });
+      } else {
+        store[c.local] = data[c.table];
+      }
     });
     if (Array.isArray(data.customer_files)) store.customerFiles = data.customer_files;
     if (Array.isArray(data.app_config)) {
@@ -4282,9 +4293,6 @@ function getNavItemsForUser(session) {
   }
   if (hasRole(user, ROLES.ADMIN)) {
     items.push({ id: 'admin', label: 'Admin-Bereich', icon: 'shield' });
-  }
-  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER)) {
-    items.push({ id: 'contracts', label: 'Verträge', icon: 'document' });
   }
   const unseenNotifs = (store.notifications || []).filter(n => !n.seen_at).length;
   if (unseenNotifs > 0) {
@@ -6300,7 +6308,7 @@ async function setProjectStatus(id, status) {
   try {
     const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(id)}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
       body: JSON.stringify({ status })
     });
     if (!res.ok) throw new Error(await res.text());
