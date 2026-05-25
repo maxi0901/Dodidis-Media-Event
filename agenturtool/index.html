@@ -6518,6 +6518,97 @@ async function openProjectViewerModal(project) {
   $('#modal-container').innerHTML = html;
 }
 
+function renderProjectFilesSection(project, session) {
+  const user = session.user;
+  const isAdmin    = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  const isVideograf = hasRole(user, ROLES.VIDEOGRAF) || isAdmin;
+  const isCutter   = hasRole(user, ROLES.CUTTER) || isAdmin;
+  const files = project.files || [];
+
+  const rohmaterial = files.filter(f => f.kind === 'rohmaterial');
+  const fertig      = files.filter(f => f.kind === 'fertigstellung');
+
+  const canUploadRohmaterial = hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF);
+  const canSeeRohmaterial    = canUploadRohmaterial || hasRole(user, ROLES.CUTTER);
+  const canUploadFertig      = hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CUTTER);
+
+  function fileRow(f) {
+    const icon = f.mime?.startsWith('video/') ? '🎞️' : f.mime?.startsWith('image/') ? '🖼️' : '📄';
+    const size = f.size ? (f.size > 1048576 ? (f.size/1048576).toFixed(1) + ' MB' : Math.round(f.size/1024) + ' KB') : '';
+    const url = f.path?.startsWith('/') ? f.path : (f.path || '');
+    return `
+      <div class="file-uploaded">
+        <span style="font-size:16px;">${icon}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(f.filename || f.path || '–')}</div>
+          ${size ? `<div style="font-size:11px;color:var(--text-3);">${size}</div>` : ''}
+        </div>
+        <a class="btn btn-secondary btn-sm" href="${url}" target="_blank" rel="noopener">Öffnen</a>
+      </div>
+    `;
+  }
+
+  let html = '';
+
+  if (canSeeRohmaterial) {
+    html += `
+      <div style="margin-top:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="cutter-detail-label">Rohmaterial</div>
+          ${canUploadRohmaterial ? `<button type="button" class="btn btn-secondary btn-sm" onclick="uploadProjectFile('rohmaterial','${project.id}')">+ Hochladen</button>` : ''}
+        </div>
+        ${rohmaterial.length ? rohmaterial.map(fileRow).join('') : '<div class="text-sm text-muted">Noch kein Rohmaterial hochgeladen.</div>'}
+      </div>
+    `;
+  }
+
+  if (canUploadFertig || fertig.length > 0) {
+    html += `
+      <div style="margin-top:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="cutter-detail-label">Fertigstellung</div>
+          ${canUploadFertig ? `<button type="button" class="btn btn-secondary btn-sm" onclick="uploadProjectFile('fertigstellung','${project.id}')">+ Hochladen</button>` : ''}
+        </div>
+        ${fertig.length ? fertig.map(fileRow).join('') : '<div class="text-sm text-muted">Noch keine Fertigstellung hochgeladen.</div>'}
+      </div>
+    `;
+  }
+
+  return html;
+}
+
+async function uploadProjectFile(kind, projectId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = kind === 'fertigstellung' || kind === 'rohmaterial'
+    ? 'video/*,.mp4,.mov,.avi,.webm'
+    : '*/*';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.onchange = async (e) => {
+    document.body.removeChild(input);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    showToast('Wird hochgeladen…', file.name);
+    try {
+      const res = await fetch(
+        `${API_BASE}/upload.php?scope=project&kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(projectId)}`,
+        { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF }, body: fd }
+      );
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Upload fehlgeschlagen');
+      showToast('Hochgeladen', 'Datei erfolgreich gespeichert.');
+      const project = store.projects.find(p => p.id === projectId);
+      if (project) openProjectViewerModal(project);
+    } catch (err) {
+      showToast('Fehler', err.message);
+    }
+  };
+  input.click();
+}
+
 async function saveProject(e, projectId) {
   e.preventDefault();
   const session = getCurrentUser();

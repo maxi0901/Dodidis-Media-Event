@@ -15,17 +15,36 @@ $pdo     = db();
 $initial = isset($_GET['initial']) && $_GET['initial'] !== '0' && $_GET['initial'] !== '';
 
 // "last_change": Maximum aller relevanten updated_at-Zeitstempel
-$lastChange = (int)$pdo->query("
-    SELECT GREATEST(
-        COALESCE((SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM users),     0),
-        COALESCE((SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM customers), 0),
-        COALESCE((SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM projects),  0),
-        COALESCE((SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM todos),     0),
-        COALESCE((SELECT UNIX_TIMESTAMP(MAX(created_at)) FROM vacations), 0),
-        COALESCE((SELECT UNIX_TIMESTAMP(MAX(created_at)) FROM shoot_days),0),
-        COALESCE((SELECT UNIX_TIMESTAMP(MAX(ts))         FROM activity_log),0)
-    ) AS t
-")->fetchColumn();
+try {
+    $lastChange = (int)$pdo->query("
+        SELECT GREATEST(
+            COALESCE((SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM users),     0),
+            COALESCE((SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM customers), 0),
+            COALESCE((SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM projects),  0),
+            COALESCE((SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM todos),     0),
+            COALESCE((SELECT UNIX_TIMESTAMP(MAX(created_at)) FROM vacations), 0),
+            COALESCE((SELECT UNIX_TIMESTAMP(MAX(created_at)) FROM shoot_days),0),
+            COALESCE((SELECT UNIX_TIMESTAMP(MAX(ts))         FROM activity_log),0)
+        ) AS t
+    ")->fetchColumn();
+} catch (\Throwable $e) {
+    // Fallback falls activity_log noch 'created_at' statt 'ts' hat (Migration noch nicht ausgeführt)
+    try {
+        $lastChange = (int)$pdo->query("
+            SELECT GREATEST(
+                COALESCE((SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM users),     0),
+                COALESCE((SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM customers), 0),
+                COALESCE((SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM projects),  0),
+                COALESCE((SELECT UNIX_TIMESTAMP(MAX(updated_at)) FROM todos),     0),
+                COALESCE((SELECT UNIX_TIMESTAMP(MAX(created_at)) FROM vacations), 0),
+                COALESCE((SELECT UNIX_TIMESTAMP(MAX(created_at)) FROM shoot_days),0)
+            ) AS t
+        ")->fetchColumn();
+    } catch (\Throwable $e2) {
+        error_log('[dashboard] last_change query failed: ' . $e2->getMessage());
+        $lastChange = time();
+    }
+}
 
 $etag = 'W/"' . $lastChange . ($initial ? '-i' : '') . '"';
 if (!$initial && ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === $etag) {
@@ -38,13 +57,31 @@ header('ETag: ' . $etag);
 $out = [
     'last_change' => $lastChange,
     'counts' => [
-        'projects_open'     => (int)$pdo->query("SELECT COUNT(*) FROM projects WHERE status NOT IN ('freigegeben','archiviert')")->fetchColumn(),
-        'todos_open'        => (int)$pdo->query("SELECT COUNT(*) FROM todos WHERE status='open'")->fetchColumn(),
+        'projects_open'     => (function() use ($pdo) {
+            try { return (int)$pdo->query("SELECT COUNT(*) FROM projects WHERE status NOT IN ('freigegeben','archiviert')")->fetchColumn(); }
+            catch (\Throwable $e) { return 0; }
+        })(),
+        'todos_open'        => (function() use ($pdo) {
+            try { return (int)$pdo->query("SELECT COUNT(*) FROM todos WHERE status='open'")->fetchColumn(); }
+            catch (\Throwable $e) { return 0; }
+        })(),
         'shoot_days_next_7' => (int)$pdo->query("SELECT COUNT(*) FROM shoot_days WHERE date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)")->fetchColumn(),
         'vacations_active'  => (int)$pdo->query("SELECT COUNT(*) FROM vacations WHERE CURDATE() BETWEEN start_date AND end_date")->fetchColumn(),
     ],
-    'recent_activity' => db_all("SELECT ts, scope, ref_id AS refId, action, actor_id AS actorId
-                                   FROM activity_log ORDER BY id DESC LIMIT 20"),
+    'recent_activity' => (function() {
+        try {
+            return db_all("SELECT ts, scope, ref_id AS refId, action, actor_id AS actorId
+                             FROM activity_log ORDER BY id DESC LIMIT 20");
+        } catch (\Throwable $e) {
+            // Fallback falls ts-Spalte noch nicht umbenannt
+            try {
+                return db_all("SELECT created_at AS ts, scope, ref_id AS refId, action, actor_id AS actorId
+                                 FROM activity_log ORDER BY id DESC LIMIT 20");
+            } catch (\Throwable $e2) {
+                return [];
+            }
+        }
+    })(),
 ];
 
 if ($initial) {
@@ -85,11 +122,35 @@ if ($initial) {
                    COALESCE(cl.social_access, 0) AS social_access,
                    COALESCE(cl.first_shoot, 0) AS first_shoot,
                    c.created_at AS createdAt";
+    $custSelectFallback = "c.id, c.name, c.customer_number AS customerNumber, c.manager_id AS managerId,
+                   c.email, c.phone, c.contact_name AS contactName,
+                   c.social_instagram AS socialInstagram, c.social_tiktok AS socialTiktok,
+                   c.notes, c.address_street AS addressStreet, c.address_zip AS addressZip, c.address_city AS addressCity,
+                   c.billing_same_as_address AS billingSameAsAddress,
+                   c.billing_street AS billingStreet, c.billing_zip AS billingZip, c.billing_city AS billingCity,
+                   c.vat_id AS vatId, c.billing_email AS billingEmail,
+                   c.contract_start AS contractStart, COALESCE(c.package_name, '') AS package, c.monthly_rate AS monthlyRate,
+                   c.videos_per_month AS videosPerMonth, c.status,
+                   0 AS contract_signed, 0 AS deposit_received, 0 AS kickoff_done,
+                   0 AS social_access, 0 AS first_shoot, c.created_at AS createdAt";
     $custFrom = "FROM customers c LEFT JOIN customer_checklists cl ON cl.customer_id = c.id";
-    if ($isStaff) {
-        $customers = db_all("SELECT $custSelect $custFrom ORDER BY c.customer_number");
-    } else {
-        $customers = db_all("SELECT $custSelect $custFrom WHERE c.id = ?", [$session['cid']]);
+    try {
+        if ($isStaff) {
+            $customers = db_all("SELECT $custSelect $custFrom ORDER BY c.customer_number");
+        } else {
+            $customers = db_all("SELECT $custSelect $custFrom WHERE c.id = ?", [$session['cid']]);
+        }
+    } catch (\Throwable $e) {
+        error_log('[dashboard initial] customer join fallback: ' . $e->getMessage());
+        try {
+            if ($isStaff) {
+                $customers = db_all("SELECT $custSelectFallback FROM customers c ORDER BY c.customer_number");
+            } else {
+                $customers = db_all("SELECT $custSelectFallback FROM customers c WHERE c.id = ?", [$session['cid']]);
+            }
+        } catch (\Throwable $e2) {
+            $customers = [];
+        }
     }
     foreach ($customers as &$c) {
         $c['checklist'] = [
@@ -143,8 +204,10 @@ if ($initial) {
         if ($todos) {
             $ids   = array_column($todos, 'id');
             $place = implode(',', array_fill(0, count($ids), '?'));
-            $a = db_all("SELECT todo_id, user_id FROM todo_assignees WHERE todo_id IN ($place)", $ids);
-            $s = db_all("SELECT todo_id, user_id FROM todo_seen       WHERE todo_id IN ($place)", $ids);
+            try { $a = db_all("SELECT todo_id, user_id FROM todo_assignees WHERE todo_id IN ($place)", $ids); }
+            catch (\Throwable $e) { $a = []; }
+            try { $s = db_all("SELECT todo_id, user_id FROM todo_seen WHERE todo_id IN ($place)", $ids); }
+            catch (\Throwable $e) { $s = []; }
             $byA = []; $byS = [];
             foreach ($a as $r) $byA[$r['todo_id']][] = $r['user_id'];
             foreach ($s as $r) $byS[$r['todo_id']][] = $r['user_id'];
