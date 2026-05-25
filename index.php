@@ -236,17 +236,6 @@
 
     <!-- ===== LEISTUNGEN ===== -->
     <section class="section container" id="leistungen">
-        <div class="section-head" data-reveal>
-            <div class="lead">
-                <span class="eyebrow">Was wir wirklich liefern</span>
-                <h2>Strategie, Content, Distribution, Performance – <span class="accent-text">aus einer Hand</span>.</h2>
-            </div>
-            <p>
-                Statt einzelner Bausteine bekommst du das Gesamtpaket: alles was nötig ist,
-                damit deine Marke gesehen wird und Anfragen ankommen.
-            </p>
-        </div>
-
         <div class="services-grid" data-reveal-stagger>
             <a class="service-card" href="#strategie">
                 <div class="service-icon">
@@ -386,17 +375,6 @@
     <!-- ===== ERGEBNISSE / CASE STUDIES ===== -->
     <section class="section container" id="case-studies">
         <span id="projekte" aria-hidden="true" style="position:absolute"></span>
-        <div class="section-head" data-reveal>
-            <div class="lead">
-                <span class="eyebrow">Ergebnisse</span>
-                <h2>Sichtbarkeit, die in <span class="accent-text">Anfragen</span> mündet.</h2>
-            </div>
-            <p>
-                Vergiss leere Versprechen. Wir liefern messbare Resultate –
-                in Reichweite, Vertrauen und Kundenanfragen.
-            </p>
-        </div>
-
         <div class="testimonial" data-reveal>
             <div>
                 <div class="quote-mark" aria-hidden="true">&ldquo;</div>
@@ -423,17 +401,6 @@
 
     <!-- ===== ÜBER UNS ===== -->
     <section class="section container" id="ueber-uns">
-        <div class="section-head" data-reveal>
-            <div class="lead">
-                <span class="eyebrow">Über uns</span>
-                <h2>Zwei Köpfe, ein Ziel: <span class="accent-text">deine Sichtbarkeit</span>.</h2>
-            </div>
-            <p>
-                Junges Team aus Nordhessen mit klarem Fokus auf messbare Wirkung.
-                Kurze Wege, schnelle Entscheidungen, ehrliche Beratung – kein Agentur-Theater.
-            </p>
-        </div>
-
         <div class="about-grid" data-reveal-stagger>
             <article class="about-card">
                 <h3>Wer wir sind</h3>
@@ -455,17 +422,6 @@
 
     <!-- ===== KONTAKT ===== -->
     <section class="section container" id="kontakt">
-        <div class="section-head" data-reveal>
-            <div class="lead">
-                <span class="eyebrow">Erstgespräch</span>
-                <h2>Lass uns deine <span class="accent-text">Sichtbarkeit</span> sortieren.</h2>
-            </div>
-            <p>
-                In 30 Minuten klären wir Potenziale, Prioritäten und die nächsten konkreten Schritte –
-                unverbindlich, ehrlich und ohne Verkaufs-Pitch.
-            </p>
-        </div>
-
         <div class="contact-grid" data-reveal>
             <div class="contact-card">
                 <h3>Warum ein Erstgespräch?</h3>
