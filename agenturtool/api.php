@@ -202,10 +202,35 @@ if ($action === 'pull') {
                        c.created_at
                   FROM customers c
                   LEFT JOIN customer_checklists cl ON cl.customer_id = c.id";
-    if ($type === 'customer') {
-        $custRows = db_all("$custSql WHERE c.id = ?", [$session['cid']]);
-    } else {
-        $custRows = db_all($custSql);
+    $custSqlFallback = "SELECT c.id, c.name, c.customer_number, c.manager_id,
+                       c.email, c.phone, c.contact_name, c.social_instagram, c.social_tiktok,
+                       c.notes, c.address_street, c.address_zip, c.address_city,
+                       c.billing_same_as_address, c.billing_street, c.billing_zip, c.billing_city,
+                       c.vat_id, c.billing_email, c.contract_start,
+                       COALESCE(c.package_name, '') AS package_name,
+                       c.monthly_rate, c.videos_per_month, c.status,
+                       0 AS contract_signed, 0 AS deposit_received, 0 AS kickoff_done,
+                       0 AS social_access, 0 AS first_shoot, c.created_at
+                  FROM customers c";
+    try {
+        if ($type === 'customer') {
+            $custRows = db_all("$custSql WHERE c.id = ?", [$session['cid']]);
+        } else {
+            $custRows = db_all($custSql);
+        }
+    } catch (\Throwable $e) {
+        // customer_checklists oder package_name fehlt – Fallback ohne Checklisten
+        error_log('[api.php pull] customer join fallback: ' . $e->getMessage());
+        try {
+            if ($type === 'customer') {
+                $custRows = db_all("$custSqlFallback WHERE c.id = ?", [$session['cid']]);
+            } else {
+                $custRows = db_all($custSqlFallback);
+            }
+        } catch (\Throwable $e2) {
+            error_log('[api.php pull] customer fallback2: ' . $e2->getMessage());
+            $custRows = [];
+        }
     }
     $customers = array_map('customer_to_doc', $custRows);
 
@@ -230,11 +255,19 @@ if ($action === 'pull') {
     if ($todoRows) {
         $ids = array_column($todoRows, 'id');
         $place = implode(',', array_fill(0, count($ids), '?'));
-        foreach (db_all("SELECT todo_id, user_id FROM todo_assignees WHERE todo_id IN ($place)", $ids) as $r) {
-            $assigneeMap[$r['todo_id']][] = $r['user_id'];
+        try {
+            foreach (db_all("SELECT todo_id, user_id FROM todo_assignees WHERE todo_id IN ($place)", $ids) as $r) {
+                $assigneeMap[$r['todo_id']][] = $r['user_id'];
+            }
+        } catch (\Throwable $e) {
+            error_log('[api.php pull] todo_assignees: ' . $e->getMessage());
         }
-        foreach (db_all("SELECT todo_id, user_id FROM todo_seen WHERE todo_id IN ($place)", $ids) as $r) {
-            $seenMap[$r['todo_id']][] = $r['user_id'];
+        try {
+            foreach (db_all("SELECT todo_id, user_id FROM todo_seen WHERE todo_id IN ($place)", $ids) as $r) {
+                $seenMap[$r['todo_id']][] = $r['user_id'];
+            }
+        } catch (\Throwable $e) {
+            error_log('[api.php pull] todo_seen fallback (table may not exist): ' . $e->getMessage());
         }
     }
     $todos = array_map(fn($t) => todo_to_doc($t, $assigneeMap, $seenMap), $todoRows);

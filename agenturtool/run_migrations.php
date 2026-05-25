@@ -158,11 +158,10 @@ if (!tableExists($pdo, 'notifications')) {
 if (!tableExists($pdo, 'activity_log')) {
     step($pdo, "activity_log: Tabelle anlegen",
         "CREATE TABLE activity_log (
-           id BIGINT NOT NULL AUTO_INCREMENT, scope VARCHAR(32) NOT NULL,
-           ref_id VARCHAR(64) NOT NULL, action VARCHAR(64) NOT NULL,
-           actor_id VARCHAR(64) NULL, actor_name VARCHAR(128) NULL,
-           details JSON NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-           PRIMARY KEY (id), KEY idx_al_ref (scope, ref_id)
+           id BIGINT NOT NULL AUTO_INCREMENT, ts DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           scope VARCHAR(32) NOT NULL, ref_id VARCHAR(64) NULL, action VARCHAR(64) NOT NULL,
+           actor_id VARCHAR(64) NULL, details JSON NULL,
+           PRIMARY KEY (id), KEY idx_al_ref (scope, ref_id), KEY idx_al_ts (ts)
          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
         $results);
 } else {
@@ -180,6 +179,159 @@ if (!tableExists($pdo, 'app_config')) {
         $results);
 } else {
     $results[] = ['ok' => true, 'label' => "app_config: bereits vorhanden"];
+}
+
+// ── 10. project_shootdate_history ─────────────────────────────────────────────
+if (!tableExists($pdo, 'project_shootdate_history')) {
+    step($pdo, "project_shootdate_history: Tabelle anlegen",
+        "CREATE TABLE project_shootdate_history (
+           id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+           project_id VARCHAR(64) NOT NULL,
+           old_shoot_date DATE NOT NULL,
+           new_shoot_date DATE NOT NULL,
+           changed_by VARCHAR(64) NULL,
+           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           PRIMARY KEY (id), KEY idx_psh_project (project_id)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "project_shootdate_history: bereits vorhanden"];
+}
+
+// ── 11. customer_checklists (wird von api.php?action=pull per LEFT JOIN benötigt) ──
+if (!tableExists($pdo, 'customer_checklists')) {
+    step($pdo, "customer_checklists: Tabelle anlegen",
+        "CREATE TABLE customer_checklists (
+           customer_id      VARCHAR(64) NOT NULL,
+           contract_signed  TINYINT(1)  NOT NULL DEFAULT 0,
+           deposit_received TINYINT(1)  NOT NULL DEFAULT 0,
+           kickoff_done     TINYINT(1)  NOT NULL DEFAULT 0,
+           social_access    TINYINT(1)  NOT NULL DEFAULT 0,
+           first_shoot      TINYINT(1)  NOT NULL DEFAULT 0,
+           PRIMARY KEY (customer_id)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "customer_checklists: bereits vorhanden"];
+}
+
+// ── 12. todo_seen (wird von api.php?action=pull abgefragt) ────────────────────
+if (!tableExists($pdo, 'todo_seen')) {
+    step($pdo, "todo_seen: Tabelle anlegen",
+        "CREATE TABLE todo_seen (
+           todo_id VARCHAR(64) NOT NULL,
+           user_id VARCHAR(64) NOT NULL,
+           seen_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           PRIMARY KEY (todo_id, user_id)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "todo_seen: bereits vorhanden"];
+}
+
+// ── 13. activity_log: ts-Spalte sicherstellen ─────────────────────────────────
+// install.sql nutzt 'ts', älteres run_migrations.php hat 'created_at' angelegt.
+if (tableExists($pdo, 'activity_log')) {
+    if (!colExists($pdo, 'activity_log', 'ts') && colExists($pdo, 'activity_log', 'created_at')) {
+        step($pdo, "activity_log: created_at → ts umbenennen",
+            "ALTER TABLE activity_log CHANGE COLUMN created_at ts DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
+            $results);
+    } elseif (!colExists($pdo, 'activity_log', 'ts')) {
+        addCol($pdo, 'activity_log', 'ts',
+            "ALTER TABLE activity_log ADD COLUMN ts DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
+            $results);
+    } else {
+        $results[] = ['ok' => true, 'label' => "activity_log.ts: bereits vorhanden"];
+    }
+} else {
+    // Tabelle existiert noch nicht – wird oben in Schritt 8 angelegt, mit ts statt created_at
+    $results[] = ['ok' => true, 'label' => "activity_log: wird mit ts-Spalte angelegt (Schritt 8 erledigt)"];
+}
+
+// ── 14. users: fehlende Spalten ───────────────────────────────────────────────
+addCol($pdo, 'users', 'avatar_color',
+    "ALTER TABLE users ADD COLUMN avatar_color VARCHAR(32) NULL", $results);
+addCol($pdo, 'users', 'avatar_image',
+    "ALTER TABLE users ADD COLUMN avatar_image MEDIUMTEXT NULL", $results);
+addCol($pdo, 'users', 'calendar_prefs',
+    "ALTER TABLE users ADD COLUMN calendar_prefs JSON NULL", $results);
+addCol($pdo, 'users', 'calendar_token',
+    "ALTER TABLE users ADD COLUMN calendar_token VARCHAR(64) NULL", $results);
+
+// ── 15. customers: package_name Spalte ───────────────────────────────────────
+if (!colExists($pdo, 'customers', 'package_name')) {
+    step($pdo, "customers.package_name hinzufügen",
+        "ALTER TABLE customers ADD COLUMN package_name VARCHAR(255) NULL", $results);
+    // Falls alte Spalte 'package' existiert, Daten übernehmen
+    if (colExists($pdo, 'customers', 'package')) {
+        step($pdo, "customers.package → package_name kopieren",
+            "UPDATE customers SET package_name = `package` WHERE package_name IS NULL", $results);
+    }
+} else {
+    $results[] = ['ok' => true, 'label' => "customers.package_name: bereits vorhanden"];
+}
+
+// ── 16. todos: created_by_id Spalte ──────────────────────────────────────────
+if (!colExists($pdo, 'todos', 'created_by_id')) {
+    addCol($pdo, 'todos', 'created_by_id',
+        "ALTER TABLE todos ADD COLUMN created_by_id VARCHAR(64) NULL", $results);
+    // Falls alte Spalte 'created_by' existiert, Daten übernehmen
+    if (colExists($pdo, 'todos', 'created_by')) {
+        step($pdo, "todos.created_by → created_by_id kopieren",
+            "UPDATE todos SET created_by_id = created_by WHERE created_by_id IS NULL", $results);
+    }
+} else {
+    $results[] = ['ok' => true, 'label' => "todos.created_by_id: bereits vorhanden"];
+}
+
+// ── 17. projects: alte JSON-Spalte → individuelle Spalten migrieren ───────────
+// Wenn 'data'-Spalte existiert aber 'title' fehlt → altes Schema → Spalten ergänzen + Daten migrieren.
+if (colExists($pdo, 'projects', 'data') && !colExists($pdo, 'projects', 'title')) {
+    $projCols = [
+        'title'        => "ALTER TABLE projects ADD COLUMN title VARCHAR(190) NOT NULL DEFAULT ''",
+        'customer_id'  => "ALTER TABLE projects ADD COLUMN customer_id VARCHAR(64) NULL",
+        'videograf_id' => "ALTER TABLE projects ADD COLUMN videograf_id VARCHAR(64) NULL",
+        'cutter_id'    => "ALTER TABLE projects ADD COLUMN cutter_id VARCHAR(64) NULL",
+        'shoot_date'   => "ALTER TABLE projects ADD COLUMN shoot_date DATE NULL",
+        'shoot_day_id' => "ALTER TABLE projects ADD COLUMN shoot_day_id VARCHAR(64) NULL",
+        'deadline'     => "ALTER TABLE projects ADD COLUMN deadline DATE NULL",
+        'posting_date' => "ALTER TABLE projects ADD COLUMN posting_date DATE NULL",
+        'script'       => "ALTER TABLE projects ADD COLUMN script TEXT NULL",
+        'status'       => "ALTER TABLE projects ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'skript'",
+        'is_internal'  => "ALTER TABLE projects ADD COLUMN is_internal TINYINT(1) NOT NULL DEFAULT 0",
+        'approved_at'  => "ALTER TABLE projects ADD COLUMN approved_at DATETIME NULL",
+        'created_at'   => "ALTER TABLE projects ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
+    ];
+    foreach ($projCols as $col => $sql) {
+        addCol($pdo, 'projects', $col, $sql, $results);
+    }
+    // Daten via JSON_EXTRACT aus alter data-Spalte übernehmen
+    step($pdo, "projects: Daten aus data-JSON in individuelle Spalten migrieren",
+        "UPDATE projects SET
+            title        = COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(data, '$.title')), 'null'), ''),
+            customer_id  = NULLIF(JSON_UNQUOTE(JSON_EXTRACT(data, '$.customerId')), 'null'),
+            videograf_id = NULLIF(JSON_UNQUOTE(JSON_EXTRACT(data, '$.videografId')), 'null'),
+            cutter_id    = NULLIF(JSON_UNQUOTE(JSON_EXTRACT(data, '$.cutterId')), 'null'),
+            shoot_date   = DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(data, '$.shootDate')), 'null')),
+            deadline     = DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(data, '$.deadline')), 'null')),
+            posting_date = DATE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(data, '$.postingDate')), 'null')),
+            script       = NULLIF(JSON_UNQUOTE(JSON_EXTRACT(data, '$.script')), 'null'),
+            status       = CASE
+                WHEN JSON_UNQUOTE(JSON_EXTRACT(data, '$.status'))
+                     IN ('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')
+                THEN JSON_UNQUOTE(JSON_EXTRACT(data, '$.status'))
+                ELSE 'skript'
+            END,
+            is_internal  = IF(JSON_EXTRACT(data, '$.isInternal') = true, 1, 0)
+         WHERE data IS NOT NULL",
+        $results);
+} elseif (!colExists($pdo, 'projects', 'status')) {
+    // Neue Schema, aber status-Spalte fehlt noch
+    addCol($pdo, 'projects', 'status',
+        "ALTER TABLE projects ADD COLUMN status ENUM('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert') NOT NULL DEFAULT 'skript'",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "projects: individuelle Spalten bereits vorhanden"];
 }
 
 $fails = array_filter($results, fn($r) => !$r['ok']);
