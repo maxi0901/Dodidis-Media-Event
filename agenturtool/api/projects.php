@@ -29,7 +29,7 @@ switch ($method) {
             $p = db_one("SELECT $cols FROM projects WHERE id = ?", [$id]);
             if (!$p) json_err(404, 'Projekt nicht gefunden.');
             if (!can_read_project($p, $session)) json_err(403, 'Keine Berechtigung.');
-            $p['files'] = list_files($id);
+            try { $p['files'] = list_files($id); } catch (\Throwable $e) { $p['files'] = []; }
             json_ok($p);
         }
 
@@ -78,13 +78,26 @@ switch ($method) {
         }
         log_activity('project', $newId, 'created');
         $row = db_one("SELECT $cols FROM projects WHERE id = ?", [$newId]);
-        $row['files'] = list_files($newId);
+        try { $row['files'] = list_files($newId); } catch (\Throwable $e) { $row['files'] = []; }
         json_ok($row, 201);
     }
 
     case 'PUT': {
         if (!$id) json_err(400, 'id fehlt.');
-        $cur = db_one("SELECT id, title, videograf_id, cutter_id, customer_id, status, shoot_date FROM projects WHERE id = ?", [$id]);
+        try {
+            $cur = db_one("SELECT id, title, videograf_id, cutter_id, customer_id, status, shoot_date FROM projects WHERE id = ?", [$id]);
+        } catch (\Throwable $e) {
+            // status-Spalte fehlt – nachrüsten und erneut versuchen
+            try {
+                db()->exec("ALTER TABLE projects ADD COLUMN status ENUM('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert') NOT NULL DEFAULT 'skript'");
+            } catch (\Throwable $_) {}
+            try {
+                $cur = db_one("SELECT id, title, videograf_id, cutter_id, customer_id, status, shoot_date FROM projects WHERE id = ?", [$id]);
+            } catch (\Throwable $e2) {
+                $cur = db_one("SELECT id, title, videograf_id, cutter_id, customer_id, shoot_date FROM projects WHERE id = ?", [$id]);
+                if ($cur !== null) $cur['status'] = 'skript';
+            }
+        }
         if (!$cur) json_err(404, 'Projekt nicht gefunden.');
 
         $b = input_json();
@@ -142,8 +155,17 @@ switch ($method) {
         }
 
         log_activity('project', $id, 'edited', ['fields' => array_keys($params)]);
-        $row = db_one("SELECT $cols FROM projects WHERE id = ?", [$id]);
-        $row['files'] = list_files($id);
+        try {
+            $row = db_one("SELECT $cols FROM projects WHERE id = ?", [$id]);
+        } catch (\Throwable $e) {
+            $colsMin = "id, title, customer_id AS customerId, videograf_id AS videografId,
+                        cutter_id AS cutterId, shoot_date AS shootDate, shoot_day_id AS shootDayId,
+                        deadline, posting_date AS postingDate, script,
+                        is_internal AS isInternal, approved_at AS approvedAt,
+                        created_at AS createdAt, updated_at AS updatedAt";
+            $row = db_one("SELECT $colsMin FROM projects WHERE id = ?", [$id]);
+        }
+        try { $row['files'] = list_files($id); } catch (\Throwable $e) { $row['files'] = []; }
         json_ok($row);
     }
 
