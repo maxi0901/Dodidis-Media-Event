@@ -46,14 +46,14 @@ function db(): PDO
 function db_all(string $sql, array $params = []): array
 {
     $stmt = db()->prepare($sql);
-    $stmt->execute($params);
+    $stmt->execute(array_values($params));
     return $stmt->fetchAll();
 }
 
 function db_one(string $sql, array $params = []): ?array
 {
     $stmt = db()->prepare($sql);
-    $stmt->execute($params);
+    $stmt->execute(array_values($params));
     $row = $stmt->fetch();
     return $row === false ? null : $row;
 }
@@ -61,6 +61,6 @@ function db_one(string $sql, array $params = []): ?array
 function db_exec(string $sql, array $params = []): int
 {
     $stmt = db()->prepare($sql);
-    $stmt->execute($params);
+    $stmt->execute(array_values($params));
     return $stmt->rowCount();
 }

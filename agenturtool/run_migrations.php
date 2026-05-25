@@ -191,7 +191,8 @@ if (!tableExists($pdo, 'project_shootdate_history')) {
            new_shoot_date DATE NOT NULL,
            changed_by VARCHAR(64) NULL,
            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-           PRIMARY KEY (id), KEY idx_psh_project (project_id)
+           PRIMARY KEY (id), KEY idx_psh_project (project_id),
+           KEY idx_psh_old_date (old_shoot_date), KEY idx_psh_new_date (new_shoot_date)
          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
         $results);
 } else {

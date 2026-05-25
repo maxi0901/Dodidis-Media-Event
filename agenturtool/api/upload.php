@@ -103,17 +103,19 @@ if ($scope === 'contract') {
 // Zielpfad – Avatar: öffentlich (uploads/), Dokumente: privat (private_path/)
 if ($scope === 'project') {
     if (!$refId) json_err(400, 'id (project) fehlt.');
-    $proj = db_one("SELECT id, title, cutter_id, videograf_id FROM projects WHERE id = ?", [$refId]);
+    $proj = db_one("SELECT id, title, videograf_id, cutter_id FROM projects WHERE id = ?", [$refId]);
     if (!$proj) json_err(404, 'Projekt nicht gefunden.');
-    // Projekt-Zugriffsprüfung: Videograf/Cutter dürfen nur auf eigene Projekte hochladen
+
     if (!has_role('admin', 'manager')) {
-        if ($kind === 'rohmaterial' && ($proj['videograf_id'] ?? null) !== $session['uid']) {
+        $uid = $session['uid'];
+        if ($kind === 'rohmaterial' && ($proj['videograf_id'] ?? null) !== $uid) {
             json_err(403, 'Keine Berechtigung für dieses Projekt.');
         }
-        if ($kind === 'fertigstellung' && ($proj['cutter_id'] ?? null) !== $session['uid']) {
+        if ($kind === 'fertigstellung' && ($proj['cutter_id'] ?? null) !== $uid) {
             json_err(403, 'Keine Berechtigung für dieses Projekt.');
         }
     }
+
     $basePath = $cfg['private_path'];
     $relDir   = 'projects/' . $refId;
     $dir      = $basePath . '/' . $relDir;

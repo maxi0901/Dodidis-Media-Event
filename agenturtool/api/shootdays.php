@@ -20,7 +20,7 @@ if (($session['type'] ?? '') === 'customer') {
 
 $cols = "id, date, start_time AS startTime, end_time AS endTime,
          videograf_id AS videografId, customer_id AS customerId,
-         note, created_at AS createdAt";
+         note, rescheduled_from AS rescheduledFrom, created_at AS createdAt";
 
 switch ($method) {
 
@@ -72,21 +72,34 @@ switch ($method) {
     case 'PUT': {
         if (!$id) json_err(400, 'id fehlt.');
         require_role('admin', 'manager');
-        $cur = db_one("SELECT id FROM shoot_days WHERE id = ?", [$id]);
+        $cur = db_one("SELECT id, date, customer_id FROM shoot_days WHERE id = ?", [$id]);
         if (!$cur) json_err(404, 'Drehtag nicht gefunden.');
         $b = input_json();
         $set = []; $vals = [];
-        if (array_key_exists('date', $b))        { $set[] = 'date = ?';         $vals[] = as_date($b['date']); }
+        $newDate = null;
+        if (array_key_exists('date', $b)) {
+            $newDate = as_date($b['date']);
+            $set[] = 'date = ?'; $vals[] = $newDate;
+        }
         if (array_key_exists('startTime', $b))   { $set[] = 'start_time = ?';   $vals[] = as_time($b['startTime']); }
         if (array_key_exists('endTime', $b))     { $set[] = 'end_time = ?';     $vals[] = as_time($b['endTime']); }
         if (array_key_exists('videografId', $b)) { $set[] = 'videograf_id = ?'; $vals[] = $b['videografId'] ?: null; }
         if (array_key_exists('customerId', $b))  { $set[] = 'customer_id = ?';  $vals[] = $b['customerId']  ?: null; }
         if (array_key_exists('note', $b))        { $set[] = 'note = ?';         $vals[] = $b['note'] !== null ? (string)$b['note'] : null; }
+
+        // Datum geändert → rescheduled_from setzen
+        $rescheduled = $newDate && $newDate !== $cur['date'];
+        if ($rescheduled) {
+            $set[] = 'rescheduled_from = ?';
+            $vals[] = $cur['date'];
+        }
+
         if ($set) {
             $vals[] = $id;
             db_exec("UPDATE shoot_days SET " . implode(', ', $set) . " WHERE id = ?", $vals);
         }
-        log_activity('shootDay', $id, 'edited');
+
+        log_activity('shootDay', $id, $rescheduled ? 'rescheduled' : 'edited');
         json_ok(db_one("SELECT $cols FROM shoot_days WHERE id = ?", [$id]));
     }
 

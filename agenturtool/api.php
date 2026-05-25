@@ -107,7 +107,7 @@ function project_to_doc(array $p): array
         'deadline'     => $p['deadline'],
         'postingDate'  => $p['posting_date'],
         'script'       => $p['script'],
-        'status'       => $p['status'],
+        'status'       => $p['status'] ?? 'skript',
         'isInternal'   => (bool)$p['is_internal'],
         'approvedAt'   => $p['approved_at'],
         'createdAt'    => $p['created_at'],

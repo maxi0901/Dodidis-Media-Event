@@ -877,6 +877,7 @@
   .badge-korrektur { color: #ff453a; background: rgba(255,69,58,0.12); border-color: rgba(255,69,58,0.3); }
   .badge-freigegeben { color: #2dd4bf; background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.25); }
   .badge-archiviert { color: #6b7280; background: rgba(107,114,128,0.1); border-color: rgba(107,114,128,0.2); }
+  .badge-ueberfaellig { color: #ff453a; background: rgba(255,69,58,0.12); border-color: rgba(255,69,58,0.3); }
 
   .badge-role-admin { color: #ff453a; background: rgba(255,69,58,0.1); border-color: rgba(255,69,58,0.2); }
   .badge-role-manager { color: #2dd4bf; background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.25); }
@@ -1097,9 +1098,18 @@
     width: 100%;
     max-width: 560px;
     max-height: 90vh;
-    overflow-y: auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     box-shadow: var(--shadow);
     animation: modal-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .modal > form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
 
   @keyframes modal-in {
@@ -1113,6 +1123,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
   }
 
   .modal-title {
@@ -1133,7 +1144,14 @@
 
   .modal-close:hover { background: var(--bg-3); color: var(--text-1); }
 
-  .modal-body { padding: 22px; }
+  .modal-body {
+    padding: 22px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
 
   .modal-footer {
     padding: 16px 22px;
@@ -1141,6 +1159,7 @@
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+    flex-shrink: 0;
   }
 
   /* =========================================
@@ -1662,6 +1681,7 @@
   }
   .ical-track {
     display: grid;
+    grid-template-rows: 64px;
     grid-auto-rows: 36px;
     grid-row-gap: 3px;
     padding-bottom: 20px;
@@ -1723,7 +1743,6 @@
     font-size: 15px;
     font-weight: 700;
   }
-  .ical-day-head { position: relative; }
   .ical-day-head.is-shoot {
     background: linear-gradient(180deg, rgba(167,139,250,0.14), rgba(167,139,250,0.04));
     border-bottom: 2px solid rgba(167,139,250,0.6);
@@ -1770,25 +1789,34 @@
     z-index: 1;
     background: #181819;
     border-right: 1px solid rgba(255,255,255,0.07);
-    padding: 4px 10px;
-    font-size: 10px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.55);
+    padding: 0;
+    font-size: 0;
     display: flex;
+    justify-content: center;
     align-items: center;
-    gap: 7px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
   }
+  .ical-cat-label > span:not(.ical-cat-icon) { display: none; }
   .ical-cat-label .ical-cat-icon {
-    width: 20px; height: 20px;
-    border-radius: 6px;
+    width: 26px; height: 26px;
+    border-radius: 7px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 13px;
     flex-shrink: 0;
   }
+  /* Mini-Kalender: weiterhin mit Text */
+  .mini-calendar .ical-cat-label {
+    padding: 3px 8px;
+    font-size: 9px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.55);
+    gap: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    justify-content: flex-start;
+  }
+  .mini-calendar .ical-cat-label > span:not(.ical-cat-icon) { display: inline; }
   .ical-cat-label.cat-shoot    { border-top: 1px solid rgba(167,139,250,0.20); color: rgba(196,181,253,0.7); }
   .ical-cat-label.cat-vacation { border-top: 1px solid rgba(148,163,184,0.16); color: rgba(203,213,225,0.6); }
   .ical-cat-label.cat-videos   { border-top: 1px solid rgba(20,184,166,0.18); color: rgba(94,234,212,0.6); }
@@ -1864,20 +1892,8 @@
     /* Scrollbar verstecken */
     .ical-scroll::-webkit-scrollbar { height: 0; }
     .ical-scroll { max-height: 420px; }
-    /* Kategorie-Labels: nur Icon, kein Text */
-    .ical-cat-label {
-      font-size: 0;
-      padding: 0;
-      justify-content: center;
-      align-items: center;
-      border-right: 1px solid rgba(255,255,255,0.06);
-    }
-    .ical-cat-label > span:not(.ical-cat-icon) { display: none; }
-    .ical-cat-label .ical-cat-icon {
-      width: 24px; height: 24px; font-size: 13px;
-      margin: auto;
-      border-radius: 6px;
-    }
+    /* Kategorie-Labels: nur Icon – bereits in Base-CSS, hier nur compact override */
+    .ical-cat-label .ical-cat-icon { width: 22px; height: 22px; font-size: 12px; }
     /* Tag-Header kompakter */
     .ical-day-head { padding: 5px 2px 4px; min-height: 44px; gap: 1px; }
     .ical-day-head .ical-dname { font-size: 9px; letter-spacing: 0.3px; }
@@ -2645,6 +2661,7 @@
     background: var(--bg-1);
     padding: 0 22px;
     overflow-x: auto;
+    flex-shrink: 0;
   }
   .modal-tab {
     background: transparent;
@@ -2992,12 +3009,16 @@
     table { min-width: 540px; }
     th, td { padding: 10px 14px; font-size: 12.5px; }
 
-    /* Modals: fast vollbild */
-    .modal-backdrop { padding: 0; align-items: flex-end; }
+    /* Modals: fast vollbild, Bottom-Sheet */
+    .modal-backdrop {
+      padding: 0;
+      padding-top: max(8px, env(safe-area-inset-top, 0px));
+      align-items: flex-end;
+    }
     .modal {
       max-width: 100% !important;
       width: 100%;
-      max-height: 92vh;
+      max-height: calc(92vh - env(safe-area-inset-top, 0px));
       border-radius: 18px 18px 0 0;
       animation: modal-mobile-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -3131,7 +3152,6 @@
     .dashboard-grid { grid-template-columns: 1fr; }
 
     /* Modals - Bottom-Sheet polish */
-    .modal { padding-bottom: var(--safe-bottom); }
     .modal-tabs {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
@@ -3142,10 +3162,11 @@
     .modal-tab { flex-shrink: 0; white-space: nowrap; }
     .modal-footer {
       padding-bottom: calc(14px + var(--safe-bottom));
-      position: sticky;
-      bottom: 0;
       background: var(--bg-1);
       border-top: 1px solid var(--border);
+    }
+    .modal-header {
+      background: var(--bg-1);
     }
   }
 
@@ -3577,6 +3598,13 @@ function getRoleLevel(user) {
   return roles.reduce((max, r) => Math.max(max, ROLE_LEVEL[r] || 0), 0);
 }
 
+function getAssignableUsersFor(viewer) {
+  if (!viewer) return [];
+  if (!hasRole(viewer, ROLES.CUTTER)) return store.users;
+  const myLevel = getRoleLevel(viewer);
+  return store.users.filter(u => getRoleLevel(u) > myLevel);
+}
+
 // Darf "viewer" den Urlaub von "target" sehen?
 // Regel: Jeder Mitarbeiter sieht alle Urlaube (volle Transparenz).
 function canViewVacationOf(viewer, target) {
@@ -3612,6 +3640,8 @@ const STATUS_LABELS = {
   freigegeben: 'Freigegeben',
   archiviert: 'Archiviert'
 };
+function statusLabel(s) { return STATUS_LABELS[s] ?? 'Überfällig'; }
+function statusCls(s)   { return STATUS_LABELS[s] ? s : 'ueberfaellig'; }
 
 const ROLE_LABELS = {
   admin: 'Admin',
@@ -3855,6 +3885,14 @@ let cloudReady = false;
 let cloudPullInFlight = false;
 let lastDashboardEtag = null;
 let lastDashboardChange = 0;
+const _pendingStatusLock = new Map(); // projectId → { status, until }
+
+function lockProjectStatus(projectId, status, ttlMs = 15000) {
+  _pendingStatusLock.set(projectId, { status, until: Date.now() + ttlMs });
+}
+function unlockProjectStatus(projectId) {
+  _pendingStatusLock.delete(projectId);
+}
 
 function scheduleCloudPush() {
   if (!cloudReady) return;
@@ -3994,7 +4032,25 @@ async function pullAllFromCloud() {
     if (totalRows === 0) return false; // DB leer → Bootstrap erwünscht
 
     CLOUD_COLLECTIONS.forEach(c => {
-      if (Array.isArray(data[c.table])) store[c.local] = data[c.table];
+      if (!Array.isArray(data[c.table])) return;
+      if (c.local === 'projects') {
+        store.projects = data.projects.map(incoming => {
+          // TTL-Lock: verhindert, dass ein laufender Mutation-PUT vom Pull überschrieben wird.
+          const lock = _pendingStatusLock.get(incoming.id);
+          if (lock) {
+            if (Date.now() < lock.until) return { ...incoming, status: lock.status };
+            _pendingStatusLock.delete(incoming.id);
+          }
+          // Null/ungültiger Status aus DB → Überfällig-Anzeige verhindern.
+          if (!STATUS_LABELS[incoming.status]) {
+            const existing = store.projects.find(p => p.id === incoming.id);
+            return { ...incoming, status: STATUS_LABELS[existing?.status] ? existing.status : 'skript' };
+          }
+          return incoming;
+        });
+      } else {
+        store[c.local] = data[c.table];
+      }
     });
     if (Array.isArray(data.customer_files)) store.customerFiles = data.customer_files;
     if (Array.isArray(data.app_config)) {
@@ -4249,9 +4305,6 @@ function getNavItemsForUser(session) {
   }
   if (hasRole(user, ROLES.ADMIN)) {
     items.push({ id: 'admin', label: 'Admin-Bereich', icon: 'shield' });
-  }
-  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER)) {
-    items.push({ id: 'contracts', label: 'Verträge', icon: 'document' });
   }
   const unseenNotifs = (store.notifications || []).filter(n => !n.seen_at).length;
   if (unseenNotifs > 0) {
@@ -4900,11 +4953,11 @@ async function markAsShot(projectId) {
   // Snapshot für Rollback
   const prevStatus = p.status;
   const prevShotAt = p.shotAt;
-  // Optimistisch lokal updaten
+  // Optimistisch lokal updaten + Lock gegen Pull-Race
+  lockProjectStatus(p.id, STATUS.GEDREHT);
   p.status = STATUS.GEDREHT;
   p.shotAt = new Date().toISOString();
   logActivity('project', p.id, 'markAsShot', { title: p.title });
-  console.log('[markAsShot] Status gesetzt auf:', p.status, 'für Projekt:', p.title);
   // Cutter informieren
   if (p.cutterId) {
     try {
@@ -4935,7 +4988,10 @@ async function markAsShot(projectId) {
       const idx = store.projects.findIndex(x => x.id === projectId);
       if (idx >= 0) store.projects[idx] = { ...store.projects[idx], ...json.data };
     }
+    unlockProjectStatus(projectId);
+    renderPage();
   } catch (err) {
+    unlockProjectStatus(projectId);
     // Rollback
     p.status = prevStatus;
     p.shotAt = prevShotAt;
@@ -5020,6 +5076,7 @@ async function cutterAccept(projectId) {
     return;
   }
   const prevStatus = store.projects[idx].status;
+  lockProjectStatus(projectId, STATUS.SCHNITT);
   store.projects[idx].status = STATUS.SCHNITT;
   logActivity('project', store.projects[idx].id, 'cutterAccept', { title: store.projects[idx].title });
   closeModal();
@@ -5033,7 +5090,10 @@ async function cutterAccept(projectId) {
     const json = await res.json();
     if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
     if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    unlockProjectStatus(projectId);
+    renderPage();
   } catch (err) {
+    unlockProjectStatus(projectId);
     store.projects[idx].status = prevStatus;
     renderPage();
     showToast('Speichern fehlgeschlagen', err.message);
@@ -5048,6 +5108,7 @@ async function cutterMarkDone(projectId) {
     return;
   }
   const prevStatus = store.projects[idx].status;
+  lockProjectStatus(projectId, STATUS.FERTIG);
   store.projects[idx].status = STATUS.FERTIG;
   logActivity('project', store.projects[idx].id, 'cutterMarkDone', { title: store.projects[idx].title });
 
@@ -5067,7 +5128,10 @@ async function cutterMarkDone(projectId) {
     const json = await res.json();
     if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
     if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    unlockProjectStatus(projectId);
+    renderPage();
   } catch (err) {
+    unlockProjectStatus(projectId);
     store.projects[idx].status = prevStatus;
     renderPage();
     showToast('Speichern fehlgeschlagen', err.message);
@@ -5325,7 +5389,7 @@ function renderProjects(session) {
       <tr style="cursor:pointer" onclick="openProjectModal('${p.id}')">
         <td><strong>${escape(p.title)}</strong></td>
         <td>${customerCell}</td>
-        <td><span class="badge badge-${p.status}">${STATUS_LABELS[p.status]}</span></td>
+        <td><span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span></td>
         <td>${escape(vg?.name || '–')}</td>
         <td>${escape(ct?.name || '–')}</td>
         <td>${fmtDate(p.deadline)}</td>
@@ -5803,7 +5867,7 @@ function openShootDayModal(shootDayId = null) {
                         <div style="font-size:13px; font-weight:600;">${escape(p.title)}</div>
                         <div class="text-sm text-muted">${escape(c?.name || (p.isInternal ? 'Intern' : '–'))}</div>
                       </div>
-                      <span class="badge badge-${p.status}">${STATUS_LABELS[p.status]}</span>
+                      <span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span>
                     </div>
                   `;
                 }).join('')}
@@ -5864,7 +5928,7 @@ async function saveShootDay(e, shootDayId) {
   closeModal();
   renderPage();
   if (rescheduledFrom) {
-    showToast('Drehtag verschoben', 'Von ' + fmtDate(rescheduledFrom) + ' auf ' + fmtDate(data.date) + ' – bitte Kunden informieren.');
+    showToast('Drehtag verschoben', 'Von ' + fmtDate(rescheduledFrom) + ' auf ' + fmtDate(data.date) + ' – Kunde wird benachrichtigt.');
   } else {
     showToast('Drehtag gespeichert', fmtDate(data.date) + ' · ' + data.startTime + '–' + data.endTime);
   }
@@ -6027,7 +6091,7 @@ function openProjectModal(projectId = null) {
           <div class="modal-body">
             ${!isNew ? `
               <div class="info-box">
-                <strong>Status:</strong> <span class="badge badge-${project.status}">${STATUS_LABELS[project.status]}</span>
+                <strong>Status:</strong> <span class="badge badge-${statusCls(project.status)}">${statusLabel(project.status)}</span>
                 ${project.isInternal ? `<span class="badge" style="background: rgba(100,210,255,0.12); color: #64d2ff; border: 1px solid rgba(100,210,255,0.25); margin-left:6px;">Intern</span>` : ''}
                 ${statusActions ? `<div style="margin-top:10px;">${statusActions}</div>` : ''}
               </div>
@@ -6246,7 +6310,38 @@ function getStatusActions(project, session) {
   if (project.status === STATUS.FREIGEGEBEN && canActOnProject(project, session, 'archive')) {
     buttons.push(`<button class="btn btn-secondary btn-sm" onclick="archiveProject('${project.id}')">→ Archivieren</button>`);
   }
+  // Admin: Status manuell setzen wenn unbekannt/leer
+  if (!STATUS_LABELS[project.status] && isAdmin) {
+    const opts = Object.entries(STATUS_LABELS)
+      .filter(([k]) => k !== STATUS.ARCHIVIERT)
+      .map(([k,v]) => `<option value="${k}">${v}</option>`)
+      .join('');
+    buttons.push(`<select class="btn btn-sm btn-secondary" style="cursor:pointer;" onchange="setProjectStatus('${project.id}', this.value)"><option value="">Status setzen…</option>${opts}</select>`);
+  }
   return buttons.join(' ');
+}
+
+async function setProjectStatus(id, status) {
+  if (!status) return;
+  const p = store.projects.find(x => x.id === id);
+  if (!p) return;
+  lockProjectStatus(id, status);
+  p.status = status;
+  closeModal();
+  renderPage();
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    unlockProjectStatus(id);
+    await pullAllFromCloud();
+  } catch(e) {
+    unlockProjectStatus(id);
+    appAlert('Status konnte nicht gespeichert werden: ' + e.message);
+  }
 }
 
 async function cutterRevert(projectId, targetStatus) {
@@ -6273,9 +6368,10 @@ async function cutterRevert(projectId, targetStatus) {
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx >= 0) {
     const prevStatus = store.projects[idx].status;
+    lockProjectStatus(projectId, actualTarget);
     store.projects[idx].status = actualTarget;
     logActivity('project', store.projects[idx].id, 'cutterRevert', { title: store.projects[idx].title, from: targetStatus, to: actualTarget });
-  
+
     closeModal();
     renderPage();
     fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
@@ -6285,7 +6381,10 @@ async function cutterRevert(projectId, targetStatus) {
     }).then(r => r.json()).then(json => {
       if (!json.ok) throw new Error(json.error || 'Fehler');
       if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+      unlockProjectStatus(projectId);
+      renderPage();
     }).catch(err => {
+      unlockProjectStatus(projectId);
       store.projects[idx].status = prevStatus;
       renderPage();
       showToast('Speichern fehlgeschlagen', err.message);
@@ -6329,7 +6428,7 @@ async function openProjectViewerModal(project) {
           <div class="cutter-status-bar">
             <div class="status-row">
               <span class="status-label">Status</span>
-              <span class="badge badge-${project.status}">${STATUS_LABELS[project.status]}</span>
+              <span class="badge badge-${statusCls(project.status)}">${statusLabel(project.status)}</span>
             </div>
             ${statusActions ? `<div class="cutter-action-row">${statusActions}</div>` : ''}
           </div>
@@ -6847,6 +6946,7 @@ async function updateStatus(projectId, newStatus) {
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx < 0) return;
   const prevStatus = store.projects[idx].status;
+  lockProjectStatus(projectId, newStatus);
   store.projects[idx].status = newStatus;
 
   closeModal();
@@ -6867,7 +6967,10 @@ async function updateStatus(projectId, newStatus) {
       const i = store.projects.findIndex(p => p.id === projectId);
       if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
     }
+    unlockProjectStatus(projectId);
+    renderPage();
   } catch (err) {
+    unlockProjectStatus(projectId);
     store.projects[idx].status = prevStatus;
     renderPage();
     showToast('Fehler beim Speichern', err.message);
@@ -6885,6 +6988,7 @@ async function approveProject(projectId) {
   const p = store.projects[idx];
   const prevStatus = p.status;
   const prevApprovedAt = p.approvedAt;
+  lockProjectStatus(projectId, STATUS.FREIGEGEBEN);
   p.status = STATUS.FREIGEGEBEN;
   p.approvedAt = new Date().toISOString();
   logActivity('project', p.id, 'approve', { title: p.title });
@@ -6911,7 +7015,10 @@ async function approveProject(projectId) {
       const i = store.projects.findIndex(x => x.id === projectId);
       if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
     }
+    unlockProjectStatus(projectId);
+    renderPage();
   } catch (err) {
+    unlockProjectStatus(projectId);
     p.status = prevStatus;
     p.approvedAt = prevApprovedAt;
     renderPage();
@@ -7047,6 +7154,7 @@ function submitCorrection(projectId) {
   if (!store.projects[idx].correctionNotes) store.projects[idx].correctionNotes = [];
   store.projects[idx].correctionNotes.push(note);
   const prevStatus = store.projects[idx].status;
+  lockProjectStatus(projectId, STATUS.KORREKTUR);
   store.projects[idx].status = STATUS.KORREKTUR;
   logActivity('project', store.projects[idx].id, 'correctionRequested', { title: store.projects[idx].title, text: (note.text || '').slice(0, 200) });
 
@@ -7064,7 +7172,10 @@ function submitCorrection(projectId) {
   }).then(r => r.json()).then(json => {
     if (!json.ok) throw new Error(json.error || 'Fehler');
     if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    unlockProjectStatus(projectId);
+    renderPage();
   }).catch(err => {
+    unlockProjectStatus(projectId);
     store.projects[idx].status = prevStatus;
     renderPage();
     showToast('Speichern fehlgeschlagen', err.message);
@@ -7819,7 +7930,7 @@ function renderArchive(session) {
               <tr style="cursor:pointer" onclick="openProjectModal('${p.id}')">
                 <td><strong>${escape(p.title)}</strong></td>
                 <td>${escape(c?.name || '–')}</td>
-                <td><span class="badge badge-${p.status}">${STATUS_LABELS[p.status]}</span></td>
+                <td><span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span></td>
                 <td>${escape(ct?.name || '–')}</td>
                 <td>${fmtDate(p.postingDate)}</td>
                 <td><code style="font-size:11px;">${c ? escape(generateFolderName(c, p)) : ''}</code></td>
@@ -8464,7 +8575,7 @@ function renderCategoryWeekView(elementId, session, mini = false) {
 
   const isMobile = window.innerWidth < 640;
   const colWidth = isMobile ? 70 : (mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH);
-  const sidebarWidth = isMobile ? 46 : (mini ? 120 : 150);
+  const sidebarWidth = mini ? 120 : 48;
 
   // Dynamische Cat-Liste: nur sichtbare Kategorien rendern – Reihenfolge: Drehtag, Urlaub, Videos, Aufgaben
   let nextRow = 2;
@@ -9898,7 +10009,7 @@ function renderCustomerOverview(session) {
             ${upcoming.map(p => `
               <tr>
                 <td><strong>${escape(p.title)}</strong></td>
-                <td><span class="badge badge-${p.status}">${STATUS_LABELS[p.status]}</span></td>
+                <td><span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span></td>
                 <td>${fmtDate(p.shootDate)}</td>
                 <td>${fmtDate(p.postingDate)} · 18:00</td>
               </tr>
@@ -9937,7 +10048,7 @@ function renderCustomerOverview(session) {
             ${finished.map(p => `
               <tr>
                 <td><strong>${escape(p.title)}</strong></td>
-                <td><span class="badge badge-${p.status}">${STATUS_LABELS[p.status]}</span></td>
+                <td><span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span></td>
                 <td>${fmtDate(p.postingDate)}</td>
               </tr>
             `).join('')}
@@ -10078,6 +10189,7 @@ function openTodoModal(todoId = null) {
   const currentAssignees = todo?.assigneeIds || [];
   const canEdit = isNew || todo?.createdById === user.id || currentAssignees.includes(user.id) || isAdmin;
 
+  const assigneeOptions = getAssignableUsersFor(session.user);
   const html = `
     <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
       <div class="modal">
@@ -10098,24 +10210,18 @@ function openTodoModal(todoId = null) {
 
             <div class="section-title">Verantwortliche (Mehrfachauswahl)</div>
             <div>
-              ${(() => {
-                const isCutterOnly = hasRole(user, ROLES.CUTTER) && !hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
-                const assignableUsers = isCutterOnly
-                  ? store.users.filter(u => (u.roles || []).some(r => r === 'admin' || r === 'manager'))
-                  : store.users;
-                return assignableUsers.map(u => `
-                  <label class="checkbox-row" for="todo-assignee-${u.id}">
-                    <input type="checkbox" id="todo-assignee-${u.id}" name="assignee_${u.id}" ${currentAssignees.includes(u.id) ? 'checked' : ''} ${!canEdit ? 'disabled' : ''} />
-                    <div class="checkbox-content">
-                      <div class="checkbox-title" style="display:flex; align-items:center; gap:8px;">
-                        ${renderAvatar(u, 22, 10)}
-                        ${escape(u.name)}
-                      </div>
-                      <div class="checkbox-desc">${escape(primaryRoleLabel(u))}</div>
+              ${assigneeOptions.map(u => `
+                <label class="checkbox-row" for="todo-assignee-${u.id}">
+                  <input type="checkbox" id="todo-assignee-${u.id}" name="assignee_${u.id}" ${currentAssignees.includes(u.id) ? 'checked' : ''} ${!canEdit ? 'disabled' : ''} />
+                  <div class="checkbox-content">
+                    <div class="checkbox-title" style="display:flex; align-items:center; gap:8px;">
+                      ${renderAvatar(u, 22, 10)}
+                      ${escape(u.name)}
                     </div>
-                  </label>
-                `).join('');
-              })()}
+                    <div class="checkbox-desc">${escape(primaryRoleLabel(u))}</div>
+                  </div>
+                </label>
+              `).join('')}
             </div>
 
             <div class="form-group" style="margin-top:18px;">
@@ -10161,7 +10267,7 @@ async function saveTodo(e, todoId) {
   const description = form.description.value;
   if (!title) { alert('Bitte einen Titel angeben.'); return; }
 
-  const assigneeIds = store.users
+  const assigneeIds = getAssignableUsersFor(session.user)
     .map(u => u.id)
     .filter(id => form.querySelector(`#todo-assignee-${id}`)?.checked);
 
@@ -10761,7 +10867,7 @@ function generateICS(forUser = null) {
       `Kunde: ${customerLabel}`,
       `Videograf: ${vg?.name || '–'}`,
       `Cutter: ${ct?.name || '–'}`,
-      `Status: ${STATUS_LABELS[p.status]}`,
+      `Status: ${statusLabel(p.status)}`,
       p.script ? `Skript: ${p.script}` : null
     ].filter(Boolean).join('\\n');
 
@@ -10944,9 +11050,9 @@ function renderNotificationsCard() {
 
 function renderProjectFilesSection(project, session) {
   const user = session.user;
-  const isAdmin    = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
-  const isVideograf = hasRole(user, ROLES.VIDEOGRAF) || isAdmin;
-  const isCutter   = hasRole(user, ROLES.CUTTER) || isAdmin;
+  const isAdmin      = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  const canUploadRaw = isAdmin || hasRole(user, ROLES.VIDEOGRAF);
+  const isCutter     = hasRole(user, ROLES.CUTTER) || isAdmin;
   const files = project.files || [];
 
   const rohmaterial = files.filter(f => f.kind === 'rohmaterial');
@@ -10970,16 +11076,23 @@ function renderProjectFilesSection(project, session) {
 
   let html = '';
 
-  if (isVideograf) {
+  if (canUploadRaw) {
     html += `
       <div style="margin-top:18px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div class="cutter-detail-label">Rohmaterial</div>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="uploadProjectFile('rohmaterial','${project.id}')">
-            + Rohmaterial hochladen
-          </button>
+          <div class="cutter-detail-label">Rohmaterial (Upload)</div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="uploadProjectFile('rohmaterial','${project.id}')">+ Rohmaterial hochladen</button>
         </div>
         ${rohmaterial.length ? rohmaterial.map(fileRow).join('') : '<div class="text-sm text-muted">Noch kein Rohmaterial hochgeladen.</div>'}
+      </div>
+    `;
+  }
+
+  if (hasRole(user, ROLES.CUTTER)) {
+    html += `
+      <div style="margin-top:18px;">
+        <div class="cutter-detail-label" style="margin-bottom:8px;">Rohmaterial (Download)</div>
+        ${rohmaterial.length ? rohmaterial.map(fileRow).join('') : '<div class="text-sm text-muted">Noch kein Rohmaterial verfügbar.</div>'}
       </div>
     `;
   }
