@@ -3885,6 +3885,14 @@ let cloudReady = false;
 let cloudPullInFlight = false;
 let lastDashboardEtag = null;
 let lastDashboardChange = 0;
+const _pendingStatusLock = new Map(); // projectId → { status, until }
+
+function lockProjectStatus(projectId, status, ttlMs = 15000) {
+  _pendingStatusLock.set(projectId, { status, until: Date.now() + ttlMs });
+}
+function unlockProjectStatus(projectId) {
+  _pendingStatusLock.delete(projectId);
+}
 
 function scheduleCloudPush() {
   if (!cloudReady) return;
@@ -4026,12 +4034,19 @@ async function pullAllFromCloud() {
     CLOUD_COLLECTIONS.forEach(c => {
       if (!Array.isArray(data[c.table])) return;
       if (c.local === 'projects') {
-        // Null-Status aus DB (alte Rows ohne ENUM-Default) nicht als "Überfällig" zeigen.
-        // Bewahre den lokalen Status wenn er gültig ist, sonst falle auf 'skript' zurück.
         store.projects = data.projects.map(incoming => {
-          if (STATUS_LABELS[incoming.status]) return incoming;
-          const existing = store.projects.find(p => p.id === incoming.id);
-          return { ...incoming, status: STATUS_LABELS[existing?.status] ? existing.status : 'skript' };
+          // TTL-Lock: verhindert, dass ein laufender Mutation-PUT vom Pull überschrieben wird.
+          const lock = _pendingStatusLock.get(incoming.id);
+          if (lock) {
+            if (Date.now() < lock.until) return { ...incoming, status: lock.status };
+            _pendingStatusLock.delete(incoming.id);
+          }
+          // Null/ungültiger Status aus DB → Überfällig-Anzeige verhindern.
+          if (!STATUS_LABELS[incoming.status]) {
+            const existing = store.projects.find(p => p.id === incoming.id);
+            return { ...incoming, status: STATUS_LABELS[existing?.status] ? existing.status : 'skript' };
+          }
+          return incoming;
         });
       } else {
         store[c.local] = data[c.table];
@@ -4938,11 +4953,11 @@ async function markAsShot(projectId) {
   // Snapshot für Rollback
   const prevStatus = p.status;
   const prevShotAt = p.shotAt;
-  // Optimistisch lokal updaten
+  // Optimistisch lokal updaten + Lock gegen Pull-Race
+  lockProjectStatus(p.id, STATUS.GEDREHT);
   p.status = STATUS.GEDREHT;
   p.shotAt = new Date().toISOString();
   logActivity('project', p.id, 'markAsShot', { title: p.title });
-  console.log('[markAsShot] Status gesetzt auf:', p.status, 'für Projekt:', p.title);
   // Cutter informieren
   if (p.cutterId) {
     try {
@@ -4973,7 +4988,10 @@ async function markAsShot(projectId) {
       const idx = store.projects.findIndex(x => x.id === projectId);
       if (idx >= 0) store.projects[idx] = { ...store.projects[idx], ...json.data };
     }
+    unlockProjectStatus(projectId);
+    renderPage();
   } catch (err) {
+    unlockProjectStatus(projectId);
     // Rollback
     p.status = prevStatus;
     p.shotAt = prevShotAt;
@@ -5058,6 +5076,7 @@ async function cutterAccept(projectId) {
     return;
   }
   const prevStatus = store.projects[idx].status;
+  lockProjectStatus(projectId, STATUS.SCHNITT);
   store.projects[idx].status = STATUS.SCHNITT;
   logActivity('project', store.projects[idx].id, 'cutterAccept', { title: store.projects[idx].title });
   closeModal();
@@ -5071,7 +5090,10 @@ async function cutterAccept(projectId) {
     const json = await res.json();
     if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
     if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    unlockProjectStatus(projectId);
+    renderPage();
   } catch (err) {
+    unlockProjectStatus(projectId);
     store.projects[idx].status = prevStatus;
     renderPage();
     showToast('Speichern fehlgeschlagen', err.message);
@@ -5086,6 +5108,7 @@ async function cutterMarkDone(projectId) {
     return;
   }
   const prevStatus = store.projects[idx].status;
+  lockProjectStatus(projectId, STATUS.FERTIG);
   store.projects[idx].status = STATUS.FERTIG;
   logActivity('project', store.projects[idx].id, 'cutterMarkDone', { title: store.projects[idx].title });
 
@@ -5105,7 +5128,10 @@ async function cutterMarkDone(projectId) {
     const json = await res.json();
     if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
     if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    unlockProjectStatus(projectId);
+    renderPage();
   } catch (err) {
+    unlockProjectStatus(projectId);
     store.projects[idx].status = prevStatus;
     renderPage();
     showToast('Speichern fehlgeschlagen', err.message);
@@ -6299,6 +6325,7 @@ async function setProjectStatus(id, status) {
   if (!status) return;
   const p = store.projects.find(x => x.id === id);
   if (!p) return;
+  lockProjectStatus(id, status);
   p.status = status;
   closeModal();
   renderPage();
@@ -6309,8 +6336,10 @@ async function setProjectStatus(id, status) {
       body: JSON.stringify({ status })
     });
     if (!res.ok) throw new Error(await res.text());
+    unlockProjectStatus(id);
     await pullAllFromCloud();
   } catch(e) {
+    unlockProjectStatus(id);
     appAlert('Status konnte nicht gespeichert werden: ' + e.message);
   }
 }
@@ -6339,9 +6368,10 @@ async function cutterRevert(projectId, targetStatus) {
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx >= 0) {
     const prevStatus = store.projects[idx].status;
+    lockProjectStatus(projectId, actualTarget);
     store.projects[idx].status = actualTarget;
     logActivity('project', store.projects[idx].id, 'cutterRevert', { title: store.projects[idx].title, from: targetStatus, to: actualTarget });
-  
+
     closeModal();
     renderPage();
     fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
@@ -6351,7 +6381,10 @@ async function cutterRevert(projectId, targetStatus) {
     }).then(r => r.json()).then(json => {
       if (!json.ok) throw new Error(json.error || 'Fehler');
       if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+      unlockProjectStatus(projectId);
+      renderPage();
     }).catch(err => {
+      unlockProjectStatus(projectId);
       store.projects[idx].status = prevStatus;
       renderPage();
       showToast('Speichern fehlgeschlagen', err.message);
@@ -6822,6 +6855,7 @@ async function updateStatus(projectId, newStatus) {
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx < 0) return;
   const prevStatus = store.projects[idx].status;
+  lockProjectStatus(projectId, newStatus);
   store.projects[idx].status = newStatus;
 
   closeModal();
@@ -6842,7 +6876,10 @@ async function updateStatus(projectId, newStatus) {
       const i = store.projects.findIndex(p => p.id === projectId);
       if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
     }
+    unlockProjectStatus(projectId);
+    renderPage();
   } catch (err) {
+    unlockProjectStatus(projectId);
     store.projects[idx].status = prevStatus;
     renderPage();
     showToast('Fehler beim Speichern', err.message);
@@ -6860,6 +6897,7 @@ async function approveProject(projectId) {
   const p = store.projects[idx];
   const prevStatus = p.status;
   const prevApprovedAt = p.approvedAt;
+  lockProjectStatus(projectId, STATUS.FREIGEGEBEN);
   p.status = STATUS.FREIGEGEBEN;
   p.approvedAt = new Date().toISOString();
   logActivity('project', p.id, 'approve', { title: p.title });
@@ -6886,7 +6924,10 @@ async function approveProject(projectId) {
       const i = store.projects.findIndex(x => x.id === projectId);
       if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
     }
+    unlockProjectStatus(projectId);
+    renderPage();
   } catch (err) {
+    unlockProjectStatus(projectId);
     p.status = prevStatus;
     p.approvedAt = prevApprovedAt;
     renderPage();
@@ -7022,6 +7063,7 @@ function submitCorrection(projectId) {
   if (!store.projects[idx].correctionNotes) store.projects[idx].correctionNotes = [];
   store.projects[idx].correctionNotes.push(note);
   const prevStatus = store.projects[idx].status;
+  lockProjectStatus(projectId, STATUS.KORREKTUR);
   store.projects[idx].status = STATUS.KORREKTUR;
   logActivity('project', store.projects[idx].id, 'correctionRequested', { title: store.projects[idx].title, text: (note.text || '').slice(0, 200) });
 
@@ -7039,7 +7081,10 @@ function submitCorrection(projectId) {
   }).then(r => r.json()).then(json => {
     if (!json.ok) throw new Error(json.error || 'Fehler');
     if (json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    unlockProjectStatus(projectId);
+    renderPage();
   }).catch(err => {
+    unlockProjectStatus(projectId);
     store.projects[idx].status = prevStatus;
     renderPage();
     showToast('Speichern fehlgeschlagen', err.message);
