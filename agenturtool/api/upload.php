@@ -72,6 +72,10 @@ if ($scope === 'avatar') {
     if ($session['type'] === 'customer') {
         json_err(403, 'Keine Berechtigung.');
     }
+} elseif ($scope === 'voice_project') {
+    if ($session['type'] === 'customer') {
+        json_err(403, 'Keine Berechtigung.');
+    }
 } else {
     json_err(400, 'Unbekannter scope.');
 }
@@ -89,8 +93,9 @@ if ($scope === 'contract') {
     if (!in_array($mime, $allowedContractMimes, true)) {
         json_err(415, 'Nur PDF oder .docx Dateien sind für Verträge erlaubt.');
     }
-} elseif ($scope === 'voice') {
-    $allowedVoiceMimes = ['audio/webm', 'audio/ogg', 'audio/wav', 'audio/mpeg'];
+} elseif ($scope === 'voice' || $scope === 'voice_project') {
+    // webm-Container wird von finfo manchmal als video/webm erkannt
+    $allowedVoiceMimes = ['audio/webm', 'video/webm', 'audio/ogg', 'audio/wav', 'audio/mpeg', 'audio/mp4'];
     if (!in_array($mime, $allowedVoiceMimes, true)) {
         json_err(415, 'Dateityp nicht erlaubt: ' . $mime);
     }
@@ -143,6 +148,13 @@ if ($scope === 'project') {
     if (!$comment) json_err(404, 'Kommentar nicht gefunden.');
     $basePath = $cfg['private_path'];
     $relDir   = 'contract_comments/' . $refId;
+    $dir      = $basePath . '/' . $relDir;
+} elseif ($scope === 'voice_project') {
+    if (!$refId) json_err(400, 'id (project_comment) fehlt.');
+    $comment = db_one("SELECT id FROM project_comments WHERE id = ?", [$refId]);
+    if (!$comment) json_err(404, 'Kommentar nicht gefunden.');
+    $basePath = $cfg['private_path'];
+    $relDir   = 'project_comments/' . $refId;
     $dir      = $basePath . '/' . $relDir;
 }
 
@@ -228,6 +240,15 @@ if ($scope === 'project') {
     $response['id']   = $refId;
     $response['path'] = $relPath;
     log_activity('contract', $refId, 'voiceUploaded', ['filename' => $safeName]);
+} elseif ($scope === 'voice_project') {
+    $relPath = $relDir . '/' . $filename;
+    db_exec(
+        "UPDATE project_comments SET voice_path=?, voice_filename=? WHERE id=?",
+        [$relPath, $safeName, $refId]
+    );
+    $response['id']   = $refId;
+    $response['path'] = $relPath;
+    log_activity('project', $refId, 'voiceUploaded', ['filename' => $safeName]);
 }
 
 json_ok($response);

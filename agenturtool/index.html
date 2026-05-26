@@ -3600,9 +3600,12 @@ function getRoleLevel(user) {
 
 function getAssignableUsersFor(viewer) {
   if (!viewer) return [];
-  if (!hasRole(viewer, ROLES.CUTTER)) return store.users;
+  // Admin, Manager und Videograf sehen alle Nutzer – auch wenn jemand zusätzlich
+  // die Cutter-Rolle trägt, soll die privilegierte Rolle Vorrang haben.
+  if (hasRole(viewer, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF)) return store.users;
+  // Reine Cutter/Mitarbeiter dürfen Tasks nur an sich selbst oder höhere Rollen vergeben.
   const myLevel = getRoleLevel(viewer);
-  return store.users.filter(u => getRoleLevel(u) > myLevel);
+  return store.users.filter(u => getRoleLevel(u) >= myLevel);
 }
 
 // Darf "viewer" den Urlaub von "target" sehen?
@@ -5000,6 +5003,43 @@ async function markAsShot(projectId) {
   }
 }
 
+async function revertGedreht(projectId) {
+  const p = store.projects.find(x => x.id === projectId);
+  if (!p || p.status !== STATUS.GEDREHT) return;
+  const session = getCurrentUser();
+  if (!canActOnProject(p, session, 'markAsShot')) {
+    appAlert('Keine Berechtigung.', { title: 'Nicht erlaubt' });
+    return;
+  }
+  const ok = await appConfirm('Das Projekt wird zurück auf "Geplant" gesetzt.', {
+    title: 'Gedreht rückgängig machen?', okLabel: 'Zurücksetzen'
+  });
+  if (!ok) return;
+  const prevStatus = p.status;
+  lockProjectStatus(projectId, STATUS.GEPLANT);
+  p.status = STATUS.GEPLANT;
+  closeModal();
+  renderPage();
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: STATUS.GEPLANT })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    const idx = store.projects.findIndex(x => x.id === projectId);
+    if (idx >= 0 && json.data) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    unlockProjectStatus(projectId);
+    renderPage();
+  } catch (err) {
+    unlockProjectStatus(projectId);
+    p.status = prevStatus;
+    renderPage();
+    showToast('Fehler beim Speichern', err.message);
+  }
+}
+
 /* Cutter-Queue fürs Dashboard */
 function renderCutterQueue(user) {
   if (!hasRole(user, ROLES.CUTTER)) return '';
@@ -5489,7 +5529,6 @@ function renderCutterProjects(session) {
     } else if (kind === 'progress') {
       action = `<button class="btn btn-primary" onclick="event.stopPropagation(); cutterMarkDone('${p.id}')">Fertig melden</button>`;
     }
-    const correctionCount = (p.correctionNotes || []).length;
     return `
       <div class="cutter-card ${kind}" onclick="openProjectModal('${p.id}')">
         <div class="cutter-card-main">
@@ -5498,7 +5537,7 @@ function renderCutterProjects(session) {
             <span>📁 ${escape(customerLabel)}</span>
             ${vg ? `<span style="display:inline-flex; align-items:center; gap:5px;">${renderAvatar(vg, 18, 9)} ${escape(vg.name)}</span>` : ''}
             ${deadline ? `<span class="${overdue ? 'cutter-card-overdue' : ''}">⏰ Deadline: ${fmtDate(deadline)} 17:00 ${daysLeft !== null && daysLeft >= 0 ? '· in ' + daysLeft + ' Tagen' : (overdue ? '· überfällig' : '')}</span>` : ''}
-            ${correctionCount > 0 ? `<span class="cutter-card-correction">⚠️ ${correctionCount} Korrektur-Notiz${correctionCount > 1 ? 'en' : ''}</span>` : ''}
+            ${kind === 'correction' ? `<span class="cutter-card-correction">⚠️ Korrektur angefragt</span>` : ''}
             ${p.scriptFile ? `<span>📄 Skript-PDF</span>` : ''}
           </div>
         </div>
@@ -6095,21 +6134,7 @@ function openProjectModal(projectId = null) {
                 ${project.isInternal ? `<span class="badge" style="background: rgba(100,210,255,0.12); color: #64d2ff; border: 1px solid rgba(100,210,255,0.25); margin-left:6px;">Intern</span>` : ''}
                 ${statusActions ? `<div style="margin-top:10px;">${statusActions}</div>` : ''}
               </div>
-              ${(project.correctionNotes || []).length > 0 ? `
-                <div class="info-box" style="background:rgba(255,69,58,0.06); border-color:rgba(255,69,58,0.3);">
-                  <strong style="color:#ff453a;">⚠️ Korrektur-Notizen</strong>
-                  ${project.correctionNotes.map(n => {
-                    const author = store.users.find(u => u.id === n.createdById);
-                    return `
-                      <div style="margin-top:10px; padding:10px; background:var(--bg-1); border-radius:8px; border:1px solid var(--border);">
-                        <div class="text-sm text-muted" style="margin-bottom:6px;">${escape(author?.name || '–')} · ${fmtDateTime(n.createdAt)}</div>
-                        ${n.text ? `<div style="font-size:13px; line-height:1.5; white-space:pre-wrap;">${escape(n.text)}</div>` : ''}
-                        ${n.audio ? `<audio controls src="${n.audio}" style="width:100%; margin-top:8px;"></audio>` : ''}
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              ` : ''}
+              <div id="proj-comments-box"></div>
             ` : ''}
 
             ${canEdit && isNew ? `
@@ -6227,6 +6252,7 @@ function openProjectModal(projectId = null) {
     </div>
   `;
   $('#modal-container').innerHTML = html;
+  if (projectId) loadAndRenderProjectComments(projectId, isManagerOrAdmin, 'proj-comments-box');
 
   // Draft autosave for new projects
   if (isNew && canEdit) {
@@ -6287,6 +6313,10 @@ function getStatusActions(project, session) {
       && canActOnProject(project, session, 'markAsShot')) {
     const label = isInternal ? '✓ Bereit für Schnitt' : '✓ Als abgedreht markieren';
     buttons.push(`<button class="btn btn-primary btn-sm" onclick="markAsShot('${project.id}')">${label}</button>`);
+  }
+  // Admin/Manager/Videograf: Drehtag-Status zurücksetzen (z.B. versehentlich gesetzt)
+  if (project.status === STATUS.GEDREHT && canActOnProject(project, session, 'markAsShot')) {
+    buttons.push(`<button class="btn btn-ghost btn-sm" onclick="revertGedreht('${project.id}')">↩ Gedreht rückgängig</button>`);
   }
   // Cutter: Annehmen (GEDREHT oder KORREKTUR → SCHNITT)
   if ((project.status === STATUS.GEDREHT || project.status === STATUS.KORREKTUR)
@@ -6352,12 +6382,7 @@ async function cutterRevert(projectId, targetStatus) {
     appAlert('Du darfst diesen Status nicht zurücksetzen.', { title: 'Nicht erlaubt' });
     return;
   }
-  // Wenn das Projekt offene Korrektur-Notizen hat und gerade aus dem KORREKTUR-Zyklus kommt,
-  // soll der Revert zurück nach KORREKTUR springen, nicht nach GEDREHT
-  let actualTarget = targetStatus;
-  if (targetStatus === STATUS.GEDREHT && (p.correctionNotes || []).length > 0) {
-    actualTarget = STATUS.KORREKTUR;
-  }
+  const actualTarget = targetStatus;
   const dialog = actualTarget === STATUS.GEDREHT
     ? { title: 'Annahme rückgängig?', body: 'Das Projekt landet wieder in deiner „Bereit zum Schnitt"-Liste.', okLabel: 'Annahme rückgängig' }
     : actualTarget === STATUS.KORREKTUR
@@ -6407,7 +6432,6 @@ async function openProjectViewerModal(project) {
   const ct = store.users.find(u => u.id === project.cutterId);
   const customerLabel = project.isInternal ? 'Internes Projekt' : (c?.name || '–');
   const statusActions = getStatusActions(project, session);
-  const correctionNotes = project.correctionNotes || [];
   // Cutter sieht nur die Deadline, kein Posting-Datum
   const isCutterOnly = hasRole(user, ROLES.CUTTER) && !hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF);
   const deadline = project.deadline || (project.postingDate ? addDays(project.postingDate, -1) : null);
@@ -6433,21 +6457,7 @@ async function openProjectViewerModal(project) {
             ${statusActions ? `<div class="cutter-action-row">${statusActions}</div>` : ''}
           </div>
 
-          ${correctionNotes.length > 0 ? `
-            <div class="info-box" style="background:rgba(255,69,58,0.06); border-color:rgba(255,69,58,0.3);">
-              <strong style="color:#ff453a;">⚠️ Korrektur-Hinweise vom Manager</strong>
-              ${correctionNotes.map(n => {
-                const author = store.users.find(u => u.id === n.createdById);
-                return `
-                  <div style="margin-top:10px; padding:10px; background:var(--bg-1); border-radius:8px; border:1px solid var(--border);">
-                    <div class="text-sm text-muted" style="margin-bottom:6px;">${escape(author?.name || '–')} · ${fmtDateTime(n.createdAt)}</div>
-                    ${n.text ? `<div style="font-size:13px; line-height:1.55; white-space:pre-wrap; color:var(--text-1);">${escape(n.text)}</div>` : ''}
-                    ${n.audio ? `<audio controls src="${n.audio}" style="width:100%; margin-top:8px;"></audio>` : ''}
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          ` : ''}
+          <div id="proj-comments-viewer"></div>
 
           <div class="cutter-detail-grid">
             ${vg ? `
@@ -6516,6 +6526,8 @@ async function openProjectViewerModal(project) {
     </div>
   `;
   $('#modal-container').innerHTML = html;
+  const isPriv = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  loadAndRenderProjectComments(project.id, isPriv, 'proj-comments-viewer');
 }
 
 function renderProjectFilesSection(project, session) {
@@ -7039,6 +7051,60 @@ function notifyUser(userId, title, body) {
   }
 }
 
+/* ----- PROJEKT-KOMMENTARE (persistiert in DB) ----- */
+
+function renderProjectCommentsHtml(comments, projectId, canDelete) {
+  if (!comments || comments.length === 0) return '';
+  const items = comments.map(n => {
+    const author = store.users.find(u => u.id === n.userId);
+    const audioUrl = n.hasVoice ? `${API_BASE}/download.php?scope=voice_project&id=${encodeURIComponent(n.id)}` : null;
+    return `
+      <div style="margin-top:10px; padding:10px; background:var(--bg-1); border-radius:8px; border:1px solid var(--border); position:relative;">
+        <div class="text-sm text-muted" style="margin-bottom:6px;">${escape(author?.name || '–')} · ${fmtDateTime(n.createdAt)}</div>
+        ${n.text ? `<div style="font-size:13px; line-height:1.55; white-space:pre-wrap; color:var(--text-1);">${escape(n.text)}</div>` : ''}
+        ${audioUrl ? `<audio controls src="${audioUrl}" style="width:100%; margin-top:8px;"></audio>` : ''}
+        ${canDelete ? `<button class="btn btn-ghost btn-sm" style="position:absolute;top:6px;right:6px;padding:2px 8px;font-size:11px;color:var(--text-3);" onclick="deleteProjectComment('${n.id}','${projectId}')">✕</button>` : ''}
+      </div>
+    `;
+  }).join('');
+  return `
+    <div class="info-box" style="background:rgba(255,69,58,0.06); border-color:rgba(255,69,58,0.3);">
+      <strong style="color:#ff453a;">⚠️ Korrektur-Hinweise</strong>
+      ${items}
+    </div>
+  `;
+}
+
+async function loadAndRenderProjectComments(projectId, canDelete, containerId = 'proj-comments-box') {
+  const box = document.getElementById(containerId);
+  if (!box) return;
+  try {
+    const res = await fetch(`${API_BASE}/project_comments.php?projectId=${encodeURIComponent(projectId)}`, { credentials: 'same-origin' });
+    const json = await res.json();
+    if (json.ok) {
+      box.innerHTML = renderProjectCommentsHtml(json.data, projectId, canDelete) ||
+        '<div class="text-sm text-muted" style="padding:4px 0;">Noch keine Korrektur-Hinweise.</div>';
+    }
+  } catch (_) {}
+}
+
+async function deleteProjectComment(commentId, projectId) {
+  const ok = await appConfirm('Kommentar wirklich löschen?', { title: 'Löschen', okLabel: 'Löschen', danger: true });
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API_BASE}/project_comments.php?id=${encodeURIComponent(commentId)}`, {
+      method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF }
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+    // Refresh wherever shown
+    loadAndRenderProjectComments(projectId, true, 'proj-comments-box');
+    loadAndRenderProjectComments(projectId, false, 'proj-comments-viewer');
+  } catch (e) {
+    showToast('Fehler', e.message);
+  }
+}
+
 /* ----- KORREKTUR-MODAL ----- */
 let correctionRecorder = null;
 let correctionAudioChunks = [];
@@ -7136,35 +7202,56 @@ async function toggleCorrectionRecording() {
   }
 }
 
-function submitCorrection(projectId) {
+async function submitCorrection(projectId) {
   const text = $('#correction-text')?.value.trim() || '';
-  if (!text && !correctionAudioUrl) {
+  if (!text && !correctionAudioBlob) {
     alert('Bitte eine Textnotiz schreiben oder eine Sprachnachricht aufnehmen.');
     return;
   }
   const idx = store.projects.findIndex(p => p.id === projectId);
   if (idx < 0) return;
-  const session = getCurrentUser();
-  const note = {
-    text,
-    audio: correctionAudioUrl || null,
-    createdAt: new Date().toISOString(),
-    createdById: session?.user?.id || null
-  };
-  if (!store.projects[idx].correctionNotes) store.projects[idx].correctionNotes = [];
-  store.projects[idx].correctionNotes.push(note);
+
+  // 1. Kommentar in DB speichern
+  let commentId = null;
+  try {
+    const res = await fetch(`${API_BASE}/project_comments.php?projectId=${encodeURIComponent(projectId)}`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ text })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler beim Speichern');
+    commentId = json.data?.id;
+  } catch (e) {
+    showToast('Fehler', e.message);
+    return;
+  }
+
+  // 2. Sprachaufnahme hochladen (falls vorhanden)
+  if (correctionAudioBlob && commentId) {
+    try {
+      const ext = correctionAudioBlob.type.includes('ogg') ? 'ogg' : 'webm';
+      const fd = new FormData();
+      fd.append('file', correctionAudioBlob, `voice.${ext}`);
+      await fetch(`${API_BASE}/upload.php?scope=voice_project&id=${encodeURIComponent(commentId)}`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'X-CSRF-Token': CSRF }, body: fd
+      });
+    } catch (_) {}
+  }
+
+  // 3. Status auf Korrektur setzen
   const prevStatus = store.projects[idx].status;
   lockProjectStatus(projectId, STATUS.KORREKTUR);
   store.projects[idx].status = STATUS.KORREKTUR;
-  logActivity('project', store.projects[idx].id, 'correctionRequested', { title: store.projects[idx].title, text: (note.text || '').slice(0, 200) });
+  logActivity('project', store.projects[idx].id, 'correctionRequested', { title: store.projects[idx].title, text: (text || '').slice(0, 200) });
 
-  // Cutter benachrichtigen
   const p = store.projects[idx];
-  if (p.cutterId) {
-    notifyUser(p.cutterId, 'Korrektur angefragt', `„${p.title}" muss überarbeitet werden.`);
-  }
+  if (p.cutterId) notifyUser(p.cutterId, 'Korrektur angefragt', `„${p.title}" muss überarbeitet werden.`);
+
   closeModal();
   renderPage();
+
   fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
     method: 'PUT', credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },

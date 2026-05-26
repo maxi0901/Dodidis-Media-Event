@@ -46,6 +46,15 @@ if ($scope === 'customer') {
         [$fileId]
     );
     if (!$file || !$file['path']) json_err(404, 'Datei nicht gefunden.');
+} elseif ($scope === 'voice_project') {
+    if ($session['type'] === 'customer') json_err(403, 'Keine Berechtigung.');
+    $file = db_one(
+        "SELECT id, COALESCE(voice_filename, 'voice.webm') AS filename,
+                COALESCE(mime, 'audio/webm') AS mime, voice_path AS path
+           FROM project_comments WHERE id = ?",
+        [$fileId]
+    );
+    if (!$file || !$file['path']) json_err(404, 'Datei nicht gefunden.');
 } else {
     json_err(400, 'Unbekannter scope.');
 }
@@ -64,8 +73,12 @@ $mime         = $file['mime'] ?: 'application/octet-stream';
 // Alle Output-Buffer leeren, bevor Header gesetzt werden
 while (ob_get_level()) ob_end_clean();
 
+// Audio-Sprachnachrichten inline ausliefern (für <audio>-Tag im Browser)
+$isAudioScope = in_array($scope, ['voice', 'voice_project'], true);
+$disposition  = $isAudioScope ? 'inline' : 'attachment';
+
 header('Content-Type: ' . $mime);
-header('Content-Disposition: attachment; filename="' . $downloadName . '"');
+header('Content-Disposition: ' . $disposition . '; filename="' . $downloadName . '"');
 header('Content-Length: ' . filesize($fsPath));
 header('Cache-Control: private, no-store');
 header('X-Content-Type-Options: nosniff');

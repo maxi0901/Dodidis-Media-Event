@@ -352,16 +352,12 @@ addCol($pdo, 'projects', 'updated_at',
     $results);
 
 // ── 19. projects: ungültige status-Werte bereinigen + Spalte auf ENUM umstellen ─
-// Schritt 1: '' und sonstige ungültige Werte → 'skript'
 step($pdo, "projects: ungültige status-Werte auf 'skript' zurücksetzen",
     "UPDATE projects SET status = 'skript'
      WHERE status = '' OR status IS NULL
         OR status NOT IN ('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')",
     $results);
 
-// Schritt 2: COLUMN_TYPE prüfen – nicht nur ob ENUM, sondern ob ALLE Werte enthalten sind.
-// Ein unvollständiger ENUM (z.B. ohne 'gedreht'/'freigegeben') speichert fehlende Werte still
-// als '' (Index 0), was nach außen wie ein erfolgreiches UPDATE aussieht (affected=1).
 try {
     $dbName = $pdo->query("SELECT DATABASE()")->fetchColumn();
     $typeStmt = $pdo->prepare(
@@ -374,10 +370,7 @@ try {
     $required = ['skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
     $needsUpdate = false;
     foreach ($required as $val) {
-        if (strpos($colDef, "'$val'") === false) {
-            $needsUpdate = true;
-            break;
-        }
+        if (strpos($colDef, "'$val'") === false) { $needsUpdate = true; break; }
     }
 
     if ($needsUpdate) {
@@ -401,9 +394,7 @@ addCol($pdo, 'vacations', 'approved_at',
     "ALTER TABLE vacations ADD COLUMN approved_at DATETIME NULL",
     $results);
 
-// ── 21. projects: Table-Definition-Cache neu laden (behebt ENUM-Metadata-Bug nach MODIFY COLUMN) ─
-// OPTIMIZE TABLE gibt ein Result-Set zurück → exec() würde "unbuffered query" hinterlassen.
-// Daher query()->fetchAll() um das Result-Set vollständig zu konsumieren.
+// ── 21. projects: OPTIMIZE TABLE ─────────────────────────────────────────────
 try {
     $pdo->query("OPTIMIZE TABLE projects")->fetchAll();
     $results[] = ['ok' => true, 'label' => "projects: OPTIMIZE TABLE (ENUM-Metadata-Cache leeren)"];
@@ -412,7 +403,6 @@ try {
 }
 
 // ── 22. projects: Trigger-Diagnose ───────────────────────────────────────────
-// Prüft ob Trigger auf der projects-Tabelle existieren, die status zurücksetzen.
 try {
     $dbName = $pdo->query("SELECT DATABASE()")->fetchColumn();
     $trigStmt = $pdo->prepare(
@@ -425,16 +415,34 @@ try {
     $triggers = $trigStmt->fetchAll();
     if ($triggers) {
         foreach ($triggers as $t) {
-            $results[] = [
-                'ok'    => true,
-                'label' => "HINWEIS – Trigger gefunden: {$t['TRIGGER_NAME']} ({$t['ACTION_TIMING']} {$t['EVENT_MANIPULATION']}): " . $t['action_snippet'],
-            ];
+            $results[] = ['ok' => true, 'label' => "HINWEIS – Trigger gefunden: {$t['TRIGGER_NAME']} ({$t['ACTION_TIMING']} {$t['EVENT_MANIPULATION']}): " . $t['action_snippet']];
         }
     } else {
         $results[] = ['ok' => true, 'label' => "projects: keine Trigger gefunden"];
     }
 } catch (\Throwable $e) {
     $results[] = ['ok' => false, 'label' => "Trigger-Prüfung fehlgeschlagen", 'err' => $e->getMessage()];
+}
+
+// ── 23. project_comments ──────────────────────────────────────────────────────
+if (!tableExists($pdo, 'project_comments')) {
+    step($pdo, "project_comments: Tabelle anlegen",
+        "CREATE TABLE project_comments (
+           id            VARCHAR(64)  NOT NULL,
+           project_id    VARCHAR(64)  NOT NULL,
+           user_id       VARCHAR(64)  NULL,
+           comment_text  TEXT         NULL,
+           voice_path    VARCHAR(500) NULL,
+           voice_filename VARCHAR(255) NULL,
+           created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           PRIMARY KEY (id),
+           KEY idx_pcom_project (project_id)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "project_comments: bereits vorhanden"];
+    addCol($pdo, 'project_comments', 'voice_filename',
+        "ALTER TABLE project_comments ADD COLUMN voice_filename VARCHAR(255) NULL", $results);
 }
 
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
