@@ -128,8 +128,10 @@ switch ($method) {
             sync_assignees($id, (array)$b['assigneeIds']);
         }
         if (!empty($b['markSeen'])) {
-            db()->prepare("INSERT IGNORE INTO todo_seen (todo_id, user_id) VALUES (?, ?)")
-                ->execute([$id, $uid]);
+            try {
+                db()->prepare("INSERT IGNORE INTO todo_seen (todo_id, user_id) VALUES (?, ?)")
+                    ->execute([$id, $uid]);
+            } catch (\Throwable $e) { /* todo_seen table might not exist yet */ }
         }
 
         log_activity('todo', $id, 'edited');
@@ -163,7 +165,9 @@ function sync_assignees(string $todoId, array $userIds): void
 function hydrate_todo_join(array &$todo): void
 {
     $a = db_all("SELECT user_id FROM todo_assignees WHERE todo_id = ?", [$todo['id']]);
-    $s = db_all("SELECT user_id FROM todo_seen WHERE todo_id = ?", [$todo['id']]);
+    try {
+        $s = db_all("SELECT user_id FROM todo_seen WHERE todo_id = ?", [$todo['id']]);
+    } catch (\Throwable $e) { $s = []; }
     $todo['assigneeIds'] = array_column($a, 'user_id');
     $todo['seenBy']      = array_column($s, 'user_id');
 }
@@ -171,10 +175,12 @@ function hydrate_todo_join(array &$todo): void
 function hydrate_todos_join(array &$todos): void
 {
     if (!$todos) return;
-    $ids = array_column($todos, 'id');
+    $ids   = array_column($todos, 'id');
     $place = implode(',', array_fill(0, count($ids), '?'));
     $a = db_all("SELECT todo_id, user_id FROM todo_assignees WHERE todo_id IN ($place)", $ids);
-    $s = db_all("SELECT todo_id, user_id FROM todo_seen       WHERE todo_id IN ($place)", $ids);
+    try {
+        $s = db_all("SELECT todo_id, user_id FROM todo_seen WHERE todo_id IN ($place)", $ids);
+    } catch (\Throwable $e) { $s = []; }
     $byA = []; $byS = [];
     foreach ($a as $r) $byA[$r['todo_id']][] = $r['user_id'];
     foreach ($s as $r) $byS[$r['todo_id']][] = $r['user_id'];

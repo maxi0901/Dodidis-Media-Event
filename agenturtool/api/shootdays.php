@@ -18,9 +18,12 @@ if (($session['type'] ?? '') === 'customer') {
     json_err(403, 'Keine Berechtigung.');
 }
 
-$cols = "id, date, start_time AS startTime, end_time AS endTime,
-         videograf_id AS videografId, customer_id AS customerId,
-         note, rescheduled_from AS rescheduledFrom, created_at AS createdAt";
+$cols         = "id, date, start_time AS startTime, end_time AS endTime,
+                 videograf_id AS videografId, customer_id AS customerId,
+                 note, rescheduled_from AS rescheduledFrom, created_at AS createdAt";
+$colsFallback = "id, date, start_time AS startTime, end_time AS endTime,
+                 videograf_id AS videografId, customer_id AS customerId,
+                 note, created_at AS createdAt";
 
 switch ($method) {
 
@@ -29,19 +32,36 @@ switch ($method) {
             json_err(403, 'Keine Berechtigung.');
         }
         if ($id) {
-            $sd = db_one("SELECT $cols FROM shoot_days WHERE id = ?", [$id]);
+            try {
+                $sd = db_one("SELECT $cols FROM shoot_days WHERE id = ?", [$id]);
+            } catch (\Throwable $e) {
+                $sd = db_one("SELECT $colsFallback FROM shoot_days WHERE id = ?", [$id]);
+                if ($sd) $sd['rescheduledFrom'] = null;
+            }
             if (!$sd) json_err(404, 'Drehtag nicht gefunden.');
-            // Videograf darf nur eigene sehen
             if (!has_role('admin', 'manager') && $sd['videografId'] !== $session['uid']) {
                 json_err(403, 'Keine Berechtigung.');
             }
             json_ok($sd);
         }
         if (has_role('admin', 'manager')) {
-            $rows = db_all("SELECT $cols FROM shoot_days ORDER BY date DESC, start_time DESC");
+            try {
+                $rows = db_all("SELECT $cols FROM shoot_days ORDER BY date DESC, start_time DESC");
+            } catch (\Throwable $e) {
+                $rows = db_all("SELECT $colsFallback FROM shoot_days ORDER BY date DESC, start_time DESC");
+                foreach ($rows as &$r) $r['rescheduledFrom'] = null;
+                unset($r);
+            }
         } else {
-            $rows = db_all("SELECT $cols FROM shoot_days WHERE videograf_id = ? ORDER BY date DESC, start_time DESC",
-                           [$session['uid']]);
+            try {
+                $rows = db_all("SELECT $cols FROM shoot_days WHERE videograf_id = ? ORDER BY date DESC, start_time DESC",
+                               [$session['uid']]);
+            } catch (\Throwable $e) {
+                $rows = db_all("SELECT $colsFallback FROM shoot_days WHERE videograf_id = ? ORDER BY date DESC, start_time DESC",
+                               [$session['uid']]);
+                foreach ($rows as &$r) $r['rescheduledFrom'] = null;
+                unset($r);
+            }
         }
         json_ok($rows);
     }
@@ -66,7 +86,13 @@ switch ($method) {
             ]
         );
         log_activity('shootDay', $newId, 'created');
-        json_ok(db_one("SELECT $cols FROM shoot_days WHERE id = ?", [$newId]), 201);
+        try {
+            $row = db_one("SELECT $cols FROM shoot_days WHERE id = ?", [$newId]);
+        } catch (\Throwable $e) {
+            $row = db_one("SELECT $colsFallback FROM shoot_days WHERE id = ?", [$newId]);
+            if ($row) $row['rescheduledFrom'] = null;
+        }
+        json_ok($row, 201);
     }
 
     case 'PUT': {
@@ -87,20 +113,37 @@ switch ($method) {
         if (array_key_exists('customerId', $b))  { $set[] = 'customer_id = ?';  $vals[] = $b['customerId']  ?: null; }
         if (array_key_exists('note', $b))        { $set[] = 'note = ?';         $vals[] = $b['note'] !== null ? (string)$b['note'] : null; }
 
-        // Datum geändert → rescheduled_from setzen
         $rescheduled = $newDate && $newDate !== $cur['date'];
         if ($rescheduled) {
+            // rescheduled_from in eigenem Statement – Spalte existiert ggf. noch nicht
             $set[] = 'rescheduled_from = ?';
             $vals[] = $cur['date'];
         }
 
         if ($set) {
-            $vals[] = $id;
-            db_exec("UPDATE shoot_days SET " . implode(', ', $set) . " WHERE id = ?", $vals);
+            $setWithoutRescheduled = array_filter($set, fn($s) => !str_starts_with($s, 'rescheduled_from'));
+            $valsWithoutRescheduled = array_values(array_slice($vals, 0, count($setWithoutRescheduled)));
+            try {
+                $allVals   = $vals;
+                $allVals[] = $id;
+                db_exec("UPDATE shoot_days SET " . implode(', ', $set) . " WHERE id = ?", $allVals);
+            } catch (\Throwable $e) {
+                // rescheduled_from-Spalte fehlt – ohne diese Spalte nochmal versuchen
+                if ($setWithoutRescheduled) {
+                    $valsWithoutRescheduled[] = $id;
+                    db_exec("UPDATE shoot_days SET " . implode(', ', array_values($setWithoutRescheduled)) . " WHERE id = ?", $valsWithoutRescheduled);
+                }
+            }
         }
 
         log_activity('shootDay', $id, $rescheduled ? 'rescheduled' : 'edited');
-        json_ok(db_one("SELECT $cols FROM shoot_days WHERE id = ?", [$id]));
+        try {
+            $result = db_one("SELECT $cols FROM shoot_days WHERE id = ?", [$id]);
+        } catch (\Throwable $e) {
+            $result = db_one("SELECT $colsFallback FROM shoot_days WHERE id = ?", [$id]);
+            if ($result) $result['rescheduledFrom'] = null;
+        }
+        json_ok($result);
     }
 
     case 'DELETE': {

@@ -339,24 +339,25 @@ if ($action === 'push') {
     $upserts   = is_array($body['upserts'] ?? null)   ? $body['upserts']   : [];
     $deletions = is_array($body['deletions'] ?? null) ? $body['deletions'] : [];
 
-    $pdo = db();
-    $pdo->beginTransaction();
+    $pdo       = db();
+    $isAdmin   = has_role('admin');
+    $isManager = has_role('admin', 'manager');
 
-    try {
-        $isAdmin   = has_role('admin');
-        $isManager = has_role('admin', 'manager');
+    // Jede Tabellen-Sektion läuft unabhängig – ein Fehler in einer Sektion
+    // (z.B. fehlende Spalte im alten Schema) rollt nicht alle anderen zurück.
 
-        // ---------- USERS ----------
-        if (!empty($upserts['users']) && is_array($upserts['users'])) {
-            if (!$isAdmin) {
-                // Nicht-Admins dürfen über das Bulk-API keine User editieren –
-                // außer ihr eigenes Profil. Wir filtern entsprechend.
-                $upserts['users'] = array_values(array_filter(
-                    $upserts['users'],
-                    fn($u) => isset($u['id'], $u['data']) && $u['id'] === $session['uid']
-                ));
-            }
-            $nameCol = users_name_column();
+    // ---------- USERS ----------
+    if (!empty($upserts['users']) && is_array($upserts['users'])) {
+        if (!$isAdmin) {
+            $upserts['users'] = array_values(array_filter(
+                $upserts['users'],
+                fn($u) => isset($u['id'], $u['data']) && $u['id'] === $session['uid']
+            ));
+        }
+        $nameCol      = users_name_column();
+        $stmtU        = null;
+        $userFullCols = true;
+        try {
             $stmtU = $pdo->prepare(
                 "INSERT INTO users (id, username, {$nameCol}, email, password_hash, avatar_color, avatar_image, calendar_prefs)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -369,41 +370,71 @@ if ($action === 'push') {
                     avatar_image   = VALUES(avatar_image),
                     calendar_prefs = VALUES(calendar_prefs)"
             );
+        } catch (\Throwable $e) {
+            error_log('[push/users prepare-full] ' . $e->getMessage());
+            $userFullCols = false;
+            try {
+                $stmtU = $pdo->prepare(
+                    "INSERT INTO users (id, username, {$nameCol}, email, password_hash)
+                     VALUES (?, ?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE
+                        username      = VALUES(username),
+                        {$nameCol}    = VALUES({$nameCol}),
+                        email         = VALUES(email),
+                        password_hash = IF(VALUES(password_hash) = '', password_hash, VALUES(password_hash))"
+                );
+            } catch (\Throwable $e2) {
+                error_log('[push/users prepare-fallback] ' . $e2->getMessage());
+            }
+        }
+        if ($stmtU) {
             $stmtRoleDel = $pdo->prepare("DELETE FROM user_roles WHERE user_id = ?");
             $stmtRoleIns = $pdo->prepare("INSERT IGNORE INTO user_roles (user_id, role_name) VALUES (?, ?)");
-
             foreach ($upserts['users'] as $u) {
                 if (!isset($u['id'], $u['data']) || !is_array($u['data'])) continue;
-                $d = $u['data'];
+                $d    = $u['data'];
                 $hash = (string)($d['password'] ?? '');
-                // Nur sha256$-Hashes akzeptieren – Klartext bei Bulk-Push abweisen
-                if ($hash !== '' && !str_starts_with($hash, 'sha256$')) {
-                    $hash = '';
-                }
-                $stmtU->execute([
-                    (string)$u['id'],
-                    (string)($d['username'] ?? ''),
-                    (string)($d['name'] ?? ''),
-                    !empty($d['email']) ? (string)$d['email'] : null,
-                    $hash,
-                    !empty($d['avatarColor']) ? (string)$d['avatarColor'] : null,
-                    $d['avatarImage'] ?? null,
-                    isset($d['calendarPrefs']) ? json_encode($d['calendarPrefs'], JSON_UNESCAPED_UNICODE) : null,
-                ]);
-                if ($isAdmin) {
-                    $stmtRoleDel->execute([(string)$u['id']]);
-                    foreach ((array)($d['roles'] ?? []) as $r) {
-                        if (in_array($r, ['admin','manager','videograf','cutter','mitarbeiter'], true)) {
-                            $stmtRoleIns->execute([(string)$u['id'], $r]);
+                if ($hash !== '' && !str_starts_with($hash, 'sha256$')) $hash = '';
+                try {
+                    if ($userFullCols) {
+                        $stmtU->execute([
+                            (string)$u['id'],
+                            (string)($d['username'] ?? ''),
+                            (string)($d['name'] ?? ''),
+                            !empty($d['email']) ? (string)$d['email'] : null,
+                            $hash,
+                            !empty($d['avatarColor']) ? (string)$d['avatarColor'] : null,
+                            $d['avatarImage'] ?? null,
+                            isset($d['calendarPrefs']) ? json_encode($d['calendarPrefs'], JSON_UNESCAPED_UNICODE) : null,
+                        ]);
+                    } else {
+                        $stmtU->execute([
+                            (string)$u['id'],
+                            (string)($d['username'] ?? ''),
+                            (string)($d['name'] ?? ''),
+                            !empty($d['email']) ? (string)$d['email'] : null,
+                            $hash,
+                        ]);
+                    }
+                    if ($isAdmin) {
+                        $stmtRoleDel->execute([(string)$u['id']]);
+                        foreach ((array)($d['roles'] ?? []) as $r) {
+                            if (in_array($r, ['admin','manager','videograf','cutter','mitarbeiter'], true)) {
+                                $stmtRoleIns->execute([(string)$u['id'], $r]);
+                            }
                         }
                     }
+                } catch (\Throwable $e) {
+                    error_log('[push/users exec ' . $u['id'] . '] ' . $e->getMessage());
                 }
             }
         }
+    }
 
-        // ---------- CUSTOMERS ----------
-        if (!empty($upserts['customers']) && is_array($upserts['customers'])) {
-            if (!$isManager) json_err(403, 'Keine Berechtigung.');
+    // ---------- CUSTOMERS ----------
+    if (!empty($upserts['customers']) && is_array($upserts['customers'])) {
+        if (!$isManager) json_err(403, 'Keine Berechtigung.');
+        try {
             $stmtC = $pdo->prepare(
                 "INSERT INTO customers (
                     id, name, customer_number, manager_id, pin_hash,
@@ -426,21 +457,26 @@ if ($action === 'push') {
                     monthly_rate = VALUES(monthly_rate), videos_per_month = VALUES(videos_per_month),
                     status = VALUES(status)"
             );
-            $stmtCL = $pdo->prepare(
-                "INSERT INTO customer_checklists
-                    (customer_id, contract_signed, deposit_received, kickoff_done, social_access, first_shoot)
-                 VALUES (?, ?, ?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE
-                    contract_signed  = VALUES(contract_signed),
-                    deposit_received = VALUES(deposit_received),
-                    kickoff_done     = VALUES(kickoff_done),
-                    social_access    = VALUES(social_access),
-                    first_shoot      = VALUES(first_shoot)"
-            );
+            $stmtCL = null;
+            try {
+                $stmtCL = $pdo->prepare(
+                    "INSERT INTO customer_checklists
+                        (customer_id, contract_signed, deposit_received, kickoff_done, social_access, first_shoot)
+                     VALUES (?, ?, ?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE
+                        contract_signed  = VALUES(contract_signed),
+                        deposit_received = VALUES(deposit_received),
+                        kickoff_done     = VALUES(kickoff_done),
+                        social_access    = VALUES(social_access),
+                        first_shoot      = VALUES(first_shoot)"
+                );
+            } catch (\Throwable $e) {
+                error_log('[push/customers checklist-prepare] ' . $e->getMessage());
+            }
             foreach ($upserts['customers'] as $c) {
                 if (!isset($c['id'], $c['data']) || !is_array($c['data'])) continue;
-                $d = $c['data'];
-                $cl = $d['checklist'] ?? [];
+                $d    = $c['data'];
+                $cl   = $d['checklist'] ?? [];
                 $pinH = !empty($d['pinHash']) && str_starts_with((string)$d['pinHash'], 'sha256$')
                         ? (string)$d['pinHash'] : null;
                 $stmtC->execute([
@@ -470,140 +506,200 @@ if ($action === 'push') {
                     isset($d['videosPerMonth']) && $d['videosPerMonth'] !== '' ? (int)$d['videosPerMonth'] : null,
                     in_array($d['status'] ?? null, ['onboarding','active','paused'], true) ? $d['status'] : null,
                 ]);
-                // Checkliste in separate Tabelle
-                try {
-                    $stmtCL->execute([
-                        (string)$c['id'],
-                        !empty($cl['contractSigned'])  ? 1 : 0,
-                        !empty($cl['depositReceived']) ? 1 : 0,
-                        !empty($cl['kickoffDone'])     ? 1 : 0,
-                        !empty($cl['socialAccess'])    ? 1 : 0,
-                        !empty($cl['firstShoot'])      ? 1 : 0,
-                    ]);
-                } catch (Throwable $e) {
-                    // Wenn customer_checklists nicht existiert, silent fail
-                    error_log('[api.php/push/checklist] ' . $e->getMessage());
+                if ($stmtCL) {
+                    try {
+                        $stmtCL->execute([
+                            (string)$c['id'],
+                            !empty($cl['contractSigned'])  ? 1 : 0,
+                            !empty($cl['depositReceived']) ? 1 : 0,
+                            !empty($cl['kickoffDone'])     ? 1 : 0,
+                            !empty($cl['socialAccess'])    ? 1 : 0,
+                            !empty($cl['firstShoot'])      ? 1 : 0,
+                        ]);
+                    } catch (\Throwable $e) {
+                        error_log('[push/customers checklist-exec] ' . $e->getMessage());
+                    }
                 }
             }
+        } catch (\Throwable $e) {
+            error_log('[push/customers] ' . $e->getMessage());
         }
+    }
 
-        // ---------- SHOOT_DAYS ----------
-        if (!empty($upserts['shoot_days']) && is_array($upserts['shoot_days'])) {
-            if (!$isManager) json_err(403, 'Keine Berechtigung.');
-            $stmtSD = $pdo->prepare(
-                "INSERT INTO shoot_days (id, date, start_time, end_time, videograf_id, customer_id, note, rescheduled_from)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE
-                    rescheduled_from = IF(date <> VALUES(date), date, rescheduled_from),
-                    date = VALUES(date), start_time = VALUES(start_time), end_time = VALUES(end_time),
-                    videograf_id = VALUES(videograf_id), customer_id = VALUES(customer_id), note = VALUES(note)"
-            );
+    // ---------- SHOOT_DAYS ----------
+    if (!empty($upserts['shoot_days']) && is_array($upserts['shoot_days'])) {
+        if (!$isManager) json_err(403, 'Keine Berechtigung.');
+        try {
+            $hasRescheduled = true;
+            try {
+                $stmtSD = $pdo->prepare(
+                    "INSERT INTO shoot_days (id, date, start_time, end_time, videograf_id, customer_id, note, rescheduled_from)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE
+                        rescheduled_from = IF(date <> VALUES(date), date, rescheduled_from),
+                        date = VALUES(date), start_time = VALUES(start_time), end_time = VALUES(end_time),
+                        videograf_id = VALUES(videograf_id), customer_id = VALUES(customer_id), note = VALUES(note)"
+                );
+            } catch (\Throwable $e) {
+                error_log('[push/shoot_days prepare-rescheduled] ' . $e->getMessage());
+                $hasRescheduled = false;
+                $stmtSD = $pdo->prepare(
+                    "INSERT INTO shoot_days (id, date, start_time, end_time, videograf_id, customer_id, note)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE
+                        date = VALUES(date), start_time = VALUES(start_time), end_time = VALUES(end_time),
+                        videograf_id = VALUES(videograf_id), customer_id = VALUES(customer_id), note = VALUES(note)"
+                );
+            }
             foreach ($upserts['shoot_days'] as $s) {
                 if (!isset($s['id'], $s['data']) || !is_array($s['data'])) continue;
-                $d = $s['data'];
-                $newDate   = as_date($d['date'] ?? null) ?? '1970-01-01';
+                $d          = $s['data'];
+                $newDate    = as_date($d['date'] ?? null) ?? '1970-01-01';
                 $customerId = !empty($d['customerId']) ? (string)$d['customerId'] : null;
 
-                // Datum-Änderung erkennen → Kundenbenachrichtigung eintragen
                 $existing = db_one("SELECT date, customer_id FROM shoot_days WHERE id = ?", [(string)$s['id']]);
                 if ($existing && $existing['date'] !== $newDate) {
                     $notifCustomerId = $customerId ?? $existing['customer_id'];
                     if ($notifCustomerId) {
-                        $pdo->prepare(
-                            "INSERT INTO notifications (user_id, type, title, body, ref_id, ref_type)
-                             VALUES (?, 'shoot_day_rescheduled', 'Drehtag verschoben',
-                                     CONCAT('Ihr Drehtag am ', ?, ' wurde auf ', ?, ' verschoben.'),
-                                     ?, 'shootDay')"
-                        )->execute([$notifCustomerId, $existing['date'], $newDate, (string)$s['id']]);
+                        try {
+                            $pdo->prepare(
+                                "INSERT INTO notifications (user_id, type, title, body, ref_id, ref_type)
+                                 VALUES (?, 'shoot_day_rescheduled', 'Drehtag verschoben',
+                                         CONCAT('Ihr Drehtag am ', ?, ' wurde auf ', ?, ' verschoben.'),
+                                         ?, 'shootDay')"
+                            )->execute([$notifCustomerId, $existing['date'], $newDate, (string)$s['id']]);
+                        } catch (\Throwable $e) {
+                            error_log('[push/shoot_days notif] ' . $e->getMessage());
+                        }
                     }
                 }
 
-                $stmtSD->execute([
-                    (string)$s['id'],
-                    $newDate,
-                    as_time($d['startTime'] ?? null),
-                    as_time($d['endTime']   ?? null),
-                    !empty($d['videografId']) ? (string)$d['videografId'] : null,
-                    $customerId,
-                    !empty($d['note']) ? (string)$d['note'] : null,
-                    !empty($d['rescheduledFrom']) ? (string)$d['rescheduledFrom'] : null,
-                ]);
+                if ($hasRescheduled) {
+                    $stmtSD->execute([
+                        (string)$s['id'], $newDate,
+                        as_time($d['startTime'] ?? null), as_time($d['endTime'] ?? null),
+                        !empty($d['videografId']) ? (string)$d['videografId'] : null,
+                        $customerId,
+                        !empty($d['note']) ? (string)$d['note'] : null,
+                        !empty($d['rescheduledFrom']) ? (string)$d['rescheduledFrom'] : null,
+                    ]);
+                } else {
+                    $stmtSD->execute([
+                        (string)$s['id'], $newDate,
+                        as_time($d['startTime'] ?? null), as_time($d['endTime'] ?? null),
+                        !empty($d['videografId']) ? (string)$d['videografId'] : null,
+                        $customerId,
+                        !empty($d['note']) ? (string)$d['note'] : null,
+                    ]);
+                }
             }
+        } catch (\Throwable $e) {
+            error_log('[push/shoot_days] ' . $e->getMessage());
         }
+    }
 
-        // ---------- PROJECTS ----------
-        if (!empty($upserts['projects']) && is_array($upserts['projects'])) {
-            $stmtP = $pdo->prepare(
-                "INSERT INTO projects (
-                    id, title, customer_id, videograf_id, cutter_id,
-                    shoot_date, shoot_day_id, deadline, posting_date, script,
-                    status, is_internal, approved_at
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE
-                    title = VALUES(title), customer_id = VALUES(customer_id),
-                    videograf_id = VALUES(videograf_id), cutter_id = VALUES(cutter_id),
-                    shoot_date = VALUES(shoot_date), shoot_day_id = VALUES(shoot_day_id),
-                    deadline = VALUES(deadline), posting_date = VALUES(posting_date),
-                    script = VALUES(script), status = VALUES(status), is_internal = VALUES(is_internal),
-                    approved_at = VALUES(approved_at)"
-            );
-            $validStatus = ['skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
-
-            foreach ($upserts['projects'] as $p) {
-                if (!isset($p['id'], $p['data']) || !is_array($p['data'])) continue;
-                $d = $p['data'];
-
-                // Rolle: Videograf/Cutter dürfen nur eigene Projekte und nur status updaten.
-                if (!$isManager) {
-                    $cur = db_one(
-                        "SELECT videograf_id, cutter_id, title, customer_id, shoot_date, shoot_day_id, deadline, posting_date, script, status, is_internal, approved_at
-                           FROM projects WHERE id = ?",
-                        [(string)$p['id']]
+    // ---------- PROJECTS ----------
+    if (!empty($upserts['projects']) && is_array($upserts['projects'])) {
+        try {
+            $stmtP = null;
+            try {
+                $stmtP = $pdo->prepare(
+                    "INSERT INTO projects (
+                        id, title, customer_id, videograf_id, cutter_id,
+                        shoot_date, shoot_day_id, deadline, posting_date, script,
+                        status, is_internal, approved_at
+                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE
+                        title = VALUES(title), customer_id = VALUES(customer_id),
+                        videograf_id = VALUES(videograf_id), cutter_id = VALUES(cutter_id),
+                        shoot_date = VALUES(shoot_date), shoot_day_id = VALUES(shoot_day_id),
+                        deadline = VALUES(deadline), posting_date = VALUES(posting_date),
+                        script = VALUES(script), status = VALUES(status), is_internal = VALUES(is_internal),
+                        approved_at = VALUES(approved_at)"
+                );
+            } catch (\Throwable $e) {
+                error_log('[push/projects prepare] status column missing – trying ALTER: ' . $e->getMessage());
+                try {
+                    $pdo->exec("ALTER TABLE projects ADD COLUMN status ENUM('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert') NOT NULL DEFAULT 'skript'");
+                } catch (\Throwable $_) {}
+                try {
+                    $stmtP = $pdo->prepare(
+                        "INSERT INTO projects (
+                            id, title, customer_id, videograf_id, cutter_id,
+                            shoot_date, shoot_day_id, deadline, posting_date, script,
+                            status, is_internal, approved_at
+                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         ON DUPLICATE KEY UPDATE
+                            title = VALUES(title), customer_id = VALUES(customer_id),
+                            videograf_id = VALUES(videograf_id), cutter_id = VALUES(cutter_id),
+                            shoot_date = VALUES(shoot_date), shoot_day_id = VALUES(shoot_day_id),
+                            deadline = VALUES(deadline), posting_date = VALUES(posting_date),
+                            script = VALUES(script), status = VALUES(status), is_internal = VALUES(is_internal),
+                            approved_at = VALUES(approved_at)"
                     );
-                    if (!$cur) continue;
-                    if ($session['uid'] !== $cur['videograf_id'] && $session['uid'] !== $cur['cutter_id']) {
-                        continue;
-                    }
-                    // Nur status erlauben
-                    $d = array_merge([
-                        'title' => $cur['title'],
-                        'customerId'  => $cur['customer_id'],
-                        'videografId' => $cur['videograf_id'],
-                        'cutterId'    => $cur['cutter_id'],
-                        'shootDate'   => $cur['shoot_date'],
-                        'shootDayId'  => $cur['shoot_day_id'],
-                        'deadline'    => $cur['deadline'],
-                        'postingDate' => $cur['posting_date'],
-                        'script'      => $cur['script'],
-                        'isInternal'  => (bool)$cur['is_internal'],
-                        'approvedAt'  => $cur['approved_at'],
-                    ], array_intersect_key($d, ['status' => 1]));
+                } catch (\Throwable $e2) {
+                    error_log('[push/projects prepare-retry] ' . $e2->getMessage());
                 }
-
-                $status = in_array($d['status'] ?? null, $validStatus, true) ? $d['status'] : 'skript';
-                $approvedAt = $d['approvedAt'] ?? null;
-                if ($status === 'freigegeben' && !$approvedAt) $approvedAt = date('Y-m-d H:i:s');
-
-                $stmtP->execute([
-                    (string)$p['id'],
-                    (string)($d['title'] ?? ''),
-                    !empty($d['customerId'])  ? (string)$d['customerId']  : null,
-                    !empty($d['videografId']) ? (string)$d['videografId'] : null,
-                    !empty($d['cutterId'])    ? (string)$d['cutterId']    : null,
-                    as_date($d['shootDate']   ?? null),
-                    !empty($d['shootDayId'])  ? (string)$d['shootDayId']  : null,
-                    as_date($d['deadline']    ?? null),
-                    as_date($d['postingDate'] ?? null),
-                    $d['script'] ?? null,
-                    $status,
-                    !empty($d['isInternal']) ? 1 : 0,
-                    $approvedAt ? date('Y-m-d H:i:s', strtotime($approvedAt)) : null,
-                ]);
             }
+            if ($stmtP) {
+                $validStatus = ['skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
+                foreach ($upserts['projects'] as $p) {
+                    if (!isset($p['id'], $p['data']) || !is_array($p['data'])) continue;
+                    $d = $p['data'];
+                    if (!$isManager) {
+                        $cur = db_one(
+                            "SELECT videograf_id, cutter_id, title, customer_id, shoot_date, shoot_day_id, deadline, posting_date, script, status, is_internal, approved_at
+                               FROM projects WHERE id = ?",
+                            [(string)$p['id']]
+                        );
+                        if (!$cur) continue;
+                        if ($session['uid'] !== $cur['videograf_id'] && $session['uid'] !== $cur['cutter_id']) continue;
+                        $d = array_merge([
+                            'title'       => $cur['title'],
+                            'customerId'  => $cur['customer_id'],
+                            'videografId' => $cur['videograf_id'],
+                            'cutterId'    => $cur['cutter_id'],
+                            'shootDate'   => $cur['shoot_date'],
+                            'shootDayId'  => $cur['shoot_day_id'],
+                            'deadline'    => $cur['deadline'],
+                            'postingDate' => $cur['posting_date'],
+                            'script'      => $cur['script'],
+                            'isInternal'  => (bool)$cur['is_internal'],
+                            'approvedAt'  => $cur['approved_at'],
+                        ], array_intersect_key($d, ['status' => 1]));
+                    }
+                    $status     = in_array($d['status'] ?? null, $validStatus, true) ? $d['status'] : 'skript';
+                    $approvedAt = $d['approvedAt'] ?? null;
+                    if ($status === 'freigegeben' && !$approvedAt) $approvedAt = date('Y-m-d H:i:s');
+                    try {
+                        $stmtP->execute([
+                            (string)$p['id'],
+                            (string)($d['title'] ?? ''),
+                            !empty($d['customerId'])  ? (string)$d['customerId']  : null,
+                            !empty($d['videografId']) ? (string)$d['videografId'] : null,
+                            !empty($d['cutterId'])    ? (string)$d['cutterId']    : null,
+                            as_date($d['shootDate']   ?? null),
+                            !empty($d['shootDayId'])  ? (string)$d['shootDayId']  : null,
+                            as_date($d['deadline']    ?? null),
+                            as_date($d['postingDate'] ?? null),
+                            $d['script'] ?? null,
+                            $status,
+                            !empty($d['isInternal']) ? 1 : 0,
+                            $approvedAt ? date('Y-m-d H:i:s', strtotime($approvedAt)) : null,
+                        ]);
+                    } catch (\Throwable $e) {
+                        error_log('[push/projects exec ' . $p['id'] . '] ' . $e->getMessage());
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('[push/projects outer] ' . $e->getMessage());
         }
+    }
 
-        // ---------- VACATIONS ----------
-        if (!empty($upserts['vacations']) && is_array($upserts['vacations'])) {
+    // ---------- VACATIONS ----------
+    if (!empty($upserts['vacations']) && is_array($upserts['vacations'])) {
+        try {
             $stmtV = $pdo->prepare(
                 "INSERT INTO vacations (id, user_id, start_date, end_date, note, approved_by, approved_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -615,7 +711,6 @@ if ($action === 'push') {
             foreach ($upserts['vacations'] as $v) {
                 if (!isset($v['id'], $v['data']) || !is_array($v['data'])) continue;
                 $d = $v['data'];
-                // Self oder Admin
                 if (!$isAdmin && ($d['userId'] ?? null) !== $session['uid']) continue;
                 $stmtV->execute([
                     (string)$v['id'],
@@ -627,10 +722,14 @@ if ($action === 'push') {
                     !empty($d['approvedAt']) ? date('Y-m-d H:i:s', strtotime($d['approvedAt'])) : null,
                 ]);
             }
+        } catch (\Throwable $e) {
+            error_log('[push/vacations] ' . $e->getMessage());
         }
+    }
 
-        // ---------- TODOS ----------
-        if (!empty($upserts['todos']) && is_array($upserts['todos'])) {
+    // ---------- TODOS ----------
+    if (!empty($upserts['todos']) && is_array($upserts['todos'])) {
+        try {
             $stmtT  = $pdo->prepare(
                 "INSERT INTO todos (id, title, description, created_by_id, due_date, status)
                  VALUES (?, ?, ?, ?, ?, ?)
@@ -640,14 +739,19 @@ if ($action === 'push') {
             );
             $stmtAD = $pdo->prepare("DELETE FROM todo_assignees WHERE todo_id = ?");
             $stmtAI = $pdo->prepare("INSERT IGNORE INTO todo_assignees (todo_id, user_id) VALUES (?, ?)");
-            $stmtSD2= $pdo->prepare("DELETE FROM todo_seen WHERE todo_id = ?");
-            $stmtSI = $pdo->prepare("INSERT IGNORE INTO todo_seen (todo_id, user_id) VALUES (?, ?)");
+
+            // todo_seen ist optional (Tabelle existiert ggf. noch nicht)
+            $stmtSD2 = $stmtSI = null;
+            try {
+                $stmtSD2 = $pdo->prepare("DELETE FROM todo_seen WHERE todo_id = ?");
+                $stmtSI  = $pdo->prepare("INSERT IGNORE INTO todo_seen (todo_id, user_id) VALUES (?, ?)");
+            } catch (\Throwable $e) {
+                error_log('[push/todos todo_seen-prepare] ' . $e->getMessage());
+            }
 
             foreach ($upserts['todos'] as $t) {
                 if (!isset($t['id'], $t['data']) || !is_array($t['data'])) continue;
                 $d = $t['data'];
-
-                // Rolle: non-manager dürfen nur status+seenBy ändern
                 if (!$isManager) {
                     $cur = db_one("SELECT title, description, created_by_id, due_date FROM todos WHERE id = ?", [(string)$t['id']]);
                     if (!$cur) continue;
@@ -665,7 +769,6 @@ if ($action === 'push') {
                         'seenBy'      => $d['seenBy'] ?? null,
                     ];
                 }
-
                 $stmtT->execute([
                     (string)$t['id'],
                     (string)($d['title'] ?? ''),
@@ -674,24 +777,31 @@ if ($action === 'push') {
                     as_date($d['dueDate'] ?? null),
                     in_array($d['status'] ?? null, ['open','done'], true) ? $d['status'] : 'open',
                 ]);
-
                 if ($isManager && array_key_exists('assigneeIds', $d)) {
                     $stmtAD->execute([(string)$t['id']]);
                     foreach ((array)$d['assigneeIds'] as $uid) {
                         if ($uid) $stmtAI->execute([(string)$t['id'], (string)$uid]);
                     }
                 }
-                if (array_key_exists('seenBy', $d) && $d['seenBy'] !== null) {
-                    $stmtSD2->execute([(string)$t['id']]);
-                    foreach ((array)$d['seenBy'] as $uid) {
-                        if ($uid) $stmtSI->execute([(string)$t['id'], (string)$uid]);
+                if ($stmtSD2 && array_key_exists('seenBy', $d) && $d['seenBy'] !== null) {
+                    try {
+                        $stmtSD2->execute([(string)$t['id']]);
+                        foreach ((array)$d['seenBy'] as $uid) {
+                            if ($uid) $stmtSI->execute([(string)$t['id'], (string)$uid]);
+                        }
+                    } catch (\Throwable $e) {
+                        error_log('[push/todos todo_seen-exec] ' . $e->getMessage());
                     }
                 }
             }
+        } catch (\Throwable $e) {
+            error_log('[push/todos] ' . $e->getMessage());
         }
+    }
 
-        // ---------- APP_CONFIG ----------
-        if (!empty($upserts['app_config']) && is_array($upserts['app_config'])) {
+    // ---------- APP_CONFIG ----------
+    if (!empty($upserts['app_config']) && is_array($upserts['app_config'])) {
+        try {
             $stmtAC = $pdo->prepare(
                 "INSERT INTO app_config (`key`, `value`) VALUES (?, ?)
                  ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)"
@@ -703,46 +813,36 @@ if ($action === 'push') {
                     json_encode($row['value'] ?? null, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 ]);
             }
+        } catch (\Throwable $e) {
+            error_log('[push/app_config] ' . $e->getMessage());
         }
+    }
 
-        // ---------- DELETIONS ----------
-        $delTables = ['users','customers','projects','vacations','todos','shoot_days'];
-        foreach ($delTables as $t) {
-            $ids = $deletions[$t] ?? [];
-            if (!is_array($ids) || empty($ids)) continue;
-            $ids = array_values(array_map('strval', $ids));
-
-            // Berechtigung:
-            //   users        → admin
-            //   customers    → admin
-            //   projects     → admin/manager
-            //   shoot_days   → admin/manager
-            //   todos        → admin/manager
-            //   vacations    → self/admin
-            if ($t === 'users' || $t === 'customers') {
-                if (!$isAdmin) continue;
-            } elseif (in_array($t, ['projects','shoot_days','todos'], true)) {
-                if (!$isManager) continue;
-            } elseif ($t === 'vacations') {
-                if (!$isAdmin) {
-                    // Nur eigene
-                    $place = implode(',', array_fill(0, count($ids), '?'));
-                    $own = db_all("SELECT id FROM vacations WHERE user_id = ? AND id IN ($place)",
-                                  array_merge([$session['uid']], $ids));
-                    $ids = array_column($own, 'id');
-                    if (!$ids) continue;
-                }
+    // ---------- DELETIONS ----------
+    $delTables = ['users','customers','projects','vacations','todos','shoot_days'];
+    foreach ($delTables as $t) {
+        $ids = $deletions[$t] ?? [];
+        if (!is_array($ids) || empty($ids)) continue;
+        $ids = array_values(array_map('strval', $ids));
+        if ($t === 'users' || $t === 'customers') {
+            if (!$isAdmin) continue;
+        } elseif (in_array($t, ['projects','shoot_days','todos'], true)) {
+            if (!$isManager) continue;
+        } elseif ($t === 'vacations') {
+            if (!$isAdmin) {
+                $place = implode(',', array_fill(0, count($ids), '?'));
+                $own   = db_all("SELECT id FROM vacations WHERE user_id = ? AND id IN ($place)",
+                                array_merge([$session['uid']], $ids));
+                $ids   = array_column($own, 'id');
+                if (!$ids) continue;
             }
-
+        }
+        try {
             $place = implode(',', array_fill(0, count($ids), '?'));
             $pdo->prepare("DELETE FROM `$t` WHERE id IN ($place)")->execute($ids);
+        } catch (\Throwable $e) {
+            error_log('[push/delete/' . $t . '] ' . $e->getMessage());
         }
-
-        $pdo->commit();
-    } catch (Throwable $e) {
-        $pdo->rollBack();
-        log_err('legacy api push failed', ['msg' => $e->getMessage()]);
-        json_err(500, 'Push fehlgeschlagen.');
     }
 
     echo json_encode(['ok' => true, 'success' => true, 'data' => []], JSON_UNESCAPED_UNICODE);
