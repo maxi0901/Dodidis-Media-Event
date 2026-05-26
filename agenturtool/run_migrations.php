@@ -390,11 +390,14 @@ addCol($pdo, 'vacations', 'approved_at',
     $results);
 
 // ── 21. projects: Table-Definition-Cache neu laden (behebt ENUM-Metadata-Bug nach MODIFY COLUMN) ─
-// Nach VARCHAR→ENUM-Konvertierung liefert MySQL für manche Werte '' aus dem Query-Result-Cache.
-// OPTIMIZE TABLE erzwingt einen Table-Rebuild und leert den Table-Definition-Cache.
-step($pdo, "projects: OPTIMIZE TABLE (ENUM-Metadata-Cache leeren)",
-    "OPTIMIZE TABLE projects",
-    $results);
+// OPTIMIZE TABLE gibt ein Result-Set zurück → exec() würde "unbuffered query" hinterlassen.
+// Daher query()->fetchAll() um das Result-Set vollständig zu konsumieren.
+try {
+    $pdo->query("OPTIMIZE TABLE projects")->fetchAll();
+    $results[] = ['ok' => true, 'label' => "projects: OPTIMIZE TABLE (ENUM-Metadata-Cache leeren)"];
+} catch (\Throwable $e) {
+    $results[] = ['ok' => false, 'label' => "projects: OPTIMIZE TABLE fehlgeschlagen", 'err' => $e->getMessage()];
+}
 
 // ── 22. projects: Trigger-Diagnose ───────────────────────────────────────────
 // Prüft ob Trigger auf der projects-Tabelle existieren, die status zurücksetzen.
