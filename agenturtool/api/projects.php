@@ -174,10 +174,15 @@ switch ($method) {
             error_log('[projects PUT] SELECT with status failed: ' . $e->getMessage());
             $colsMin = "id, title, customer_id AS customerId, videograf_id AS videografId,
                         cutter_id AS cutterId, shoot_date AS shootDate, shoot_day_id AS shootDayId,
-                        deadline, posting_date AS postingDate, script,
+                        deadline, posting_date AS postingDate, script, status,
                         is_internal AS isInternal, approved_at AS approvedAt,
-                        created_at AS createdAt, updated_at AS updatedAt";
-            $row = db_one("SELECT $colsMin FROM projects WHERE id = ?", [$id]);
+                        created_at AS createdAt";
+            try {
+                $row = db_one("SELECT $colsMin FROM projects WHERE id = ?", [$id]);
+            } catch (\Throwable $e2) {
+                error_log('[projects PUT] SELECT fallback also failed: ' . $e2->getMessage());
+                $row = null;
+            }
         }
         error_log('[projects PUT] response status=' . ($row['status'] ?? 'MISSING') . ' id=' . $id);
         try { $row['files'] = list_files($id); } catch (\Throwable $e) { $row['files'] = []; }
