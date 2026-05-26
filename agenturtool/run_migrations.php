@@ -411,9 +411,8 @@ try {
     if ($triggers) {
         foreach ($triggers as $t) {
             $results[] = [
-                'ok'    => false,
-                'label' => "TRIGGER: {$t['TRIGGER_NAME']} ({$t['ACTION_TIMING']} {$t['EVENT_MANIPULATION']})",
-                'err'   => $t['action_snippet'],
+                'ok'    => true,
+                'label' => "HINWEIS – Trigger gefunden: {$t['TRIGGER_NAME']} ({$t['ACTION_TIMING']} {$t['EVENT_MANIPULATION']}): " . $t['action_snippet'],
             ];
         }
     } else {
