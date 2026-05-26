@@ -346,6 +346,27 @@ if (colExists($pdo, 'projects', 'data') && !colExists($pdo, 'projects', 'title')
     $results[] = ['ok' => true, 'label' => "projects: individuelle Spalten bereits vorhanden"];
 }
 
+// ── 23. project_comments ──────────────────────────────────────────────────────
+if (!tableExists($pdo, 'project_comments')) {
+    step($pdo, "project_comments: Tabelle anlegen",
+        "CREATE TABLE project_comments (
+           id            VARCHAR(64)  NOT NULL,
+           project_id    VARCHAR(64)  NOT NULL,
+           user_id       VARCHAR(64)  NULL,
+           comment_text  TEXT         NULL,
+           voice_path    VARCHAR(500) NULL,
+           voice_filename VARCHAR(255) NULL,
+           created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           PRIMARY KEY (id),
+           KEY idx_pcom_project (project_id)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "project_comments: bereits vorhanden"];
+    addCol($pdo, 'project_comments', 'voice_filename',
+        "ALTER TABLE project_comments ADD COLUMN voice_filename VARCHAR(255) NULL", $results);
+}
+
 $fails = array_filter($results, fn($r) => !$r['ok']);
 ?>
 <!DOCTYPE html>
