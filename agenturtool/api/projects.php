@@ -137,19 +137,27 @@ switch ($method) {
             $oldShootDate = $cur['shoot_date'] ?? null;
             $newShootDate = $params['shoot_date'] ?? null;
             if ($oldShootDate && $newShootDate && $oldShootDate !== $newShootDate) {
-                db_exec(
-                    "INSERT INTO project_shootdate_history (project_id, old_shoot_date, new_shoot_date, changed_by)
-                     VALUES (?, ?, ?, ?)",
-                    [$id, $oldShootDate, $newShootDate, $session['uid']]
-                );
-                $customerManager = db_one("SELECT manager_id FROM customers WHERE id = ?", [$cur['customer_id']]);
-                if (!empty($customerManager['manager_id'])) {
+                try {
                     db_exec(
-                        "INSERT INTO notifications (user_id, type, title, body, ref_id, ref_type)
-                         VALUES (?, 'shootdate_moved', 'Drehtag verschoben',
-                                 CONCAT('Ihr Drehtag wurde verschoben: ', ?, ' → ', ?), ?, 'project')",
-                        [$customerManager['manager_id'], $oldShootDate, $newShootDate, $id]
+                        "INSERT INTO project_shootdate_history (project_id, old_shoot_date, new_shoot_date, changed_by)
+                         VALUES (?, ?, ?, ?)",
+                        [$id, $oldShootDate, $newShootDate, $session['uid']]
                     );
+                } catch (\Throwable $e) {
+                    error_log('[projects] project_shootdate_history insert: ' . $e->getMessage());
+                }
+                try {
+                    $customerManager = db_one("SELECT manager_id FROM customers WHERE id = ?", [$cur['customer_id']]);
+                    if (!empty($customerManager['manager_id'])) {
+                        db_exec(
+                            "INSERT INTO notifications (user_id, type, title, body, ref_id, ref_type)
+                             VALUES (?, 'shootdate_moved', 'Drehtag verschoben',
+                                     CONCAT('Ihr Drehtag wurde verschoben: ', ?, ' → ', ?), ?, 'project')",
+                            [$customerManager['manager_id'], $oldShootDate, $newShootDate, $id]
+                        );
+                    }
+                } catch (\Throwable $e) {
+                    error_log('[projects] shootdate notification insert: ' . $e->getMessage());
                 }
             }
         }
