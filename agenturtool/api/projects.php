@@ -115,6 +115,7 @@ switch ($method) {
         }
 
         $params = build_project_params($b, false);
+        error_log('[projects PUT] id=' . $id . ' uid=' . ($session['uid'] ?? '?') . ' isPriv=' . ($isPriv?'1':'0') . ' isVid=' . ($isVid?'1':'0') . ' isCut=' . ($isCut?'1':'0') . ' body=' . json_encode($b) . ' params=' . json_encode($params));
         if (!$params) json_ok(['id' => $id]);
 
         $set = [];
@@ -126,7 +127,11 @@ switch ($method) {
         $vals[] = $id;
 
         try {
-            db_exec("UPDATE projects SET " . implode(', ', $set) . " WHERE id = ?", $vals);
+            $pdo = db();
+            $stmt = $pdo->prepare("UPDATE projects SET " . implode(', ', $set) . " WHERE id = ?");
+            $stmt->execute($vals);
+            $affected = $stmt->rowCount();
+            error_log('[projects PUT] UPDATE affected=' . $affected . ' sql=UPDATE projects SET ' . implode(', ', $set) . ' WHERE id=' . $id);
         } catch (Throwable $e) {
             log_err('project update', ['msg' => $e->getMessage()]);
             json_err(500, 'Konnte Projekt nicht speichern.');
@@ -137,19 +142,27 @@ switch ($method) {
             $oldShootDate = $cur['shoot_date'] ?? null;
             $newShootDate = $params['shoot_date'] ?? null;
             if ($oldShootDate && $newShootDate && $oldShootDate !== $newShootDate) {
-                db_exec(
-                    "INSERT INTO project_shootdate_history (project_id, old_shoot_date, new_shoot_date, changed_by)
-                     VALUES (?, ?, ?, ?)",
-                    [$id, $oldShootDate, $newShootDate, $session['uid']]
-                );
-                $customerManager = db_one("SELECT manager_id FROM customers WHERE id = ?", [$cur['customer_id']]);
-                if (!empty($customerManager['manager_id'])) {
+                try {
                     db_exec(
-                        "INSERT INTO notifications (user_id, type, title, body, ref_id, ref_type)
-                         VALUES (?, 'shootdate_moved', 'Drehtag verschoben',
-                                 CONCAT('Ihr Drehtag wurde verschoben: ', ?, ' → ', ?), ?, 'project')",
-                        [$customerManager['manager_id'], $oldShootDate, $newShootDate, $id]
+                        "INSERT INTO project_shootdate_history (project_id, old_shoot_date, new_shoot_date, changed_by)
+                         VALUES (?, ?, ?, ?)",
+                        [$id, $oldShootDate, $newShootDate, $session['uid']]
                     );
+                } catch (\Throwable $e) {
+                    error_log('[projects] project_shootdate_history insert: ' . $e->getMessage());
+                }
+                try {
+                    $customerManager = db_one("SELECT manager_id FROM customers WHERE id = ?", [$cur['customer_id']]);
+                    if (!empty($customerManager['manager_id'])) {
+                        db_exec(
+                            "INSERT INTO notifications (user_id, type, title, body, ref_id, ref_type)
+                             VALUES (?, 'shootdate_moved', 'Drehtag verschoben',
+                                     CONCAT('Ihr Drehtag wurde verschoben: ', ?, ' → ', ?), ?, 'project')",
+                            [$customerManager['manager_id'], $oldShootDate, $newShootDate, $id]
+                        );
+                    }
+                } catch (\Throwable $e) {
+                    error_log('[projects] shootdate notification insert: ' . $e->getMessage());
                 }
             }
         }
@@ -158,6 +171,7 @@ switch ($method) {
         try {
             $row = db_one("SELECT $cols FROM projects WHERE id = ?", [$id]);
         } catch (\Throwable $e) {
+            error_log('[projects PUT] SELECT with status failed: ' . $e->getMessage());
             $colsMin = "id, title, customer_id AS customerId, videograf_id AS videografId,
                         cutter_id AS cutterId, shoot_date AS shootDate, shoot_day_id AS shootDayId,
                         deadline, posting_date AS postingDate, script,
@@ -165,6 +179,7 @@ switch ($method) {
                         created_at AS createdAt, updated_at AS updatedAt";
             $row = db_one("SELECT $colsMin FROM projects WHERE id = ?", [$id]);
         }
+        error_log('[projects PUT] response status=' . ($row['status'] ?? 'MISSING') . ' id=' . $id);
         try { $row['files'] = list_files($id); } catch (\Throwable $e) { $row['files'] = []; }
         json_ok($row);
     }

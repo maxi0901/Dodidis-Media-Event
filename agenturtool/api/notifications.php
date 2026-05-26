@@ -18,6 +18,12 @@ if ($method === 'GET') {
             [$uid]
         );
     } catch (\Throwable $e) {
+        // Only suppress schema errors (42S02 = table missing, 42S22 = column missing)
+        $isSchema = $e instanceof \PDOException
+            && in_array($e->getCode(), ['42S02', '42S22'], true);
+        if (!$isSchema) {
+            throw $e;
+        }
         $rows = [];
     }
     json_ok($rows);
