@@ -101,23 +101,42 @@ if ($isAdmin) {
 }
 
 // ── Drehtage ──────────────────────────────────────────────────────────────
-if ($isAdmin || $isManager) {
-    $shootDays = db_all(
-        "SELECT id, date, start_time AS startTime, end_time AS endTime,
-                videograf_id AS videografId, customer_id AS customerId, note,
-                rescheduled_from AS rescheduledFrom
-           FROM shoot_days ORDER BY date"
-    );
-} elseif ($isVideograf) {
-    $shootDays = db_all(
-        "SELECT id, date, start_time AS startTime, end_time AS endTime,
-                videograf_id AS videografId, customer_id AS customerId, note,
-                rescheduled_from AS rescheduledFrom
-           FROM shoot_days WHERE videograf_id = ? ORDER BY date",
-        [$uid]
-    );
-} else {
-    $shootDays = [];
+// rescheduled_from wird mit try/catch abgesichert – Installations ohne Migration
+// würden sonst den gesamten .ics-Response zum Absturz bringen.
+$shootDays = [];
+try {
+    if ($isAdmin || $isManager) {
+        $shootDays = db_all(
+            "SELECT id, date, start_time AS startTime, end_time AS endTime,
+                    videograf_id AS videografId, customer_id AS customerId, note,
+                    rescheduled_from AS rescheduledFrom
+               FROM shoot_days ORDER BY date"
+        );
+    } elseif ($isVideograf) {
+        $shootDays = db_all(
+            "SELECT id, date, start_time AS startTime, end_time AS endTime,
+                    videograf_id AS videografId, customer_id AS customerId, note,
+                    rescheduled_from AS rescheduledFrom
+               FROM shoot_days WHERE videograf_id = ? ORDER BY date",
+            [$uid]
+        );
+    }
+} catch (\Throwable $e) {
+    // rescheduled_from-Spalte fehlt noch – ohne ABGESAGT-Daten weitermachen
+    if ($isAdmin || $isManager) {
+        $shootDays = db_all(
+            "SELECT id, date, start_time AS startTime, end_time AS endTime,
+                    videograf_id AS videografId, customer_id AS customerId, note
+               FROM shoot_days ORDER BY date"
+        );
+    } elseif ($isVideograf) {
+        $shootDays = db_all(
+            "SELECT id, date, start_time AS startTime, end_time AS endTime,
+                    videograf_id AS videografId, customer_id AS customerId, note
+               FROM shoot_days WHERE videograf_id = ? ORDER BY date",
+            [$uid]
+        );
+    }
 }
 
 // ── Verschobene Projekt-Drehtage (für ABGESAGT-Einträge) ──────────────────
