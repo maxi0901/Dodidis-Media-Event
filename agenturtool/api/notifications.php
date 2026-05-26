@@ -27,7 +27,12 @@ if ($method === 'GET') {
         } else {
             db_exec("UPDATE notifications SET seen_at = NOW() WHERE user_id = ? AND seen_at IS NULL", [$uid]);
         }
-    } catch (\Throwable $e) { /* notifications table might not exist yet */ }
+    } catch (\Throwable $e) {
+        // Tabelle existiert noch nicht (vor Migration) → still; alle anderen Fehler propagieren
+        if (!($e instanceof \PDOException && $e->getCode() === '42S02')) {
+            throw $e;
+        }
+    }
     json_ok(['ok' => true]);
 } else {
     json_err(405, 'Methode nicht erlaubt.');
