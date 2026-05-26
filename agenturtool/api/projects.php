@@ -174,10 +174,35 @@ switch ($method) {
             error_log('[projects PUT] SELECT with status failed: ' . $e->getMessage());
             $colsMin = "id, title, customer_id AS customerId, videograf_id AS videografId,
                         cutter_id AS cutterId, shoot_date AS shootDate, shoot_day_id AS shootDayId,
-                        deadline, posting_date AS postingDate, script,
+                        deadline, posting_date AS postingDate, script, status,
                         is_internal AS isInternal, approved_at AS approvedAt,
-                        created_at AS createdAt, updated_at AS updatedAt";
-            $row = db_one("SELECT $colsMin FROM projects WHERE id = ?", [$id]);
+                        created_at AS createdAt";
+            try {
+                $row = db_one("SELECT $colsMin FROM projects WHERE id = ?", [$id]);
+            } catch (\Throwable $e2) {
+                error_log('[projects PUT] SELECT fallback also failed: ' . $e2->getMessage());
+                $row = null;
+            }
+        }
+        // Debug: prepared vs. non-prepared SELECT um PDO-Protokoll-Bug vs. Trigger zu unterscheiden
+        try {
+            // prepared statement (binary protocol)
+            $dbgStmt = db()->prepare("SELECT status, HEX(status) AS statusHex FROM projects WHERE id = ?");
+            $dbgStmt->execute([$id]);
+            $dbgRow = $dbgStmt->fetch();
+            error_log('[projects PUT] direct-status(prepared): val=' . var_export($dbgRow['status'] ?? null, true)
+                . ' hex=' . ($dbgRow['statusHex'] ?? '?') . ' id=' . $id);
+            // non-prepared query (text protocol) – zum Vergleich
+            $quotedId = db()->quote($id);
+            $dbgRow2  = db()->query("SELECT status, HEX(status) AS statusHex FROM projects WHERE id = $quotedId")->fetch();
+            error_log('[projects PUT] direct-status(query):    val=' . var_export($dbgRow2['status'] ?? null, true)
+                . ' hex=' . ($dbgRow2['statusHex'] ?? '?') . ' id=' . $id);
+        } catch (\Throwable $e) {
+            error_log('[projects PUT] direct-status check failed: ' . $e->getMessage());
+        }
+        // Defensiv: leerer status im SELECT-Ergebnis → gespeicherten Wert aus params nehmen
+        if (($row['status'] ?? '') === '' && isset($params['status'])) {
+            $row['status'] = $params['status'];
         }
         error_log('[projects PUT] response status=' . ($row['status'] ?? 'MISSING') . ' id=' . $id);
         try { $row['files'] = list_files($id); } catch (\Throwable $e) { $row['files'] = []; }

@@ -101,21 +101,71 @@ if ($isAdmin) {
 }
 
 // ── Drehtage ──────────────────────────────────────────────────────────────
-if ($isAdmin || $isManager) {
-    $shootDays = db_all(
-        "SELECT id, date, start_time AS startTime, end_time AS endTime,
-                videograf_id AS videografId, customer_id AS customerId, note
-           FROM shoot_days ORDER BY date"
-    );
-} elseif ($isVideograf) {
-    $shootDays = db_all(
-        "SELECT id, date, start_time AS startTime, end_time AS endTime,
-                videograf_id AS videografId, customer_id AS customerId, note
-           FROM shoot_days WHERE videograf_id = ? ORDER BY date",
-        [$uid]
-    );
-} else {
-    $shootDays = [];
+// rescheduled_from wird mit try/catch abgesichert – Installations ohne Migration
+// würden sonst den gesamten .ics-Response zum Absturz bringen.
+$shootDays = [];
+try {
+    if ($isAdmin || $isManager) {
+        $shootDays = db_all(
+            "SELECT id, date, start_time AS startTime, end_time AS endTime,
+                    videograf_id AS videografId, customer_id AS customerId, note,
+                    rescheduled_from AS rescheduledFrom
+               FROM shoot_days ORDER BY date"
+        );
+    } elseif ($isVideograf) {
+        $shootDays = db_all(
+            "SELECT id, date, start_time AS startTime, end_time AS endTime,
+                    videograf_id AS videografId, customer_id AS customerId, note,
+                    rescheduled_from AS rescheduledFrom
+               FROM shoot_days WHERE videograf_id = ? ORDER BY date",
+            [$uid]
+        );
+    }
+} catch (\Throwable $e) {
+    // rescheduled_from-Spalte fehlt noch – ohne ABGESAGT-Daten weitermachen
+    if ($isAdmin || $isManager) {
+        $shootDays = db_all(
+            "SELECT id, date, start_time AS startTime, end_time AS endTime,
+                    videograf_id AS videografId, customer_id AS customerId, note
+               FROM shoot_days ORDER BY date"
+        );
+    } elseif ($isVideograf) {
+        $shootDays = db_all(
+            "SELECT id, date, start_time AS startTime, end_time AS endTime,
+                    videograf_id AS videografId, customer_id AS customerId, note
+               FROM shoot_days WHERE videograf_id = ? ORDER BY date",
+            [$uid]
+        );
+    }
+}
+
+// ── Verschobene Projekt-Drehtage (für ABGESAGT-Einträge) ──────────────────
+$shootHistory = [];
+try {
+    if ($isAdmin || $isManager) {
+        $shootHistory = db_all(
+            "SELECT h.project_id AS projectId,
+                    h.old_shoot_date AS oldDate, h.new_shoot_date AS newDate,
+                    p.title, p.customer_id AS customerId
+               FROM project_shootdate_history h
+               JOIN projects p ON p.id = h.project_id
+              WHERE p.status != 'archiviert'
+              ORDER BY h.old_shoot_date"
+        );
+    } elseif ($isVideograf || $isCutter) {
+        $shootHistory = db_all(
+            "SELECT h.project_id AS projectId,
+                    h.old_shoot_date AS oldDate, h.new_shoot_date AS newDate,
+                    p.title, p.customer_id AS customerId
+               FROM project_shootdate_history h
+               JOIN projects p ON p.id = h.project_id
+              WHERE (p.videograf_id = ? OR p.cutter_id = ?) AND p.status != 'archiviert'
+              ORDER BY h.old_shoot_date",
+            [$uid, $uid]
+        );
+    }
+} catch (\Throwable $e) {
+    // Tabelle existiert noch nicht – kein Problem
 }
 
 // ── ICS-Hilfsfunktionen ────────────────────────────────────────────────────
@@ -236,6 +286,21 @@ foreach ($shootDays as $sd) {
     if ($sd['note']) $descParts[] = $sd['note'];
     $desc = implode('\\n', array_map('ics_escape', $descParts));
 
+    // Abgesagter Drehtag (alter Termin bei Verschiebung)
+    if (!empty($sd['rescheduledFrom'])) {
+        $newDateLabel = date('d.m.Y', strtotime($sd['date']));
+        $lines[] = 'BEGIN:VEVENT';
+        $lines[] = 'UID:shootday-' . $sd['id'] . '-cancelled@dodidis.media';
+        $lines[] = 'DTSTAMP:' . $stamp;
+        $lines[] = 'DTSTART;VALUE=DATE:' . ics_allday($sd['rescheduledFrom']);
+        $lines[] = 'DTEND;VALUE=DATE:'   . ics_allday_next($sd['rescheduledFrom']);
+        $lines[] = 'SUMMARY:ABGESAGT: ' . ics_escape($summary);
+        $lines[] = 'STATUS:CANCELLED';
+        $lines[] = 'DESCRIPTION:' . ics_escape("Verschoben auf {$newDateLabel}\\n" . implode('\\n', array_map('ics_escape', $descParts)));
+        $lines[] = 'CATEGORIES:Drehtag';
+        $lines[] = 'END:VEVENT';
+    }
+
     if ($sd['startTime'] && $sd['endTime']) {
         $dtStart = ics_datetime_local($sd['date'], $sd['startTime']);
         $dtEnd   = ics_datetime_local($sd['date'], $sd['endTime']);
@@ -259,6 +324,22 @@ foreach ($shootDays as $sd) {
         $lines[] = 'CATEGORIES:Drehtag';
         $lines[] = 'END:VEVENT';
     }
+}
+
+// ── Verschobene Projekt-Drehtage als ABGESAGT-Events ──────────────────────
+foreach ($shootHistory as $h) {
+    $cLabel       = $customerMap[$h['customerId']] ?? '–';
+    $newDateLabel = date('d.m.Y', strtotime($h['newDate']));
+    $lines[] = 'BEGIN:VEVENT';
+    $lines[] = 'UID:project-' . $h['projectId'] . '-shoot-cancelled-' . str_replace('-', '', $h['oldDate']) . '@dodidis.media';
+    $lines[] = 'DTSTAMP:' . $stamp;
+    $lines[] = 'DTSTART;VALUE=DATE:' . ics_allday($h['oldDate']);
+    $lines[] = 'DTEND;VALUE=DATE:'   . ics_allday_next($h['oldDate']);
+    $lines[] = 'SUMMARY:ABGESAGT: 🎥 Drehtag – ' . ics_escape($h['title']);
+    $lines[] = 'STATUS:CANCELLED';
+    $lines[] = 'DESCRIPTION:' . ics_escape("Verschoben auf {$newDateLabel}\\nKunde: {$cLabel}");
+    $lines[] = 'CATEGORIES:Drehtag';
+    $lines[] = 'END:VEVENT';
 }
 
 // ── Urlaube als ganztägige Events ─────────────────────────────────────────

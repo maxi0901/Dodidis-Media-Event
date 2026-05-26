@@ -346,6 +346,84 @@ if (colExists($pdo, 'projects', 'data') && !colExists($pdo, 'projects', 'title')
     $results[] = ['ok' => true, 'label' => "projects: individuelle Spalten bereits vorhanden"];
 }
 
+// ── 18. projects: updated_at nachrüsten (fehlt im alten Schema-Migrationspfad) ──
+addCol($pdo, 'projects', 'updated_at',
+    "ALTER TABLE projects ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+    $results);
+
+// ── 19. projects: ungültige status-Werte bereinigen + Spalte auf ENUM umstellen ─
+step($pdo, "projects: ungültige status-Werte auf 'skript' zurücksetzen",
+    "UPDATE projects SET status = 'skript'
+     WHERE status = '' OR status IS NULL
+        OR status NOT IN ('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')",
+    $results);
+
+try {
+    $dbName = $pdo->query("SELECT DATABASE()")->fetchColumn();
+    $typeStmt = $pdo->prepare(
+        "SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+          WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'projects' AND COLUMN_NAME = 'status'"
+    );
+    $typeStmt->execute([$dbName]);
+    $colDef = (string)$typeStmt->fetchColumn();
+
+    $required = ['skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
+    $needsUpdate = false;
+    foreach ($required as $val) {
+        if (strpos($colDef, "'$val'") === false) { $needsUpdate = true; break; }
+    }
+
+    if ($needsUpdate) {
+        step($pdo, "projects: status-ENUM aktualisieren (fehlende Werte ergänzen)",
+            "ALTER TABLE projects MODIFY COLUMN status
+             ENUM('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')
+             NOT NULL DEFAULT 'skript'",
+            $results);
+    } else {
+        $results[] = ['ok' => true, 'label' => "projects.status ENUM-Definition vollständig – keine Änderung nötig"];
+    }
+} catch (\Throwable $e) {
+    $results[] = ['ok' => false, 'label' => "projects.status ENUM-Prüfung fehlgeschlagen: " . $e->getMessage()];
+}
+
+// ── 20. vacations: approved_by + approved_at nachrüsten ──────────────────────
+addCol($pdo, 'vacations', 'approved_by',
+    "ALTER TABLE vacations ADD COLUMN approved_by VARCHAR(64) NULL",
+    $results);
+addCol($pdo, 'vacations', 'approved_at',
+    "ALTER TABLE vacations ADD COLUMN approved_at DATETIME NULL",
+    $results);
+
+// ── 21. projects: OPTIMIZE TABLE ─────────────────────────────────────────────
+try {
+    $pdo->query("OPTIMIZE TABLE projects")->fetchAll();
+    $results[] = ['ok' => true, 'label' => "projects: OPTIMIZE TABLE (ENUM-Metadata-Cache leeren)"];
+} catch (\Throwable $e) {
+    $results[] = ['ok' => false, 'label' => "projects: OPTIMIZE TABLE fehlgeschlagen", 'err' => $e->getMessage()];
+}
+
+// ── 22. projects: Trigger-Diagnose ───────────────────────────────────────────
+try {
+    $dbName = $pdo->query("SELECT DATABASE()")->fetchColumn();
+    $trigStmt = $pdo->prepare(
+        "SELECT TRIGGER_NAME, EVENT_MANIPULATION, ACTION_TIMING,
+                LEFT(ACTION_STATEMENT, 300) AS action_snippet
+           FROM information_schema.TRIGGERS
+          WHERE EVENT_OBJECT_SCHEMA = ? AND EVENT_OBJECT_TABLE = 'projects'"
+    );
+    $trigStmt->execute([$dbName]);
+    $triggers = $trigStmt->fetchAll();
+    if ($triggers) {
+        foreach ($triggers as $t) {
+            $results[] = ['ok' => true, 'label' => "HINWEIS – Trigger gefunden: {$t['TRIGGER_NAME']} ({$t['ACTION_TIMING']} {$t['EVENT_MANIPULATION']}): " . $t['action_snippet']];
+        }
+    } else {
+        $results[] = ['ok' => true, 'label' => "projects: keine Trigger gefunden"];
+    }
+} catch (\Throwable $e) {
+    $results[] = ['ok' => false, 'label' => "Trigger-Prüfung fehlgeschlagen", 'err' => $e->getMessage()];
+}
+
 // ── 23. project_comments ──────────────────────────────────────────────────────
 if (!tableExists($pdo, 'project_comments')) {
     step($pdo, "project_comments: Tabelle anlegen",
@@ -367,7 +445,7 @@ if (!tableExists($pdo, 'project_comments')) {
         "ALTER TABLE project_comments ADD COLUMN voice_filename VARCHAR(255) NULL", $results);
 }
 
-$fails = array_filter($results, fn($r) => !$r['ok']);
+$fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>
 <html lang="de">
