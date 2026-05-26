@@ -122,8 +122,8 @@ function vacation_to_doc(array $v): array
         'startDate' => $v['start_date'],
         'endDate'   => $v['end_date'],
         'note'      => $v['note'] ?? '',
-        'approvedBy'=> $v['approved_by'],
-        'approvedAt'=> $v['approved_at'],
+        'approvedBy'=> $v['approved_by'] ?? null,
+        'approvedAt'=> $v['approved_at'] ?? null,
     ];
 }
 
@@ -432,8 +432,7 @@ if ($action === 'push') {
     }
 
     // ---------- CUSTOMERS ----------
-    if (!empty($upserts['customers']) && is_array($upserts['customers'])) {
-        if (!$isManager) json_err(403, 'Keine Berechtigung.');
+    if ($isManager && !empty($upserts['customers']) && is_array($upserts['customers'])) {
         try {
             $stmtC = $pdo->prepare(
                 "INSERT INTO customers (
@@ -527,8 +526,7 @@ if ($action === 'push') {
     }
 
     // ---------- SHOOT_DAYS ----------
-    if (!empty($upserts['shoot_days']) && is_array($upserts['shoot_days'])) {
-        if (!$isManager) json_err(403, 'Keine Berechtigung.');
+    if ($isManager && !empty($upserts['shoot_days']) && is_array($upserts['shoot_days'])) {
         try {
             $hasRescheduled = true;
             try {
