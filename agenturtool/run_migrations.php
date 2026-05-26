@@ -396,6 +396,33 @@ step($pdo, "projects: OPTIMIZE TABLE (ENUM-Metadata-Cache leeren)",
     "OPTIMIZE TABLE projects",
     $results);
 
+// ── 22. projects: Trigger-Diagnose ───────────────────────────────────────────
+// Prüft ob Trigger auf der projects-Tabelle existieren, die status zurücksetzen.
+try {
+    $dbName = $pdo->query("SELECT DATABASE()")->fetchColumn();
+    $trigStmt = $pdo->prepare(
+        "SELECT TRIGGER_NAME, EVENT_MANIPULATION, ACTION_TIMING,
+                LEFT(ACTION_STATEMENT, 300) AS action_snippet
+           FROM information_schema.TRIGGERS
+          WHERE EVENT_OBJECT_SCHEMA = ? AND EVENT_OBJECT_TABLE = 'projects'"
+    );
+    $trigStmt->execute([$dbName]);
+    $triggers = $trigStmt->fetchAll();
+    if ($triggers) {
+        foreach ($triggers as $t) {
+            $results[] = [
+                'ok'    => false,
+                'label' => "TRIGGER: {$t['TRIGGER_NAME']} ({$t['ACTION_TIMING']} {$t['EVENT_MANIPULATION']})",
+                'err'   => $t['action_snippet'],
+            ];
+        }
+    } else {
+        $results[] = ['ok' => true, 'label' => "projects: keine Trigger gefunden"];
+    }
+} catch (\Throwable $e) {
+    $results[] = ['ok' => false, 'label' => "Trigger-Prüfung fehlgeschlagen", 'err' => $e->getMessage()];
+}
+
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>
