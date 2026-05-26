@@ -359,26 +359,38 @@ step($pdo, "projects: ungültige status-Werte auf 'skript' zurücksetzen",
         OR status NOT IN ('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')",
     $results);
 
-// Schritt 2: Wenn status noch VARCHAR ist, auf ENUM umstellen
+// Schritt 2: COLUMN_TYPE prüfen – nicht nur ob ENUM, sondern ob ALLE Werte enthalten sind.
+// Ein unvollständiger ENUM (z.B. ohne 'gedreht'/'freigegeben') speichert fehlende Werte still
+// als '' (Index 0), was nach außen wie ein erfolgreiches UPDATE aussieht (affected=1).
 try {
     $dbName = $pdo->query("SELECT DATABASE()")->fetchColumn();
     $typeStmt = $pdo->prepare(
-        "SELECT DATA_TYPE FROM information_schema.COLUMNS
+        "SELECT COLUMN_TYPE FROM information_schema.COLUMNS
           WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'projects' AND COLUMN_NAME = 'status'"
     );
     $typeStmt->execute([$dbName]);
-    $colType = $typeStmt->fetchColumn();
-    if ($colType === 'varchar') {
-        step($pdo, "projects: status VARCHAR(20) → ENUM umwandeln",
+    $colDef = (string)$typeStmt->fetchColumn();
+
+    $required = ['skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
+    $needsUpdate = false;
+    foreach ($required as $val) {
+        if (strpos($colDef, "'$val'") === false) {
+            $needsUpdate = true;
+            break;
+        }
+    }
+
+    if ($needsUpdate) {
+        step($pdo, "projects: status-ENUM aktualisieren (fehlende Werte ergänzen)",
             "ALTER TABLE projects MODIFY COLUMN status
              ENUM('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')
              NOT NULL DEFAULT 'skript'",
             $results);
     } else {
-        $results[] = ['ok' => true, 'label' => "projects.status ist bereits ENUM – keine Konvertierung nötig"];
+        $results[] = ['ok' => true, 'label' => "projects.status ENUM-Definition vollständig – keine Änderung nötig"];
     }
 } catch (\Throwable $e) {
-    $results[] = ['ok' => false, 'label' => "projects.status Typ-Prüfung fehlgeschlagen: " . $e->getMessage()];
+    $results[] = ['ok' => false, 'label' => "projects.status ENUM-Prüfung fehlgeschlagen: " . $e->getMessage()];
 }
 
 // ── 20. vacations: approved_by + approved_at nachrüsten ──────────────────────
