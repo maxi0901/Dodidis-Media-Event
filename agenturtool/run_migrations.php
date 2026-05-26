@@ -388,6 +388,8 @@ addCol($pdo, 'vacations', 'approved_by',
 addCol($pdo, 'vacations', 'approved_at',
     "ALTER TABLE vacations ADD COLUMN approved_at DATETIME NULL",
     $results);
+
+$fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>
 <html lang="de">
