@@ -17,9 +17,12 @@ if ($method === 'GET') {
                FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50",
             [$uid]
         );
-    } catch (\Throwable $e) { $rows = []; }
+    } catch (\Throwable $e) {
+        $rows = [];
+    }
     json_ok($rows);
 } elseif ($method === 'PUT') {
+    // Mark all as seen, or specific ID
     $id = $_GET['id'] ?? null;
     try {
         if ($id) {
@@ -28,8 +31,10 @@ if ($method === 'GET') {
             db_exec("UPDATE notifications SET seen_at = NOW() WHERE user_id = ? AND seen_at IS NULL", [$uid]);
         }
     } catch (\Throwable $e) {
-        // Tabelle existiert noch nicht (vor Migration) → still; alle anderen Fehler propagieren
-        if (!($e instanceof \PDOException && $e->getCode() === '42S02')) {
+        // 42S02 = table not found, 42S22 = column not found (seen_at not yet migrated)
+        $isSchema = $e instanceof \PDOException
+            && in_array($e->getCode(), ['42S02', '42S22'], true);
+        if (!$isSchema) {
             throw $e;
         }
     }

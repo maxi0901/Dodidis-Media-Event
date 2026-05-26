@@ -145,13 +145,24 @@ if (!tableExists($pdo, 'notifications')) {
         "CREATE TABLE notifications (
            id BIGINT NOT NULL AUTO_INCREMENT, user_id VARCHAR(64) NOT NULL,
            type VARCHAR(64) NOT NULL, title VARCHAR(255) NULL, body TEXT NULL,
-           ref_id VARCHAR(64) NULL, ref_type VARCHAR(32) NULL, read_at DATETIME NULL,
+           ref_id VARCHAR(64) NULL, ref_type VARCHAR(32) NULL, seen_at DATETIME NULL,
            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
            PRIMARY KEY (id), KEY idx_notif_user (user_id)
          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
         $results);
 } else {
-    $results[] = ['ok' => true, 'label' => "notifications: bereits vorhanden"];
+    // Ältere Installs haben ggf. read_at statt seen_at – umbenennen
+    if (colExists($pdo, 'notifications', 'read_at') && !colExists($pdo, 'notifications', 'seen_at')) {
+        step($pdo, "notifications: read_at → seen_at umbenennen",
+            "ALTER TABLE notifications CHANGE COLUMN read_at seen_at DATETIME NULL",
+            $results);
+    } elseif (!colExists($pdo, 'notifications', 'seen_at')) {
+        step($pdo, "notifications: seen_at-Spalte ergänzen",
+            "ALTER TABLE notifications ADD COLUMN seen_at DATETIME NULL",
+            $results);
+    } else {
+        $results[] = ['ok' => true, 'label' => "notifications: bereits vorhanden"];
+    }
 }
 
 // ── 8. activity_log ───────────────────────────────────────────────────────────
