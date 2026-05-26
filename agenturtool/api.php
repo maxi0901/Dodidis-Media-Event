@@ -689,11 +689,25 @@ if ($action === 'push') {
                         ]);
                     } catch (\Throwable $e) {
                         error_log('[push/projects exec ' . $p['id'] . '] ' . $e->getMessage());
+                        // Schema-Fehler (fehlende Spalte/Tabelle) still – alles andere propagieren
+                        $isSchemaMissing = $e instanceof \PDOException
+                            && in_array($e->getCode(), ['42S02', '42S22'], true);
+                        if (!$isSchemaMissing) {
+                            throw $e;
+                        }
                     }
                 }
             }
         } catch (\Throwable $e) {
-            error_log('[push/projects outer] ' . $e->getMessage());
+            // Schema-Fehler können ignoriert werden (run_migrations.php behebt sie)
+            $isSchemaMissing = $e instanceof \PDOException
+                && in_array($e->getCode(), ['42S02', '42S22'], true);
+            if ($isSchemaMissing) {
+                error_log('[push/projects schema] ' . $e->getMessage());
+            } else {
+                error_log('[push/projects FATAL] ' . $e->getMessage());
+                json_err(500, 'Projektspeicherung fehlgeschlagen.');
+            }
         }
     }
 
