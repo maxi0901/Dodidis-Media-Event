@@ -7,6 +7,10 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS activity_log;
+DROP TABLE IF EXISTS contract_comments;
+DROP TABLE IF EXISTS contracts;
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS project_shootdate_history;
 DROP TABLE IF EXISTS todo_seen;
 DROP TABLE IF EXISTS todo_assignees;
 DROP TABLE IF EXISTS project_files;
@@ -15,6 +19,7 @@ DROP TABLE IF EXISTS vacations;
 DROP TABLE IF EXISTS projects;
 DROP TABLE IF EXISTS shoot_days;
 DROP TABLE IF EXISTS customer_checklists;
+DROP TABLE IF EXISTS customer_files;
 DROP TABLE IF EXISTS customers;
 DROP TABLE IF EXISTS user_roles;
 DROP TABLE IF EXISTS users;
@@ -105,14 +110,15 @@ CREATE TABLE customer_checklists (
 -- shoot_days
 -- ----------------------------------------------------------------------------
 CREATE TABLE shoot_days (
-  id            VARCHAR(64) NOT NULL,
-  date          DATE NOT NULL,
-  start_time    TIME NULL,
-  end_time      TIME NULL,
-  videograf_id  VARCHAR(64) NULL,
-  customer_id   VARCHAR(64) NULL,
-  note          TEXT NULL,
-  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id               VARCHAR(64) NOT NULL,
+  date             DATE NOT NULL,
+  start_time       TIME NULL,
+  end_time         TIME NULL,
+  videograf_id     VARCHAR(64) NULL,
+  customer_id      VARCHAR(64) NULL,
+  note             TEXT NULL,
+  rescheduled_from DATE NULL,
+  created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_sd_date (date),
   KEY idx_sd_videograf (videograf_id),
@@ -271,6 +277,70 @@ CREATE TABLE app_config (
   `value`    JSON NOT NULL,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- project_shootdate_history
+-- ----------------------------------------------------------------------------
+CREATE TABLE project_shootdate_history (
+  id             BIGINT       NOT NULL AUTO_INCREMENT,
+  project_id     VARCHAR(64)  NOT NULL,
+  old_shoot_date DATE         NULL,
+  new_shoot_date DATE         NULL,
+  changed_by     VARCHAR(64)  NULL,
+  created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_psh_project (project_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- notifications
+-- ----------------------------------------------------------------------------
+CREATE TABLE notifications (
+  id         BIGINT        NOT NULL AUTO_INCREMENT,
+  user_id    VARCHAR(64)   NOT NULL,
+  type       VARCHAR(64)   NOT NULL,
+  title      VARCHAR(255)  NOT NULL DEFAULT '',
+  body       TEXT          NULL,
+  ref_id     VARCHAR(64)   NULL,
+  ref_type   VARCHAR(32)   NULL,
+  seen_at    DATETIME      NULL,
+  created_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_notif_user (user_id),
+  KEY idx_notif_seen (seen_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- contracts
+-- ----------------------------------------------------------------------------
+CREATE TABLE contracts (
+  id          VARCHAR(64)  NOT NULL,
+  customer_id VARCHAR(64)  NOT NULL,
+  title       VARCHAR(255) NOT NULL,
+  filename    VARCHAR(255) NULL,
+  mime        VARCHAR(100) NULL,
+  size        INT          NULL,
+  path        VARCHAR(500) NULL,
+  created_by  VARCHAR(64)  NULL,
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_con_customer (customer_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- contract_comments
+-- ----------------------------------------------------------------------------
+CREATE TABLE contract_comments (
+  id             BIGINT       NOT NULL AUTO_INCREMENT,
+  contract_id    VARCHAR(64)  NOT NULL,
+  user_id        VARCHAR(64)  NULL,
+  body           TEXT         NULL,
+  voice_path     VARCHAR(500) NULL,
+  voice_filename VARCHAR(255) NULL,
+  created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_cc_contract (contract_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
