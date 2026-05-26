@@ -389,6 +389,13 @@ addCol($pdo, 'vacations', 'approved_at',
     "ALTER TABLE vacations ADD COLUMN approved_at DATETIME NULL",
     $results);
 
+// ── 21. projects: Table-Definition-Cache neu laden (behebt ENUM-Metadata-Bug nach MODIFY COLUMN) ─
+// Nach VARCHAR→ENUM-Konvertierung liefert MySQL für manche Werte '' aus dem Query-Result-Cache.
+// OPTIMIZE TABLE erzwingt einen Table-Rebuild und leert den Table-Definition-Cache.
+step($pdo, "projects: OPTIMIZE TABLE (ENUM-Metadata-Cache leeren)",
+    "OPTIMIZE TABLE projects",
+    $results);
+
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>
