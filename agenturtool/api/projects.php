@@ -184,13 +184,19 @@ switch ($method) {
                 $row = null;
             }
         }
-        // Debug: direkter SELECT um den tatsächlichen DB-Wert zu prüfen
+        // Debug: prepared vs. non-prepared SELECT um PDO-Protokoll-Bug vs. Trigger zu unterscheiden
         try {
+            // prepared statement (binary protocol)
             $dbgStmt = db()->prepare("SELECT status, HEX(status) AS statusHex FROM projects WHERE id = ?");
             $dbgStmt->execute([$id]);
             $dbgRow = $dbgStmt->fetch();
-            error_log('[projects PUT] direct-status: val=' . var_export($dbgRow['status'] ?? null, true)
+            error_log('[projects PUT] direct-status(prepared): val=' . var_export($dbgRow['status'] ?? null, true)
                 . ' hex=' . ($dbgRow['statusHex'] ?? '?') . ' id=' . $id);
+            // non-prepared query (text protocol) – zum Vergleich
+            $quotedId = db()->quote($id);
+            $dbgRow2  = db()->query("SELECT status, HEX(status) AS statusHex FROM projects WHERE id = $quotedId")->fetch();
+            error_log('[projects PUT] direct-status(query):    val=' . var_export($dbgRow2['status'] ?? null, true)
+                . ' hex=' . ($dbgRow2['statusHex'] ?? '?') . ' id=' . $id);
         } catch (\Throwable $e) {
             error_log('[projects PUT] direct-status check failed: ' . $e->getMessage());
         }
