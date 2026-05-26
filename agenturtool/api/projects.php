@@ -184,6 +184,20 @@ switch ($method) {
                 $row = null;
             }
         }
+        // Debug: direkter SELECT um den tatsächlichen DB-Wert zu prüfen
+        try {
+            $dbgStmt = db()->prepare("SELECT status, HEX(status) AS statusHex FROM projects WHERE id = ?");
+            $dbgStmt->execute([$id]);
+            $dbgRow = $dbgStmt->fetch();
+            error_log('[projects PUT] direct-status: val=' . var_export($dbgRow['status'] ?? null, true)
+                . ' hex=' . ($dbgRow['statusHex'] ?? '?') . ' id=' . $id);
+        } catch (\Throwable $e) {
+            error_log('[projects PUT] direct-status check failed: ' . $e->getMessage());
+        }
+        // Defensiv: leerer status im SELECT-Ergebnis → gespeicherten Wert aus params nehmen
+        if (($row['status'] ?? '') === '' && isset($params['status'])) {
+            $row['status'] = $params['status'];
+        }
         error_log('[projects PUT] response status=' . ($row['status'] ?? 'MISSING') . ' id=' . $id);
         try { $row['files'] = list_files($id); } catch (\Throwable $e) { $row['files'] = []; }
         json_ok($row);
