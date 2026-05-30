@@ -38,8 +38,8 @@
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
                         </span>
                     </a>
-                    <a class="btn btn-ghost" href="#case-studies">
-                        Unsere Projekte
+                    <a class="btn btn-ghost" href="#leistungen">
+                        Unsere Leistungen
                     </a>
                 </div>
             </div>
@@ -248,17 +248,6 @@
                 </span>
             </a>
 
-            <a class="service-card" href="#content">
-                <div class="service-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M7 6l2-3"/><path d="M13 6l-2-3"/><path d="M17 6l2-3"/></svg>
-                </div>
-                <h3>Content Creation</h3>
-                <p>Reels, Videos &amp; Fotos, die auffallen, begeistern und zum Handeln bewegen.</p>
-                <span class="service-arrow" aria-hidden="true">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
-                </span>
-            </a>
-
             <a class="service-card" href="#smm">
                 <div class="service-icon">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
@@ -290,15 +279,6 @@
                     <li>Mehr Klarheit in der Kommunikation</li>
                     <li>Höhere Trefferquote bei Kampagnen</li>
                     <li>Bessere Conversion über alle Kanäle</li>
-                </ul>
-            </article>
-            <article class="detail-card" id="content">
-                <h3>Content Creation</h3>
-                <p>Produktion mit Fokus auf Wirkung: starke Hooks, klare Story und visuelle Wiedererkennbarkeit.</p>
-                <ul>
-                    <li>Mehr Reichweite durch starke Reels</li>
-                    <li>Höhere Watchtime &amp; Interaktion</li>
-                    <li>Professioneller Brand-Auftritt</li>
                 </ul>
             </article>
             <article class="detail-card" id="smm">
@@ -372,7 +352,10 @@
         </div>
     </section>
 
-    <!-- ===== ERGEBNISSE / CASE STUDIES ===== -->
+    <!-- ===== ERGEBNISSE / CASE STUDIES =====
+         Temporär ausgeblendet (aus dem Rendering-Baum entfernt).
+         Zum Reaktivieren das umschließende PHP-if(false) entfernen. -->
+    <?php if (false): ?>
     <section class="section container" id="case-studies">
         <span id="projekte" aria-hidden="true" style="position:absolute"></span>
         <div class="testimonial" data-reveal>
@@ -398,24 +381,60 @@
             </div>
         </div>
     </section>
+    <?php endif; ?>
 
     <!-- ===== ÜBER UNS ===== -->
     <section class="section container" id="ueber-uns">
-        <div class="about-grid" data-reveal-stagger>
-            <article class="about-card">
-                <h3>Wer wir sind</h3>
+        <div class="section-head" data-reveal>
+            <div class="lead">
+                <span class="eyebrow">Über uns</span>
+                <h2 data-reveal-lines>
+                    <span class="reveal-line"><span style="--reveal-index:0">Hinter den Projekten</span></span>
+                    <span class="reveal-line"><span style="--reveal-index:1"><span class="accent-text">stehen Menschen</span>.</span></span>
+                </h2>
+            </div>
+            <div class="about-intro" data-reveal-soft style="--reveal-delay:200ms">
                 <p>
-                    Ein kleines Kernteam aus Strateg:innen, Creator:innen und Marketern,
-                    das Social Media als Werkzeug versteht – nicht als Bühne.
+                    Ein starker Social-Media-Auftritt und erfolgreiche digitale Projekte entstehen nicht
+                    durch Zufall. Sie sind das Ergebnis von strategischer Planung, kreativen Ideen und einer
+                    absolut zuverlässigen Umsetzung. Wir von Dodidis Media &amp; Event verstehen uns nicht als
+                    externe Agentur, die einfach nur Aufgaben abarbeitet. Wir sehen uns als fester Partner an
+                    eurer Seite. Unser Ziel ist es, eure Botschaft authentisch, modern und zielgerichtet digital
+                    sichtbar zu machen – damit ihr genau die Zielgruppe erreicht, die zu eurem Unternehmen passt.
+                </p>
+                <p>
+                    Hinter den Projekten stehen Menschen, die digitale Medien von Grund auf verstehen und mit
+                    Leidenschaft füllen. Wir bringen unsere jeweilige Expertise ein, um euer Projekt ganzheitlich
+                    und persönlich zu betreuen.
+                </p>
+            </div>
+        </div>
+
+        <div class="team-bubbles" data-reveal-stagger>
+            <article class="team-bubble">
+                <div class="team-avatar">
+                    <img src="assets/team/timo-block.jpg" alt="Timo Block" width="220" height="220" loading="lazy" decoding="async"
+                         onerror="this.style.display='none';this.parentNode.classList.add('is-fallback');">
+                    <span class="team-avatar-fallback" aria-hidden="true">TB</span>
+                </div>
+                <h3 class="team-name">Timo Block</h3>
+                <p class="team-role">
+                    Verantwortlich für die strategische Ausrichtung und euer persönlicher
+                    Ansprechpartner für nachhaltiges Wachstum.
                 </p>
             </article>
-            <article class="about-card">
-                <h3>Arbeitsweise</h3>
-                <ul>
-                    <li>Strategie: Ziele, Zielgruppe, Messaging</li>
-                    <li>Umsetzung: Content, Ads, Distribution</li>
-                    <li>Optimierung: Testing, Tracking, Skalierung</li>
-                </ul>
+
+            <article class="team-bubble">
+                <div class="team-avatar">
+                    <img src="assets/team/raphael-dodidis.jpg" alt="Raphael Dodidis" width="220" height="220" loading="lazy" decoding="async"
+                         onerror="this.style.display='none';this.parentNode.classList.add('is-fallback');">
+                    <span class="team-avatar-fallback" aria-hidden="true">RD</span>
+                </div>
+                <h3 class="team-name">Raphael Dodidis</h3>
+                <p class="team-role">
+                    Verwandelt Ideen in visuell überzeugenden Content. Sorgt dafür, dass eure
+                    Marke modern und professionell wahrgenommen wird.
+                </p>
             </article>
         </div>
     </section>
@@ -435,15 +454,15 @@
                 <ul class="contact-meta-list">
                     <li>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                        <a href="mailto:hallo@dodidis-media.de">hallo@dodidis-media.de</a>
+                        <a href="mailto:kontakt@dodidis-media.de">kontakt@dodidis-media.de</a>
                     </li>
                     <li>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                        <a href="tel:+4917660172907">+49 176 60172907</a>
+                        <a href="tel:+4915229242977">+49 152 29242977</a>
                     </li>
                     <li>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                        <span>Nordhessen, Deutschland</span>
+                        <span>Im Herzen von Nordhessen</span>
                     </li>
                 </ul>
             </div>
