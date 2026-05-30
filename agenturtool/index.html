@@ -3603,15 +3603,18 @@ function getAssignableUsersFor(viewer) {
   // Admin, Manager und Videograf sehen alle Nutzer – auch wenn jemand zusätzlich
   // die Cutter-Rolle trägt, soll die privilegierte Rolle Vorrang haben.
   if (hasRole(viewer, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF)) return store.users;
-  // Reine Cutter/Mitarbeiter dürfen Tasks nur an sich selbst oder höhere Rollen vergeben.
+  // Reine Cutter/Mitarbeiter sehen nur Nutzer mit höherem Rollen-Level (keine anderen Cutter).
   const myLevel = getRoleLevel(viewer);
-  return store.users.filter(u => getRoleLevel(u) >= myLevel);
+  return store.users.filter(u => getRoleLevel(u) > myLevel);
 }
 
 // Darf "viewer" den Urlaub von "target" sehen?
-// Regel: Jeder Mitarbeiter sieht alle Urlaube (volle Transparenz).
+// Cutter sehen nur ihren eigenen Urlaub; alle anderen Rollen sehen alle Urlaube.
 function canViewVacationOf(viewer, target) {
-  return !!(viewer && target);
+  if (!viewer || !target) return false;
+  if (viewer.id === target.id) return true;
+  const isCutterOnly = hasRole(viewer, ROLES.CUTTER) && !hasRole(viewer, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF);
+  return !isCutterOnly;
 }
 
 // Darf "viewer" den Urlaub bearbeiten/löschen?
@@ -4300,7 +4303,7 @@ function getNavItemsForUser(session) {
   const openTodos = store.todos.filter(t => (t.assigneeIds || []).includes(user.id) && t.status === 'open').length;
   items.push({ id: 'todos', label: 'Aufgaben', icon: 'check', badge: openTodos > 0 ? openTodos : null });
   items.push({ id: 'vacation', label: 'Urlaub', icon: 'sun' });
-  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF, ROLES.CUTTER)) {
+  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF)) {
     items.push({ id: 'archive', label: 'Archiv', icon: 'archive' });
   }
   if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER)) {
@@ -7996,11 +7999,21 @@ async function deleteCustomer(customerId) {
 
 /* ----------- ARCHIVE ----------- */
 function renderArchive(session) {
+  const user = session.user;
+  const isAdmin = hasRole(user, ROLES.ADMIN);
+  const isManager = hasRole(user, ROLES.MANAGER) && !isAdmin;
   $('#page-title').textContent = 'Fertige Projekte';
   $('#page-subtitle').textContent = 'Archivierte und freigegebene Videos';
   $('#topbar-actions').innerHTML = '';
 
-  const archived = store.projects.filter(p => p.status === STATUS.ARCHIVIERT || p.status === STATUS.FREIGEGEBEN);
+  const allArchived = store.projects.filter(p => p.status === STATUS.ARCHIVIERT || p.status === STATUS.FREIGEGEBEN);
+  // Manager sehen nur Projekte ihrer eigenen Kunden
+  const myCustomerIds = isManager
+    ? new Set(store.customers.filter(c => c.managerId === user.id).map(c => c.id))
+    : null;
+  const archived = isManager
+    ? allArchived.filter(p => p.isInternal || myCustomerIds.has(p.customerId))
+    : allArchived;
 
   if (archived.length === 0) {
     $('#content').innerHTML = `<div class="card"><div class="empty-state"><div class="empty-state-icon">📦</div>Noch keine fertigen Projekte.</div></div>`;
