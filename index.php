@@ -444,6 +444,9 @@
 
     <!-- ===== ÜBER UNS ===== -->
     <section class="section container" id="ueber-uns">
+        <!-- Stabiles Sprungziel für /projekte-Weiterleitungen (projekte.php / .html),
+             solange die Ergebnisse/Case-Studies-Sektion ausgeblendet ist. -->
+        <span id="projekte" aria-hidden="true" style="position:absolute"></span>
         <div class="section-head" data-reveal>
             <div class="lead">
                 <h2 data-reveal-lines>
