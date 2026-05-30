@@ -26,7 +26,7 @@ $navBase = ($activePage === 'home') ? '' : 'index.php';
                 <a href="/agenturtool/login.php">Kundenportal</a>
             </li>
             <li class="nav-mobile-cta">
-                <a href="<?= $navBase ?>#kontakt">Erstgespräch buchen</a>
+                <a href="<?= $navBase ?>#kontakt">Kostenloses Erstgespräch buchen</a>
             </li>
         </ul>
 
@@ -38,7 +38,7 @@ $navBase = ($activePage === 'home') ? '' : 'index.php';
         </a>
 
         <a class="btn btn-primary nav-cta" href="<?= $navBase ?>#kontakt">
-            Erstgespräch buchen
+            Kostenloses Erstgespräch buchen
             <span class="arrow" aria-hidden="true">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
             </span>
