@@ -475,7 +475,7 @@
             <article class="team-bubble">
                 <div class="team-avatar">
                     <img alt="Timo Block" width="220" height="220" loading="lazy" decoding="async"
-                         data-team-img data-candidates="assets/team/timo-block.JPEG,assets/team/timo-block.jpeg,assets/team/timo-block.jpg">
+                         data-team-img data-candidates="assets/team/timo-block.JPG,assets/team/timo-block.jpg,assets/team/timo-block.JPEG,assets/team/timo-block.jpeg">
                     <span class="team-avatar-fallback" aria-hidden="true">TB</span>
                 </div>
                 <h3 class="team-name">Timo Block</h3>
@@ -488,7 +488,8 @@
             <article class="team-bubble">
                 <div class="team-avatar">
                     <img alt="Raphael Dodidis" width="220" height="220" loading="lazy" decoding="async"
-                         data-team-img data-candidates="assets/team/raphael-dodidis.jpeg,assets/team/raphael-dodidis.jpg,assets/team/raphael-dodidis.JPEG">
+                         style="object-position: center 20%;"
+                         data-team-img data-candidates="assets/team/raphael-dodidis.jpg,assets/team/raphael-dodidis.JPG,assets/team/raphael-dodidis.jpeg,assets/team/raphael-dodidis.JPEG">
                     <span class="team-avatar-fallback" aria-hidden="true">RD</span>
                 </div>
                 <h3 class="team-name">Raphael Dodidis</h3>
