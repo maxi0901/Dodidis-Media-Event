@@ -240,6 +240,36 @@
     })();
 
     /* ============================================================
+       Team avatars — try each candidate file (handles .JPEG/.jpeg/.jpg
+       case differences) and fall back to the initials if none load.
+       ============================================================ */
+    (function () {
+        var imgs = document.querySelectorAll('[data-team-img]');
+        if (!imgs.length) return;
+        imgs.forEach(function (img) {
+            var candidates = (img.getAttribute('data-candidates') || '')
+                .split(',')
+                .map(function (s) { return s.trim(); })
+                .filter(Boolean);
+            var i = 0;
+            function tryNext() {
+                if (i >= candidates.length) {
+                    img.style.display = 'none';
+                    if (img.parentNode) img.parentNode.classList.add('is-fallback');
+                    return;
+                }
+                img.src = candidates[i++];
+            }
+            img.addEventListener('error', tryNext);
+            img.addEventListener('load', function () {
+                img.style.display = '';
+                if (img.parentNode) img.parentNode.classList.remove('is-fallback');
+            });
+            tryNext();
+        });
+    })();
+
+    /* ============================================================
        Thought bubbles — painpoint scenarios. Each bubble toggles
        its own text open; clicking one closes the others in the group.
        ============================================================ */
