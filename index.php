@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="assets/style.css?v=<?= @filemtime(__DIR__ . '/assets/style.css') ?>">
 </head>
 <body>
 
@@ -474,8 +474,8 @@
         <div class="team-bubbles" data-reveal-stagger>
             <article class="team-bubble">
                 <div class="team-avatar">
-                    <img alt="Timo Block" width="220" height="220" loading="lazy" decoding="async"
-                         data-team-img data-candidates="assets/team/timo-block.JPG,assets/team/timo-block.jpg,assets/team/timo-block.JPEG,assets/team/timo-block.jpeg">
+                    <img src="assets/team/timo-block.JPG" alt="Timo Block" width="220" height="220" loading="lazy" decoding="async"
+                         onerror="this.style.display='none';this.parentNode.classList.add('is-fallback');">
                     <span class="team-avatar-fallback" aria-hidden="true">TB</span>
                 </div>
                 <h3 class="team-name">Timo Block</h3>
@@ -487,9 +487,9 @@
 
             <article class="team-bubble">
                 <div class="team-avatar">
-                    <img alt="Raphael Dodidis" width="220" height="220" loading="lazy" decoding="async"
+                    <img src="assets/team/raphael-dodidis.jpg" alt="Raphael Dodidis" width="220" height="220" loading="lazy" decoding="async"
                          style="object-position: center 20%;"
-                         data-team-img data-candidates="assets/team/raphael-dodidis.jpg,assets/team/raphael-dodidis.JPG,assets/team/raphael-dodidis.jpeg,assets/team/raphael-dodidis.JPEG">
+                         onerror="this.style.display='none';this.parentNode.classList.add('is-fallback');">
                     <span class="team-avatar-fallback" aria-hidden="true">RD</span>
                 </div>
                 <h3 class="team-name">Raphael Dodidis</h3>
@@ -575,6 +575,6 @@
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
 
-<script src="assets/site.js"></script>
+<script src="assets/site.js?v=<?= @filemtime(__DIR__ . '/assets/site.js') ?>"></script>
 </body>
 </html>
