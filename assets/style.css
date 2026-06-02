@@ -51,22 +51,21 @@ body {
 }
 
 /* Fester Verlaufs-Layer (position:fixed statt `background-attachment: fixed`,
-   das iOS-Safari fehlerhaft rendert). Reiner, weicher Farbverlauf – kein
-   Rausch-Overlay (das erzeugte sichtbare Kästchen/Streifen). */
+   das iOS-Safari fehlerhaft rendert). Bewusst sehr dezenter, MONOCHROMER
+   Dunkel-Verlauf: winziger Tonwertbereich -> keine sichtbaren 8-Bit-Stufen
+   (Banding/Streifen). Reiner Farbverlauf, sonst nichts. */
 body::before {
     content: "";
     position: fixed;
     inset: 0;
     z-index: -2;
     pointer-events: none;
-    background-color: var(--bg-primary);
-    background-image:
-        radial-gradient(1300px 900px at 80% -10%, rgba(108, 211, 193, 0.14), transparent 78%),
-        radial-gradient(1100px 900px at 12% 108%, rgba(53, 143, 129, 0.12), transparent 78%);
+    background: linear-gradient(160deg, #101b2b 0%, #0E1422 52%, #0b1019 100%);
 }
 
-/* ===== Ambient glass orbs ===== */
+/* ===== Ambient glass orbs (deaktiviert – nur sauberer Verlauf gewünscht) ===== */
 .ambient {
+    display: none;
     position: fixed;
     inset: 0;
     z-index: -1;
@@ -972,7 +971,7 @@ main { padding-top: 2rem; }
     position: relative;
     margin-top: 2rem;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     padding: 1.6rem 0.75rem;
     background:
         linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0.06) 100%),
