@@ -1513,12 +1513,15 @@ main { padding-top: 2rem; }
     display: flex;
     flex-direction: column;
     gap: 0.95rem;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .contact-form-card label {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
+    min-width: 0;
     color: var(--text-secondary);
     font-weight: 600;
     font-size: 0.85rem;
@@ -1527,6 +1530,9 @@ main { padding-top: 2rem; }
 
 .contact-form-card input,
 .contact-form-card textarea {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     background: rgba(11, 15, 20, 0.55);
     border: 1px solid var(--glass-border);
     border-radius: 12px;
@@ -3162,4 +3168,39 @@ body.is-cta-active .btn-primary:hover {
 
 @media (max-width: 540px) {
     .thought-bubble { font-size: 0.85rem; padding: 0.55rem 0.9rem; }
+}
+
+/* =====================================================================
+   ===== MOBILE: Blöcke/Inhalte mittig zentrieren =====================
+   ===================================================================== */
+@media (max-width: 640px) {
+    /* Sektions-Köpfe & Intros */
+    .section-head,
+    .lead,
+    .about-intro,
+    .hebel-text { text-align: center; }
+    .lead,
+    .about-intro,
+    .section-head > p,
+    .section-head [data-reveal-soft] { margin-left: auto; margin-right: auto; }
+
+    /* Painpoint-Karten (Szenarien) */
+    .painpoint-card { text-align: center; }
+    .painpoint-eyebrow { justify-content: center; }
+    .thought-bubbles { justify-content: center; }
+    .thought-hint { text-align: center; }
+
+    /* Kontakt-Karte: Inhalt + Listen mittig */
+    .contact-card { text-align: center; }
+    .contact-card > ul { align-items: center; }
+    .contact-card > ul li { padding-left: 0; }
+    .contact-card > ul li::before { display: none; }
+    .contact-meta-list li { justify-content: center; min-width: 0; }
+    .contact-meta-list a { overflow-wrap: anywhere; }
+
+    /* Stats: jede Kachel mittig */
+    .stat { justify-content: center; }
+
+    /* Leistungs-Akkordeon: Titel/Text mittig (Icon links, Pfeil rechts) */
+    .service-acc-titles { text-align: center; }
 }
