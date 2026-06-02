@@ -80,19 +80,6 @@
 
     <!-- ===== PAINPOINT ===== -->
     <section class="section container" id="painpoint">
-        <div class="section-head" data-reveal>
-            <div class="lead">
-                <h2 class="painpoint-headline" data-reveal-lines>
-                    <span class="reveal-line"><span style="--reveal-index:0">Das Problem ist nicht dein Produkt.</span></span>
-                    <span class="reveal-line accent-text"><span style="--reveal-index:1">Das Problem ist, dass dich niemand wahrnimmt.</span></span>
-                </h2>
-            </div>
-            <p data-reveal-soft style="--reveal-delay:200ms">
-                Ob du gerade erst startest oder schon postest, ohne klare Sichtbarkeit
-                bleibt selbst die beste Leistung im digitalen Hintergrundrauschen.
-            </p>
-        </div>
-
         <div class="painpoint-grid">
             <article class="painpoint-card is-left" data-reveal>
                 <span class="painpoint-eyebrow">Szenario 1</span>
