@@ -66,10 +66,10 @@
             -->
             <div class="logos-marquee" data-logos-marquee>
                 <div class="logos-track">
-                    <span class="logo-item"><img src="assets/logos/logo-1.png" alt="Zinzino"></span>
-                    <span class="logo-item"><img src="assets/logos/logo-2.png" alt="Asklepios Kliniken"></span>
-                    <span class="logo-item"><img src="assets/logos/logo-3.png" alt="BLU Guxhagen"></span>
-                    <span class="logo-item"><img src="assets/logos/logo-4.png" alt="SOLA Festival"></span>
+                    <span class="logo-item"><img src="assets/logos/logo-1.png" alt="Zinzino" onerror="this.closest('.logo-item').remove()"></span>
+                    <span class="logo-item"><img src="assets/logos/logo-2.png" alt="Asklepios Kliniken" onerror="this.closest('.logo-item').remove()"></span>
+                    <span class="logo-item"><img src="assets/logos/logo-3.png" alt="BLU Guxhagen" onerror="this.closest('.logo-item').remove()"></span>
+                    <span class="logo-item"><img src="assets/logos/logo-4.png" alt="SOLA Festival" onerror="this.closest('.logo-item').remove()"></span>
                 </div>
             </div>
         </div>
