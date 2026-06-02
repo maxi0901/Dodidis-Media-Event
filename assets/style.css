@@ -50,9 +50,9 @@ body {
     position: relative;
 }
 
-/* Fester Verlaufs-Layer statt `background-attachment: fixed` am body –
-   letzteres rendert iOS-Safari fehlerhaft und erzeugt sichtbare Nahtlinien.
-   Ein position:fixed-Layer liefert dieselbe Optik ohne diese Striche. */
+/* Fester Verlaufs-Layer (position:fixed statt `background-attachment: fixed`,
+   das iOS-Safari fehlerhaft rendert). Reiner, weicher Farbverlauf – kein
+   Rausch-Overlay (das erzeugte sichtbare Kästchen/Streifen). */
 body::before {
     content: "";
     position: fixed;
@@ -61,25 +61,8 @@ body::before {
     pointer-events: none;
     background-color: var(--bg-primary);
     background-image:
-        radial-gradient(1200px 800px at 85% -5%, rgba(108, 211, 193, 0.16), transparent 72%),
-        radial-gradient(900px 700px at -10% 30%, rgba(70, 169, 154, 0.11), transparent 72%),
-        radial-gradient(1000px 800px at 50% 105%, rgba(53, 143, 129, 0.11), transparent 72%),
-        radial-gradient(700px 500px at 18% 75%, rgba(108, 211, 193, 0.05), transparent 72%);
-}
-
-/* Anti-Banding: unsichtbar feines Rauschen über den Verlauf legen, damit auf
-   dunklen Flächen keine treppenartigen Streifen mehr sichtbar sind. Der
-   Hintergrund wirkt dadurch wie ein sauberer, durchgehender Verlauf. */
-body::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    opacity: 0.06;
-    mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-size: 240px 240px;
+        radial-gradient(1300px 900px at 80% -10%, rgba(108, 211, 193, 0.14), transparent 78%),
+        radial-gradient(1100px 900px at 12% 108%, rgba(53, 143, 129, 0.12), transparent 78%);
 }
 
 /* ===== Ambient glass orbs ===== */

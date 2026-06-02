@@ -461,7 +461,7 @@
         <div class="team-bubbles" data-reveal-stagger>
             <article class="team-bubble">
                 <div class="team-avatar">
-                    <img src="assets/team/timo-block.JPG" alt="Timo Block" width="220" height="220" loading="lazy" decoding="async"
+                    <img src="assets/team/timo-block-sq.jpg" alt="Timo Block" width="220" height="220" loading="lazy" decoding="async"
                          onerror="this.style.display='none';this.parentNode.classList.add('is-fallback');">
                     <span class="team-avatar-fallback" aria-hidden="true">TB</span>
                 </div>
@@ -474,8 +474,7 @@
 
             <article class="team-bubble">
                 <div class="team-avatar">
-                    <img src="assets/team/raphael-dodidis.jpg" alt="Raphael Dodidis" width="220" height="220" loading="lazy" decoding="async"
-                         style="object-position: center 35%;"
+                    <img src="assets/team/raphael-dodidis-sq.jpg" alt="Raphael Dodidis" width="220" height="220" loading="lazy" decoding="async"
                          onerror="this.style.display='none';this.parentNode.classList.add('is-fallback');">
                     <span class="team-avatar-fallback" aria-hidden="true">RD</span>
                 </div>
