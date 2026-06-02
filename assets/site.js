@@ -295,7 +295,8 @@
     })();
 
     /* ============================================================
-       Logo marquee — clone track once for seamless infinite loop
+       Logo marquee — fill the row first (so few logos don't leave big
+       gaps), then duplicate the whole set once for a seamless -50% loop.
        ============================================================ */
     (function () {
         var marquees = document.querySelectorAll('[data-logos-marquee]');
@@ -303,8 +304,22 @@
         marquees.forEach(function (mq) {
             var track = mq.querySelector('.logos-track');
             if (!track || track.dataset.cloned === 'true') return;
-            var items = Array.prototype.slice.call(track.children);
-            items.forEach(function (item) {
+            var baseItems = Array.prototype.slice.call(track.children);
+            if (!baseItems.length) return;
+
+            // 1) Originalset so oft wiederholen, bis die Reihe mind. die
+            //    Marquee-Breite füllt (wichtig bei wenigen Logos).
+            var guard = 0;
+            while (track.scrollWidth < mq.offsetWidth && guard < 50) {
+                baseItems.forEach(function (item) {
+                    track.appendChild(item.cloneNode(true));
+                });
+                guard++;
+            }
+
+            // 2) Die gefüllte Reihe einmal komplett duplizieren -> -50%-Loop
+            //    ist nahtlos und die Reihe ist nie leer.
+            Array.prototype.slice.call(track.children).forEach(function (item) {
                 var clone = item.cloneNode(true);
                 clone.setAttribute('aria-hidden', 'true');
                 track.appendChild(clone);
