@@ -58,10 +58,11 @@
             <p class="logos-eyebrow">Vertrauen aus der Praxis</p>
             <!--
                 Logo-Marquee — echte Kundenlogos.
-                Lade die Logo-Dateien als assets/logos/logo-1.png ... logo-8.png hoch
-                (Reihenfolge: 1 Zinzino, 2 Asklepios, 3 BLU Guxhagen, 4 SOLA Festival,
-                 5–8 = weitere Logos). Jedes Bildformat ist ok, einfach so benennen.
-                JS klont das Set automatisch für den nahtlosen Loop.
+                Lade die Logo-Dateien als assets/logos/logo-1.png ... logo-4.png hoch
+                (1 Zinzino, 2 Asklepios, 3 BLU Guxhagen, 4 SOLA Festival).
+                Jedes Bildformat ist ok, einfach so benennen. Das JS füllt die
+                Breite automatisch auf und klont für den nahtlosen Endlos-Loop.
+                Weitere Logos später einfach als zusätzliche .logo-item ergänzen.
             -->
             <div class="logos-marquee" data-logos-marquee>
                 <div class="logos-track">
@@ -69,10 +70,6 @@
                     <span class="logo-item"><img src="assets/logos/logo-2.png" alt="Asklepios Kliniken"></span>
                     <span class="logo-item"><img src="assets/logos/logo-3.png" alt="BLU Guxhagen"></span>
                     <span class="logo-item"><img src="assets/logos/logo-4.png" alt="SOLA Festival"></span>
-                    <span class="logo-item"><img src="assets/logos/logo-5.png" alt="Kundenlogo"></span>
-                    <span class="logo-item"><img src="assets/logos/logo-6.png" alt="Kundenlogo"></span>
-                    <span class="logo-item"><img src="assets/logos/logo-7.png" alt="Kundenlogo"></span>
-                    <span class="logo-item"><img src="assets/logos/logo-8.png" alt="Kundenlogo"></span>
                 </div>
             </div>
         </div>
