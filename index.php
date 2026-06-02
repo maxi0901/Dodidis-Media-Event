@@ -57,22 +57,22 @@
         <div class="container">
             <p class="logos-eyebrow">Vertrauen aus der Praxis</p>
             <!--
-                Logo-Marquee — Slot für echte Kundenlogos.
-                Tausche assets/logos/kunde-XX.svg gegen die echten Logo-Dateien aus.
-                Eine Zeile pro Logo, JS klont das Set automatisch für nahtlosen Loop.
+                Logo-Marquee — echte Kundenlogos.
+                Lade die Logo-Dateien als assets/logos/logo-1.png ... logo-8.png hoch
+                (Reihenfolge: 1 Zinzino, 2 Asklepios, 3 BLU Guxhagen, 4 SOLA Festival,
+                 5–8 = weitere Logos). Jedes Bildformat ist ok, einfach so benennen.
+                JS klont das Set automatisch für den nahtlosen Loop.
             -->
             <div class="logos-marquee" data-logos-marquee>
                 <div class="logos-track">
-                    <span class="logo-item"><img src="assets/logos/kunde-01.svg" alt="Northgate"></span>
-                    <span class="logo-item"><img src="assets/logos/kunde-02.svg" alt="Atlas &amp; Co."></span>
-                    <span class="logo-item"><img src="assets/logos/kunde-03.svg" alt="Verify Labs"></span>
-                    <span class="logo-item"><img src="assets/logos/kunde-04.svg" alt="Hofgut Nord"></span>
-                    <span class="logo-item"><img src="assets/logos/kunde-05.svg" alt="Delta Studio"></span>
-                    <span class="logo-item"><img src="assets/logos/kunde-06.svg" alt="Meridian"></span>
-                    <span class="logo-item"><img src="assets/logos/kunde-07.svg" alt="Becker Fit"></span>
-                    <span class="logo-item"><img src="assets/logos/kunde-08.svg" alt="Vogel &amp; Co."></span>
-                    <span class="logo-item"><img src="assets/logos/kunde-09.svg" alt="Aurora Health"></span>
-                    <span class="logo-item"><img src="assets/logos/kunde-10.svg" alt="Solaris Brand"></span>
+                    <span class="logo-item"><img src="assets/logos/logo-1.png" alt="Zinzino"></span>
+                    <span class="logo-item"><img src="assets/logos/logo-2.png" alt="Asklepios Kliniken"></span>
+                    <span class="logo-item"><img src="assets/logos/logo-3.png" alt="BLU Guxhagen"></span>
+                    <span class="logo-item"><img src="assets/logos/logo-4.png" alt="SOLA Festival"></span>
+                    <span class="logo-item"><img src="assets/logos/logo-5.png" alt="Kundenlogo"></span>
+                    <span class="logo-item"><img src="assets/logos/logo-6.png" alt="Kundenlogo"></span>
+                    <span class="logo-item"><img src="assets/logos/logo-7.png" alt="Kundenlogo"></span>
+                    <span class="logo-item"><img src="assets/logos/logo-8.png" alt="Kundenlogo"></span>
                 </div>
             </div>
         </div>
