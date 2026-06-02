@@ -53,7 +53,7 @@ body {
 /* Fester Verlaufs-Layer (position:fixed statt `background-attachment: fixed`,
    das iOS-Safari fehlerhaft rendert). Bewusst sehr dezenter, MONOCHROMER
    Dunkel-Verlauf: winziger Tonwertbereich -> keine sichtbaren 8-Bit-Stufen
-   (Banding/Streifen). Reiner Farbverlauf, sonst nichts. */
+   (Banding/Streifen). */
 body::before {
     content: "";
     position: fixed;
@@ -61,6 +61,24 @@ body::before {
     z-index: -2;
     pointer-events: none;
     background: linear-gradient(160deg, #101b2b 0%, #0E1422 52%, #0b1019 100%);
+}
+
+/* Subtiles Hintergrund-Raster: feine horizontale und vertikale Linien wie im
+   Referenz-Screenshot. Separater Fixed-Layer, damit der Verlauf sauber bleibt
+   und die Linien auf allen Sections gleichmäßig im Hintergrund liegen. */
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        linear-gradient(rgba(245, 248, 255, 0.026) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(245, 248, 255, 0.022) 1px, transparent 1px);
+    background-size: 120px 120px;
+    background-position: top center;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.72), rgba(0,0,0,0.48) 55%, rgba(0,0,0,0.28));
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.72), rgba(0,0,0,0.48) 55%, rgba(0,0,0,0.28));
 }
 
 /* ===== Ambient glass orbs (deaktiviert – nur sauberer Verlauf gewünscht) ===== */
