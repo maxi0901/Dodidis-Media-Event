@@ -488,7 +488,7 @@
             <article class="team-bubble">
                 <div class="team-avatar">
                     <img src="assets/team/raphael-dodidis.jpg" alt="Raphael Dodidis" width="220" height="220" loading="lazy" decoding="async"
-                         style="object-position: center 20%;"
+                         style="object-position: center 35%;"
                          onerror="this.style.display='none';this.parentNode.classList.add('is-fallback');">
                     <span class="team-avatar-fallback" aria-hidden="true">RD</span>
                 </div>
