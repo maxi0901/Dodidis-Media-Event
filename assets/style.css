@@ -2354,16 +2354,15 @@ main { padding-top: 2rem; }
 
 .scroll-text-line {
     display: block;
-    font-weight: 900;
+    /* Eigene Display-Schrift fürs Banner (Anton) – klar abweichend von Inter */
+    font-family: "Anton", "Inter", sans-serif;
+    font-weight: 400;
     font-size: clamp(2.6rem, 11vw, 8rem);
-    line-height: 0.95;
-    letter-spacing: -0.02em;
+    line-height: 0.98;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
     white-space: nowrap;
     will-change: transform;
-    /* Promote to its own compositing layer & disable backface so the
-       transform is a cheap GPU translate that doesn't re-rasterise the
-       text-stroke every frame (fixes the shifting/distorted outline). */
     transform: translateZ(0);
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
@@ -2376,11 +2375,13 @@ main { padding-top: 2rem; }
     transform: translate3d(var(--banner-x, 0px), 0, 0);
 }
 
+/* "VON UNSICHTBAR": kein -webkit-text-stroke mehr (das hatte den
+   Outline-Bug). Stattdessen klar gefadet = wirkt "unsichtbar". */
 .scroll-text-outline {
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(245,248,255,0.32);
-    text-stroke: 2px rgba(245,248,255,0.32);
-    paint-order: stroke fill;
+    color: rgba(245, 248, 255, 0.16);
+    -webkit-text-fill-color: rgba(245, 248, 255, 0.16);
+    -webkit-text-stroke: 0;
+    text-stroke: 0;
 }
 
 .scroll-text-solid {
@@ -2421,8 +2422,8 @@ main { padding-top: 2rem; }
 
 @media (max-width: 720px) {
     .scroll-text-banner { padding: 3rem 0 3.5rem; }
-    .scroll-text-emoji-1 { top: 6%; left: 4%; }
-    .scroll-text-emoji-2 { bottom: 6%; right: 4%; }
+    /* Auf Mobile überlappen die Emojis den vollbreiten Text (Bug) -> ausblenden */
+    .scroll-text-emoji { display: none; }
 }
 
 /* ===== Reduced motion: disable reveals & decorative animation ===== */

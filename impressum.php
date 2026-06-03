@@ -33,7 +33,7 @@
 
             <h2>Kontakt</h2>
             <p>
-                E-Mail: <a href="mailto:hallo@dodidis-media.de">hallo@dodidis-media.de</a><br>
+                E-Mail: <a href="mailto:kontakt@dodidis-media.de">kontakt@dodidis-media.de</a><br>
                 Telefon: <a href="tel:+4917660172907">+49 176 60172907</a>
             </p>
 

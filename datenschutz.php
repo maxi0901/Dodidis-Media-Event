@@ -27,7 +27,7 @@
             <h2>1. Verantwortlicher</h2>
             <p>
                 Dodidis.Media, Nordhessen, Deutschland.<br>
-                E-Mail: <a href="mailto:hallo@dodidis-media.de">hallo@dodidis-media.de</a>
+                E-Mail: <a href="mailto:kontakt@dodidis-media.de">kontakt@dodidis-media.de</a>
             </p>
 
             <h2>2. Erhebung &amp; Verarbeitung personenbezogener Daten</h2>
