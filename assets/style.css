@@ -904,6 +904,14 @@ main { padding-top: 2rem; }
     color: var(--accent);
 }
 
+/* Akkordeon-Icons: nicht schrumpfen (sonst vertikales Oval) + rund */
+.service-acc-head .service-icon {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+}
+
 .service-card h3 { font-size: 1.05rem; }
 
 .service-card p {
