@@ -9,7 +9,7 @@
     <title>Dodidis.Media – Sichtbarkeit, die in Anfragen mündet.</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/style.css?v=<?= @filemtime(__DIR__ . '/assets/style.css') ?>">
 </head>
 <body>
@@ -333,10 +333,9 @@
             </details>
         </div>
 
-        <!-- Stats
-             TODO: Platzhalter-Kennzahlen – vor Go-live durch echte, belegbare Zahlen
-             ersetzen (erreichte Konten, generierte Follower, gewonnene Leads). -->
-        <div class="stats" aria-label="Unsere Zahlen" data-reveal-stagger>
+        <!-- Stats — temporär ausgeblendet (nur unsichtbar, Markup bleibt erhalten).
+             Zum Wiedereinblenden das style="display:none" entfernen. -->
+        <div class="stats" aria-label="Unsere Zahlen" data-reveal-stagger style="display:none">
             <div class="stat">
                 <span class="stat-icon">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
