@@ -107,8 +107,12 @@
             var rel = (center - vh / 2) / vh;
             var clamped = rel < -1 ? -1 : rel > 1 ? 1 : rel;
             // Negative scroll → image drifts up; positive → drifts down.
-            var translate = -clamped * 28;
+            // Stärkere Drift + Skalierung: beim Reinscrollen "kommen" die Gründer
+            // leicht nach vorne, beim Wegscrollen driften sie hoch und schrumpfen.
+            var translate = -clamped * 46;
+            var scale = 1 + (1 - Math.min(Math.abs(clamped), 1)) * 0.07;
             heroImage.style.setProperty('--hero-parallax-y', translate.toFixed(2) + 'px');
+            heroImage.style.setProperty('--hero-scale', scale.toFixed(3));
         }
 
         function requestUpdate() {
