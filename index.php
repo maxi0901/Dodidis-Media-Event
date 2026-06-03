@@ -43,7 +43,7 @@
                 </div>
             </div>
 
-            <div class="hero-founders-stage hero-reveal" style="--reveal-i:4" data-hero-image>
+            <div class="hero-founders-stage" data-hero-image>
                 <div class="hero-founders-glow" aria-hidden="true" data-hero-bg></div>
                 <img class="hero-founders-cutout" src="assets/hero-founders.png" alt="Gründer von Dodidis.Media" width="286" height="512" loading="eager" decoding="async" data-hero-fg>
                 <div class="hero-founders-floor" aria-hidden="true"></div>
