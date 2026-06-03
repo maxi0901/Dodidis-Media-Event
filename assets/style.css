@@ -2562,30 +2562,31 @@ main { padding-top: 2rem; }
 
 .logo-item {
     flex: 0 0 auto;
-    height: 38px;
+    height: 64px;
     display: inline-flex;
     align-items: center;
-    color: rgba(245,248,255,0.55);
-    transition: color 0.25s ease, transform 0.25s ease;
+    justify-content: center;
+    padding: 0.7rem 1.2rem;
+    /* Helle "Chip"-Fläche: zeigt Logos in Originalfarben und blendet
+       Logos mit weißem Hintergrund sauber ein (funktioniert für alle). */
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .logo-item:hover {
-    color: var(--accent-bright);
-    transform: scale(1.05);
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
 }
 
 .logo-item img {
     height: 100%;
     width: auto;
+    max-width: 170px;
+    object-fit: contain;
     display: block;
-    /* Logos einheitlich weiß rendern, damit auch dunkle Logos (z. B. Zinzino)
-       auf dem dunklen Hintergrund sichtbar sind. */
-    filter: brightness(0) invert(1);
-    opacity: 0.62;
-    transition: opacity 0.25s ease;
 }
-
-.logo-item:hover img { opacity: 1; }
 
 @keyframes logosScroll {
     from { transform: translateX(0); }
@@ -2898,7 +2899,8 @@ main { padding-top: 2rem; }
     .hebel-stage { aspect-ratio: 16 / 9; }
     .hebel-section { padding: 4.5rem 0; }
     .logos-track { gap: 2rem; animation-duration: 70s; }
-    .logo-item { height: 30px; }
+    .logo-item { height: 50px; padding: 0.55rem 0.9rem; }
+    .logo-item img { max-width: 130px; }
     .section { padding: 4rem 0; }
 }
 
