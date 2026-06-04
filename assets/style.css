@@ -639,6 +639,10 @@ main { padding-top: 2rem; }
     50%      { transform: scale(1.04); opacity: 1; }
 }
 
+/* <picture>-Wrapper aus dem Layout nehmen, damit das <img> direkter
+   Flex-Child der Stage bleibt (Zentrierung/Breite wie zuvor). */
+.hero-founders-stage picture { display: contents; }
+
 .hero-founders-cutout {
     position: relative;
     z-index: 2;
