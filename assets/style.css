@@ -616,6 +616,12 @@ main { padding-top: 2rem; }
     will-change: transform, opacity;
 }
 
+/* Desktop: Bild etwas tiefer, damit die Köpfe die CTA-Buttons nicht verdecken
+   (auf Mobile sitzt das Bild ohnehin weiter unten). */
+@media (min-width: 861px) {
+    .hero-founders-stage { margin-top: 4rem; }
+}
+
 @keyframes heroStageIn {
     0%   { opacity: 0; transform: translateY(70px) scale(0.82); }
     55%  { opacity: 1; }
