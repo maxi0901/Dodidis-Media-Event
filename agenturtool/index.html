@@ -3616,7 +3616,12 @@ function getAssignableUsersFor(viewer) {
 // Darf "viewer" den Urlaub von "target" sehen?
 // Regel: Jeder Mitarbeiter sieht alle Urlaube (volle Transparenz).
 function canViewVacationOf(viewer, target) {
-  return !!(viewer && target);
+  if (!viewer || !target) return false;
+  // Cutter (ohne höhere Rolle) sehen ausschließlich ihren eigenen Urlaub
+  const cutterOnly = hasRole(viewer, ROLES.CUTTER) &&
+    !hasRole(viewer, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF);
+  if (cutterOnly) return viewer.id === target.id;
+  return true;
 }
 
 // Darf "viewer" den Urlaub bearbeiten/löschen?
@@ -4305,7 +4310,7 @@ function getNavItemsForUser(session) {
   const openTodos = store.todos.filter(t => (t.assigneeIds || []).includes(user.id) && t.status === 'open').length;
   items.push({ id: 'todos', label: 'Aufgaben', icon: 'check', badge: openTodos > 0 ? openTodos : null });
   items.push({ id: 'vacation', label: 'Urlaub', icon: 'sun' });
-  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF, ROLES.CUTTER)) {
+  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF)) {
     items.push({ id: 'archive', label: 'Archiv', icon: 'archive' });
   }
   if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER)) {
@@ -7997,6 +8002,12 @@ async function deleteCustomer(customerId) {
 
 /* ----------- ARCHIVE ----------- */
 function renderArchive(session) {
+  // Cutter (ohne höhere Rolle) haben keinen Zugriff aufs Archiv
+  const u = session && session.user;
+  if (u && hasRole(u, ROLES.CUTTER) && !hasRole(u, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF)) {
+    navigateTo('dashboard');
+    return;
+  }
   $('#page-title').textContent = 'Fertige Projekte';
   $('#page-subtitle').textContent = 'Archivierte und freigegebene Videos';
   $('#topbar-actions').innerHTML = '';
