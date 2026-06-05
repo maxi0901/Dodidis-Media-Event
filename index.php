@@ -73,6 +73,7 @@
                     <span class="logo-item"><img src="assets/logos/logo-2.png" alt="Asklepios Kliniken"></span>
                     <span class="logo-item"><img src="assets/logos/logo-3.png" alt="BLU Guxhagen"></span>
                     <span class="logo-item"><img src="assets/logos/logo-4.png" alt="SOLA Festival"></span>
+                    <span class="logo-item"><img src="assets/logos/logo-5.png" alt="S-ART"></span>
                 </div>
             </div>
         </div>
