@@ -4763,6 +4763,10 @@ function renderDashboard(session) {
     ? store.customers.filter(c => c.managerId === userId).length
     : store.customers.length;
 
+  // Reine Cutter sehen keine Kunden-/Team-Kennzahlen in der Übersicht
+  const isCutterOnly = hasRole(user, ROLES.CUTTER) &&
+    !hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF);
+
   $('#content').innerHTML = `
     <div class="stat-grid">
       <div class="stat">
@@ -4777,6 +4781,7 @@ function renderDashboard(session) {
         <div class="stat-value">${pendingApproval.length}</div>
         <div class="stat-sub">Status: Fertig</div>
       </div>
+      ${!isCutterOnly ? `
       <div class="stat">
         <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
         <div class="stat-label">Kunden</div>
@@ -4789,6 +4794,7 @@ function renderDashboard(session) {
         <div class="stat-value">${store.users.length}</div>
         <div class="stat-sub">Mitglieder</div>
       </div>
+      ` : ''}
     </div>
 
     <div class="flex" style="justify-content: space-between; align-items: center; margin-bottom: 14px;">
