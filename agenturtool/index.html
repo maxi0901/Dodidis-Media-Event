@@ -1668,8 +1668,6 @@
     scroll-snap-type: x mandatory;
     overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
-    --ical-sidebar: 48px;
-    --ical-label-gutter: 16px;
   }
   @media (max-width: 640px) {
     .ical-scroll { scroll-snap-type: none; max-height: 480px; cursor: default; }
@@ -1689,7 +1687,6 @@
     grid-auto-rows: 36px;
     grid-row-gap: 3px;
     padding-bottom: 20px;
-    isolation: isolate;
   }
 
   .ical-corner {
@@ -1699,7 +1696,7 @@
     position: sticky;
     top: 0;
     left: 0;
-    z-index: 30;
+    z-index: 6;
     border-right: 1px solid rgba(255,255,255,0.07);
     border-bottom: 1px solid rgba(255,255,255,0.07);
   }
@@ -1717,7 +1714,7 @@
     background: #111113;
     position: sticky;
     top: 0;
-    z-index: 20;
+    z-index: 5;
     min-height: 64px;
     text-align: center;
   }
@@ -1743,15 +1740,8 @@
     width: 30px;
     height: 30px;
     /* nicht im Flex-Spaltenlayout schrumpfen -> bleibt ein runder Kreis */
-    flex: 0 0 30px;
-    min-width: 30px;
-    max-width: 30px;
-    min-height: 30px;
-    max-height: 30px;
+    flex: 0 0 auto;
     aspect-ratio: 1 / 1;
-    box-sizing: border-box;
-    padding: 0;
-    line-height: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1764,7 +1754,6 @@
   }
   .ical-day-head.is-shoot .ical-dname { color: rgba(196,181,253,0.8); }
   .ical-day-head.is-shoot .ical-dnum { color: #c4b5fd; }
-  .ical-day-head.today.is-shoot .ical-dnum { color: white; }
   .ical-shoot-badge {
     position: absolute;
     top: 7px;
@@ -1802,9 +1791,8 @@
     grid-column: 1;
     position: sticky;
     left: 0;
-    z-index: 25;
+    z-index: 1;
     background: #181819;
-    box-shadow: 8px 0 14px rgba(0,0,0,0.28);
     border-right: 1px solid rgba(255,255,255,0.07);
     padding: 0;
     font-size: 0;
@@ -1844,8 +1832,6 @@
   .ical-cat-label.cat-todos    .ical-cat-icon { background: rgba(100,210,255,0.22); }
 
   .ical-cat-bg {
-    position: relative;
-    z-index: 0;
     border-right: 1px solid rgba(255,255,255,0.04);
     border-bottom: 1px solid rgba(255,255,255,0.03);
     scroll-snap-align: start;
@@ -1866,26 +1852,20 @@
     gap: 5px;
     cursor: pointer;
     white-space: nowrap;
-    overflow: hidden;
+    overflow: clip;
     margin: 2px 3px;
     transition: var(--transition);
     position: relative;
-    z-index: 2;
-    min-width: 0;
   }
-  /* Text inside bars: JS keeps this label visible while scrolling horizontally. */
+  /* Text inside bars: sticky so it stays visible while scrolling horizontally */
   .ical-event-label {
-    position: relative;
-    z-index: 1;
+    position: sticky;
+    left: var(--ical-sidebar, 150px);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex: 1 1 auto;
+    flex: 1;
     min-width: 0;
-    transform: translate3d(var(--label-offset, 0px), 0, 0);
-    max-width: var(--label-max-width, 100%);
-    transition: transform 45ms linear, max-width 45ms linear;
-    will-change: transform, max-width;
   }
   .ical-event::before {
     content: "";
@@ -1896,7 +1876,7 @@
     opacity: 0.85;
     border-radius: 5px 0 0 5px;
   }
-  .ical-event:hover { filter: brightness(1.15); z-index: 10; }
+  .ical-event:hover { filter: brightness(1.15); z-index: 5; }
   .ical-event.cuts-left { border-top-left-radius: 0; border-bottom-left-radius: 0; padding-left: 8px; margin-left: 0; }
   .ical-event.cuts-left::before { display: none; }
   .ical-event.cuts-right { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
@@ -1923,7 +1903,7 @@
     .ical-day-head { padding: 5px 2px 4px; min-height: 44px; gap: 1px; }
     .ical-day-head .ical-dname { font-size: 9px; letter-spacing: 0.3px; }
     .ical-day-head .ical-dnum { font-size: 13px; font-weight: 500; }
-    .ical-day-head.today .ical-dnum { width: 22px; min-width: 22px; max-width: 22px; height: 22px; min-height: 22px; max-height: 22px; flex-basis: 22px; font-size: 11px; font-weight: 700; }
+    .ical-day-head.today .ical-dnum { width: 22px; height: 22px; font-size: 11px; font-weight: 700; }
     /* Events: kompakt */
     .ical-event {
       height: 20px; line-height: 20px;
@@ -3418,6 +3398,63 @@
     .login-sub { font-size: 12px; }
     .modal { max-height: 96vh; }
   }
+
+  /* Management-Kalender: conflict-light fixes for sticky labels/layering. */
+  .ical-scroll {
+    --ical-sidebar: 48px;
+    --ical-label-gutter: 18px;
+  }
+  .ical-track { isolation: isolate; }
+  .ical-corner { z-index: 30; }
+  .ical-day-head { z-index: 20; }
+  .ical-cat-label {
+    z-index: 25;
+    box-shadow: 8px 0 14px rgba(0,0,0,0.28);
+  }
+  .ical-cat-bg {
+    position: relative;
+    z-index: 0;
+  }
+  .ical-day-head.today .ical-dnum {
+    flex: 0 0 30px;
+    min-width: 30px;
+    max-width: 30px;
+    min-height: 30px;
+    max-height: 30px;
+    aspect-ratio: 1 / 1;
+    box-sizing: border-box;
+    padding: 0;
+    line-height: 1;
+  }
+  .ical-day-head.today.is-shoot .ical-dnum { color: white; }
+  .ical-event {
+    overflow: hidden;
+    position: relative;
+    z-index: 2;
+    min-width: 0;
+  }
+  .ical-event:hover { z-index: 10; }
+  .ical-event-label {
+    position: relative;
+    left: auto;
+    z-index: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+    transform: translate3d(var(--label-offset, 0px), 0, 0);
+    max-width: var(--label-max-width, 100%);
+    transition: none;
+    will-change: transform, max-width;
+  }
+  @media (max-width: 640px) {
+    .ical-day-head.today .ical-dnum {
+      flex-basis: 22px;
+      min-width: 22px;
+      max-width: 22px;
+      min-height: 22px;
+      max-height: 22px;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -8820,7 +8857,6 @@ function renderCategoryWeekView(elementId, session, mini = false) {
     const setInitScroll = () => {
       scroller.scrollLeft = daysBefore * colWidth;
       updateWeekHeader(elementId);
-      updateStickyEventLabels(scroller);
     };
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -8842,16 +8878,11 @@ function renderCategoryWeekView(elementId, session, mini = false) {
     setTimeout(setInitScroll, 120);
     enableDragScroll(scroller);
     updateWeekHeader(elementId);
-    updateStickyEventLabels(scroller);
     let frame = null;
     scroller.addEventListener('scroll', () => {
       if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = null;
-        updateWeekHeader(elementId);
-        updateStickyEventLabels(scroller);
-      });
-    }, { passive: true });
+      frame = requestAnimationFrame(() => { frame = null; updateWeekHeader(elementId); });
+    });
   }
 }
 
@@ -9042,29 +9073,6 @@ function renderWeekViewIntoLegacy(elementId, session, mini = false) {
       frame = requestAnimationFrame(() => { frame = null; updateWeekHeader(elementId); });
     });
   }
-}
-
-function updateStickyEventLabels(scroller) {
-  if (!scroller || !scroller.querySelector) return;
-  const track = scroller.querySelector('.ical-track');
-  const styleSource = track || scroller;
-  const styles = getComputedStyle(styleSource);
-  const sidebarWidth = Number.parseFloat(styles.getPropertyValue('--ical-sidebar')) || 48;
-  const labelGutter = Number.parseFloat(styles.getPropertyValue('--ical-label-gutter')) || 16;
-  const stickyLeft = scroller.scrollLeft + sidebarWidth + labelGutter;
-  const visibleRight = scroller.scrollLeft + scroller.clientWidth - 8;
-  scroller.querySelectorAll('.ical-event').forEach(eventEl => {
-    const label = eventEl.querySelector('.ical-event-label');
-    if (!label) return;
-    const eventLeft = eventEl.offsetLeft;
-    const eventRight = eventLeft + eventEl.offsetWidth;
-    const visibleEventLeft = Math.max(eventLeft, stickyLeft);
-    const visibleEventRight = Math.min(eventRight, visibleRight);
-    const offset = Math.max(0, visibleEventLeft - eventLeft);
-    const maxWidth = Math.max(28, visibleEventRight - visibleEventLeft - labelGutter / 2);
-    label.style.setProperty('--label-offset', `${offset.toFixed(2)}px`);
-    label.style.setProperty('--label-max-width', `${maxWidth.toFixed(2)}px`);
-  });
 }
 
 function updateWeekHeader(elementId) {
@@ -11750,6 +11758,67 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') calNav('full', 1);
   if (e.key === 't' || e.key === 'T') calToday('full');
 });
+
+// Hält Event-Beschriftungen in der Wochenansicht sichtbar, ohne die Render-Funktion
+// selbst zu verändern. Dadurch bleibt der Patch klein und merge-freundlich.
+(function initCalendarStickyLabels() {
+  function update(scroller) {
+    if (!scroller || !scroller.querySelector) return;
+    const track = scroller.querySelector('.ical-track');
+    if (!track) return;
+    const styles = getComputedStyle(track);
+    const sidebarWidth = Number.parseFloat(styles.getPropertyValue('--ical-sidebar')) || 48;
+    const labelGutter = Number.parseFloat(styles.getPropertyValue('--ical-label-gutter')) || 18;
+    const stickyLeft = scroller.scrollLeft + sidebarWidth + labelGutter;
+    const visibleRight = scroller.scrollLeft + scroller.clientWidth - 8;
+
+    scroller.querySelectorAll('.ical-event').forEach(eventEl => {
+      const label = eventEl.querySelector('.ical-event-label');
+      if (!label) return;
+      const eventLeft = eventEl.offsetLeft;
+      const eventRight = eventLeft + eventEl.offsetWidth;
+      const naturalLabelLeft = eventLeft + label.offsetLeft;
+      const visibleLabelLeft = Math.max(naturalLabelLeft, stickyLeft);
+      const visibleLabelRight = Math.min(eventRight, visibleRight);
+      const offset = Math.max(0, visibleLabelLeft - naturalLabelLeft);
+      const maxWidth = Math.max(28, visibleLabelRight - visibleLabelLeft - 4);
+      label.style.setProperty('--label-offset', `${offset.toFixed(2)}px`);
+      label.style.setProperty('--label-max-width', `${maxWidth.toFixed(2)}px`);
+    });
+  }
+
+  function bind(scroller) {
+    if (!scroller || scroller._dmStickyLabelBound) return;
+    scroller._dmStickyLabelBound = true;
+    let frame = null;
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        update(scroller);
+      });
+    };
+    scroller.addEventListener('scroll', schedule, { passive: true });
+    schedule();
+    setTimeout(schedule, 120);
+  }
+
+  function bindAll() {
+    document.querySelectorAll('.ical-scroll').forEach(bind);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindAll, { once: true });
+  } else {
+    bindAll();
+  }
+
+  new MutationObserver(bindAll).observe(document.documentElement, { childList: true, subtree: true });
+  window.addEventListener('resize', () => {
+    document.querySelectorAll('.ical-scroll').forEach(update);
+  }, { passive: true });
+})();
+
 </script>
 
 </body>
