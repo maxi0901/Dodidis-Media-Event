@@ -436,7 +436,7 @@
                 <p>
                     Ein starker Social-Media-Auftritt und erfolgreiche digitale Projekte entstehen nicht
                     durch Zufall. Sie sind das Ergebnis von strategischer Planung, kreativen Ideen und einer
-                    absolut zuverlässigen Umsetzung. Wir von Dodidis Media &amp; Event verstehen uns nicht als
+                    absolut zuverlässigen Umsetzung. Wir von Dodidis Media verstehen uns nicht als
                     externe Agentur, die einfach nur Aufgaben abarbeitet. Wir sehen uns als fester Partner an
                     eurer Seite. Unser Ziel ist es, eure Botschaft authentisch, modern und zielgerichtet digital
                     sichtbar zu machen – damit ihr genau die Zielgruppe erreicht, die zu eurem Unternehmen passt.
