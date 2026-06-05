@@ -37,8 +37,6 @@ html, body { margin: 0; padding: 0; }
 html {
     scroll-behavior: smooth;
     scroll-padding-top: 110px;
-    overflow-x: hidden;   /* Fallback für ältere Browser */
-    overflow-x: clip;     /* clip verhindert Horizontal-Scroll, ohne sticky zu brechen */
     width: 100%;
 }
 
@@ -47,13 +45,20 @@ body {
     color: var(--text-primary);
     background: var(--bg-primary);
     line-height: 1.55;
-    overflow-x: hidden;
-    overflow-x: clip;
     width: 100%;
     max-width: 100%;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     position: relative;
+}
+
+/* Horizontal-Scroll-Schutz auf die Inhalts-Container statt auf html/body –
+   so bleibt die sticky-Navi (Vorfahre: body) auf iOS klickbar, während
+   überlaufende Inhalte trotzdem geklippt werden. */
+main,
+.site-footer {
+    overflow-x: hidden;   /* Fallback */
+    overflow-x: clip;
 }
 
 /* Fester Verlaufs-Layer (position:fixed statt `background-attachment: fixed`,
