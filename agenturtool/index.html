@@ -1681,7 +1681,9 @@
   }
   .ical-track {
     display: grid;
-    grid-template-rows: 64px;
+    /* Header-Zeile darf bei Bedarf wachsen, damit der Tages-Header nicht in
+       die erste Balken-Zeile überläuft (sonst „überlappende" Balken). */
+    grid-template-rows: minmax(64px, auto);
     grid-auto-rows: 36px;
     grid-row-gap: 3px;
     padding-bottom: 20px;
@@ -1737,6 +1739,9 @@
     border-radius: 50%;
     width: 30px;
     height: 30px;
+    /* nicht im Flex-Spaltenlayout schrumpfen -> bleibt ein runder Kreis */
+    flex: 0 0 auto;
+    aspect-ratio: 1 / 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
