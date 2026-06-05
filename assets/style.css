@@ -621,6 +621,13 @@ main { padding-top: 2rem; }
     will-change: transform, opacity;
 }
 
+/* Desktop: kleiner Abstand zwischen den CTA-Buttons und dem Hero-Bild,
+   damit sich die Köpfe nicht mit den Buttons überlagern. Mobile bleibt
+   unverändert (dort sitzt das Bild ohnehin weiter unten). */
+@media (min-width: 861px) {
+    .hero-founders-stage { margin-top: 2.5rem; }
+}
+
 @keyframes heroStageIn {
     0%   { opacity: 0; transform: translateY(70px) scale(0.82); }
     55%  { opacity: 1; }
