@@ -163,6 +163,8 @@ if (!tableExists($pdo, 'contract_comments')) {
 } else {
     $results[] = ['ok' => true, 'label' => "contract_comments: bereits vorhanden"];
 }
+// Sprachnachricht-MIME persistieren (iOS liefert mp4 statt webm)
+addCol($pdo, 'contract_comments', 'mime', "ALTER TABLE contract_comments ADD COLUMN mime VARCHAR(96) NULL", $results);
 
 // ── 7. notifications ──────────────────────────────────────────────────────────
 if (!tableExists($pdo, 'notifications')) {

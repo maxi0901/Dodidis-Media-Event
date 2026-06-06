@@ -94,8 +94,9 @@ if ($scope === 'contract') {
         json_err(415, 'Nur PDF oder .docx Dateien sind für Verträge erlaubt.');
     }
 } elseif ($scope === 'voice' || $scope === 'voice_project') {
-    // webm-Container wird von finfo manchmal als video/webm erkannt
-    $allowedVoiceMimes = ['audio/webm', 'video/webm', 'audio/ogg', 'audio/wav', 'audio/mpeg', 'audio/mp4'];
+    // webm-Container wird von finfo manchmal als video/webm erkannt;
+    // iOS/Safari nimmt Audio als MP4-Container auf → finfo meldet video/mp4
+    $allowedVoiceMimes = ['audio/webm', 'video/webm', 'audio/ogg', 'audio/wav', 'audio/mpeg', 'audio/mp4', 'video/mp4', 'audio/x-m4a', 'audio/aac', 'audio/3gpp'];
     if (!in_array($mime, $allowedVoiceMimes, true)) {
         json_err(415, 'Dateityp nicht erlaubt: ' . $mime);
     }
@@ -234,8 +235,8 @@ if ($scope === 'project') {
 } elseif ($scope === 'voice') {
     $relPath = $relDir . '/' . $filename;
     db_exec(
-        "UPDATE contract_comments SET voice_path=?, voice_filename=? WHERE id=?",
-        [$relPath, $safeName, $refId]
+        "UPDATE contract_comments SET voice_path=?, voice_filename=?, mime=? WHERE id=?",
+        [$relPath, $safeName, $mime, $refId]
     );
     $response['id']   = $refId;
     $response['path'] = $relPath;

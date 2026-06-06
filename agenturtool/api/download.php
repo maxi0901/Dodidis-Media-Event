@@ -69,7 +69,7 @@ if ($scope === 'customer') {
     if ($session['type'] === 'customer') json_err(403, 'Keine Berechtigung.');
     if (!has_role('admin','manager','contract_uploader')) json_err(403, 'Keine Berechtigung.');
     $file = db_one(
-        "SELECT id, voice_filename AS filename, 'audio/webm' AS mime, voice_path AS path FROM contract_comments WHERE id = ?",
+        "SELECT id, voice_filename AS filename, COALESCE(mime, 'audio/webm') AS mime, voice_path AS path FROM contract_comments WHERE id = ?",
         [$fileId]
     );
     if (!$file || !$file['path']) json_err(404, 'Datei nicht gefunden.');
