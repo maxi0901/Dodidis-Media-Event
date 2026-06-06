@@ -4513,7 +4513,7 @@ async function renderContracts(session) {
           return `<tr class="row-clickable" onclick="openContractDetailModal('${c.id}')">
             <td><strong>${escape(c.title)}</strong></td>
             <td>${escape(cust?.name || '–')}</td>
-            <td><span class="badge ${c.status === 'confirmed' ? 'badge-freigegeben' : 'badge-skript'}">${c.status === 'confirmed' ? 'Bestätigt' : 'Entwurf'}</span></td>
+            <td>${contractStatusBadge(c.status)}</td>
             <td>${c.path ? '<span style="color:var(--accent)">📎 PDF</span>' : '<span class="text-muted">–</span>'}</td>
             <td class="text-sm text-muted">${fmtDate(c.createdAt)}</td>
           </tr>`;
@@ -4651,10 +4651,12 @@ async function openContractDetailModal(contractId) {
         </div>
         <div class="form-group">
           <div class="text-sm text-muted">Status</div>
-          <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
-            <span class="badge ${contract.status === 'confirmed' ? 'badge-freigegeben' : 'badge-skript'}">${contract.status === 'confirmed' ? 'Bestätigt' : 'Entwurf'}</span>
-            ${isPriv ? `<button class="btn btn-ghost btn-sm" onclick="toggleContractStatus('${contractId}','${contract.status === 'confirmed' ? 'draft' : 'confirmed'}')">${contract.status === 'confirmed' ? 'Zurück zu Entwurf' : 'Bestätigen'}</button>` : ''}
+          <div style="display:flex;align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap;">
+            ${contractStatusBadge(contract.status)}
+            ${(isPriv && (contract.status === 'draft' || contract.status === 'confirmed')) ? `<button class="btn btn-ghost btn-sm" onclick="toggleContractStatus('${contractId}','${contract.status === 'confirmed' ? 'draft' : 'confirmed'}')">${contract.status === 'confirmed' ? 'Zurück zu Entwurf' : 'Bestätigen'}</button>` : ''}
           </div>
+          ${contract.status === 'awaiting_signature' && contract.agencySignerName ? `<div class="text-sm text-muted" style="margin-top:6px;">Vorsigniert von ${escape(contract.agencySignerName)}${contract.agencySignedAt ? ' · ' + fmtDateTime(contract.agencySignedAt) : ''} – wartet auf Kundenunterschrift.</div>` : ''}
+          ${contract.status === 'signed' ? `<div class="text-sm text-muted" style="margin-top:6px;">Unterschrieben${contract.customerSignerName ? ' von ' + escape(contract.customerSignerName) : ''}${contract.signedAt ? ' · ' + fmtDateTime(contract.signedAt) : ''}.</div>` : ''}
         </div>
         <div class="form-group">
           <div class="text-sm text-muted">PDF-Datei</div>
@@ -4663,9 +4665,9 @@ async function openContractDetailModal(contractId) {
               <div style="display:flex;align-items:center;gap:10px;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 <span style="flex:1;">${escape(contract.filename || 'Vertrag.pdf')}</span>
-                <a href="${contract.path}" target="_blank" class="btn btn-ghost btn-sm">Öffnen</a>
+                <a href="${API_BASE}/download.php?scope=contract&id=${encodeURIComponent(contractId)}" target="_blank" class="btn btn-ghost btn-sm">Öffnen</a>
               </div>` : '<span class="text-muted text-sm">Kein PDF hochgeladen</span>'}
-            ${canUpload ? `
+            ${(canUpload && contract.status !== 'signed') ? `
               <label class="file-upload" for="contract-pdf-input" style="margin-top:10px;">
                 <div id="contract-pdf-label" style="font-size:13px;font-weight:500;">${contract.path ? 'PDF ersetzen' : 'PDF hochladen'}</div>
                 <input type="file" id="contract-pdf-input" accept=".pdf,application/pdf" style="display:none;" onchange="previewContractFile(event,'contract-pdf-label')" />
@@ -4674,6 +4676,41 @@ async function openContractDetailModal(contractId) {
             ` : ''}
           </div>
         </div>
+
+        ${contract.status === 'signed' ? `
+        <div class="form-group">
+          <div class="text-sm text-muted">Unterschriebenes Dokument</div>
+          <div style="margin-top:6px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:20px;">✅</span>
+            <span style="flex:1;">${escape(contract.signedFilename || 'unterschrieben.pdf')}</span>
+            <a href="${API_BASE}/download.php?scope=contract&variant=signed&id=${encodeURIComponent(contractId)}" target="_blank" class="btn btn-secondary btn-sm">Herunterladen</a>
+          </div>
+        </div>` : ''}
+
+        ${canUpload ? `
+        <div class="form-group" style="border-top:1px solid var(--border);padding-top:14px;">
+          <div class="text-sm text-muted" style="font-weight:600;margin-bottom:6px;">Digitale Unterschrift</div>
+          ${(contract.customerId && isPdfContract(contract) && (contract.status === 'draft' || contract.status === 'confirmed'))
+            ? `<button class="btn btn-primary btn-sm" onclick="presignContract('${contractId}')">✍️ Agentur unterschreiben & an Kunde senden</button>`
+            : (!contract.customerId
+                ? '<div class="text-sm text-muted">Zum digitalen Unterschreiben muss dem Vertrag ein Kunde zugeordnet sein.</div>'
+                : (!isPdfContract(contract)
+                    ? '<div class="text-sm text-muted">Nur PDF-Verträge können digital unterschrieben werden.</div>'
+                    : (contract.status === 'awaiting_signature'
+                        ? '<div class="text-sm text-muted">Der Vertrag liegt beim Kunden zur Unterschrift bereit.</div>'
+                        : '<div class="text-sm text-muted">Vertrag ist bereits unterschrieben.</div>')))}
+
+          ${contract.status !== 'signed' && contract.customerId ? `
+            <div style="margin-top:14px;">
+              <div class="text-sm text-muted" style="margin-bottom:4px;">Bereits (extern) unterschriebenen Vertrag hochladen</div>
+              <label class="file-upload" for="contract-signed-input" style="margin-top:4px;">
+                <div id="contract-signed-label" style="font-size:13px;font-weight:500;">Unterschriebene PDF auswählen</div>
+                <input type="file" id="contract-signed-input" accept=".pdf,application/pdf" style="display:none;" onchange="previewContractFile(event,'contract-signed-label')" />
+              </label>
+              <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="uploadSignedContract('${contractId}',this)">Als unterschrieben speichern</button>
+            </div>` : ''}
+        </div>` : ''}
+
         <div class="text-sm text-muted">Erstellt: ${fmtDateTime(contract.createdAt)}</div>
         ${isAdmin ? `<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"><button class="btn btn-danger btn-sm" onclick="deleteContractConfirm('${contractId}')">Vertrag löschen</button></div>` : ''}
       </div>
@@ -4725,6 +4762,318 @@ async function deleteContractConfirm(contractId) {
     closeModal();
     showToast('Vertrag gelöscht', 'success');
     renderContracts(getCurrentUser());
+  } catch (e) {
+    showToast('Fehler: ' + e.message, 'error');
+  }
+}
+
+/* ===========================================================================
+   DIGITALE VERTRAGSUNTERSCHRIFT
+   - Signatur-Pad (Canvas), pdf-lib (lazy) für finale PDF mit beiden Signaturen,
+     Agentur-Vorsignatur (presign), Kunden-Unterschrift (customer-sign),
+     Staff-Direktupload bereits unterschriebener Verträge (upload-signed).
+   =========================================================================== */
+
+function contractStatusBadge(status) {
+  switch (status) {
+    case 'confirmed':          return '<span class="badge badge-freigegeben">Bestätigt</span>';
+    case 'awaiting_signature': return '<span class="badge badge-schnitt">Wartet auf Unterschrift</span>';
+    case 'signed':             return '<span class="badge badge-fertig">Unterschrieben</span>';
+    default:                   return '<span class="badge badge-skript">Entwurf</span>';
+  }
+}
+
+function isPdfContract(contract) {
+  return !!contract.path && (contract.mime === 'application/pdf' || /\.pdf$/i.test(contract.filename || ''));
+}
+
+const SIGN_CONSENT_TEXT = 'Mit dem Unterschreiben bestätige ich rechtsverbindlich, dass ich den vorliegenden Vertrag gelesen habe und ihm zustimme. Mir ist bekannt, dass es sich um eine einfache elektronische Signatur handelt.';
+
+// pdf-lib bei Bedarf nachladen (UMD-Bundle, stellt window.PDFLib bereit)
+let _pdfLibPromise = null;
+function loadPdfLib() {
+  if (window.PDFLib) return Promise.resolve(window.PDFLib);
+  if (_pdfLibPromise) return _pdfLibPromise;
+  _pdfLibPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = APP_BASE + 'assets/pdf-lib.min.js';
+    s.onload = () => window.PDFLib ? resolve(window.PDFLib) : reject(new Error('pdf-lib nicht verfügbar'));
+    s.onerror = () => reject(new Error('pdf-lib konnte nicht geladen werden'));
+    document.head.appendChild(s);
+  });
+  return _pdfLibPromise;
+}
+
+/**
+ * Signatur-Pad-Modal. options: { title, subtitle, requireName, defaultName, consent (bool),
+ * confirmLabel }. Resolved-Wert: { signature(dataURL PNG), name, consent } oder null (Abbruch).
+ */
+function openSignaturePadModal(options = {}) {
+  const {
+    title = 'Unterschrift', subtitle = '', requireName = true,
+    defaultName = '', consent = false, confirmLabel = 'Bestätigen'
+  } = options;
+  return new Promise((resolve) => {
+    const html = `<div class="modal-overlay" id="sigpad-overlay">
+      <div class="modal" style="max-width:480px;">
+        <div class="modal-header">
+          <div class="modal-title">${escape(title)}</div>
+          <button class="btn btn-ghost" id="sigpad-x">×</button>
+        </div>
+        <div class="modal-body">
+          ${subtitle ? `<p class="text-sm text-muted" style="margin-bottom:12px;">${escape(subtitle)}</p>` : ''}
+          ${requireName ? `<div class="form-group">
+            <label class="form-label">Name *</label>
+            <input type="text" id="sigpad-name" maxlength="255" value="${escape(defaultName)}" placeholder="Vor- und Nachname" />
+          </div>` : ''}
+          <div class="form-group">
+            <label class="form-label">Unterschrift *</label>
+            <div style="border:1px dashed var(--border-strong);border-radius:10px;background:#fff;touch-action:none;overflow:hidden;">
+              <canvas id="sigpad-canvas" style="display:block;width:100%;height:180px;cursor:crosshair;"></canvas>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+              <button type="button" class="btn btn-ghost btn-sm" id="sigpad-clear">Löschen</button>
+            </div>
+          </div>
+          ${consent ? `<label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text-2);cursor:pointer;">
+            <input type="checkbox" id="sigpad-consent" style="margin-top:3px;flex-shrink:0;" />
+            <span>${escape(SIGN_CONSENT_TEXT)}</span>
+          </label>` : ''}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" id="sigpad-cancel">Abbrechen</button>
+          <button type="button" class="btn btn-primary" id="sigpad-confirm">${escape(confirmLabel)}</button>
+        </div>
+      </div>
+    </div>`;
+    $('#modal-container').innerHTML = html;
+
+    const canvas = document.getElementById('sigpad-canvas');
+    const ctx = canvas.getContext('2d');
+    let drawing = false, hasInk = false, last = null;
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const prev = hasInk ? canvas.toDataURL() : null;
+      canvas.width = Math.max(1, Math.round(rect.width * dpr));
+      canvas.height = Math.max(1, Math.round(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#111';
+      if (prev) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        img.src = prev;
+      }
+    }
+    setTimeout(resize, 0);
+    const onResize = () => resize();
+    window.addEventListener('resize', onResize);
+
+    function pos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+      return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+    }
+    function start(e) { e.preventDefault(); drawing = true; last = pos(e); }
+    function move(e) {
+      if (!drawing) return;
+      e.preventDefault();
+      const p = pos(e);
+      ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      last = p; hasInk = true;
+    }
+    function end() { drawing = false; }
+
+    canvas.addEventListener('pointerdown', start);
+    canvas.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+
+    function cleanup() {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('pointerup', end);
+    }
+    function close(val) { cleanup(); closeModal(); resolve(val); }
+
+    document.getElementById('sigpad-clear').onclick = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height); hasInk = false;
+    };
+    document.getElementById('sigpad-x').onclick = () => close(null);
+    document.getElementById('sigpad-cancel').onclick = () => close(null);
+    document.getElementById('sigpad-overlay').onclick = (ev) => { if (ev.target.id === 'sigpad-overlay') close(null); };
+    document.getElementById('sigpad-confirm').onclick = () => {
+      const name = requireName ? (document.getElementById('sigpad-name').value || '').trim() : '';
+      if (requireName && !name) { showToast('Bitte Namen eingeben.', 'warn'); return; }
+      if (!hasInk) { showToast('Bitte zuerst unterschreiben.', 'warn'); return; }
+      if (consent && !document.getElementById('sigpad-consent').checked) {
+        showToast('Bitte die Einwilligung bestätigen.', 'warn'); return;
+      }
+      close({ signature: canvas.toDataURL('image/png'), name, consent: true });
+    };
+  });
+}
+
+/**
+ * Hängt an das Original-PDF eine Unterschriften-Seite an (beide Signaturen + Audit).
+ * Gibt ein Uint8Array (fertige PDF) zurück.
+ */
+async function buildSignedPdf(originalBytes, data) {
+  const PDFLib = await loadPdfLib();
+  const { PDFDocument, StandardFonts, rgb } = PDFLib;
+  const pdf = await PDFDocument.load(originalBytes);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+  const page = pdf.addPage([595.28, 841.89]); // A4
+  const { width, height } = page.getSize();
+  const margin = 56;
+  let y = height - margin;
+  const text = (s, x, yy, size, f, color) => page.drawText(String(s == null ? '' : s), { x, y: yy, size, font: f || font, color: color || rgb(0.1,0.1,0.1) });
+
+  text('Unterschriften', margin, y, 20, fontBold); y -= 14;
+  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0.8,0.8,0.8) }); y -= 26;
+  text('Vertrag: ' + (data.title || ''), margin, y, 12, fontBold); y -= 30;
+
+  async function drawSig(label, pngDataUrl, name, dateStr, extra) {
+    text(label, margin, y, 11, fontBold, rgb(0.35,0.35,0.35)); y -= 8;
+    if (pngDataUrl) {
+      try {
+        const png = await pdf.embedPng(pngDataUrl);
+        const maxW = 200, maxH = 70;
+        const scale = Math.min(maxW / png.width, maxH / png.height, 1);
+        const w = png.width * scale, h = png.height * scale;
+        y -= h;
+        page.drawImage(png, { x: margin, y, width: w, height: h });
+      } catch (e) { y -= 10; }
+    }
+    y -= 16;
+    page.drawLine({ start: { x: margin, y }, end: { x: margin + 220, y }, thickness: 0.8, color: rgb(0.6,0.6,0.6) }); y -= 14;
+    text(name || '', margin, y, 11, font); y -= 14;
+    text('Datum: ' + (dateStr || ''), margin, y, 10, font, rgb(0.4,0.4,0.4)); y -= 12;
+    if (extra) { text(extra, margin, y, 9, font, rgb(0.5,0.5,0.5)); y -= 12; }
+    y -= 18;
+  }
+
+  await drawSig('Agentur (Dodidis Media)', data.agencySigPng, data.agencyName, data.agencyDate);
+  await drawSig('Kunde', data.customerSigPng, data.customerName, data.customerDate,
+                data.ip ? ('IP-Adresse: ' + data.ip) : '');
+
+  // Einwilligungstext + Audit
+  y -= 6;
+  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 0.6, color: rgb(0.85,0.85,0.85) }); y -= 18;
+  const wrap = (str, max) => {
+    const words = String(str).split(' '); const lines = []; let cur = '';
+    for (const w of words) { if ((cur + ' ' + w).trim().length > max) { lines.push(cur.trim()); cur = w; } else cur += ' ' + w; }
+    if (cur.trim()) lines.push(cur.trim()); return lines;
+  };
+  wrap(SIGN_CONSENT_TEXT, 95).forEach(line => { text(line, margin, y, 8.5, font, rgb(0.45,0.45,0.45)); y -= 12; });
+  y -= 6;
+  if (data.originalHash) { text('Dokument-Prüfsumme (SHA-256, Original): ' + data.originalHash, margin, y, 7.5, font, rgb(0.55,0.55,0.55)); y -= 11; }
+
+  return await pdf.save();
+}
+
+/* ----------- STAFF: Agentur vor-signieren & senden ----------- */
+async function presignContract(contractId) {
+  const res = await openSignaturePadModal({
+    title: 'Agentur unterschreiben',
+    subtitle: 'Zeichnen Sie die Unterschrift der Agentur. Anschließend wird der Vertrag dem Kunden zur Unterschrift bereitgestellt.',
+    requireName: true,
+    defaultName: getCurrentUser()?.user?.name || '',
+    confirmLabel: 'Unterschreiben & senden'
+  });
+  if (!res) return;
+  try {
+    await apiCall('POST', '/contracts.php?action=presign&id=' + encodeURIComponent(contractId), {
+      agencySignature: res.signature, agencySignerName: res.name
+    });
+    contractsCache = null;
+    closeModal();
+    showToast('Vertrag wurde dem Kunden zur Unterschrift gesendet.', 'success');
+    openContractDetailModal(contractId);
+  } catch (e) {
+    showToast('Fehler: ' + e.message, 'error');
+  }
+}
+
+/* ----------- STAFF: bereits (extern) unterschriebenen Vertrag hochladen ----------- */
+async function uploadSignedContract(contractId, btn) {
+  const fileInput = document.getElementById('contract-signed-input');
+  if (!fileInput?.files[0]) { showToast('Bitte zuerst die unterschriebene PDF auswählen.', 'warn'); return; }
+  const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Wird hochgeladen…';
+  try {
+    const fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+    const r = await fetch(API_BASE + '/contracts.php?action=upload-signed&id=' + encodeURIComponent(contractId), {
+      method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF }, body: fd
+    });
+    const j = await r.json().catch(() => ({ success: false, error: 'HTTP ' + r.status }));
+    if (!r.ok || !j.success) throw new Error(j.error || 'Upload fehlgeschlagen');
+    contractsCache = null;
+    closeModal();
+    showToast('Unterschriebener Vertrag gespeichert.', 'success');
+    openContractDetailModal(contractId);
+  } catch (e) {
+    showToast('Fehler: ' + e.message, 'error');
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+/* ----------- KUNDE: Vertrag unterschreiben ----------- */
+async function customerSignContract(contractId) {
+  let contract;
+  try { contract = await apiGet('/contracts.php?id=' + encodeURIComponent(contractId)); }
+  catch (e) { showToast('Fehler beim Laden: ' + e.message, 'error'); return; }
+  if (contract.status !== 'awaiting_signature') { showToast('Dieser Vertrag steht nicht (mehr) zur Unterschrift bereit.', 'warn'); return; }
+
+  const res = await openSignaturePadModal({
+    title: 'Vertrag unterschreiben',
+    subtitle: 'Bitte unterschreiben Sie im Feld unten und bestätigen Sie die Einwilligung.',
+    requireName: true,
+    defaultName: getCurrentUser()?.customer?.name || '',
+    consent: true,
+    confirmLabel: 'Rechtsverbindlich unterschreiben'
+  });
+  if (!res) return;
+
+  showToast('Dokument wird erstellt…', 'info');
+  try {
+    // Original-PDF laden (download.php liefert es im awaiting_signature-Status für den eigenen Kunden)
+    const dlRes = await fetch(API_BASE + '/download.php?scope=contract&id=' + encodeURIComponent(contractId), { credentials: 'same-origin' });
+    if (!dlRes.ok) throw new Error('Original-PDF konnte nicht geladen werden.');
+    const originalBytes = new Uint8Array(await dlRes.arrayBuffer());
+
+    const nowStr = new Date().toLocaleString('de-DE');
+    const agencyDate = contract.agencySignedAt ? new Date(contract.agencySignedAt.replace(' ', 'T')).toLocaleString('de-DE') : '';
+    const signedBytes = await buildSignedPdf(originalBytes, {
+      title: contract.title,
+      agencyName: contract.agencySignerName || 'Dodidis Media',
+      agencyDate,
+      agencySigPng: (contract.agencySignature && contract.agencySignature.indexOf('data:image/') === 0) ? contract.agencySignature : null,
+      customerName: res.name,
+      customerDate: nowStr,
+      customerSigPng: res.signature,
+      ip: null,                  // IP wird serverseitig erfasst
+      originalHash: null
+    });
+
+    const base = (contract.filename || (contract.title || 'vertrag')).replace(/\.pdf$/i, '').replace(/[^a-zA-Z0-9._\-]+/g, '_').slice(0, 80) || 'vertrag';
+    const fd = new FormData();
+    fd.append('file', new Blob([signedBytes], { type: 'application/pdf' }), base + '_unterschrieben.pdf');
+    fd.append('customerSignerName', res.name);
+    fd.append('consent', '1');
+    fd.append('customerSignature', res.signature);
+
+    const up = await fetch(API_BASE + '/contracts.php?action=customer-sign&id=' + encodeURIComponent(contractId), {
+      method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF }, body: fd
+    });
+    const j = await up.json().catch(() => ({ success: false, error: 'HTTP ' + up.status }));
+    if (!up.ok || !j.success) throw new Error(j.error || 'Unterschrift fehlgeschlagen');
+
+    closeModal();
+    showToast('Vertrag erfolgreich unterschrieben!', 'success');
+    renderCustomerOverview(getCurrentUser());
   } catch (e) {
     showToast('Fehler: ' + e.message, 'error');
   }
@@ -10146,30 +10495,51 @@ function renderCustomerOverview(session) {
     <div id="customer-contracts-section"></div>
   `;
 
-  // Load confirmed contracts for this customer asynchronously
+  // Verträge des Kunden laden: zu unterschreiben (awaiting_signature) + fertig unterschrieben (signed)
   fetch(`${API_BASE}/contracts.php`, { credentials: 'same-origin' })
     .then(r => r.json())
     .then(json => {
-      const confirmed = (json.data || []).filter(ct => ct.customerId === c.id && ct.status === 'confirmed');
+      const all = (json.data || []).filter(ct => ct.customerId === c.id);
+      const toSign = all.filter(ct => ct.status === 'awaiting_signature');
+      const signed = all.filter(ct => ct.status === 'signed');
       const el = $('#customer-contracts-section');
-      if (!el || !confirmed.length) return;
-      el.innerHTML = `
-        <div class="card" style="margin-top:16px;">
-          <div class="card-header"><div class="card-title">Meine Verträge</div></div>
+      if (!el || (!toSign.length && !signed.length)) return;
+
+      const toSignCard = toSign.length ? `
+        <div class="card" style="margin-top:16px;border:1px solid var(--accent-glow);">
+          <div class="card-header"><div class="card-title">✍️ Zu unterschreiben</div></div>
           <div class="card-body" style="display:flex;flex-direction:column;gap:8px;">
-            ${confirmed.map(ct => `
+            ${toSign.map(ct => `
               <div class="file-uploaded">
                 <span style="font-size:20px;">📄</span>
                 <div style="flex:1;min-width:0;">
                   <div style="font-size:13px;font-weight:500;">${escape(ct.title)}</div>
-                  <div style="font-size:11px;color:var(--text-3);">${fmtDate(ct.createdAt)}</div>
+                  <div style="font-size:11px;color:var(--text-3);">Bereitgestellt am ${fmtDate(ct.agencySignedAt || ct.createdAt)}</div>
                 </div>
-                ${ct.filename ? `<a class="btn btn-secondary btn-sm" href="${API_BASE}/download.php?scope=contract&id=${encodeURIComponent(ct.id)}" target="_blank">Herunterladen</a>` : ''}
+                <button class="btn btn-primary btn-sm" onclick="customerSignContract('${ct.id}')">Jetzt unterschreiben</button>
               </div>
             `).join('')}
           </div>
-        </div>
-      `;
+        </div>` : '';
+
+      const signedCard = signed.length ? `
+        <div class="card" style="margin-top:16px;">
+          <div class="card-header"><div class="card-title">Meine unterschriebenen Dokumente</div></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:8px;">
+            ${signed.map(ct => `
+              <div class="file-uploaded">
+                <span style="font-size:20px;">✅</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:500;">${escape(ct.title)}</div>
+                  <div style="font-size:11px;color:var(--text-3);">Unterschrieben am ${fmtDate(ct.signedAt || ct.customerSignedAt || ct.createdAt)}</div>
+                </div>
+                <a class="btn btn-secondary btn-sm" href="${API_BASE}/download.php?scope=contract&id=${encodeURIComponent(ct.id)}" target="_blank">Herunterladen</a>
+              </div>
+            `).join('')}
+          </div>
+        </div>` : '';
+
+      el.innerHTML = toSignCard + signedCard;
     })
     .catch(() => {});
 }

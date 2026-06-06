@@ -124,6 +124,31 @@ if (!tableExists($pdo, 'contracts')) {
     addCol($pdo, 'contracts', 'updated_at',  "ALTER TABLE contracts ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP", $results);
 }
 
+// ── 5b. contracts: digitale Unterschrift (Status-Flow + Signatur-/Audit-/Final-Felder) ──
+// Status-ENUM um 'awaiting_signature' und 'signed' erweitern (idempotent für Bestand + Neuanlage).
+step($pdo, "contracts.status ENUM erweitern (awaiting_signature, signed)",
+    "ALTER TABLE contracts MODIFY COLUMN status ENUM('draft','confirmed','awaiting_signature','signed') NOT NULL DEFAULT 'draft'",
+    $results);
+// Agentur-Vorsignatur
+addCol($pdo, 'contracts', 'agency_signed_by',    "ALTER TABLE contracts ADD COLUMN agency_signed_by VARCHAR(64) NULL", $results);
+addCol($pdo, 'contracts', 'agency_signer_name',  "ALTER TABLE contracts ADD COLUMN agency_signer_name VARCHAR(255) NULL", $results);
+addCol($pdo, 'contracts', 'agency_signed_at',    "ALTER TABLE contracts ADD COLUMN agency_signed_at DATETIME NULL", $results);
+addCol($pdo, 'contracts', 'agency_signature',    "ALTER TABLE contracts ADD COLUMN agency_signature MEDIUMTEXT NULL", $results);
+// Kunden-Signatur + Audit
+addCol($pdo, 'contracts', 'customer_signed_at',  "ALTER TABLE contracts ADD COLUMN customer_signed_at DATETIME NULL", $results);
+addCol($pdo, 'contracts', 'customer_signer_name',"ALTER TABLE contracts ADD COLUMN customer_signer_name VARCHAR(255) NULL", $results);
+addCol($pdo, 'contracts', 'customer_signer_ip',  "ALTER TABLE contracts ADD COLUMN customer_signer_ip VARCHAR(64) NULL", $results);
+addCol($pdo, 'contracts', 'customer_consent_at', "ALTER TABLE contracts ADD COLUMN customer_consent_at DATETIME NULL", $results);
+addCol($pdo, 'contracts', 'customer_signature',  "ALTER TABLE contracts ADD COLUMN customer_signature MEDIUMTEXT NULL", $results);
+// Fertiges, unterschriebenes Dokument
+addCol($pdo, 'contracts', 'signed_filename',     "ALTER TABLE contracts ADD COLUMN signed_filename VARCHAR(255) NULL", $results);
+addCol($pdo, 'contracts', 'signed_mime',         "ALTER TABLE contracts ADD COLUMN signed_mime VARCHAR(96) NULL", $results);
+addCol($pdo, 'contracts', 'signed_size',         "ALTER TABLE contracts ADD COLUMN signed_size INT UNSIGNED NULL", $results);
+addCol($pdo, 'contracts', 'signed_path',         "ALTER TABLE contracts ADD COLUMN signed_path VARCHAR(500) NULL", $results);
+addCol($pdo, 'contracts', 'signed_hash',         "ALTER TABLE contracts ADD COLUMN signed_hash VARCHAR(64) NULL", $results);
+addCol($pdo, 'contracts', 'original_hash',       "ALTER TABLE contracts ADD COLUMN original_hash VARCHAR(64) NULL", $results);
+addCol($pdo, 'contracts', 'signed_at',           "ALTER TABLE contracts ADD COLUMN signed_at DATETIME NULL", $results);
+
 // ── 6. contract_comments ─────────────────────────────────────────────────────
 if (!tableExists($pdo, 'contract_comments')) {
     step($pdo, "contract_comments: Tabelle anlegen",
