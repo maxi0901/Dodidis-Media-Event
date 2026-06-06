@@ -4391,6 +4391,9 @@ function getNavItemsForUser(session) {
   if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER)) {
     items.push({ id: 'contracts', label: 'Verträge', icon: 'file' });
   }
+  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER)) {
+    items.push({ id: 'social-content', label: 'Social Content', icon: 'image' });
+  }
   if (hasRole(user, ROLES.ADMIN)) {
     items.push({ id: 'admin', label: 'Admin-Bereich', icon: 'shield' });
   }
@@ -4415,7 +4418,8 @@ const ICONS = {
   chart: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
   file: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
   document: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
-  bell: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
+  bell: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+  image: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
 };
 
 function renderNav() {
@@ -4525,8 +4529,8 @@ function renderPage() {
     todos: renderTodos,
     archive: renderArchive,
     contracts: renderContracts,
+    'social-content': renderSocialContent,
     admin: renderAdmin,
-    contracts: renderContracts,
     'customer-overview': renderCustomerOverview
   };
 
@@ -4539,6 +4543,9 @@ function renderPage() {
     currentPage = 'dashboard';
   }
   if (currentPage === 'contracts' && (session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER))) {
+    currentPage = 'dashboard';
+  }
+  if (currentPage === 'social-content' && (session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER))) {
     currentPage = 'dashboard';
   }
 
@@ -5159,6 +5166,151 @@ async function customerSignContract(contractId) {
     closeModal();
     showToast('Vertrag erfolgreich unterschrieben!', 'success');
     renderCustomerOverview(getCurrentUser());
+  } catch (e) {
+    showToast('Fehler: ' + e.message, 'error');
+  }
+}
+
+/* ===========================================================================
+   SOCIAL CONTENT – Freigabe von n8n-erzeugten Instagram-Storys
+   Ablauf: n8n legt Entwürfe an (content_create.php) → hier prüfen & freigeben
+   (mit geplanter Zeit) → n8n holt freigegebene fällige Storys (content_pending.php).
+   =========================================================================== */
+
+function socialStatusBadge(status) {
+  switch (status) {
+    case 'approved':  return '<span class="badge badge-geplant">Freigegeben</span>';
+    case 'published': return '<span class="badge badge-fertig">Veröffentlicht</span>';
+    case 'error':     return '<span class="badge badge-korrektur">Fehler</span>';
+    case 'rejected':  return '<span class="badge badge-archiviert">Abgelehnt</span>';
+    default:          return '<span class="badge badge-skript">Entwurf</span>';
+  }
+}
+
+function socialMediaPreview(url) {
+  if (!url) return '<div class="text-muted text-sm">Kein Medium</div>';
+  const safe = escape(url);
+  if (/\.(mp4|mov|webm)(\?|$)/i.test(url)) {
+    return `<video src="${safe}" controls preload="metadata" style="width:100%;max-height:320px;border-radius:10px;background:#000;"></video>`;
+  }
+  if (/\.(jpe?g|png|webp|gif)(\?|$)/i.test(url)) {
+    return `<img src="${safe}" alt="Vorschau" loading="lazy" style="width:100%;max-height:320px;object-fit:contain;border-radius:10px;background:#000;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
+            <a href="${safe}" target="_blank" class="text-sm" style="display:none;">Medium öffnen ↗</a>`;
+  }
+  return `<a href="${safe}" target="_blank" class="btn btn-ghost btn-sm">Medium öffnen ↗</a>`;
+}
+
+// datetime-local-Default: morgen 09:00 (lokale Zeit), Format YYYY-MM-DDTHH:MM
+function defaultScheduleValue() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(9, 0, 0, 0);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function renderSocialContent(session) {
+  $('#page-title').textContent = 'Social Content';
+  if ($('#page-subtitle')) $('#page-subtitle').textContent = 'Von n8n erzeugte Beiträge prüfen und freigeben';
+  const user = session.user;
+  if (!hasRole(user, ROLES.ADMIN, ROLES.MANAGER)) { navigateTo('dashboard'); return; }
+
+  $('#topbar-actions').innerHTML = `<button class="btn btn-ghost btn-sm" onclick="renderSocialContent(getCurrentUser())">Aktualisieren</button>`;
+  $('#content').innerHTML = '<div class="text-muted text-center" style="padding:40px">Wird geladen…</div>';
+
+  let rows;
+  try {
+    rows = await apiGet('/content.php');
+  } catch (e) {
+    $('#content').innerHTML = `<div class="card"><div class="empty-state"><div class="empty-state-icon">⚠️</div>Fehler beim Laden: ${escape(e.message)}</div></div>`;
+    return;
+  }
+
+  const drafts    = rows.filter(r => r.status === 'draft');
+  const scheduled = rows.filter(r => r.status === 'approved');
+  const done      = rows.filter(r => ['published','error','rejected'].includes(r.status));
+
+  const customerName = (r) => r.customerName || (store.customers.find(x => x.id === r.customerId)?.name) || null;
+
+  const draftCard = (r) => `
+    <div class="card mb-4" id="cq-${r.id}">
+      <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <div style="font-weight:600;">${socialStatusBadge(r.status)} <span class="text-sm text-muted">#${r.id} · ${escape(r.platform)}/${escape(r.contentType)}</span></div>
+          ${customerName(r) ? `<span class="text-sm text-muted">${escape(customerName(r))}</span>` : ''}
+        </div>
+        ${socialMediaPreview(r.mediaUrl)}
+        ${r.caption ? `<div class="text-sm" style="white-space:pre-wrap;">${escape(r.caption)}</div>` : '<div class="text-sm text-muted">Keine Caption</div>'}
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;border-top:1px solid var(--border);padding-top:12px;">
+          <div class="form-group" style="margin:0;flex:1;min-width:220px;">
+            <label class="form-label">Geplante Veröffentlichung</label>
+            <input type="datetime-local" id="cq-when-${r.id}" value="${r.scheduledAt ? toLocalInput(r.scheduledAt) : defaultScheduleValue()}" />
+          </div>
+          <button class="btn btn-primary" onclick="approveSocialContent(${r.id})">✅ Freigeben</button>
+          <button class="btn btn-ghost" onclick="rejectSocialContent(${r.id})">Ablehnen</button>
+        </div>
+      </div>
+    </div>`;
+
+  const compactRow = (r) => `
+    <tr>
+      <td class="text-sm">#${r.id}</td>
+      <td>${socialStatusBadge(r.status)}</td>
+      <td class="text-sm">${customerName(r) ? escape(customerName(r)) : '–'}</td>
+      <td class="text-sm" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(r.caption || '–')}</td>
+      <td class="text-sm text-muted">${r.scheduledAt ? fmtDateTime(r.scheduledAt) : '–'}</td>
+      <td class="text-sm text-muted">${r.publishedAt ? fmtDateTime(r.publishedAt) : (r.errorMessage ? escape(r.errorMessage) : '')}</td>
+      <td><a href="${escape(r.mediaUrl || '#')}" target="_blank" class="btn btn-ghost btn-sm">Medium</a></td>
+    </tr>`;
+
+  $('#content').innerHTML = `
+    <div class="card mb-4">
+      <div class="card-header"><div class="card-title">Zu prüfen (${drafts.length})</div></div>
+      ${drafts.length ? '' : '<div class="empty-state"><div class="empty-state-icon">📭</div>Keine offenen Entwürfe. n8n legt neue Beiträge automatisch an.</div>'}
+    </div>
+    ${drafts.map(draftCard).join('')}
+
+    ${scheduled.length ? `<div class="card mb-4">
+      <div class="card-header"><div class="card-title">Freigegeben & geplant (${scheduled.length})</div></div>
+      <table><thead><tr><th>#</th><th>Status</th><th>Kunde</th><th>Caption</th><th>Geplant</th><th>Info</th><th></th></tr></thead>
+        <tbody>${scheduled.map(compactRow).join('')}</tbody></table>
+    </div>` : ''}
+
+    ${done.length ? `<div class="card">
+      <div class="card-header"><div class="card-title">Verlauf (${done.length})</div></div>
+      <table><thead><tr><th>#</th><th>Status</th><th>Kunde</th><th>Caption</th><th>Geplant</th><th>Info</th><th></th></tr></thead>
+        <tbody>${done.map(compactRow).join('')}</tbody></table>
+    </div>` : ''}
+  `;
+}
+
+// MySQL-DATETIME ("YYYY-MM-DD HH:MM:SS") → datetime-local-Wert ("YYYY-MM-DDTHH:MM")
+function toLocalInput(mysqlDt) {
+  if (!mysqlDt) return defaultScheduleValue();
+  const s = String(mysqlDt).replace(' ', 'T');
+  return s.slice(0, 16);
+}
+
+async function approveSocialContent(id) {
+  const input = document.getElementById('cq-when-' + id);
+  const when = input?.value;
+  if (!when) { showToast('Bitte Datum/Uhrzeit wählen.', 'warn'); return; }
+  try {
+    await apiPut('/content.php?action=approve&id=' + id, { scheduledAt: when });
+    showToast('Freigegeben – n8n postet zur geplanten Zeit.', 'success');
+    renderSocialContent(getCurrentUser());
+  } catch (e) {
+    showToast('Fehler: ' + e.message, 'error');
+  }
+}
+
+async function rejectSocialContent(id) {
+  const ok = await appConfirm('Diesen Beitrag ablehnen?', { title: 'Ablehnen?', okLabel: 'Ablehnen', danger: true });
+  if (!ok) return;
+  try {
+    await apiPut('/content.php?action=reject&id=' + id, {});
+    showToast('Beitrag abgelehnt.', 'success');
+    renderSocialContent(getCurrentUser());
   } catch (e) {
     showToast('Fehler: ' + e.message, 'error');
   }
