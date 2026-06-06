@@ -31,13 +31,40 @@ if ($scope === 'customer') {
     );
     if (!$file) json_err(404, 'Datei nicht gefunden.');
 } elseif ($scope === 'contract') {
-    if ($session['type'] === 'customer') json_err(403, 'Keine Berechtigung.');
-    if (!has_role('admin','manager','contract_uploader')) json_err(403, 'Keine Berechtigung.');
-    $file = db_one(
-        "SELECT id, filename, mime, size, path FROM contracts WHERE id = ?",
+    $variant = $_GET['variant'] ?? '';
+    $c = db_one(
+        "SELECT id, customer_id, status, filename, mime, path,
+                signed_filename, signed_mime, signed_path
+           FROM contracts WHERE id = ?",
         [$fileId]
     );
-    if (!$file || !$file['path']) json_err(404, 'Datei nicht gefunden.');
+    if (!$c) json_err(404, 'Datei nicht gefunden.');
+
+    if ($session['type'] === 'customer') {
+        // Kunde darf nur eigene Verträge laden – und nur, wenn sie zur Unterschrift
+        // anstehen (Original zum Signieren) oder bereits unterschrieben sind (fertiges Dokument).
+        if ($session['cid'] !== $c['customer_id']) json_err(403, 'Keine Berechtigung.');
+        if (!in_array($c['status'], ['awaiting_signature', 'signed'], true)) {
+            json_err(403, 'Keine Berechtigung.');
+        }
+        if ($c['status'] === 'signed' && $c['signed_path']) {
+            $file = ['filename' => $c['signed_filename'] ?: $c['filename'],
+                     'mime'     => $c['signed_mime'] ?: $c['mime'],
+                     'path'     => $c['signed_path']];
+        } else {
+            $file = ['filename' => $c['filename'], 'mime' => $c['mime'], 'path' => $c['path']];
+        }
+    } else {
+        if (!has_role('admin','manager','contract_uploader')) json_err(403, 'Keine Berechtigung.');
+        if ($variant === 'signed' && $c['signed_path']) {
+            $file = ['filename' => $c['signed_filename'] ?: $c['filename'],
+                     'mime'     => $c['signed_mime'] ?: $c['mime'],
+                     'path'     => $c['signed_path']];
+        } else {
+            $file = ['filename' => $c['filename'], 'mime' => $c['mime'], 'path' => $c['path']];
+        }
+    }
+    if (!$file['path']) json_err(404, 'Datei nicht gefunden.');
 } elseif ($scope === 'voice') {
     if ($session['type'] === 'customer') json_err(403, 'Keine Berechtigung.');
     if (!has_role('admin','manager','contract_uploader')) json_err(403, 'Keine Berechtigung.');
