@@ -19,9 +19,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 $body      = input_json();
 $contentId = api_require_content_id($body);
 
-$row = db_one("SELECT id FROM content_queue WHERE id = ?", [$contentId]);
+$row = db_one("SELECT id, status FROM content_queue WHERE id = ?", [$contentId]);
 if (!$row) {
     api_send(404, ['success' => false, 'error' => 'Content not found']);
+}
+// Nur freigegebene Einträge dürfen veröffentlicht werden (Flow: draft → approved → published).
+// Schützt vor stale/vertippten content_id, die sonst Entwürfe/abgelehnte Items „published" setzen.
+if ($row['status'] !== 'approved') {
+    api_send(409, ['success' => false, 'error' => 'Content is not in approved state']);
 }
 
 $set    = ["status = 'published'", "published_at = NOW()"];
@@ -36,6 +41,10 @@ if (api_has_column('content_queue', 'updated_at')) {
 }
 
 $params[] = $contentId;
-db_exec("UPDATE content_queue SET " . implode(', ', $set) . " WHERE id = ?", $params);
+// status='approved' zusätzlich in der WHERE-Klausel → atomar gegen parallele Polls.
+$affected = db_exec("UPDATE content_queue SET " . implode(', ', $set) . " WHERE id = ? AND status = 'approved'", $params);
+if ($affected < 1) {
+    api_send(409, ['success' => false, 'error' => 'Content is not in approved state']);
+}
 
 api_send(200, ['success' => true, 'message' => 'Content marked as published']);

@@ -19,9 +19,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 $body      = input_json();
 $contentId = api_require_content_id($body);
 
-$row = db_one("SELECT id FROM content_queue WHERE id = ?", [$contentId]);
+$row = db_one("SELECT id, status FROM content_queue WHERE id = ?", [$contentId]);
 if (!$row) {
     api_send(404, ['success' => false, 'error' => 'Content not found']);
+}
+// Ein Fehler beim Posten kann nur bei einem freigegebenen Eintrag auftreten
+// (Flow: draft → approved → published/error). Schützt vor stale/vertippten content_id.
+if ($row['status'] !== 'approved') {
+    api_send(409, ['success' => false, 'error' => 'Content is not in approved state']);
 }
 
 $set    = ["status = 'error'"];
@@ -36,6 +41,9 @@ if (api_has_column('content_queue', 'updated_at')) {
 }
 
 $params[] = $contentId;
-db_exec("UPDATE content_queue SET " . implode(', ', $set) . " WHERE id = ?", $params);
+$affected = db_exec("UPDATE content_queue SET " . implode(', ', $set) . " WHERE id = ? AND status = 'approved'", $params);
+if ($affected < 1) {
+    api_send(409, ['success' => false, 'error' => 'Content is not in approved state']);
+}
 
 api_send(200, ['success' => true, 'message' => 'Content marked as error']);
