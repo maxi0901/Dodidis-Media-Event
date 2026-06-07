@@ -115,6 +115,21 @@ switch ($method) {
         }
 
         $params = build_project_params($b, false);
+
+        // Automatischer Phasenwechsel (Kanban): Bekommt ein Projekt aus der Phase
+        // „Planung" (Status 'skript', noch ohne Drehdatum) erstmals ein Drehdatum,
+        // wandert es serverseitig in die Phase „Dreh" – Status wird auf 'geplant'
+        // gehoben, sofern der Aufrufer nicht ohnehin einen weiteren Status setzt.
+        if ($isPriv
+            && array_key_exists('shoot_date', $params)
+            && !empty($params['shoot_date'])
+            && empty($cur['shoot_date'])) {
+            $effectiveStatus = $params['status'] ?? ($cur['status'] ?? 'skript');
+            if ($effectiveStatus === 'skript') {
+                $params['status'] = 'geplant';
+            }
+        }
+
         error_log('[projects PUT] id=' . $id . ' uid=' . ($session['uid'] ?? '?') . ' isPriv=' . ($isPriv?'1':'0') . ' isVid=' . ($isVid?'1':'0') . ' isCut=' . ($isCut?'1':'0') . ' body=' . json_encode($b) . ' params=' . json_encode($params));
         if (!$params) json_ok(['id' => $id]);
 
