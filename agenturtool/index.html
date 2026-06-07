@@ -9376,7 +9376,6 @@ function renderCategoryWeekView(elementId, session, mini = false) {
     const setInitScroll = () => {
       scroller.scrollLeft = daysBefore * colWidth;
       updateWeekHeader(elementId);
-      updateStickyEventLabels(scroller);
     };
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -9398,14 +9397,14 @@ function renderCategoryWeekView(elementId, session, mini = false) {
     setTimeout(setInitScroll, 120);
     enableDragScroll(scroller);
     updateWeekHeader(elementId);
-    updateStickyEventLabels(scroller);
+    // Sticky-Beschriftungen werden zentral von initCalendarStickyLabels() verwaltet
+    // (siehe unten) – hier nur den Wochen-Header live nachziehen.
     let frame = null;
     scroller.addEventListener('scroll', () => {
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = null;
         updateWeekHeader(elementId);
-        updateStickyEventLabels(scroller);
       });
     });
   }
@@ -9598,26 +9597,6 @@ function renderWeekViewIntoLegacy(elementId, session, mini = false) {
       frame = requestAnimationFrame(() => { frame = null; updateWeekHeader(elementId); });
     });
   }
-}
-
-function updateStickyEventLabels(scroller) {
-  if (!scroller || !scroller.querySelector) return;
-  const track = scroller.querySelector('.ical-track');
-  const sidebarWidth = Number.parseFloat(getComputedStyle(track || scroller).getPropertyValue('--ical-sidebar')) || 48;
-  const stickyLeft = scroller.scrollLeft + sidebarWidth + 8;
-  const visibleRight = scroller.scrollLeft + scroller.clientWidth - 12;
-  scroller.querySelectorAll('.ical-event').forEach(eventEl => {
-    const label = eventEl.querySelector('.ical-event-label');
-    if (!label) return;
-    const eventLeft = eventEl.offsetLeft;
-    const eventRight = eventLeft + eventEl.offsetWidth;
-    const visibleEventLeft = Math.max(eventLeft, stickyLeft);
-    const visibleEventRight = Math.min(eventRight, visibleRight);
-    const offset = Math.max(0, visibleEventLeft - eventLeft);
-    const maxWidth = Math.max(28, visibleEventRight - visibleEventLeft - 8);
-    label.style.setProperty('--label-offset', `${Math.round(offset)}px`);
-    label.style.setProperty('--label-max-width', `${Math.round(maxWidth)}px`);
-  });
 }
 
 function updateWeekHeader(elementId) {
