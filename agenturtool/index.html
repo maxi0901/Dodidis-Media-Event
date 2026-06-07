@@ -12314,19 +12314,34 @@ document.addEventListener('keydown', e => {
     const styles = getComputedStyle(track);
     const sidebarWidth = Number.parseFloat(styles.getPropertyValue('--ical-sidebar')) || 48;
     const labelGutter = Number.parseFloat(styles.getPropertyValue('--ical-label-gutter')) || 18;
-    const stickyLeft = scroller.scrollLeft + sidebarWidth + labelGutter;
-    const visibleRight = scroller.scrollLeft + scroller.clientWidth - 8;
+
+    // Viewport-relative Messung (getBoundingClientRect) statt offsetLeft:
+    // offsetLeft hängt vom offsetParent ab und liefert je nach Layout (Desktop
+    // vs. Mobil) unterschiedliche Bezugspunkte – dadurch blieb der Text auf dem
+    // PC stehen. Über die Bounding-Rects rechnen wir immer im selben Koordinaten-
+    // system und unabhängig vom Scroll-Mechanismus.
+    const scRect = scroller.getBoundingClientRect();
+    const stickyLeft   = scRect.left + sidebarWidth + labelGutter; // linke Haltelinie
+    const visibleRight = scRect.right - 8;
 
     scroller.querySelectorAll('.ical-event').forEach(eventEl => {
       const label = eventEl.querySelector('.ical-event-label');
       if (!label) return;
-      const eventLeft = eventEl.offsetLeft;
-      const eventRight = eventLeft + eventEl.offsetWidth;
-      const naturalLabelLeft = eventLeft + label.offsetLeft;
-      const visibleLabelLeft = Math.max(naturalLabelLeft, stickyLeft);
-      const visibleLabelRight = Math.min(eventRight, visibleRight);
-      const offset = Math.max(0, visibleLabelLeft - naturalLabelLeft);
-      const maxWidth = Math.max(28, visibleLabelRight - visibleLabelLeft - 4);
+      const evRect = eventEl.getBoundingClientRect();        // Balken ohne Transform (Transform liegt nur am Label)
+      const labelInset = label.offsetLeft;                   // Avatar + Padding, transform-unabhängig
+      const naturalLeft = evRect.left + labelInset;          // natürliche Textposition (Balkenanfang)
+      const labelWidth = label.scrollWidth;                  // volle Textbreite, stabil über Updates hinweg
+      const innerRight = evRect.right - 2;                   // rechtes Balkenende
+
+      // Anschlag: Text klebt an der Haltelinie, darf aber nie über das rechte
+      // Balkenende hinaus – sobald der Balken weit genug nach links gescrollt ist,
+      // wandert der Text mit dem Balken hinaus (statt frei stehen zu bleiben).
+      const rightStop = innerRight - labelWidth;
+      let targetLeft = Math.min(stickyLeft, Math.max(naturalLeft, rightStop));
+      targetLeft = Math.max(targetLeft, naturalLeft);
+      const offset = Math.max(0, targetLeft - naturalLeft);
+      const maxWidth = Math.max(0, Math.min(innerRight, visibleRight) - targetLeft);
+
       label.style.setProperty('--label-offset', `${offset.toFixed(2)}px`);
       label.style.setProperty('--label-max-width', `${maxWidth.toFixed(2)}px`);
     });
