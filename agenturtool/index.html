@@ -12330,15 +12330,14 @@ document.addEventListener('keydown', e => {
       const evRect = eventEl.getBoundingClientRect();        // Balken ohne Transform (Transform liegt nur am Label)
       const labelInset = label.offsetLeft;                   // Avatar + Padding, transform-unabhängig
       const naturalLeft = evRect.left + labelInset;          // natürliche Textposition (Balkenanfang)
-      const labelWidth = label.scrollWidth;                  // volle Textbreite, stabil über Updates hinweg
       const innerRight = evRect.right - 2;                   // rechtes Balkenende
 
-      // Anschlag: Text klebt an der Haltelinie, darf aber nie über das rechte
-      // Balkenende hinaus – sobald der Balken weit genug nach links gescrollt ist,
-      // wandert der Text mit dem Balken hinaus (statt frei stehen zu bleiben).
-      const rightStop = innerRight - labelWidth;
-      let targetLeft = Math.min(stickyLeft, Math.max(naturalLeft, rightStop));
-      targetLeft = Math.max(targetLeft, naturalLeft);
+      // Anschlag direkt am rechten Balkenende (nicht abzüglich Textbreite – sonst
+      // würde das Pinning bei langen, abgeschnittenen Titeln auf schmalen Balken
+      // ausfallen). Der Text klebt an der Haltelinie, solange der Balken sie
+      // überdeckt; sobald das rechte Balkenende die Haltelinie passiert, schrumpft
+      // der sichtbare Text und verschwindet zusammen mit dem Balken.
+      const targetLeft = Math.max(naturalLeft, Math.min(stickyLeft, innerRight));
       const offset = Math.max(0, targetLeft - naturalLeft);
       const maxWidth = Math.max(0, Math.min(innerRight, visibleRight) - targetLeft);
 
