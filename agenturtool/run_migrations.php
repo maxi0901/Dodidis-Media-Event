@@ -472,6 +472,48 @@ if (!tableExists($pdo, 'project_comments')) {
         "ALTER TABLE project_comments ADD COLUMN voice_filename VARCHAR(255) NULL", $results);
 }
 
+// ── 24. content_queue (Social-Media-Content-Queue für n8n-Automation) ─────────
+if (!tableExists($pdo, 'content_queue')) {
+    step($pdo, "content_queue: Tabelle anlegen",
+        "CREATE TABLE content_queue (
+           id                INT UNSIGNED NOT NULL AUTO_INCREMENT,
+           customer_id       VARCHAR(64)  NULL,
+           platform          VARCHAR(50)  NOT NULL DEFAULT 'instagram',
+           content_type      VARCHAR(50)  NOT NULL DEFAULT 'story',
+           caption           TEXT         NULL,
+           media_url         TEXT         NULL,
+           status            VARCHAR(50)  NOT NULL DEFAULT 'draft',
+           approved_by       VARCHAR(64)  NULL,
+           scheduled_at      DATETIME     NULL,
+           published_at      DATETIME     NULL,
+           platform_response TEXT         NULL,
+           error_message     TEXT         NULL,
+           created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           updated_at        DATETIME     NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+           PRIMARY KEY (id),
+           KEY idx_cq_due (status, platform, content_type, scheduled_at, published_at),
+           KEY idx_cq_customer (customer_id),
+           CONSTRAINT fk_cq_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+           CONSTRAINT fk_cq_approver FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "content_queue: bereits vorhanden"];
+    // Fehlende Spalten idempotent nachrüsten (falls eine ähnliche Tabelle schon existierte).
+    addCol($pdo, 'content_queue', 'customer_id',       "ALTER TABLE content_queue ADD COLUMN customer_id VARCHAR(64) NULL", $results);
+    addCol($pdo, 'content_queue', 'platform',          "ALTER TABLE content_queue ADD COLUMN platform VARCHAR(50) NOT NULL DEFAULT 'instagram'", $results);
+    addCol($pdo, 'content_queue', 'content_type',      "ALTER TABLE content_queue ADD COLUMN content_type VARCHAR(50) NOT NULL DEFAULT 'story'", $results);
+    addCol($pdo, 'content_queue', 'caption',           "ALTER TABLE content_queue ADD COLUMN caption TEXT NULL", $results);
+    addCol($pdo, 'content_queue', 'media_url',         "ALTER TABLE content_queue ADD COLUMN media_url TEXT NULL", $results);
+    addCol($pdo, 'content_queue', 'status',            "ALTER TABLE content_queue ADD COLUMN status VARCHAR(50) NOT NULL DEFAULT 'draft'", $results);
+    addCol($pdo, 'content_queue', 'approved_by',       "ALTER TABLE content_queue ADD COLUMN approved_by VARCHAR(64) NULL", $results);
+    addCol($pdo, 'content_queue', 'scheduled_at',      "ALTER TABLE content_queue ADD COLUMN scheduled_at DATETIME NULL", $results);
+    addCol($pdo, 'content_queue', 'published_at',      "ALTER TABLE content_queue ADD COLUMN published_at DATETIME NULL", $results);
+    addCol($pdo, 'content_queue', 'platform_response', "ALTER TABLE content_queue ADD COLUMN platform_response TEXT NULL", $results);
+    addCol($pdo, 'content_queue', 'error_message',     "ALTER TABLE content_queue ADD COLUMN error_message TEXT NULL", $results);
+    addCol($pdo, 'content_queue', 'updated_at',        "ALTER TABLE content_queue ADD COLUMN updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP", $results);
+}
+
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>
