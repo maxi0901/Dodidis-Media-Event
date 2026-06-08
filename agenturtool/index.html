@@ -1665,9 +1665,16 @@
     overflow-y: auto;
     cursor: grab;
     max-height: 720px;
-    scroll-snap-type: x mandatory;
+    /* „proximity" statt „mandatory": Mandatory-Snap kämpft auf dem Desktop gegen
+       Maus-/Trackpad-Scrollen und das Drag-/Wheel-Handling (Ruckeln/Hängen).
+       Proximity rastet sanft an Tagesspalten ein, blockiert aber freies Scrollen
+       nicht. Touch (Mobil) blieb ohnehin ohne Snap. */
+    scroll-snap-type: x proximity;
     overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
+    /* Scroll-Container für den Compositor markieren → weniger Repaint beim
+       horizontalen Scrollen in datendichten Wochen. */
+    will-change: scroll-position;
     --ical-sidebar: 48px;
   }
   @media (max-width: 640px) {
@@ -12324,12 +12331,21 @@ document.addEventListener('keydown', e => {
     const stickyLeft   = scRect.left + sidebarWidth + labelGutter; // linke Haltelinie
     const visibleRight = scRect.right - 8;
 
-    scroller.querySelectorAll('.ical-event').forEach(eventEl => {
+    // WICHTIG (Desktop-Scroll-Performance): Lese- und Schreibphase strikt trennen.
+    // Vorher wurde pro Balken gelesen (getBoundingClientRect) UND sofort geschrieben
+    // (--label-max-width ändert die Label-Breite). Jeder Schreibvorgang macht das
+    // Layout „dirty", sodass das nächste getBoundingClientRect einen erzwungenen
+    // Reflow auslöst → O(n) Layout-Berechnungen pro Frame, die in datendichten Wochen
+    // das Maus-/Wheel-Scrollen blockieren. Jetzt: erst ALLE Geometrien lesen, dann
+    // ALLE Styles schreiben → konstant statt n Reflows pro Frame.
+    const events = scroller.querySelectorAll('.ical-event');
+    const writes = [];
+    for (let i = 0; i < events.length; i++) {
+      const eventEl = events[i];
       const label = eventEl.querySelector('.ical-event-label');
-      if (!label) return;
+      if (!label) continue;
       const evRect = eventEl.getBoundingClientRect();        // Balken ohne Transform (Transform liegt nur am Label)
-      const labelInset = label.offsetLeft;                   // Avatar + Padding, transform-unabhängig
-      const naturalLeft = evRect.left + labelInset;          // natürliche Textposition (Balkenanfang)
+      const naturalLeft = evRect.left + label.offsetLeft;    // natürliche Textposition (Balkenanfang)
       const innerRight = evRect.right - 2;                   // rechtes Balkenende
 
       // Anschlag direkt am rechten Balkenende (nicht abzüglich Textbreite – sonst
@@ -12340,10 +12356,14 @@ document.addEventListener('keydown', e => {
       const targetLeft = Math.max(naturalLeft, Math.min(stickyLeft, innerRight));
       const offset = Math.max(0, targetLeft - naturalLeft);
       const maxWidth = Math.max(0, Math.min(innerRight, visibleRight) - targetLeft);
-
-      label.style.setProperty('--label-offset', `${offset.toFixed(2)}px`);
-      label.style.setProperty('--label-max-width', `${maxWidth.toFixed(2)}px`);
-    });
+      writes.push(label, offset.toFixed(2), maxWidth.toFixed(2));
+    }
+    // Schreibphase – keine Layout-Lesezugriffe mehr dazwischen.
+    for (let i = 0; i < writes.length; i += 3) {
+      const label = writes[i];
+      label.style.setProperty('--label-offset', writes[i + 1] + 'px');
+      label.style.setProperty('--label-max-width', writes[i + 2] + 'px');
+    }
   }
 
   function bind(scroller) {
