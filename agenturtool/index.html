@@ -6024,6 +6024,16 @@ function renderProjects(session) {
     const customerCell = p.isInternal
       ? '<span class="badge" style="background:rgba(100,210,255,0.12); color:#64d2ff; border:1px solid rgba(100,210,255,0.25);">Intern</span>'
       : escape(c?.name || '–');
+    // Deadline rot hinterlegen, wenn überschritten (und das Projekt noch nicht freigegeben ist).
+    // Lokales Datum verwenden (nicht UTC via toISOString), sonst kippt der Vergleich
+    // je nach Zeitzone um Mitternacht falsch.
+    const todayStr = localDateStr(new Date());
+    const deadlineOverdue = p.deadline && p.deadline < todayStr && p.status !== STATUS.FREIGEGEBEN;
+    const deadlineCell = p.deadline
+      ? (deadlineOverdue
+          ? `<span class="badge badge-ueberfaellig">${fmtDate(p.deadline)}</span>`
+          : fmtDate(p.deadline))
+      : '–';
     return `
       <tr style="cursor:pointer" onclick="openProjectModal('${p.id}')">
         <td><strong>${escape(p.title)}</strong></td>
@@ -6031,7 +6041,7 @@ function renderProjects(session) {
         <td><span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span></td>
         <td>${escape(vg?.name || '–')}</td>
         <td>${escape(ct?.name || '–')}</td>
-        <td>${fmtDate(p.deadline)}</td>
+        <td>${deadlineCell}</td>
         <td>${p.isInternal ? '–' : (fmtDate(p.postingDate) + ' 18:00')}</td>
       </tr>
     `;
