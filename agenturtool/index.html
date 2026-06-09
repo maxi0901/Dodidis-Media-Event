@@ -6024,8 +6024,10 @@ function renderProjects(session) {
     const customerCell = p.isInternal
       ? '<span class="badge" style="background:rgba(100,210,255,0.12); color:#64d2ff; border:1px solid rgba(100,210,255,0.25);">Intern</span>'
       : escape(c?.name || '–');
-    // Deadline rot hinterlegen, wenn überschritten (und das Projekt noch nicht freigegeben ist)
-    const todayStr = new Date().toISOString().slice(0, 10);
+    // Deadline rot hinterlegen, wenn überschritten (und das Projekt noch nicht freigegeben ist).
+    // Lokales Datum verwenden (nicht UTC via toISOString), sonst kippt der Vergleich
+    // je nach Zeitzone um Mitternacht falsch.
+    const todayStr = localDateStr(new Date());
     const deadlineOverdue = p.deadline && p.deadline < todayStr && p.status !== STATUS.FREIGEGEBEN;
     const deadlineCell = p.deadline
       ? (deadlineOverdue
