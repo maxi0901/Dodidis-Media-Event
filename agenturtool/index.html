@@ -12323,8 +12323,114 @@ document.addEventListener('keydown', e => {
 
 // Hält Event-Beschriftungen in der Wochenansicht sichtbar, ohne die Render-Funktion
 // selbst zu verändern. Dadurch bleibt der Patch klein und merge-freundlich.
+/* ===== Kalender-Scroll-Diagnose (standardmäßig AUS, kein Einfluss im Normalbetrieb) =====
+   Einschalten in der Browser-Konsole:   calDebug(true)
+   Dann im Kalender scrollen/ziehen → Ausgaben als [CAL-DEBUG] in der Konsole.
+   Ausschalten:                           calDebug(false)
+   Die Logs zeigen je Sekunde: Scroll-Events, gerenderte Frames, „Ruckel-Frames"
+   (>32 ms ≈ unter 30 FPS), schlimmste Frame-Zeit, Kosten des Label-Updates
+   (Aufrufe / Ø Balkenanzahl / max. Dauer), aktiven scroll-snap-Modus, ob gerade
+   gezogen wird und wie viele Balken im DOM sind. Zusätzlich Warnungen bei Long-Tasks. */
+let _calDbg = null;
+function _calDebugOn() { try { return localStorage.getItem('calDebug') === '1'; } catch (e) { return false; } }
+function _calDebugActiveScroller() {
+  return Array.from(document.querySelectorAll('.ical-scroll')).find(s => s.offsetParent !== null) || null;
+}
+// Sichtbares Panel (für Mobil/iPad – einfach abfotografieren). Hält die letzten Zeilen.
+function _calDebugWrite(line) {
+  let box = document.getElementById('cal-debug-overlay');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'cal-debug-overlay';
+    box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;max-height:42vh;overflow:auto;'
+      + 'background:rgba(8,10,16,0.92);color:#7CFFB0;font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;'
+      + 'padding:8px 10px;border:1px solid #2a3550;border-radius:8px;white-space:pre-wrap;box-shadow:0 6px 24px rgba(0,0,0,.5);';
+    box.addEventListener('dblclick', () => { box.textContent = ''; });
+    document.body.appendChild(box);
+  }
+  const t = new Date().toLocaleTimeString('de-DE');
+  box.textContent = `[${t}] ${line}\n` + box.textContent;
+  // auf ~25 Zeilen begrenzen
+  const lines = box.textContent.split('\n');
+  if (lines.length > 25) box.textContent = lines.slice(0, 25).join('\n');
+}
+function _calDebugRemoveOverlay() {
+  const box = document.getElementById('cal-debug-overlay');
+  if (box) box.remove();
+}
+function _calDebugInit() {
+  if (!_calDebugOn() || (_calDbg && _calDbg.raf)) return;
+  _calDbg = { scrollCount: 0, frames: 0, longFrames: 0, worstFrame: 0,
+              updCount: 0, updEvents: 0, updMax: 0, lastFrameTs: performance.now(),
+              raf: null, report: null, po: null };
+  console.log('[CAL-DEBUG] aktiv. UA:', navigator.userAgent);
+  try {
+    if (window.PerformanceObserver) {
+      _calDbg.po = new PerformanceObserver(list => {
+        if (!_calDebugOn()) return;
+        for (const e of list.getEntries()) if (e.duration > 50) {
+          const m = 'LongTask ' + e.duration.toFixed(1) + 'ms (blockiert Main-Thread)';
+          console.warn('[CAL-DEBUG] ' + m); _calDebugWrite(m);
+        }
+      });
+      try { _calDbg.po.observe({ entryTypes: ['longtask'] }); } catch (e) {}
+    }
+  } catch (e) {}
+  const tick = () => {
+    if (!_calDebugOn()) { _calDbg.raf = null; return; }
+    const now = performance.now(), dt = now - _calDbg.lastFrameTs;
+    _calDbg.lastFrameTs = now; _calDbg.frames++;
+    if (dt > _calDbg.worstFrame) _calDbg.worstFrame = dt;
+    if (dt > 32) _calDbg.longFrames++;
+    _calDbg.raf = requestAnimationFrame(tick);
+  };
+  _calDbg.lastFrameTs = performance.now();
+  _calDbg.raf = requestAnimationFrame(tick);
+  _calDbg.report = setInterval(() => {
+    if (!_calDebugOn()) { clearInterval(_calDbg.report); _calDbg.report = null; return; }
+    if (_calDbg.scrollCount === 0 && _calDbg.updCount === 0) return; // nur bei Aktivität loggen
+    const sc = _calDebugActiveScroller();
+    const snap = sc ? getComputedStyle(sc).scrollSnapType : '?';
+    const nEv = sc ? sc.querySelectorAll('.ical-event').length : 0;
+    const dragging = sc ? sc.classList.contains('dragging') : false;
+    const line = 'scrollEvts=' + _calDbg.scrollCount
+      + ' frames=' + _calDbg.frames
+      + ' ruckelFrames(>32ms)=' + _calDbg.longFrames
+      + ' worstFrame=' + _calDbg.worstFrame.toFixed(1) + 'ms'
+      + ' | labelUpdate: calls=' + _calDbg.updCount
+      + ' avgBalken=' + (_calDbg.updEvents / Math.max(1, _calDbg.updCount)).toFixed(0)
+      + ' maxDauer=' + _calDbg.updMax.toFixed(2) + 'ms'
+      + ' | snap=' + snap + ' dragging=' + dragging + ' balkenImDOM=' + nEv;
+    console.log('[CAL-DEBUG] ' + line);
+    _calDebugWrite(line);
+    _calDbg.scrollCount = _calDbg.frames = _calDbg.longFrames = 0;
+    _calDbg.worstFrame = _calDbg.updCount = _calDbg.updEvents = _calDbg.updMax = 0;
+  }, 1000);
+}
+window.calDebug = function (on) {
+  if (on === undefined) return _calDebugOn();
+  try { if (on) localStorage.setItem('calDebug', '1'); else localStorage.removeItem('calDebug'); } catch (e) {}
+  if (on) {
+    _calDebugInit();
+    _calDebugWrite('Diagnose EIN – jetzt im Kalender scrollen/ziehen. (Doppeltipp auf dieses Panel leert es.)');
+    console.log('[CAL-DEBUG] EIN – jetzt im Kalender scrollen/ziehen.');
+  } else {
+    if (_calDbg) {
+      if (_calDbg.raf) cancelAnimationFrame(_calDbg.raf);
+      if (_calDbg.report) clearInterval(_calDbg.report);
+      try { if (_calDbg.po) _calDbg.po.disconnect(); } catch (e) {}
+      _calDbg = null;
+    }
+    _calDebugRemoveOverlay();
+    console.log('[CAL-DEBUG] AUS.');
+  }
+  return on;
+};
+setTimeout(() => { if (_calDebugOn()) _calDebugInit(); }, 0);
+
 (function initCalendarStickyLabels() {
   function update(scroller) {
+    const _dbgT0 = (_calDbg && _calDebugOn()) ? performance.now() : -1;
     if (!scroller || !scroller.querySelector) return;
     const track = scroller.querySelector('.ical-track');
     if (!track) return;
@@ -12374,6 +12480,11 @@ document.addEventListener('keydown', e => {
       label.style.setProperty('--label-offset', writes[i + 1] + 'px');
       label.style.setProperty('--label-max-width', writes[i + 2] + 'px');
     }
+    if (_dbgT0 >= 0 && _calDbg) {
+      const d = performance.now() - _dbgT0;
+      _calDbg.updCount++; _calDbg.updEvents += events.length;
+      if (d > _calDbg.updMax) _calDbg.updMax = d;
+    }
   }
 
   function bind(scroller) {
@@ -12381,6 +12492,7 @@ document.addEventListener('keydown', e => {
     scroller._dmStickyLabelBound = true;
     let frame = null;
     const schedule = () => {
+      if (_calDbg && _calDebugOn()) _calDbg.scrollCount++;
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = null;
