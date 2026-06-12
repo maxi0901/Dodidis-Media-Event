@@ -12404,22 +12404,26 @@ function _calDebugInit() {
   _calDbg.raf = requestAnimationFrame(tick);
   _calDbg.report = setInterval(() => {
     if (!_calDebugOn()) { clearInterval(_calDbg.report); _calDbg.report = null; return; }
-    if (_calDbg.scrollCount === 0 && _calDbg.updCount === 0) return; // nur bei Aktivität loggen
-    const sc = _calDebugActiveScroller();
-    const snap = sc ? getComputedStyle(sc).scrollSnapType : '?';
-    const nEv = sc ? sc.querySelectorAll('.ical-event').length : 0;
-    const dragging = sc ? sc.classList.contains('dragging') : false;
-    const line = 'scrollEvts=' + _calDbg.scrollCount
-      + ' frames=' + _calDbg.frames
-      + ' ruckelFrames(>32ms)=' + _calDbg.longFrames
-      + ' worstFrame=' + _calDbg.worstFrame.toFixed(1) + 'ms'
-      + ' | labelUpdate: calls=' + _calDbg.updCount
-      + ' avgBalken=' + (_calDbg.updEvents / Math.max(1, _calDbg.updCount)).toFixed(0)
-      + ' maxDauer=' + _calDbg.updMax.toFixed(2) + 'ms'
-      + ' | snap=' + snap + ' dragging=' + dragging + ' balkenImDOM=' + nEv;
-    console.log('[CAL-DEBUG] ' + line);
-    _calDebugWrite(line);
-    _calDebugPost(line);
+    // Nur bei tatsächlicher Kalender-Aktivität loggen …
+    if (_calDbg.scrollCount > 0 || _calDbg.updCount > 0) {
+      const sc = _calDebugActiveScroller();
+      const snap = sc ? getComputedStyle(sc).scrollSnapType : '?';
+      const nEv = sc ? sc.querySelectorAll('.ical-event').length : 0;
+      const dragging = sc ? sc.classList.contains('dragging') : false;
+      const line = 'scrollEvts=' + _calDbg.scrollCount
+        + ' frames=' + _calDbg.frames
+        + ' ruckelFrames(>32ms)=' + _calDbg.longFrames
+        + ' worstFrame=' + _calDbg.worstFrame.toFixed(1) + 'ms'
+        + ' | labelUpdate: calls=' + _calDbg.updCount
+        + ' avgBalken=' + (_calDbg.updEvents / Math.max(1, _calDbg.updCount)).toFixed(0)
+        + ' maxDauer=' + _calDbg.updMax.toFixed(2) + 'ms'
+        + ' | snap=' + snap + ' dragging=' + dragging + ' balkenImDOM=' + nEv;
+      console.log('[CAL-DEBUG] ' + line);
+      _calDebugWrite(line);
+      _calDebugPost(line);
+    }
+    // … aber die Fenster-Zähler IMMER zurücksetzen, damit jeder Report nur die
+    // letzte aktive Sekunde widerspiegelt (sonst summieren sich Idle-Frames auf).
     _calDbg.scrollCount = _calDbg.frames = _calDbg.longFrames = 0;
     _calDbg.worstFrame = _calDbg.updCount = _calDbg.updEvents = _calDbg.updMax = 0;
   }, 1000);
