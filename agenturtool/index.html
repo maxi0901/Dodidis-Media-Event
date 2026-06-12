@@ -12358,19 +12358,30 @@ function _calDebugRemoveOverlay() {
   const box = document.getElementById('cal-debug-overlay');
   if (box) box.remove();
 }
+// Zeile zusätzlich in die Server-Logdatei schreiben (private_uploads/cal-debug.log).
+function _calDebugPost(line) {
+  try {
+    fetch(API_BASE + '/cal_debug_log.php', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'text/plain' },
+      body: line, keepalive: true
+    }).catch(function () {});
+  } catch (e) {}
+}
 function _calDebugInit() {
   if (!_calDebugOn() || (_calDbg && _calDbg.raf)) return;
   _calDbg = { scrollCount: 0, frames: 0, longFrames: 0, worstFrame: 0,
               updCount: 0, updEvents: 0, updMax: 0, lastFrameTs: performance.now(),
               raf: null, report: null, po: null };
   console.log('[CAL-DEBUG] aktiv. UA:', navigator.userAgent);
+  _calDebugPost('=== Session Start === ' + (window.innerWidth + 'x' + window.innerHeight) + ' UA: ' + navigator.userAgent);
   try {
     if (window.PerformanceObserver) {
       _calDbg.po = new PerformanceObserver(list => {
         if (!_calDebugOn()) return;
         for (const e of list.getEntries()) if (e.duration > 50) {
           const m = 'LongTask ' + e.duration.toFixed(1) + 'ms (blockiert Main-Thread)';
-          console.warn('[CAL-DEBUG] ' + m); _calDebugWrite(m);
+          console.warn('[CAL-DEBUG] ' + m); _calDebugWrite(m); _calDebugPost(m);
         }
       });
       try { _calDbg.po.observe({ entryTypes: ['longtask'] }); } catch (e) {}
@@ -12403,6 +12414,7 @@ function _calDebugInit() {
       + ' | snap=' + snap + ' dragging=' + dragging + ' balkenImDOM=' + nEv;
     console.log('[CAL-DEBUG] ' + line);
     _calDebugWrite(line);
+    _calDebugPost(line);
     _calDbg.scrollCount = _calDbg.frames = _calDbg.longFrames = 0;
     _calDbg.worstFrame = _calDbg.updCount = _calDbg.updEvents = _calDbg.updMax = 0;
   }, 1000);
