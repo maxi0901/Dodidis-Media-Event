@@ -12332,12 +12332,17 @@ document.addEventListener('keydown', e => {
    (Aufrufe / Ø Balkenanzahl / max. Dauer), aktiven scroll-snap-Modus, ob gerade
    gezogen wird und wie viele Balken im DOM sind. Zusätzlich Warnungen bei Long-Tasks. */
 let _calDbg = null;
-function _calDebugOn() { try { return localStorage.getItem('calDebug') === '1'; } catch (e) { return false; } }
+// Diagnose ist DAUERAKTIV (schreibt in private_uploads/cal-debug.log), außer sie
+// wurde explizit mit calDebug(false) abgeschaltet (localStorage 'calDebug' === '0').
+function _calDebugOn() { try { return localStorage.getItem('calDebug') !== '0'; } catch (e) { return true; } }
+// Das sichtbare On-Screen-Panel erscheint nur, wenn es bewusst eingeschaltet wurde.
+function _calOverlayOn() { try { return localStorage.getItem('calDebugOverlay') === '1'; } catch (e) { return false; } }
 function _calDebugActiveScroller() {
   return Array.from(document.querySelectorAll('.ical-scroll')).find(s => s.offsetParent !== null) || null;
 }
-// Sichtbares Panel (für Mobil/iPad – einfach abfotografieren). Hält die letzten Zeilen.
+// Sichtbares Panel (für Mobil/iPad – einfach abfotografieren). Nur wenn explizit eingeschaltet.
 function _calDebugWrite(line) {
+  if (!_calOverlayOn()) return;
   let box = document.getElementById('cal-debug-overlay');
   if (!box) {
     box = document.createElement('div');
@@ -12421,11 +12426,14 @@ function _calDebugInit() {
 }
 window.calDebug = function (on) {
   if (on === undefined) return _calDebugOn();
-  try { if (on) localStorage.setItem('calDebug', '1'); else localStorage.removeItem('calDebug'); } catch (e) {}
+  try {
+    if (on) { localStorage.setItem('calDebug', '1'); localStorage.setItem('calDebugOverlay', '1'); }
+    else { localStorage.setItem('calDebug', '0'); localStorage.removeItem('calDebugOverlay'); }
+  } catch (e) {}
   if (on) {
     _calDebugInit();
-    _calDebugWrite('Diagnose EIN – jetzt im Kalender scrollen/ziehen. (Doppeltipp auf dieses Panel leert es.)');
-    console.log('[CAL-DEBUG] EIN – jetzt im Kalender scrollen/ziehen.');
+    _calDebugWrite('Diagnose EIN (inkl. Panel) – jetzt im Kalender scrollen/ziehen. (Doppeltipp leert das Panel.)');
+    console.log('[CAL-DEBUG] EIN – inkl. sichtbarem Panel. Log läuft auch in die Server-Datei.');
   } else {
     if (_calDbg) {
       if (_calDbg.raf) cancelAnimationFrame(_calDbg.raf);
@@ -12434,7 +12442,7 @@ window.calDebug = function (on) {
       _calDbg = null;
     }
     _calDebugRemoveOverlay();
-    console.log('[CAL-DEBUG] AUS.');
+    console.log('[CAL-DEBUG] AUS – Diagnose komplett deaktiviert.');
   }
   return on;
 };
