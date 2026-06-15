@@ -12323,47 +12323,20 @@ document.addEventListener('keydown', e => {
 
 // Hält Event-Beschriftungen in der Wochenansicht sichtbar, ohne die Render-Funktion
 // selbst zu verändern. Dadurch bleibt der Patch klein und merge-freundlich.
-/* ===== Kalender-Scroll-Diagnose (standardmäßig AUS, kein Einfluss im Normalbetrieb) =====
-   Einschalten in der Browser-Konsole:   calDebug(true)
-   Dann im Kalender scrollen/ziehen → Ausgaben als [CAL-DEBUG] in der Konsole.
-   Ausschalten:                           calDebug(false)
-   Die Logs zeigen je Sekunde: Scroll-Events, gerenderte Frames, „Ruckel-Frames"
-   (>32 ms ≈ unter 30 FPS), schlimmste Frame-Zeit, Kosten des Label-Updates
-   (Aufrufe / Ø Balkenanzahl / max. Dauer), aktiven scroll-snap-Modus, ob gerade
-   gezogen wird und wie viele Balken im DOM sind. Zusätzlich Warnungen bei Long-Tasks. */
+/* ===== Kalender-Scroll-Diagnose – schreibt AUSSCHLIESSLICH in die Server-Logdatei
+   (private_uploads/cal-debug.log). KEINE Anzeige im UI, KEINE Konsolenausgabe.
+   Dauerhaft aktiv; abschaltbar mit calDebug(false), wieder einschalten mit calDebug(true).
+   Geloggt wird je aktiver Sekunde: Scroll-Events, Frames, Ruckel-Frames (>32ms),
+   schlimmste Frame-Zeit, Label-Update (Aufrufe/Ø Balken/max. Dauer), scroll-snap-Modus,
+   Drag-Status und Balkenanzahl; zusätzlich Long-Tasks (>50ms). */
 let _calDbg = null;
 // Diagnose ist DAUERAKTIV (schreibt in private_uploads/cal-debug.log), außer sie
 // wurde explizit mit calDebug(false) abgeschaltet (localStorage 'calDebug' === '0').
 function _calDebugOn() { try { return localStorage.getItem('calDebug') !== '0'; } catch (e) { return true; } }
-// Das sichtbare On-Screen-Panel erscheint nur, wenn es bewusst eingeschaltet wurde.
-function _calOverlayOn() { try { return localStorage.getItem('calDebugOverlay') === '1'; } catch (e) { return false; } }
 function _calDebugActiveScroller() {
   return Array.from(document.querySelectorAll('.ical-scroll')).find(s => s.offsetParent !== null) || null;
 }
-// Sichtbares Panel (für Mobil/iPad – einfach abfotografieren). Nur wenn explizit eingeschaltet.
-function _calDebugWrite(line) {
-  if (!_calOverlayOn()) return;
-  let box = document.getElementById('cal-debug-overlay');
-  if (!box) {
-    box = document.createElement('div');
-    box.id = 'cal-debug-overlay';
-    box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;max-height:42vh;overflow:auto;'
-      + 'background:rgba(8,10,16,0.92);color:#7CFFB0;font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;'
-      + 'padding:8px 10px;border:1px solid #2a3550;border-radius:8px;white-space:pre-wrap;box-shadow:0 6px 24px rgba(0,0,0,.5);';
-    box.addEventListener('dblclick', () => { box.textContent = ''; });
-    document.body.appendChild(box);
-  }
-  const t = new Date().toLocaleTimeString('de-DE');
-  box.textContent = `[${t}] ${line}\n` + box.textContent;
-  // auf ~25 Zeilen begrenzen
-  const lines = box.textContent.split('\n');
-  if (lines.length > 25) box.textContent = lines.slice(0, 25).join('\n');
-}
-function _calDebugRemoveOverlay() {
-  const box = document.getElementById('cal-debug-overlay');
-  if (box) box.remove();
-}
-// Zeile zusätzlich in die Server-Logdatei schreiben (private_uploads/cal-debug.log).
+// Einzige Ausgabe: Zeile an die Server-Logdatei anhängen (private_uploads/cal-debug.log).
 function _calDebugPost(line) {
   try {
     fetch(API_BASE + '/cal_debug_log.php', {
@@ -12378,15 +12351,13 @@ function _calDebugInit() {
   _calDbg = { scrollCount: 0, frames: 0, longFrames: 0, worstFrame: 0,
               updCount: 0, updEvents: 0, updMax: 0, lastFrameTs: performance.now(),
               raf: null, report: null, po: null };
-  console.log('[CAL-DEBUG] aktiv. UA:', navigator.userAgent);
   _calDebugPost('=== Session Start === ' + (window.innerWidth + 'x' + window.innerHeight) + ' UA: ' + navigator.userAgent);
   try {
     if (window.PerformanceObserver) {
       _calDbg.po = new PerformanceObserver(list => {
         if (!_calDebugOn()) return;
         for (const e of list.getEntries()) if (e.duration > 50) {
-          const m = 'LongTask ' + e.duration.toFixed(1) + 'ms (blockiert Main-Thread)';
-          console.warn('[CAL-DEBUG] ' + m); _calDebugWrite(m); _calDebugPost(m);
+          _calDebugPost('LongTask ' + e.duration.toFixed(1) + 'ms (blockiert Main-Thread)');
         }
       });
       try { _calDbg.po.observe({ entryTypes: ['longtask'] }); } catch (e) {}
@@ -12418,8 +12389,6 @@ function _calDebugInit() {
         + ' avgBalken=' + (_calDbg.updEvents / Math.max(1, _calDbg.updCount)).toFixed(0)
         + ' maxDauer=' + _calDbg.updMax.toFixed(2) + 'ms'
         + ' | snap=' + snap + ' dragging=' + dragging + ' balkenImDOM=' + nEv;
-      console.log('[CAL-DEBUG] ' + line);
-      _calDebugWrite(line);
       _calDebugPost(line);
     }
     // … aber die Fenster-Zähler IMMER zurücksetzen, damit jeder Report nur die
@@ -12430,23 +12399,14 @@ function _calDebugInit() {
 }
 window.calDebug = function (on) {
   if (on === undefined) return _calDebugOn();
-  try {
-    if (on) { localStorage.setItem('calDebug', '1'); localStorage.setItem('calDebugOverlay', '1'); }
-    else { localStorage.setItem('calDebug', '0'); localStorage.removeItem('calDebugOverlay'); }
-  } catch (e) {}
+  try { localStorage.setItem('calDebug', on ? '1' : '0'); } catch (e) {}
   if (on) {
     _calDebugInit();
-    _calDebugWrite('Diagnose EIN (inkl. Panel) – jetzt im Kalender scrollen/ziehen. (Doppeltipp leert das Panel.)');
-    console.log('[CAL-DEBUG] EIN – inkl. sichtbarem Panel. Log läuft auch in die Server-Datei.');
-  } else {
-    if (_calDbg) {
-      if (_calDbg.raf) cancelAnimationFrame(_calDbg.raf);
-      if (_calDbg.report) clearInterval(_calDbg.report);
-      try { if (_calDbg.po) _calDbg.po.disconnect(); } catch (e) {}
-      _calDbg = null;
-    }
-    _calDebugRemoveOverlay();
-    console.log('[CAL-DEBUG] AUS – Diagnose komplett deaktiviert.');
+  } else if (_calDbg) {
+    if (_calDbg.raf) cancelAnimationFrame(_calDbg.raf);
+    if (_calDbg.report) clearInterval(_calDbg.report);
+    try { if (_calDbg.po) _calDbg.po.disconnect(); } catch (e) {}
+    _calDbg = null;
   }
   return on;
 };
