@@ -12323,8 +12323,98 @@ document.addEventListener('keydown', e => {
 
 // Hält Event-Beschriftungen in der Wochenansicht sichtbar, ohne die Render-Funktion
 // selbst zu verändern. Dadurch bleibt der Patch klein und merge-freundlich.
+/* ===== Kalender-Scroll-Diagnose – schreibt AUSSCHLIESSLICH in die Server-Logdatei
+   (private_uploads/cal-debug.log). KEINE Anzeige im UI, KEINE Konsolenausgabe.
+   Dauerhaft aktiv; abschaltbar mit calDebug(false), wieder einschalten mit calDebug(true).
+   Geloggt wird je aktiver Sekunde: Scroll-Events, Frames, Ruckel-Frames (>32ms),
+   schlimmste Frame-Zeit, Label-Update (Aufrufe/Ø Balken/max. Dauer), scroll-snap-Modus,
+   Drag-Status und Balkenanzahl; zusätzlich Long-Tasks (>50ms). */
+let _calDbg = null;
+// Diagnose ist DAUERAKTIV (schreibt in private_uploads/cal-debug.log), außer sie
+// wurde explizit mit calDebug(false) abgeschaltet (localStorage 'calDebug' === '0').
+function _calDebugOn() { try { return localStorage.getItem('calDebug') !== '0'; } catch (e) { return true; } }
+function _calDebugActiveScroller() {
+  return Array.from(document.querySelectorAll('.ical-scroll')).find(s => s.offsetParent !== null) || null;
+}
+// Einzige Ausgabe: Zeile an die Server-Logdatei anhängen (private_uploads/cal-debug.log).
+function _calDebugPost(line) {
+  try {
+    fetch(API_BASE + '/cal_debug_log.php', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'text/plain' },
+      body: line, keepalive: true
+    }).catch(function () {});
+  } catch (e) {}
+}
+function _calDebugInit() {
+  if (!_calDebugOn() || (_calDbg && _calDbg.raf)) return;
+  _calDbg = { scrollCount: 0, frames: 0, longFrames: 0, worstFrame: 0,
+              updCount: 0, updEvents: 0, updMax: 0, lastFrameTs: performance.now(),
+              raf: null, report: null, po: null };
+  _calDebugPost('=== Session Start === ' + (window.innerWidth + 'x' + window.innerHeight) + ' UA: ' + navigator.userAgent);
+  try {
+    if (window.PerformanceObserver) {
+      _calDbg.po = new PerformanceObserver(list => {
+        if (!_calDebugOn()) return;
+        for (const e of list.getEntries()) if (e.duration > 50) {
+          _calDebugPost('LongTask ' + e.duration.toFixed(1) + 'ms (blockiert Main-Thread)');
+        }
+      });
+      try { _calDbg.po.observe({ entryTypes: ['longtask'] }); } catch (e) {}
+    }
+  } catch (e) {}
+  const tick = () => {
+    if (!_calDebugOn()) { _calDbg.raf = null; return; }
+    const now = performance.now(), dt = now - _calDbg.lastFrameTs;
+    _calDbg.lastFrameTs = now; _calDbg.frames++;
+    if (dt > _calDbg.worstFrame) _calDbg.worstFrame = dt;
+    if (dt > 32) _calDbg.longFrames++;
+    _calDbg.raf = requestAnimationFrame(tick);
+  };
+  _calDbg.lastFrameTs = performance.now();
+  _calDbg.raf = requestAnimationFrame(tick);
+  _calDbg.report = setInterval(() => {
+    if (!_calDebugOn()) { clearInterval(_calDbg.report); _calDbg.report = null; return; }
+    // Nur bei tatsächlicher Kalender-Aktivität loggen …
+    if (_calDbg.scrollCount > 0 || _calDbg.updCount > 0) {
+      const sc = _calDebugActiveScroller();
+      const snap = sc ? getComputedStyle(sc).scrollSnapType : '?';
+      const nEv = sc ? sc.querySelectorAll('.ical-event').length : 0;
+      const dragging = sc ? sc.classList.contains('dragging') : false;
+      const line = 'scrollEvts=' + _calDbg.scrollCount
+        + ' frames=' + _calDbg.frames
+        + ' ruckelFrames(>32ms)=' + _calDbg.longFrames
+        + ' worstFrame=' + _calDbg.worstFrame.toFixed(1) + 'ms'
+        + ' | labelUpdate: calls=' + _calDbg.updCount
+        + ' avgBalken=' + (_calDbg.updEvents / Math.max(1, _calDbg.updCount)).toFixed(0)
+        + ' maxDauer=' + _calDbg.updMax.toFixed(2) + 'ms'
+        + ' | snap=' + snap + ' dragging=' + dragging + ' balkenImDOM=' + nEv;
+      _calDebugPost(line);
+    }
+    // … aber die Fenster-Zähler IMMER zurücksetzen, damit jeder Report nur die
+    // letzte aktive Sekunde widerspiegelt (sonst summieren sich Idle-Frames auf).
+    _calDbg.scrollCount = _calDbg.frames = _calDbg.longFrames = 0;
+    _calDbg.worstFrame = _calDbg.updCount = _calDbg.updEvents = _calDbg.updMax = 0;
+  }, 1000);
+}
+window.calDebug = function (on) {
+  if (on === undefined) return _calDebugOn();
+  try { localStorage.setItem('calDebug', on ? '1' : '0'); } catch (e) {}
+  if (on) {
+    _calDebugInit();
+  } else if (_calDbg) {
+    if (_calDbg.raf) cancelAnimationFrame(_calDbg.raf);
+    if (_calDbg.report) clearInterval(_calDbg.report);
+    try { if (_calDbg.po) _calDbg.po.disconnect(); } catch (e) {}
+    _calDbg = null;
+  }
+  return on;
+};
+setTimeout(() => { if (_calDebugOn()) _calDebugInit(); }, 0);
+
 (function initCalendarStickyLabels() {
   function update(scroller) {
+    const _dbgT0 = (_calDbg && _calDebugOn()) ? performance.now() : -1;
     if (!scroller || !scroller.querySelector) return;
     const track = scroller.querySelector('.ical-track');
     if (!track) return;
@@ -12374,6 +12464,11 @@ document.addEventListener('keydown', e => {
       label.style.setProperty('--label-offset', writes[i + 1] + 'px');
       label.style.setProperty('--label-max-width', writes[i + 2] + 'px');
     }
+    if (_dbgT0 >= 0 && _calDbg) {
+      const d = performance.now() - _dbgT0;
+      _calDbg.updCount++; _calDbg.updEvents += events.length;
+      if (d > _calDbg.updMax) _calDbg.updMax = d;
+    }
   }
 
   function bind(scroller) {
@@ -12381,6 +12476,7 @@ document.addEventListener('keydown', e => {
     scroller._dmStickyLabelBound = true;
     let frame = null;
     const schedule = () => {
+      if (_calDbg && _calDebugOn()) _calDbg.scrollCount++;
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = null;
