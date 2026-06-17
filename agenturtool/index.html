@@ -1029,6 +1029,10 @@
   }
   .cal-cat-chip:hover { border-color: var(--border-strong); }
   .cal-cat-chip input { position: absolute; opacity: 0; width: 0; height: 0; }
+  /* Sichtbarer Tastatur-Fokus: das native Outline liegt auf der unsichtbaren Checkbox,
+     daher den Fokus auf Chip + Box anzeigen, wenn das enthaltene Input fokussiert ist. */
+  .cal-cat-chip:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .cal-cat-chip:focus-within .cal-cat-box { border-color: var(--accent); }
   .cal-cat-box {
     flex: none; width: 18px; height: 18px; border-radius: 5px;
     border: 1.5px solid var(--border-strong); background: var(--bg-3);
