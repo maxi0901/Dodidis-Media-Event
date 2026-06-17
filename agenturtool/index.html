@@ -7035,7 +7035,7 @@ function openProjectModal(projectId = null) {
                 <label class="file-upload" for="script-upload" style="margin-top:${scriptFileOf(project) ? '10px' : '0'};">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.5" style="margin-bottom:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   <div style="font-size:13px;font-weight:500;">${scriptFileOf(project) ? 'Skript-PDF ersetzen' : 'Skript-PDF hochladen'}</div>
-                  <div class="text-sm text-muted mt-2">PDF, max. 4 MB</div>
+                  <div class="text-sm text-muted mt-2">PDF, max. 50 MB</div>
                   <input type="file" id="script-upload" accept=".pdf,application/pdf" style="display:none;" onchange="uploadScriptFile(event, '${project?.id || ''}')" />
                 </label>
               ` : ''}
@@ -7732,8 +7732,8 @@ function uploadScriptFile(e, projectId) {
     e.target.value = '';
     return;
   }
-  if (file.size > 4 * 1024 * 1024) {
-    showToast('Datei zu groß', 'Maximal 4 MB erlaubt.');
+  if (file.size > 50 * 1024 * 1024) {
+    showToast('Datei zu groß', 'Maximal 50 MB erlaubt.');
     e.target.value = '';
     return;
   }
