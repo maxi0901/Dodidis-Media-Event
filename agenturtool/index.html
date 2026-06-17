@@ -1019,6 +1019,25 @@
     margin-top: 2px;
   }
 
+  /* Kalender-Abo: Kategorie-Auswahl als saubere Chips (statt nativer Checkboxen) */
+  .cal-cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cal-cat-chip {
+    position: relative; display: flex; align-items: center; gap: 9px;
+    padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg-1); color: var(--text-2); font-size: 13px; font-weight: 500;
+    cursor: pointer; user-select: none; transition: var(--transition);
+  }
+  .cal-cat-chip:hover { border-color: var(--border-strong); }
+  .cal-cat-chip input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .cal-cat-box {
+    flex: none; width: 18px; height: 18px; border-radius: 5px;
+    border: 1.5px solid var(--border-strong); background: var(--bg-3);
+    display: flex; align-items: center; justify-content: center;
+    color: transparent; font-size: 12px; font-weight: 800; line-height: 1; transition: var(--transition);
+  }
+  .cal-cat-chip input:checked ~ .cal-cat-box { background: var(--accent); border-color: var(--accent); color: #04221a; }
+  .cal-cat-chip:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--text-1); }
+
   /* =========================================
      FORMS
      ========================================= */
@@ -10385,12 +10404,13 @@ async function openStaffSelfProfile(user) {
                   ];
                   return `
                   <div style="margin-bottom:12px;">
-                    <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">Was soll im Abo erscheinen?</div>
-                    <div style="display:flex;flex-wrap:wrap;gap:10px 16px;">
+                    <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px;">Was soll im Abo erscheinen?</div>
+                    <div class="cal-cat-grid">
                       ${catDefs.map(c => `
-                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-1);cursor:pointer;">
+                        <label class="cal-cat-chip">
                           <input type="checkbox" class="cal-abo-cat" value="${c.key}" ${cats.includes(c.key) ? 'checked' : ''}
                                  onchange="updateCalendarAboLink('${escape(user.id)}','${escape(user.calendarToken)}')" />
+                          <span class="cal-cat-box" aria-hidden="true">✓</span>
                           <span>${c.label}</span>
                         </label>`).join('')}
                     </div>
