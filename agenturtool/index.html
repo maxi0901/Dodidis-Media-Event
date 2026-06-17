@@ -2432,15 +2432,22 @@
   /* Projekt-Phasen-Headbar (nur Admin/Manager) */
   .phase-hotbar { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
   .phase-tab {
-    flex:1 1 0; min-width:120px; display:flex; align-items:center; justify-content:center; gap:10px;
+    flex:1 1 0; min-width:0; display:flex; align-items:center; justify-content:center; gap:8px;
     padding:12px 14px; background:var(--bg-2); border:1px solid var(--border); border-radius:10px;
     color:var(--text-2); font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; transition:var(--transition);
+    white-space:nowrap;
   }
+  .phase-tab > span:first-child { overflow:hidden; text-overflow:ellipsis; }
   .phase-tab:hover:not(.active) { color:var(--text-1); border-color:var(--border-strong); }
   .phase-tab.active { background:var(--accent-soft); border-color:var(--accent); color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
-  .phase-tab .phase-count { min-width:22px; padding:1px 7px; border-radius:999px; background:var(--bg-3); color:var(--text-2); font-size:12px; font-weight:700; }
+  .phase-tab .phase-count { flex:none; min-width:20px; padding:1px 7px; border-radius:999px; background:var(--bg-3); color:var(--text-2); font-size:12px; font-weight:700; text-align:center; }
   .phase-tab.active .phase-count { background:var(--accent); color:#04221a; }
-  @media (max-width: 640px) { .phase-tab { padding:10px 8px; font-size:13px; min-width:0; gap:6px; } }
+  /* Mobil: horizontaler Scroll-Streifen statt Quetschen – Schrift bleibt einzeilig und ragt nicht heraus */
+  @media (max-width: 640px) {
+    .phase-hotbar { flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; gap:6px; margin-bottom:12px; padding-bottom:4px; scrollbar-width:none; }
+    .phase-hotbar::-webkit-scrollbar { display:none; }
+    .phase-tab { flex:0 0 auto; padding:9px 12px; font-size:13px; gap:6px; }
+  }
 
   /* Week view (Apple Kalender Stil) */
   .cal-week {
@@ -3768,7 +3775,7 @@ const PHASE_OF_STATUS = {
 function getProjectPhase(p) { return PHASE_OF_STATUS[p.status] || 'planung'; }
 let projectPhaseTab = 'planung';
 function setProjectPhase(ph) {
-  if (!PROJECT_PHASES[ph]) return;
+  if (ph !== 'kunden' && !PROJECT_PHASES[ph]) return;
   projectPhaseTab = ph;
   try { localStorage.setItem(_filterKey('proj_phase'), ph); } catch (e) {}
   renderProjects(getCurrentUser());
@@ -5987,10 +5994,12 @@ function renderProjects(session) {
   // Phasen-Headbar nur für Admin/Manager. Andere (z. B. Videograf) sehen die Seite wie bisher.
   const showPhases = canCreate;
   const phaseCounts = { planung: 0, production: 0, post: 0, abnahme: 0 };
+  let kundenCount = 0;
   if (showPhases) {
     const stored = localStorage.getItem(_filterKey('proj_phase'));
-    if (stored && PROJECT_PHASES[stored]) projectPhaseTab = stored;
+    if (stored && (stored === 'kunden' || PROJECT_PHASES[stored])) projectPhaseTab = stored;
     projects.forEach(p => { const ph = getProjectPhase(p); if (phaseCounts[ph] != null) phaseCounts[ph]++; });
+    kundenCount = projects.length;
   }
 
   // Such- und Filterzustand pro Page (persistiert im LocalStorage)
@@ -6011,7 +6020,8 @@ function renderProjects(session) {
   }
 
   // Phasen-Filter: nur Projekte des aktiven Reiters anzeigen (Admin/Manager).
-  if (showPhases) {
+  // Der „Kunden"-Reiter zeigt alle Projekte (nach Kunde gruppiert), filtert also nicht nach Phase.
+  if (showPhases && projectPhaseTab !== 'kunden') {
     projects = projects.filter(p => getProjectPhase(p) === projectPhaseTab);
   }
 
@@ -6021,6 +6031,9 @@ function renderProjects(session) {
         <button type="button" class="phase-tab ${projectPhaseTab === k ? 'active' : ''}" onclick="setProjectPhase('${k}')">
           <span>${v}</span><span class="phase-count">${phaseCounts[k]}</span>
         </button>`).join('')}
+      <button type="button" class="phase-tab ${projectPhaseTab === 'kunden' ? 'active' : ''}" onclick="setProjectPhase('kunden')">
+        <span>Kunden</span><span class="phase-count">${kundenCount}</span>
+      </button>
     </div>` : '';
 
   $('#topbar-actions').innerHTML = canCreate
@@ -6057,6 +6070,8 @@ function renderProjects(session) {
       cta = canQuickIdea
         ? '<br/><br/><button class="btn btn-primary" onclick="openQuickIdeaModal()">Erste Idee festhalten</button>'
         : (canCreate ? '<br/><br/><button class="btn btn-primary" onclick="openProjectModal()">Projekt anlegen</button>' : '');
+    } else if (showPhases && projectPhaseTab === 'kunden') {
+      emptyMsg = 'Noch keine Projekte vorhanden.';
     } else if (showPhases) {
       emptyMsg = `Keine Projekte in der Phase „${PROJECT_PHASES[projectPhaseTab]}".`;
     } else {
@@ -6071,6 +6086,35 @@ function renderProjects(session) {
         </div>
       </div>
     `;
+    return;
+  }
+
+  // „Kunden"-Reiter: Projekte nach Kunde gruppiert anzeigen (alphabetisch sortiert).
+  if (showPhases && projectPhaseTab === 'kunden') {
+    const byCustomer = new Map();
+    projects.forEach(p => {
+      let key, label, sortKey;
+      if (p.isInternal) { key = '__intern__'; label = 'Intern'; sortKey = '￿1'; }
+      else if (p.customerId) {
+        const c = store.customers.find(x => x.id === p.customerId);
+        key = p.customerId; label = c?.name || 'Unbekannter Kunde'; sortKey = label.toLowerCase();
+      } else { key = '__none__'; label = 'Ohne Kunde'; sortKey = '￿2'; }
+      if (!byCustomer.has(key)) byCustomer.set(key, { label, sortKey, projects: [] });
+      byCustomer.get(key).projects.push(p);
+    });
+    const groups = Array.from(byCustomer.values()).sort((a, b) => a.sortKey.localeCompare(b.sortKey, 'de'));
+    $('#content').innerHTML = hotbar + filterBar + groups.map(g => `
+      <div class="card mb-4">
+        <div class="card-header">
+          <div class="card-title" style="display:flex; align-items:center; gap:10px;">
+            <span style="background:var(--accent-soft); color:var(--accent); padding:3px 10px; border-radius:6px; font-size:11px; font-weight:700; letter-spacing:0.4px;">👤 KUNDE</span>
+            <span>${escape(g.label)}</span>
+            <span style="margin-left:auto; font-size:12px; color:var(--text-3); font-weight:500;">${g.projects.length} Video${g.projects.length === 1 ? '' : 's'}</span>
+          </div>
+        </div>
+        ${renderTable(g.projects)}
+      </div>
+    `).join('');
     return;
   }
 
