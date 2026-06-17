@@ -5980,6 +5980,9 @@ function renderProjects(session) {
 
   let projects = getRelevantProjects(user).filter(p => p.status !== STATUS.ARCHIVIERT);
   const canCreate = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  // Brainstorming-Ideen (kundenlos) nur für Admins – Manager sehen sonst nur Projekte
+  // ihrer eigenen Kunden und würden ihre eigene Idee nicht wiederfinden.
+  const canQuickIdea = hasRole(user, ROLES.ADMIN);
 
   // Phasen-Headbar nur für Admin/Manager. Andere (z. B. Videograf) sehen die Seite wie bisher.
   const showPhases = canCreate;
@@ -6023,8 +6026,8 @@ function renderProjects(session) {
   $('#topbar-actions').innerHTML = canCreate
     ? `<div class="flex gap-2">
          <button class="btn btn-secondary" onclick="openShootDayModal()">+ Drehtag</button>
-         <button class="btn btn-secondary" onclick="openProjectModal()">+ Neues Projekt</button>
-         <button class="btn btn-primary" onclick="openQuickIdeaModal()">+ Neue Idee</button>
+         <button class="btn ${canQuickIdea ? 'btn-secondary' : 'btn-primary'}" onclick="openProjectModal()">+ Neues Projekt</button>
+         ${canQuickIdea ? `<button class="btn btn-primary" onclick="openQuickIdeaModal()">+ Neue Idee</button>` : ''}
        </div>` : '';
 
   const filterBar = `
@@ -6050,8 +6053,10 @@ function renderProjects(session) {
     if (filtered) {
       emptyMsg = 'Keine Projekte entsprechen deinem Filter.';
     } else if (showPhases && projectPhaseTab === 'planung') {
-      emptyMsg = 'Noch keine Ideen in der Planung. Nur ein Titel genügt – Details kommen später.';
-      cta = '<br/><br/><button class="btn btn-primary" onclick="openQuickIdeaModal()">Erste Idee festhalten</button>';
+      emptyMsg = 'Noch keine Projekte in der Planung.';
+      cta = canQuickIdea
+        ? '<br/><br/><button class="btn btn-primary" onclick="openQuickIdeaModal()">Erste Idee festhalten</button>'
+        : (canCreate ? '<br/><br/><button class="btn btn-primary" onclick="openProjectModal()">Projekt anlegen</button>' : '');
     } else if (showPhases) {
       emptyMsg = `Keine Projekte in der Phase „${PROJECT_PHASES[projectPhaseTab]}".`;
     } else {
@@ -6174,8 +6179,8 @@ function renderProjects(session) {
    Nur Titel ist Pflicht, Skript optional, bewusst kein Drehdatum. */
 function openQuickIdeaModal() {
   const session = getCurrentUser();
-  if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) {
-    appAlert('Nur Admin/Manager dürfen Ideen anlegen.', { title: 'Nicht erlaubt' });
+  if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN)) {
+    appAlert('Nur Admins dürfen Ideen anlegen.', { title: 'Nicht erlaubt' });
     return;
   }
   const html = `<div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
@@ -6211,8 +6216,8 @@ function openQuickIdeaModal() {
 async function submitQuickIdea(e) {
   e.preventDefault();
   const session = getCurrentUser();
-  if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) {
-    appAlert('Nur Admin/Manager dürfen Ideen anlegen.', { title: 'Nicht erlaubt' });
+  if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN)) {
+    appAlert('Nur Admins dürfen Ideen anlegen.', { title: 'Nicht erlaubt' });
     return;
   }
   const form = e.target;
