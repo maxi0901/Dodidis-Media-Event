@@ -11521,6 +11521,8 @@ function openVacationModal(vacationId = null) {
   const userOptions = isAdmin
     ? store.users.map(u => `<option value="${u.id}" ${targetUserId === u.id ? 'selected' : ''}>${escape(u.name)}</option>`).join('')
     : `<option value="${user.id}" selected>${escape(user.name)}</option>`;
+  // „Nur 1 Tag" beim Bearbeiten vorbelegen, wenn Start == Ende
+  const singleChecked = !!(vacation && vacation.startDate && vacation.startDate === vacation.endDate);
 
   const html = `
     <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
@@ -11539,14 +11541,20 @@ function openVacationModal(vacationId = null) {
                    <input type="hidden" name="userId" value="${escape(user.id)}" />`
               }
             </div>
-            <div class="form-row">
+            <div class="form-group">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-2);">
+                <input type="checkbox" name="singleDay" id="vac-single" ${singleChecked ? 'checked' : ''} onchange="toggleVacationSingleDay(this)" />
+                <span>Nur 1 Tag</span>
+              </label>
+            </div>
+            <div class="form-row" id="vac-date-row">
               <div class="form-group">
-                <label class="form-label">Von*</label>
-                <input type="date" name="startDate" required value="${vacation?.startDate || ''}" />
+                <label class="form-label">${singleChecked ? 'Tag*' : 'Von*'}</label>
+                <input type="date" name="startDate" id="vac-start" required value="${vacation?.startDate || ''}" oninput="syncVacationSingleDay()" />
               </div>
-              <div class="form-group">
+              <div class="form-group" id="vac-end-group" style="${singleChecked ? 'display:none;' : ''}">
                 <label class="form-label">Bis*</label>
-                <input type="date" name="endDate" required value="${vacation?.endDate || ''}" />
+                <input type="date" name="endDate" id="vac-end" ${singleChecked ? '' : 'required'} value="${vacation?.endDate || ''}" />
               </div>
             </div>
             <div class="form-group">
@@ -11566,11 +11574,39 @@ function openVacationModal(vacationId = null) {
   $('#modal-container').innerHTML = html;
 }
 
+// „Nur 1 Tag"-Schalter: blendet das Bis-Feld aus und setzt Ende = Start.
+function toggleVacationSingleDay(cb) {
+  const endGroup = document.getElementById('vac-end-group');
+  const endInput = document.getElementById('vac-end');
+  const startLabel = document.querySelector('#vac-date-row .form-group label');
+  if (!endGroup || !endInput) return;
+  if (cb.checked) {
+    endGroup.style.display = 'none';
+    endInput.required = false;
+    const start = document.getElementById('vac-start');
+    if (start && start.value) endInput.value = start.value;
+    if (startLabel) startLabel.textContent = 'Tag*';
+  } else {
+    endGroup.style.display = '';
+    endInput.required = true;
+    if (startLabel) startLabel.textContent = 'Von*';
+  }
+}
+function syncVacationSingleDay() {
+  const cb = document.getElementById('vac-single');
+  if (!cb || !cb.checked) return;
+  const start = document.getElementById('vac-start');
+  const endInput = document.getElementById('vac-end');
+  if (start && endInput) endInput.value = start.value;
+}
+
 async function saveVacation(e, vacationId) {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));
   const session = getCurrentUser();
   if (!session || session.type !== 'staff') return;
+  // „Nur 1 Tag": Ende = Start erzwingen
+  if (data.singleDay) data.endDate = data.startDate;
   // Non-admins können nur für sich selbst
   if (!hasRole(session.user, ROLES.ADMIN)) data.userId = session.user.id;
 
