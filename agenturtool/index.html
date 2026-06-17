@@ -11588,12 +11588,16 @@ function openVacationModal(vacationId = null) {
                    <input type="hidden" name="userId" value="${escape(user.id)}" />`
               }
             </div>
-            <div class="form-group">
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-2);">
+            <label class="toggle-row" for="vac-single">
+              <div class="toggle-row-content">
+                <div class="toggle-row-title">Nur 1 Tag</div>
+                <div class="toggle-row-desc">Urlaub für einen einzelnen Tag – kein Enddatum nötig.</div>
+              </div>
+              <span class="toggle">
                 <input type="checkbox" name="singleDay" id="vac-single" ${singleChecked ? 'checked' : ''} onchange="toggleVacationSingleDay(this)" />
-                <span>Nur 1 Tag</span>
-              </label>
-            </div>
+                <span class="toggle-slider"></span>
+              </span>
+            </label>
             <div class="form-row" id="vac-date-row">
               <div class="form-group">
                 <label class="form-label">${singleChecked ? 'Tag*' : 'Von*'}</label>
