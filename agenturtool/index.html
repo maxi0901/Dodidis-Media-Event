@@ -1170,6 +1170,10 @@
   .modal-body {
     padding: 22px;
     overflow-y: auto;
+    /* Nur vertikal scrollen: ohne explizites overflow-x rechnet der Browser bei
+       gesetztem overflow-y intern „auto" → zu breite Inhalte ließen das Modal auf
+       dem Handy horizontal wegwischen und wirkten „schwimmend". Fix: hart sperren. */
+    overflow-x: hidden;
     flex: 1;
     min-height: 0;
     -webkit-overflow-scrolling: touch;
