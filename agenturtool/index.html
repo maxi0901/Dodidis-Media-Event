@@ -10243,8 +10243,11 @@ function _calAboCats(userId) {
 }
 function _calAboUrl(token, cats, scheme) {
   const base = (scheme || 'https') + '://' + location.host + APP_BASE + 'api/calendar.php?token=' + encodeURIComponent(token);
-  // Nur wenn eine echte Teilmenge gewählt ist, den Filter anhängen (sonst volles Abo).
-  if (cats.length && cats.length < _CAL_ABO_ALL.length) return base + '&cats=' + cats.join(',');
+  // Nichts ausgewählt: explizit als leeres Abo kodieren (sonst würde der Server
+  // ein fehlendes cats= als „alles" interpretieren – das wäre genau verkehrt).
+  if (cats.length === 0) return base + '&cats=none';
+  // Echte Teilmenge: Filter anhängen. Alles ausgewählt: volles Abo ohne Parameter.
+  if (cats.length < _CAL_ABO_ALL.length) return base + '&cats=' + cats.join(',');
   return base;
 }
 function updateCalendarAboLink(userId, token) {
