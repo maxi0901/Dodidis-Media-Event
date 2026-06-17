@@ -3786,20 +3786,30 @@ function statusLabel(s) { return STATUS_LABELS[s] ?? 'Überfällig'; }
 function statusCls(s)   { return STATUS_LABELS[s] ? s : 'ueberfaellig'; }
 
 /* ----------- PROJEKT-PHASEN (Head-Bar/Kanban, nur Admin/Manager) -----------
-   4 Reiter, jeweils nach Status gruppiert:
-   - Planung:         Entwurf (skript), Geplant
-   - Production:      Gedreht
+   Reiter, nach Status gruppiert:
+   - Ideen:           Brainstorming – Status skript OHNE Kunde/Drehdatum ("+ Neue Idee")
+   - Planung:         Geplant
+   - Production:      Skript MIT Kunde/Drehdatum + Gedreht
    - Post Production: In Bearbeitung (schnitt), Korrektur
    - Abnahme:         Fertig, Freigegeben
    Archiviert bleibt auf der Archiv-Seite (nicht im Board). */
-const PROJECT_PHASES = { planung: 'Planung', production: 'Production', post: 'Post Production', abnahme: 'Abnahme' };
+const PROJECT_PHASES = { ideen: 'Ideen', planung: 'Planung', production: 'Production', post: 'Post Production', abnahme: 'Abnahme' };
 const PHASE_OF_STATUS = {
-  skript: 'planung', geplant: 'planung',
-  gedreht: 'production',
+  geplant: 'planung',
+  skript: 'production', gedreht: 'production',
   schnitt: 'post', korrektur: 'post',
   fertig: 'abnahme', freigegeben: 'abnahme'
 };
-function getProjectPhase(p) { return PHASE_OF_STATUS[p.status] || 'planung'; }
+// Brainstorming-Idee: Status skript ohne Kunde, Drehdatum, Drehtag und nicht intern.
+// Solche Einträge landen im "Ideen"-Reiter; sobald sie einen Kunden oder ein Datum
+// bekommen, gelten sie als echtes Skript-Projekt und wandern nach Production.
+function isProjectIdea(p) {
+  return p && p.status === 'skript' && !p.customerId && !p.shootDate && !p.shootDayId && !p.isInternal;
+}
+function getProjectPhase(p) {
+  if (isProjectIdea(p)) return 'ideen';
+  return PHASE_OF_STATUS[p.status] || 'production';
+}
 let projectPhaseTab = 'planung';
 function setProjectPhase(ph) {
   if (ph !== 'kunden' && !PROJECT_PHASES[ph]) return;
@@ -6020,7 +6030,7 @@ function renderProjects(session) {
 
   // Phasen-Headbar nur für Admin/Manager. Andere (z. B. Videograf) sehen die Seite wie bisher.
   const showPhases = canCreate;
-  const phaseCounts = { planung: 0, production: 0, post: 0, abnahme: 0 };
+  const phaseCounts = { ideen: 0, planung: 0, production: 0, post: 0, abnahme: 0 };
   let kundenCount = 0;
   if (showPhases) {
     const stored = localStorage.getItem(_filterKey('proj_phase'));
@@ -6092,11 +6102,14 @@ function renderProjects(session) {
     let emptyMsg, cta = '';
     if (filtered) {
       emptyMsg = 'Keine Projekte entsprechen deinem Filter.';
-    } else if (showPhases && projectPhaseTab === 'planung') {
-      emptyMsg = 'Noch keine Projekte in der Planung.';
+    } else if (showPhases && projectPhaseTab === 'ideen') {
+      emptyMsg = 'Noch keine Ideen festgehalten.';
       cta = canQuickIdea
         ? '<br/><br/><button class="btn btn-primary" onclick="openQuickIdeaModal()">Erste Idee festhalten</button>'
-        : (canCreate ? '<br/><br/><button class="btn btn-primary" onclick="openProjectModal()">Projekt anlegen</button>' : '');
+        : '';
+    } else if (showPhases && projectPhaseTab === 'planung') {
+      emptyMsg = 'Noch keine Projekte in der Planung.';
+      cta = canCreate ? '<br/><br/><button class="btn btn-primary" onclick="openProjectModal()">Projekt anlegen</button>' : '';
     } else if (showPhases && projectPhaseTab === 'kunden') {
       emptyMsg = 'Noch keine Projekte vorhanden.';
     } else if (showPhases) {
@@ -6315,8 +6328,8 @@ async function submitQuickIdea(e) {
     const json = await res.json();
     if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
     store.projects.unshift(json.data ? { ...optimistic, ...json.data } : optimistic);
-    projectPhaseTab = 'planung';
-    try { localStorage.setItem(_filterKey('proj_phase'), 'planung'); } catch (e) {}
+    projectPhaseTab = 'ideen';
+    try { localStorage.setItem(_filterKey('proj_phase'), 'ideen'); } catch (e) {}
     closeModal();
     showToast('Idee gespeichert', 'success');
     renderProjects(getCurrentUser());
@@ -7622,8 +7635,16 @@ async function saveProject(e, projectId) {
   clearProjectDraft();
   closeModal();
 
-  // Neues Projekt → Kalender auf frühestes Datum springen
   if (!projectId) {
+    // Zur Phase des neuen Projekts wechseln (Ideen wenn reine Idee, sonst Production etc.)
+    const tempP = { status: STATUS.SKRIPT, customerId: data.customerId || null,
+                    shootDate: data.shootDate || null, shootDayId: data.shootDayId || null,
+                    isInternal: data.isInternal ? 1 : 0 };
+    const newPhase = getProjectPhase(tempP);
+    projectPhaseTab = newPhase;
+    try { localStorage.setItem(_filterKey('proj_phase'), newPhase); } catch (e) {}
+
+    // Kalender auf frühestes Datum springen
     const dates = [data.shootDate, data.deadline, data.postingDate].filter(Boolean).sort();
     if (dates.length > 0) {
       const earliest = new Date(dates[0] + 'T00:00:00');
