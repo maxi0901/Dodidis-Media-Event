@@ -242,6 +242,29 @@ if ($action === 'pull') {
     }
     $projects = array_map('project_to_doc', $projRows);
 
+    // Projektdateien (z. B. Skript-PDF) an die Projekt-Dokumente hängen – nur für Staff,
+    // damit die persistierten Dateien auch nach einem Reload verfügbar sind.
+    if ($type === 'staff' && $projects) {
+        try {
+            $filesByProject = [];
+            $pfRows = db_all(
+                "SELECT id, project_id, kind, filename, mime, size, path,
+                        uploaded_by AS uploadedBy, uploaded_at AS uploadedAt
+                   FROM project_files ORDER BY uploaded_at DESC"
+            );
+            foreach ($pfRows as $f) {
+                $filesByProject[$f['project_id']][] = $f;
+            }
+            foreach ($projects as &$pdoc) {
+                $pdoc['files'] = $filesByProject[$pdoc['id']] ?? [];
+            }
+            unset($pdoc);
+        } catch (\Throwable $e) {
+            // project_files-Tabelle fehlt evtl. – dann ohne Dateien weiter
+            error_log('[pull/project_files] ' . $e->getMessage());
+        }
+    }
+
     // Vacations (volle Transparenz für Staff, leer für Customer)
     $vacations = $type === 'staff' ? array_map('vacation_to_doc', db_all("SELECT * FROM vacations")) : [];
 

@@ -6347,7 +6347,7 @@ function renderCutterProjects(session) {
             ${vg ? `<span style="display:inline-flex; align-items:center; gap:5px;">${renderAvatar(vg, 18, 9)} ${escape(vg.name)}</span>` : ''}
             ${deadline ? `<span class="${overdue ? 'cutter-card-overdue' : ''}">⏰ Deadline: ${fmtDate(deadline)} 17:00 ${daysLeft !== null && daysLeft >= 0 ? '· in ' + daysLeft + ' Tagen' : (overdue ? '· überfällig' : '')}</span>` : ''}
             ${kind === 'correction' ? `<span class="cutter-card-correction">⚠️ Korrektur angefragt</span>` : ''}
-            ${p.scriptFile ? `<span>📄 Skript-PDF</span>` : ''}
+            ${scriptFileOf(p) ? `<span>📄 Skript-PDF</span>` : ''}
           </div>
         </div>
         ${action ? `<div class="cutter-card-action">${action}</div>` : ''}
@@ -7023,20 +7023,20 @@ function openProjectModal(projectId = null) {
 
             <div class="form-group">
               <label class="form-label">Skript-PDF</label>
-              ${project?.scriptFile ? `
+              ${(() => { const sf = scriptFileOf(project); return sf ? `
                 <div class="file-uploaded">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  <span style="flex:1;">${escape(project.scriptFileName || 'Skript.pdf')}</span>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="downloadScriptFile('${project.id}')">Öffnen</button>
-                  ${canEdit ? `<button type="button" class="btn btn-ghost btn-sm" onclick="removeScriptFile('${project.id}')" style="color:var(--danger);">×</button>` : ''}
+                  <span style="flex:1;">${escape(sf.filename || 'Skript.pdf')}</span>
+                  <a class="btn btn-ghost btn-sm" href="${API_BASE}/download.php?scope=project&id=${sf.id}" target="_blank" rel="noopener">Öffnen</a>
+                  ${canEdit ? `<button type="button" class="btn btn-ghost btn-sm" onclick="removeScriptFile('${project.id}', '${sf.id}')" style="color:var(--danger);">×</button>` : ''}
                 </div>
-              ` : ''}
+              ` : ''; })()}
               ${canEdit ? `
-                <label class="file-upload" for="script-upload" style="margin-top:${project?.scriptFile ? '10px' : '0'};">
+                <label class="file-upload" for="script-upload" style="margin-top:${scriptFileOf(project) ? '10px' : '0'};">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.5" style="margin-bottom:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  <div style="font-size:13px;font-weight:500;">${project?.scriptFile ? 'Skript-PDF ersetzen' : 'Skript-PDF hochladen'}</div>
-                  <div class="text-sm text-muted mt-2">PDF, max. 4 MB · landet auch im Kalender-Abo</div>
-                  <input type="file" id="script-upload" accept=".pdf,application/pdf" style="display:none;" onchange="uploadScriptFile(event)" />
+                  <div style="font-size:13px;font-weight:500;">${scriptFileOf(project) ? 'Skript-PDF ersetzen' : 'Skript-PDF hochladen'}</div>
+                  <div class="text-sm text-muted mt-2">PDF, max. 4 MB</div>
+                  <input type="file" id="script-upload" accept=".pdf,application/pdf" style="display:none;" onchange="uploadScriptFile(event, '${project?.id || ''}')" />
                 </label>
               ` : ''}
             </div>
@@ -7313,16 +7313,16 @@ async function openProjectViewerModal(project) {
             </div>
           ` : ''}
 
-          ${project.scriptFile ? `
+          ${(() => { const sf = scriptFileOf(project); return sf ? `
             <div style="margin-top: 14px;">
               <div class="cutter-detail-label" style="margin-bottom:6px;">Skript-PDF</div>
               <div class="file-uploaded">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                <span style="flex:1;">${escape(project.scriptFileName || 'Skript.pdf')}</span>
-                <button class="btn btn-secondary btn-sm" onclick="downloadScriptFile('${project.id}')">Öffnen</button>
+                <span style="flex:1;">${escape(sf.filename || 'Skript.pdf')}</span>
+                <a class="btn btn-secondary btn-sm" href="${API_BASE}/download.php?scope=project&id=${sf.id}" target="_blank" rel="noopener">Öffnen</a>
               </div>
             </div>
-          ` : ''}
+          ` : ''; })()}
 
           ${renderProjectFilesSection(project, session)}
 
@@ -7539,14 +7539,7 @@ async function saveProject(e, projectId) {
     if (!confirm(warnings.join('\n\n') + '\n\nTrotzdem speichern?')) return;
   }
 
-  // Skript-PDF anhängen (falls neue Datei hochgeladen)
-  const fileAdds = {};
-  if (pendingScriptFile) {
-    fileAdds.scriptFile = pendingScriptFile.data;
-    fileAdds.scriptFileName = pendingScriptFile.name;
-    pendingScriptFile = null;
-  }
-
+  // Skript-PDF wird erst nach dem DB-Save als Projektdatei hochgeladen (siehe unten).
   // Drehtag "lernt" den Kunden: Wenn Drehtag noch keinen Kunden hat
   // und das Projekt einen, dann auf dem Drehtag speichern – so wird er
   // bei jedem weiteren Projekt mit diesem Drehtag automatisch übernommen.
@@ -7575,7 +7568,7 @@ async function saveProject(e, projectId) {
     const idx = store.projects.findIndex(p => p.id === projectId);
     if (idx >= 0) {
       prevEntry = { ...store.projects[idx] };
-      store.projects[idx] = { ...store.projects[idx], ...data, ...fileAdds };
+      store.projects[idx] = { ...store.projects[idx], ...data };
     }
   } else {
     insertedId = uid('p');
@@ -7591,8 +7584,7 @@ async function saveProject(e, projectId) {
       postingDate: data.postingDate || null,
       script: data.script || '',
       status: STATUS.SKRIPT,
-      createdAt: new Date().toISOString(),
-      ...fileAdds
+      createdAt: new Date().toISOString()
     });
   }
 
@@ -7643,11 +7635,16 @@ async function saveProject(e, projectId) {
     });
     const json = await res.json();
     if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    const targetId = projectId || insertedId;
     if (json.data) {
-      const targetId = projectId || insertedId;
       const i = store.projects.findIndex(p => p.id === targetId);
-      // Merge server response but keep local-only fields (scriptFile, scriptFileName)
       if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
+    }
+    // Skript-PDF jetzt persistent hochladen (Projekt existiert serverseitig)
+    if (pendingScriptFile) {
+      const fileToUpload = pendingScriptFile;
+      pendingScriptFile = null;
+      await uploadScriptForProject(targetId, fileToUpload);
     }
   } catch (err) {
     // Rollback
@@ -7719,46 +7716,90 @@ function onShootDayChange(select) {
   }
 }
 
+// Neueste persistierte Skript-PDF eines Projekts (aus project_files, kind=script).
+function scriptFileOf(project) {
+  if (!project || !Array.isArray(project.files)) return null;
+  const scripts = project.files.filter(f => f && f.kind === 'script');
+  return scripts.length ? scripts[0] : null; // list_files liefert neueste zuerst
+}
+
 let pendingScriptFile = null;
-function uploadScriptFile(e) {
+function uploadScriptFile(e, projectId) {
   const file = e.target.files[0];
   if (!file) return;
-  if (file.size > 4 * 1024 * 1024) {
-    alert('Datei ist zu groß (max. 4 MB für LocalStorage).');
+  if (file.type !== 'application/pdf') {
+    showToast('Nur PDF erlaubt', 'Bitte eine PDF-Datei auswählen.');
+    e.target.value = '';
     return;
   }
-  const reader = new FileReader();
-  reader.onload = ev => {
-    pendingScriptFile = { name: file.name, data: ev.target.result };
-    const labelEl = e.target.closest('.file-upload');
-    if (labelEl) {
-      labelEl.style.borderColor = 'var(--accent)';
-      labelEl.style.background = 'var(--accent-soft)';
-      labelEl.querySelector('div').textContent = '✓ ' + file.name + ' bereit zum Speichern';
+  if (file.size > 4 * 1024 * 1024) {
+    showToast('Datei zu groß', 'Maximal 4 MB erlaubt.');
+    e.target.value = '';
+    return;
+  }
+  // Beim Speichern hochladen (für neue UND bestehende Projekte – so gehen
+  // gleichzeitige Änderungen an anderen Feldern nicht verloren).
+  pendingScriptFile = file;
+  const labelEl = e.target.closest('.file-upload');
+  if (labelEl) {
+    labelEl.style.borderColor = 'var(--accent)';
+    labelEl.style.background = 'var(--accent-soft)';
+    const d = labelEl.querySelector('div');
+    if (d) d.textContent = '✓ ' + file.name + ' bereit zum Speichern';
+  }
+}
+
+// Lädt die ausgewählte Skript-PDF zum Projekt hoch (persistiert in project_files)
+// und räumt ältere Skript-Dateien auf. Wird aus saveProject nach dem DB-Save aufgerufen.
+async function uploadScriptForProject(projectId, file) {
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(
+      `${API_BASE}/upload.php?scope=project&kind=script&id=${encodeURIComponent(projectId)}`,
+      { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF }, body: fd }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Skript-Upload fehlgeschlagen');
+    const p = store.projects.find(x => x.id === projectId);
+    if (p) {
+      const old = Array.isArray(p.files) ? p.files : [];
+      const oldScripts = old.filter(f => f && f.kind === 'script');
+      const nonScripts = old.filter(f => !f || f.kind !== 'script');
+      p.files = [{
+        id: json.data.id, kind: 'script', filename: json.data.filename,
+        mime: json.data.mime, size: json.data.size, path: json.data.path
+      }, ...nonScripts];
+      // Vorherige Skript-PDFs serverseitig entfernen (best effort)
+      oldScripts.forEach(f => deleteProjectFileRequest(f.id).catch(() => {}));
     }
-  };
-  reader.readAsDataURL(file);
+    renderPage();
+  } catch (err) {
+    showToast('Skript konnte nicht gespeichert werden', err.message);
+  }
 }
-function downloadScriptFile(projectId) {
-  const p = store.projects.find(x => x.id === projectId);
-  if (!p?.scriptFile) return;
-  const a = document.createElement('a');
-  a.href = p.scriptFile;
-  a.download = p.scriptFileName || 'Skript.pdf';
-  a.click();
+
+function deleteProjectFileRequest(fileId) {
+  return fetch(
+    `${API_BASE}/upload.php?scope=project&id=${encodeURIComponent(fileId)}`,
+    { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+  ).then(r => r.json());
 }
-async function removeScriptFile(projectId) {
+
+async function removeScriptFile(projectId, fileId) {
   const ok = await appConfirm('Die hochgeladene Skript-PDF wird entfernt.', {
     title: 'Skript entfernen?', okLabel: 'Entfernen', danger: true
   });
   if (!ok) return;
-  const idx = store.projects.findIndex(p => p.id === projectId);
-  if (idx >= 0) {
-    delete store.projects[idx].scriptFile;
-    delete store.projects[idx].scriptFileName;
-    saveStore();
-  
+  try {
+    const json = await deleteProjectFileRequest(fileId);
+    if (!json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+    const p = store.projects.find(x => x.id === projectId);
+    if (p && Array.isArray(p.files)) p.files = p.files.filter(f => String(f.id) !== String(fileId));
+    showToast('Skript entfernt', '');
     openProjectModal(projectId);
+  } catch (err) {
+    showToast('Fehler beim Entfernen', err.message);
   }
 }
 

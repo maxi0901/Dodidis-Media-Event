@@ -7,6 +7,25 @@ require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 
 $session = require_login();
+
+// ── DELETE: Projektdatei entfernen (z. B. Skript-PDF) ──────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+    require_csrf();
+    $delScope  = $_GET['scope'] ?? 'project';
+    $delFileId = $_GET['id']    ?? '';
+    if ($delScope !== 'project') json_err(400, 'Löschen nur für Projektdateien möglich.');
+    if (!has_role('admin', 'manager')) json_err(403, 'Keine Berechtigung.');
+    if ($delFileId === '' || $delFileId === '0') json_err(400, 'id fehlt.');
+    $pf = db_one("SELECT id, project_id, path FROM project_files WHERE id = ?", [(int)$delFileId]);
+    if (!$pf) json_err(404, 'Datei nicht gefunden.');
+    $cfgDel = require __DIR__ . '/../config.php';
+    $fsPath = $cfgDel['private_path'] . '/' . $pf['path'];
+    if (is_file($fsPath)) @unlink($fsPath);
+    db_exec("DELETE FROM project_files WHERE id = ?", [(int)$pf['id']]);
+    log_activity('project', (string)$pf['project_id'], 'fileDeleted', ['fileId' => (int)$delFileId]);
+    json_ok(['deleted' => true]);
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_err(405, 'POST erwartet.');
 }
