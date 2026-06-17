@@ -358,6 +358,33 @@ foreach ($vacations as $v) {
 
 $lines[] = 'END:VCALENDAR';
 
+// ── Abo-Filter: nur ausgewählte Kategorien ausliefern ────────────────────────
+// Optionaler URL-Parameter ?cats=drehtag,deadline,posting,urlaub
+// (leer oder "all" = alles). Ermöglicht z. B. ein Abo nur mit Drehtagen.
+$catsParam = strtolower(trim($_GET['cats'] ?? ''));
+if ($catsParam !== '' && $catsParam !== 'all') {
+    $allowed  = array_filter(array_map('trim', explode(',', $catsParam)));
+    $filtered = [];
+    $block    = null;
+    foreach ($lines as $ln) {
+        if ($ln === 'BEGIN:VEVENT') { $block = [$ln]; continue; }
+        if ($block === null) { $filtered[] = $ln; continue; }
+        $block[] = $ln;
+        if ($ln === 'END:VEVENT') {
+            $cat = '';
+            foreach ($block as $bl) {
+                if (strncmp($bl, 'CATEGORIES:', 11) === 0) { $cat = strtolower(trim(substr($bl, 11))); break; }
+            }
+            // Events ohne Kategorie immer behalten; sonst nur erlaubte Kategorien.
+            if ($cat === '' || in_array($cat, $allowed, true)) {
+                foreach ($block as $bl) $filtered[] = $bl;
+            }
+            $block = null;
+        }
+    }
+    $lines = $filtered;
+}
+
 $ics = implode("\r\n", $lines) . "\r\n";
 
 header('Content-Type: text/calendar; charset=utf-8');
