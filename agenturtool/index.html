@@ -2429,6 +2429,19 @@
   }
   .view-toggle button:hover:not(.active) { color: var(--text-1); }
 
+  /* Projekt-Phasen-Headbar (nur Admin/Manager) */
+  .phase-hotbar { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .phase-tab {
+    flex:1 1 0; min-width:120px; display:flex; align-items:center; justify-content:center; gap:10px;
+    padding:12px 14px; background:var(--bg-2); border:1px solid var(--border); border-radius:10px;
+    color:var(--text-2); font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; transition:var(--transition);
+  }
+  .phase-tab:hover:not(.active) { color:var(--text-1); border-color:var(--border-strong); }
+  .phase-tab.active { background:var(--accent-soft); border-color:var(--accent); color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .phase-tab .phase-count { min-width:22px; padding:1px 7px; border-radius:999px; background:var(--bg-3); color:var(--text-2); font-size:12px; font-weight:700; }
+  .phase-tab.active .phase-count { background:var(--accent); color:#04221a; }
+  @media (max-width: 640px) { .phase-tab { padding:10px 8px; font-size:13px; min-width:0; gap:6px; } }
+
   /* Week view (Apple Kalender Stil) */
   .cal-week {
     position: relative;
@@ -3737,6 +3750,29 @@ const STATUS_LABELS = {
 };
 function statusLabel(s) { return STATUS_LABELS[s] ?? 'Überfällig'; }
 function statusCls(s)   { return STATUS_LABELS[s] ? s : 'ueberfaellig'; }
+
+/* ----------- PROJEKT-PHASEN (Head-Bar/Kanban, nur Admin/Manager) -----------
+   4 Reiter, jeweils nach Status gruppiert:
+   - Planung:         Entwurf (skript), Geplant
+   - Production:      Gedreht
+   - Post Production: In Bearbeitung (schnitt), Korrektur
+   - Abnahme:         Fertig, Freigegeben
+   Archiviert bleibt auf der Archiv-Seite (nicht im Board). */
+const PROJECT_PHASES = { planung: 'Planung', production: 'Production', post: 'Post Production', abnahme: 'Abnahme' };
+const PHASE_OF_STATUS = {
+  skript: 'planung', geplant: 'planung',
+  gedreht: 'production',
+  schnitt: 'post', korrektur: 'post',
+  fertig: 'abnahme', freigegeben: 'abnahme'
+};
+function getProjectPhase(p) { return PHASE_OF_STATUS[p.status] || 'planung'; }
+let projectPhaseTab = 'planung';
+function setProjectPhase(ph) {
+  if (!PROJECT_PHASES[ph]) return;
+  projectPhaseTab = ph;
+  try { localStorage.setItem(_filterKey('proj_phase'), ph); } catch (e) {}
+  renderProjects(getCurrentUser());
+}
 
 const ROLE_LABELS = {
   admin: 'Admin',
@@ -5945,6 +5981,15 @@ function renderProjects(session) {
   let projects = getRelevantProjects(user).filter(p => p.status !== STATUS.ARCHIVIERT);
   const canCreate = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
 
+  // Phasen-Headbar nur für Admin/Manager. Andere (z. B. Videograf) sehen die Seite wie bisher.
+  const showPhases = canCreate;
+  const phaseCounts = { planung: 0, production: 0, post: 0, abnahme: 0 };
+  if (showPhases) {
+    const stored = localStorage.getItem(_filterKey('proj_phase'));
+    if (stored && PROJECT_PHASES[stored]) projectPhaseTab = stored;
+    projects.forEach(p => { const ph = getProjectPhase(p); if (phaseCounts[ph] != null) phaseCounts[ph]++; });
+  }
+
   // Such- und Filterzustand pro Page (persistiert im LocalStorage)
   const projectFilters = JSON.parse(localStorage.getItem(_filterKey('proj_filters')) || '{}');
   const searchTerm = (projectFilters.q || '').toLowerCase();
@@ -5962,10 +6007,24 @@ function renderProjects(session) {
     });
   }
 
+  // Phasen-Filter: nur Projekte des aktiven Reiters anzeigen (Admin/Manager).
+  if (showPhases) {
+    projects = projects.filter(p => getProjectPhase(p) === projectPhaseTab);
+  }
+
+  const hotbar = showPhases ? `
+    <div class="phase-hotbar">
+      ${Object.entries(PROJECT_PHASES).map(([k, v]) => `
+        <button type="button" class="phase-tab ${projectPhaseTab === k ? 'active' : ''}" onclick="setProjectPhase('${k}')">
+          <span>${v}</span><span class="phase-count">${phaseCounts[k]}</span>
+        </button>`).join('')}
+    </div>` : '';
+
   $('#topbar-actions').innerHTML = canCreate
     ? `<div class="flex gap-2">
          <button class="btn btn-secondary" onclick="openShootDayModal()">+ Drehtag</button>
-         <button class="btn btn-primary" onclick="openProjectModal()">+ Neues Projekt</button>
+         <button class="btn btn-secondary" onclick="openProjectModal()">+ Neues Projekt</button>
+         <button class="btn btn-primary" onclick="openQuickIdeaModal()">+ Neue Idee</button>
        </div>` : '';
 
   const filterBar = `
@@ -5986,12 +6045,24 @@ function renderProjects(session) {
   `;
 
   if (projects.length === 0) {
-    $('#content').innerHTML = filterBar + `
+    const filtered = (searchTerm || statusFilter !== 'all');
+    let emptyMsg, cta = '';
+    if (filtered) {
+      emptyMsg = 'Keine Projekte entsprechen deinem Filter.';
+    } else if (showPhases && projectPhaseTab === 'planung') {
+      emptyMsg = 'Noch keine Ideen in der Planung. Nur ein Titel genügt – Details kommen später.';
+      cta = '<br/><br/><button class="btn btn-primary" onclick="openQuickIdeaModal()">Erste Idee festhalten</button>';
+    } else if (showPhases) {
+      emptyMsg = `Keine Projekte in der Phase „${PROJECT_PHASES[projectPhaseTab]}".`;
+    } else {
+      emptyMsg = 'Noch keine Projekte vorhanden.';
+      cta = canCreate ? '<br/><br/><button class="btn btn-primary" onclick="openProjectModal()">Erstes Projekt anlegen</button>' : '';
+    }
+    $('#content').innerHTML = hotbar + filterBar + `
       <div class="card">
         <div class="empty-state">
           <div class="empty-state-icon">🎬</div>
-          ${(searchTerm || statusFilter !== 'all') ? 'Keine Projekte entsprechen deinem Filter.' : 'Noch keine Projekte vorhanden.'}
-          ${canCreate && !(searchTerm || statusFilter !== 'all') ? '<br/><br/><button class="btn btn-primary" onclick="openProjectModal()">Erstes Projekt anlegen</button>' : ''}
+          ${emptyMsg}${cta}
         </div>
       </div>
     `;
@@ -6066,7 +6137,7 @@ function renderProjects(session) {
     `;
   }
 
-  $('#content').innerHTML = filterBar + `
+  $('#content').innerHTML = hotbar + filterBar + `
     ${shootDayGroups.map(g => {
       const sd = g.shootDay;
       const vg = store.users.find(u => u.id === sd.videografId);
@@ -6097,6 +6168,86 @@ function renderProjects(session) {
       </div>
     ` : ''}
   `;
+}
+
+/* Brainstorming „Neue Idee" (Phase Planung) – nur Admin/Manager.
+   Nur Titel ist Pflicht, Skript optional, bewusst kein Drehdatum. */
+function openQuickIdeaModal() {
+  const session = getCurrentUser();
+  if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) {
+    appAlert('Nur Admin/Manager dürfen Ideen anlegen.', { title: 'Nicht erlaubt' });
+    return;
+  }
+  const html = `<div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+    <div class="modal" style="max-width:520px;">
+      <div class="modal-header">
+        <div class="modal-title">Neue Idee · Planung</div>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <form onsubmit="submitQuickIdea(event)">
+        <div class="modal-body">
+          <p class="text-sm text-muted" style="margin-bottom:14px;">
+            Schneller Brainstorming-Eintrag – es genügt ein Titel. Drehdatum und Details kommen später.
+          </p>
+          <div class="form-group">
+            <label class="form-label">Videotitel *</label>
+            <input type="text" name="title" required maxlength="190" autofocus placeholder="Worum geht's?" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Skript / Notizen (optional)</label>
+            <textarea name="script" rows="5" placeholder="Hook, Ablauf, Ideen…"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+          <button type="submit" class="btn btn-primary" id="quick-idea-btn">Idee speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+  $('#modal-container').innerHTML = html;
+}
+
+async function submitQuickIdea(e) {
+  e.preventDefault();
+  const session = getCurrentUser();
+  if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) {
+    appAlert('Nur Admin/Manager dürfen Ideen anlegen.', { title: 'Nicht erlaubt' });
+    return;
+  }
+  const form = e.target;
+  const title = form.title.value.trim();
+  const script = form.script.value.trim();
+  if (!title) { showToast('Bitte einen Titel angeben.', 'warn'); return; }
+
+  const btn = document.getElementById('quick-idea-btn');
+  btn.disabled = true; btn.textContent = 'Wird gespeichert…';
+
+  const newId = uid('p');
+  const optimistic = {
+    id: newId, title, script: script || null, status: STATUS.SKRIPT,
+    customerId: null, videografId: null, cutterId: null,
+    shootDate: null, shootDayId: null, deadline: null, postingDate: null,
+    isInternal: 0, createdAt: new Date().toISOString()
+  };
+  try {
+    const res = await fetch(`${API_BASE}/projects.php`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ id: newId, title, script: script || '', status: STATUS.SKRIPT, isInternal: 0 })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    store.projects.unshift(json.data ? { ...optimistic, ...json.data } : optimistic);
+    projectPhaseTab = 'planung';
+    try { localStorage.setItem(_filterKey('proj_phase'), 'planung'); } catch (e) {}
+    closeModal();
+    showToast('Idee gespeichert', 'success');
+    renderProjects(getCurrentUser());
+  } catch (err) {
+    showToast('Fehler beim Speichern: ' + err.message, 'error');
+    btn.disabled = false; btn.textContent = 'Idee speichern';
+  }
 }
 
 /* Aufgeräumte Cutter-Projektsicht – nur abgedrehte Projekte, gruppiert nach Status */
@@ -6949,13 +7100,12 @@ function getStatusActions(project, session) {
   if (project.status === STATUS.FREIGEGEBEN && canActOnProject(project, session, 'archive')) {
     buttons.push(`<button class="btn btn-secondary btn-sm" onclick="archiveProject('${project.id}')">→ Archivieren</button>`);
   }
-  // Admin: Status manuell setzen wenn unbekannt/leer
-  if (!STATUS_LABELS[project.status] && isAdmin) {
+  // Admin: Status jederzeit direkt setzen (z. B. direkt auf „Gedreht" oder „Korrektur").
+  if (isAdmin) {
     const opts = Object.entries(STATUS_LABELS)
-      .filter(([k]) => k !== STATUS.ARCHIVIERT)
-      .map(([k,v]) => `<option value="${k}">${v}</option>`)
+      .map(([k,v]) => `<option value="${k}" ${project.status === k ? 'selected' : ''}>${escape(v)}</option>`)
       .join('');
-    buttons.push(`<select class="btn btn-sm btn-secondary" style="cursor:pointer;" onchange="setProjectStatus('${project.id}', this.value)"><option value="">Status setzen…</option>${opts}</select>`);
+    buttons.push(`<select class="btn btn-sm btn-secondary" style="cursor:pointer;" title="Status direkt setzen (Admin)" onchange="setProjectStatus('${project.id}', this.value)">${opts}</select>`);
   }
   return buttons.join(' ');
 }
