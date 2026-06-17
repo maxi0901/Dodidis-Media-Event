@@ -7588,6 +7588,10 @@ async function saveProject(e, projectId) {
     });
   }
 
+  // Pending Skript-PDF sichern, BEVOR closeModal() sie auf null setzt.
+  const scriptToUpload = pendingScriptFile;
+  pendingScriptFile = null;
+
   clearProjectDraft();
   closeModal();
 
@@ -7641,10 +7645,8 @@ async function saveProject(e, projectId) {
       if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
     }
     // Skript-PDF jetzt persistent hochladen (Projekt existiert serverseitig)
-    if (pendingScriptFile) {
-      const fileToUpload = pendingScriptFile;
-      pendingScriptFile = null;
-      await uploadScriptForProject(targetId, fileToUpload);
+    if (scriptToUpload) {
+      await uploadScriptForProject(targetId, scriptToUpload);
     }
   } catch (err) {
     // Rollback
