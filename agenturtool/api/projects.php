@@ -89,7 +89,7 @@ switch ($method) {
         } catch (\Throwable $e) {
             // status-Spalte fehlt – nachrüsten und erneut versuchen
             try {
-                db()->exec("ALTER TABLE projects ADD COLUMN status ENUM('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert') NOT NULL DEFAULT 'skript'");
+                db()->exec("ALTER TABLE projects ADD COLUMN status ENUM('idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert') NOT NULL DEFAULT 'skript'");
             } catch (\Throwable $_) {}
             try {
                 $cur = db_one("SELECT id, title, videograf_id, cutter_id, customer_id, status, shoot_date FROM projects WHERE id = ?", [$id]);
@@ -234,7 +234,7 @@ function can_read_project(array $p, array $session): bool
 
 function build_project_params(array $b, bool $forInsert): array
 {
-    $valid = ['skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
+    $valid = ['idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
     $out = [];
 
     if (array_key_exists('title', $b))         $out['title']        = s($b['title'], 190);

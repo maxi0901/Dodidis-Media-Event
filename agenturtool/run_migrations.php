@@ -367,7 +367,7 @@ if (colExists($pdo, 'projects', 'data') && !colExists($pdo, 'projects', 'title')
 } elseif (!colExists($pdo, 'projects', 'status')) {
     // Neue Schema, aber status-Spalte fehlt noch
     addCol($pdo, 'projects', 'status',
-        "ALTER TABLE projects ADD COLUMN status ENUM('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert') NOT NULL DEFAULT 'skript'",
+        "ALTER TABLE projects ADD COLUMN status ENUM('idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert') NOT NULL DEFAULT 'skript'",
         $results);
 } else {
     $results[] = ['ok' => true, 'label' => "projects: individuelle Spalten bereits vorhanden"];
@@ -382,7 +382,7 @@ addCol($pdo, 'projects', 'updated_at',
 step($pdo, "projects: ungültige status-Werte auf 'skript' zurücksetzen",
     "UPDATE projects SET status = 'skript'
      WHERE status = '' OR status IS NULL
-        OR status NOT IN ('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')",
+        OR status NOT IN ('idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')",
     $results);
 
 try {
@@ -394,7 +394,7 @@ try {
     $typeStmt->execute([$dbName]);
     $colDef = (string)$typeStmt->fetchColumn();
 
-    $required = ['skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
+    $required = ['idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
     $needsUpdate = false;
     foreach ($required as $val) {
         if (strpos($colDef, "'$val'") === false) { $needsUpdate = true; break; }
@@ -403,7 +403,7 @@ try {
     if ($needsUpdate) {
         step($pdo, "projects: status-ENUM aktualisieren (fehlende Werte ergänzen)",
             "ALTER TABLE projects MODIFY COLUMN status
-             ENUM('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')
+             ENUM('idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')
              NOT NULL DEFAULT 'skript'",
             $results);
     } else {
@@ -412,6 +412,18 @@ try {
 } catch (\Throwable $e) {
     $results[] = ['ok' => false, 'label' => "projects.status ENUM-Prüfung fehlgeschlagen: " . $e->getMessage()];
 }
+
+// ── 19b. Bestand: alte Brainstorming-Ideen (skript ohne Kunde/Drehdatum) auf 'idee' heben ─
+// Macht den heuristisch ermittelten Ideen-Status dauerhaft, ohne echte Skript-Projekte
+// (mit Kunde oder Drehdatum) anzufassen.
+step($pdo, "projects: bestehende Ideen (skript ohne Kunde/Datum) auf Status 'idee' migrieren",
+    "UPDATE projects SET status = 'idee'
+      WHERE status = 'skript'
+        AND (customer_id IS NULL OR customer_id = '')
+        AND shoot_date IS NULL
+        AND (shoot_day_id IS NULL OR shoot_day_id = '')
+        AND is_internal = 0",
+    $results);
 
 // ── 20. vacations: approved_by + approved_at nachrüsten ──────────────────────
 addCol($pdo, 'vacations', 'approved_by',

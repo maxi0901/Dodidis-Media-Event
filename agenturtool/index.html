@@ -3762,6 +3762,7 @@ function canEditVacationOf(viewer, target) {
 }
 
 const STATUS = {
+  IDEE: 'idee',
   SKRIPT: 'skript',
   GEPLANT: 'geplant',
   GEDREHT: 'gedreht',
@@ -3773,6 +3774,7 @@ const STATUS = {
 };
 
 const STATUS_LABELS = {
+  idee: 'Idee',
   skript: 'Skript',
   geplant: 'Geplant',
   gedreht: 'Gedreht',
@@ -3795,16 +3797,20 @@ function statusCls(s)   { return STATUS_LABELS[s] ? s : 'ueberfaellig'; }
    Archiviert bleibt auf der Archiv-Seite (nicht im Board). */
 const PROJECT_PHASES = { ideen: 'Ideen', planung: 'Planung', production: 'Production', post: 'Post Production', abnahme: 'Abnahme' };
 const PHASE_OF_STATUS = {
+  idee: 'ideen',
   geplant: 'planung',
   skript: 'production', gedreht: 'production',
   schnitt: 'post', korrektur: 'post',
   fertig: 'abnahme', freigegeben: 'abnahme'
 };
-// Brainstorming-Idee: Status skript ohne Kunde, Drehdatum, Drehtag und nicht intern.
-// Solche Einträge landen im "Ideen"-Reiter; sobald sie einen Kunden oder ein Datum
-// bekommen, gelten sie als echtes Skript-Projekt und wandern nach Production.
+// Idee = eigener Status 'idee'. Solche Einträge landen im "Ideen"-Reiter und können
+// Titel + Skript (Text und PDF) tragen, bevor man sie in ein Projekt umwandelt.
+// Fallback: alte Ideen ohne eigenen Status (skript ohne Kunde/Drehdatum) zählen weiter
+// als Idee, damit beim Update bestehende Brainstorming-Einträge nicht verschwinden.
 function isProjectIdea(p) {
-  return p && p.status === 'skript' && !p.customerId && !p.shootDate && !p.shootDayId && !p.isInternal;
+  if (!p) return false;
+  if (p.status === 'idee') return true;
+  return p.status === 'skript' && !p.customerId && !p.shootDate && !p.shootDayId && !p.isInternal;
 }
 function getProjectPhase(p) {
   if (isProjectIdea(p)) return 'ideen';
@@ -6261,35 +6267,61 @@ function renderProjects(session) {
 
 /* Brainstorming „Neue Idee" (Phase Planung) – nur Admin/Manager.
    Nur Titel ist Pflicht, Skript optional, bewusst kein Drehdatum. */
-function openQuickIdeaModal() {
+function openQuickIdeaModal(ideaId = null) {
   const session = getCurrentUser();
   if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN)) {
     appAlert('Nur Admins dürfen Ideen anlegen.', { title: 'Nicht erlaubt' });
     return;
   }
+  pendingScriptFile = null;
+  const idea = ideaId ? store.projects.find(p => p.id === ideaId) : null;
+  const isEdit = !!idea;
+  const sf = idea ? scriptFileOf(idea) : null;
+
+  const scriptPdfBlock = isEdit ? `
+    <div class="form-group">
+      <label class="form-label">Skript-PDF (optional)</label>
+      ${sf ? `
+        <div style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--bg-2); border:1px solid var(--border); border-radius:8px; margin-bottom:8px;">
+          <span style="flex:1; font-size:13px;">📄 <a href="${API_BASE}/download.php?scope=project&id=${sf.id}" target="_blank" rel="noopener">${escape(sf.filename)}</a></span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="removeScriptFile('${idea.id}', '${sf.id}')">Entfernen</button>
+        </div>` : ''}
+      <label class="file-upload" for="idea-script-upload">
+        <input type="file" id="idea-script-upload" accept="application/pdf" style="display:none;" onchange="uploadScriptFile(event, '${idea.id}')" />
+        <div style="font-size:13px;font-weight:500;">${sf ? 'Skript-PDF ersetzen' : 'Skript-PDF hochladen'}</div>
+      </label>
+    </div>` : '';
+
+  const convertBtn = isEdit ? `
+    <button type="button" class="btn btn-secondary" onclick="convertIdeaToProject('${idea.id}')">In Projekt umwandeln</button>` : '';
+
   const html = `<div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
     <div class="modal" style="max-width:520px;">
       <div class="modal-header">
-        <div class="modal-title">Neue Idee · Planung</div>
+        <div class="modal-title">${isEdit ? 'Idee bearbeiten' : 'Neue Idee'}</div>
         <button class="modal-close" onclick="closeModal()">×</button>
       </div>
-      <form onsubmit="submitQuickIdea(event)">
+      <form onsubmit="submitQuickIdea(event, '${idea?.id || ''}')">
         <div class="modal-body">
           <p class="text-sm text-muted" style="margin-bottom:14px;">
-            Schneller Brainstorming-Eintrag – es genügt ein Titel. Drehdatum und Details kommen später.
+            ${isEdit
+              ? 'Skript hier weiter ausarbeiten. „In Projekt umwandeln", sobald Kunde/Drehdatum dazukommen.'
+              : 'Schneller Brainstorming-Eintrag – es genügt ein Titel. Skript kannst du jetzt oder später ergänzen.'}
           </p>
           <div class="form-group">
             <label class="form-label">Videotitel *</label>
-            <input type="text" name="title" required maxlength="190" autofocus placeholder="Worum geht's?" />
+            <input type="text" name="title" required maxlength="190" ${isEdit ? '' : 'autofocus'} placeholder="Worum geht's?" value="${isEdit ? escape(idea.title || '') : ''}" />
           </div>
           <div class="form-group">
             <label class="form-label">Skript / Notizen (optional)</label>
-            <textarea name="script" rows="5" placeholder="Hook, Ablauf, Ideen…"></textarea>
+            <textarea name="script" rows="6" placeholder="Hook, Ablauf, Ideen…">${isEdit ? escape(idea.script || '') : ''}</textarea>
           </div>
+          ${scriptPdfBlock}
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
-          <button type="submit" class="btn btn-primary" id="quick-idea-btn">Idee speichern</button>
+          ${convertBtn}
+          <button type="submit" class="btn btn-primary" id="quick-idea-btn">${isEdit ? 'Speichern' : 'Idee speichern'}</button>
         </div>
       </form>
     </div>
@@ -6297,7 +6329,7 @@ function openQuickIdeaModal() {
   $('#modal-container').innerHTML = html;
 }
 
-async function submitQuickIdea(e) {
+async function submitQuickIdea(e, ideaId = '') {
   e.preventDefault();
   const session = getCurrentUser();
   if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN)) {
@@ -6310,11 +6342,48 @@ async function submitQuickIdea(e) {
   if (!title) { showToast('Bitte einen Titel angeben.', 'warn'); return; }
 
   const btn = document.getElementById('quick-idea-btn');
+  const btnLabel = btn.textContent;
   btn.disabled = true; btn.textContent = 'Wird gespeichert…';
 
+  // Pending Skript-PDF sichern, bevor closeModal() sie zurücksetzt.
+  const scriptToUpload = pendingScriptFile;
+  pendingScriptFile = null;
+
+  // ── Bestehende Idee bearbeiten ───────────────────────────────────────────
+  if (ideaId) {
+    const idx = store.projects.findIndex(p => p.id === ideaId);
+    if (idx < 0) { showToast('Idee nicht gefunden', 'error'); return; }
+    const prev = { ...store.projects[idx] };
+    store.projects[idx] = { ...store.projects[idx], title, script: script || null };
+    closeModal();
+    renderProjects(getCurrentUser());
+    try {
+      const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(ideaId)}`, {
+        method: 'PUT', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ title, script: script || '' })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+      if (json.data) {
+        const i = store.projects.findIndex(p => p.id === ideaId);
+        if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
+      }
+      if (scriptToUpload) await uploadScriptForProject(ideaId, scriptToUpload);
+      showToast('Idee gespeichert', 'success');
+    } catch (err) {
+      const i = store.projects.findIndex(p => p.id === ideaId);
+      if (i >= 0) store.projects[i] = prev;
+      renderProjects(getCurrentUser());
+      showToast('Fehler beim Speichern: ' + err.message, 'error');
+    }
+    return;
+  }
+
+  // ── Neue Idee anlegen ────────────────────────────────────────────────────
   const newId = uid('p');
   const optimistic = {
-    id: newId, title, script: script || null, status: STATUS.SKRIPT,
+    id: newId, title, script: script || null, status: STATUS.IDEE,
     customerId: null, videografId: null, cutterId: null,
     shootDate: null, shootDayId: null, deadline: null, postingDate: null,
     isInternal: 0, createdAt: new Date().toISOString()
@@ -6323,7 +6392,7 @@ async function submitQuickIdea(e) {
     const res = await fetch(`${API_BASE}/projects.php`, {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
-      body: JSON.stringify({ id: newId, title, script: script || '', status: STATUS.SKRIPT, isInternal: 0 })
+      body: JSON.stringify({ id: newId, title, script: script || '', status: STATUS.IDEE, isInternal: 0 })
     });
     const json = await res.json();
     if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
@@ -6333,9 +6402,42 @@ async function submitQuickIdea(e) {
     closeModal();
     showToast('Idee gespeichert', 'success');
     renderProjects(getCurrentUser());
+    if (scriptToUpload) await uploadScriptForProject(newId, scriptToUpload);
   } catch (err) {
     showToast('Fehler beim Speichern: ' + err.message, 'error');
-    btn.disabled = false; btn.textContent = 'Idee speichern';
+    btn.disabled = false; btn.textContent = btnLabel;
+  }
+}
+
+// Wandelt eine Idee in ein echtes Projekt um: Status idee → skript, danach das
+// volle Projektformular öffnen, damit Kunde/Drehdatum/Cutter ergänzt werden können.
+async function convertIdeaToProject(ideaId) {
+  const idx = store.projects.findIndex(p => p.id === ideaId);
+  if (idx < 0) return;
+  const prevStatus = store.projects[idx].status;
+  lockProjectStatus(ideaId, STATUS.SKRIPT);
+  store.projects[idx].status = STATUS.SKRIPT;
+  closeModal();
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(ideaId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ status: STATUS.SKRIPT })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Umwandeln fehlgeschlagen');
+    if (json.data) {
+      const i = store.projects.findIndex(p => p.id === ideaId);
+      if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
+    }
+    unlockProjectStatus(ideaId);
+    showToast('In Projekt umgewandelt', 'Jetzt Kunde & Drehdatum ergänzen.');
+    openProjectModal(ideaId);
+  } catch (err) {
+    unlockProjectStatus(ideaId);
+    store.projects[idx].status = prevStatus;
+    renderProjects(getCurrentUser());
+    showToast('Umwandeln fehlgeschlagen', err.message);
   }
 }
 
@@ -6905,6 +7007,12 @@ function openProjectModal(projectId = null) {
 
   const project = projectId ? store.projects.find(p => p.id === projectId) : null;
   const isNew = !project;
+
+  // Ideen (eigener Status 'idee') öffnen den schlanken Ideen-Editor – kein Kunde nötig.
+  if (project && project.status === STATUS.IDEE) {
+    if (isAdmin) return openQuickIdeaModal(project.id);
+    return openProjectViewerModal(project);
+  }
 
   if (isNew && !isManagerOrAdmin) return; // only managers/admins create
 
