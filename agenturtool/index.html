@@ -808,6 +808,15 @@
   tbody tr:hover td { background: rgba(255,255,255,0.03); cursor: pointer; }
   tbody tr:hover td:first-child { color: var(--accent); }
 
+  /* Zeilen-Titel mit optionalem Lösch-Icon (z. B. Ideen direkt löschen) */
+  .row-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .row-trash {
+    background: transparent; border: none; cursor: pointer; color: var(--text-3);
+    font-size: 14px; line-height: 1; padding: 4px 6px; border-radius: 6px; flex: none;
+    opacity: 0.5; transition: var(--transition);
+  }
+  .row-trash:hover { opacity: 1; color: var(--danger, #ff5a5f); background: rgba(255,90,95,0.12); }
+
   /* =========================================
      STAT GRID
      ========================================= */
@@ -1906,18 +1915,25 @@
     z-index: 2;
     min-width: 0;
   }
-  /* Text inside bars: JS keeps this label visible while scrolling horizontally. */
+  /* Inner-Hülle: Kürzel (Avatar) + Text wandern beim Horizontal-Scroll als EINE Einheit.
+     Transform sitzt hier (nicht am Label allein), sonst klebt das Kürzel in Safari links. */
+  .ical-event-inner {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1 1 auto;
+    min-width: 0;
+    transform: translate3d(var(--label-offset, 0px), 0, 0);
+    -webkit-transform: translate3d(var(--label-offset, 0px), 0, 0);
+    max-width: var(--label-max-width, 100%);
+    will-change: transform;
+  }
+  /* Text inside bars: JS keeps the inner unit visible while scrolling horizontally. */
   .ical-event-label {
-    position: relative;
-    z-index: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex: 1 1 auto;
     min-width: 0;
-    transform: translateX(var(--label-offset, 0px));
-    max-width: var(--label-max-width, 100%);
-    will-change: transform, max-width;
   }
   .ical-event::before {
     content: "";
@@ -3506,16 +3522,23 @@
     min-width: 0;
   }
   .ical-event:hover { z-index: 10; }
-  .ical-event-label {
-    position: relative;
-    left: auto;
-    z-index: 1;
+  .ical-event-inner {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     flex: 1 1 auto;
     min-width: 0;
     transform: translate3d(var(--label-offset, 0px), 0, 0);
+    -webkit-transform: translate3d(var(--label-offset, 0px), 0, 0);
     max-width: var(--label-max-width, 100%);
     transition: none;
-    will-change: transform, max-width;
+    will-change: transform;
+  }
+  .ical-event-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
   }
   @media (max-width: 640px) {
     .ical-day-head.today .ical-dnum {
@@ -6200,9 +6223,13 @@ function renderProjects(session) {
           ? `<span class="badge badge-ueberfaellig">${fmtDate(p.deadline)}</span>`
           : fmtDate(p.deadline))
       : '–';
+    // Ideen direkt aus der Liste löschbar (kein Umwandeln nötig) – nur für Admins.
+    const ideaTrash = (canQuickIdea && isProjectIdea(p))
+      ? `<button type="button" class="row-trash" title="Idee löschen" aria-label="Idee löschen" onclick="event.stopPropagation(); deleteProject('${p.id}')">🗑</button>`
+      : '';
     return `
       <tr style="cursor:pointer" onclick="openProjectModal('${p.id}')">
-        <td><strong>${escape(p.title)}</strong></td>
+        <td><div class="row-title"><strong>${escape(p.title)}</strong>${ideaTrash}</div></td>
         <td>${customerCell}</td>
         <td><span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span></td>
         <td>${escape(vg?.name || '–')}</td>
@@ -6294,6 +6321,8 @@ function openQuickIdeaModal(ideaId = null) {
 
   const convertBtn = isEdit ? `
     <button type="button" class="btn btn-secondary" onclick="convertIdeaToProject('${idea.id}')">In Projekt umwandeln</button>` : '';
+  const deleteBtn = isEdit ? `
+    <button type="button" class="btn btn-danger" onclick="deleteProject('${idea.id}')">Löschen</button>` : '';
 
   const html = `<div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
     <div class="modal" style="max-width:520px;">
@@ -6320,6 +6349,7 @@ function openQuickIdeaModal(ideaId = null) {
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+          ${deleteBtn}
           ${convertBtn}
           <button type="submit" class="btn btn-primary" id="quick-idea-btn">${isEdit ? 'Speichern' : 'Idee speichern'}</button>
         </div>
@@ -9854,7 +9884,7 @@ function renderCategoryEvent(b, row, startCol, endCol) {
   }
   const isMobile = window.innerWidth < 640;
   const avatar = (!b.cutsLeft && avatarUser && !isMobile) ? renderAvatar(avatarUser, 16, 9) : '';
-  return `<div class="${cls}" style="grid-column: ${startCol} / ${endCol}; grid-row: ${row};" ${click} title="${escape(title)}">${avatar}<span class="ical-event-label">${escape(text)}</span></div>`;
+  return `<div class="${cls}" style="grid-column: ${startCol} / ${endCol}; grid-row: ${row};" ${click} title="${escape(title)}"><div class="ical-event-inner">${avatar}<span class="ical-event-label">${escape(text)}</span></div></div>`;
 }
 
 function renderICWAllDay(b) {
@@ -12928,10 +12958,11 @@ setTimeout(() => { if (_calDebugOn()) _calDebugInit(); }, 0);
     const writes = [];
     for (let i = 0; i < events.length; i++) {
       const eventEl = events[i];
-      const label = eventEl.querySelector('.ical-event-label');
+      // Bewegte Einheit = Kürzel (Avatar) + Text zusammen, damit in Safari nichts kleben bleibt.
+      const label = eventEl.querySelector('.ical-event-inner');
       if (!label) continue;
-      const evRect = eventEl.getBoundingClientRect();        // Balken ohne Transform (Transform liegt nur am Label)
-      const naturalLeft = evRect.left + label.offsetLeft;    // natürliche Textposition (Balkenanfang)
+      const evRect = eventEl.getBoundingClientRect();        // Balken ohne Transform (Transform liegt am Inner)
+      const naturalLeft = evRect.left + label.offsetLeft;    // natürliche Position (Balkenanfang)
       const innerRight = evRect.right - 2;                   // rechtes Balkenende
 
       // Anschlag direkt am rechten Balkenende (nicht abzüglich Textbreite – sonst
