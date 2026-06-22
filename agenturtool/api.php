@@ -94,9 +94,9 @@ function customer_to_doc(array $c): array
     return $doc;
 }
 
-function project_to_doc(array $p): array
+function project_to_doc(array $p, bool $includeNas = true): array
 {
-    return [
+    $doc = [
         'id'           => (string)$p['id'],
         'title'        => (string)$p['title'],
         'customerId'   => $p['customer_id'],
@@ -110,11 +110,15 @@ function project_to_doc(array $p): array
         'status'       => $p['status'] ?? 'skript',
         'isInternal'   => (bool)$p['is_internal'],
         'approvedAt'   => $p['approved_at'],
-        'nasRohmaterialUrl' => $p['nas_rohmaterial_url'] ?? null,
-        'nasExportUrl'      => $p['nas_export_url'] ?? null,
-        'nasFreigabeUrl'    => $p['nas_freigabe_url'] ?? null,
         'createdAt'    => $p['created_at'],
     ];
+    // NAS-Freigabelinks nur an Staff ausliefern, niemals an Kunden.
+    if ($includeNas) {
+        $doc['nasRohmaterialUrl'] = $p['nas_rohmaterial_url'] ?? null;
+        $doc['nasExportUrl']      = $p['nas_export_url'] ?? null;
+        $doc['nasFreigabeUrl']    = $p['nas_freigabe_url'] ?? null;
+    }
+    return $doc;
 }
 
 function vacation_to_doc(array $v): array
@@ -243,7 +247,7 @@ if ($action === 'pull') {
     } else {
         $projRows = db_all("SELECT * FROM projects");
     }
-    $projects = array_map('project_to_doc', $projRows);
+    $projects = array_map(static fn($r) => project_to_doc($r, $type === 'staff'), $projRows);
 
     // Projektdateien (z. B. Skript-PDF) an die Projekt-Dokumente hängen – nur für Staff,
     // damit die persistierten Dateien auch nach einem Reload verfügbar sind.

@@ -14,13 +14,18 @@ if (in_array($method, ['POST', 'PUT', 'DELETE'], true)) {
     require_csrf();
 }
 
+// NAS-Freigabelinks sind staff-intern: niemals an Kunden ausliefern (sonst könnten
+// Kunden die Roh-/Export-/Freigabe-Links über die rohe API auslesen).
+$isStaff = (($session['type'] ?? 'staff') === 'staff');
 $cols = "id, title, customer_id AS customerId, videograf_id AS videografId,
          cutter_id AS cutterId, shoot_date AS shootDate, shoot_day_id AS shootDayId,
          deadline, posting_date AS postingDate, script, status,
          is_internal AS isInternal, approved_at AS approvedAt,
-         nas_rohmaterial_url AS nasRohmaterialUrl, nas_export_url AS nasExportUrl,
-         nas_freigabe_url AS nasFreigabeUrl,
          created_at AS createdAt, updated_at AS updatedAt";
+if ($isStaff) {
+    $cols .= ", nas_rohmaterial_url AS nasRohmaterialUrl, nas_export_url AS nasExportUrl,
+               nas_freigabe_url AS nasFreigabeUrl";
+}
 
 switch ($method) {
 
