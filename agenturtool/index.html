@@ -3192,10 +3192,13 @@
     .phase-hotbar .phase-tab:nth-child(n+4) { display: none; }
     .phase-select-mobile { display: block; }
 
-    /* (7) Modal-Aktionsleiste läuft nicht mit – erscheint erst am Formularende */
-    .modal { overflow-y: auto; }
-    .modal > form { overflow: visible; }
-    .modal-body { overflow: visible; }
+    /* (7) Modal-Aktionsleiste läuft nicht mit – erscheint erst am Formularende.
+       Wichtig: Form und Body müssen auf natürliche Inhaltshöhe (flex:none) statt flex:1,
+       sonst bleibt die Body-Box kurz, der Inhalt quillt über und der statische Footer
+       landet mitten im Formular. So wird das Modal selbst zur Scrollfläche. */
+    .modal { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .modal > form { display: block; flex: none; min-height: 0; overflow: visible; }
+    .modal-body { flex: none; overflow: visible; }
     .modal-footer { position: static; flex-direction: column; flex-wrap: nowrap; }
     .modal-footer .btn { width: 100%; flex: none; min-width: 0; }
 
