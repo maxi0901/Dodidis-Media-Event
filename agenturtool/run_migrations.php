@@ -378,6 +378,16 @@ addCol($pdo, 'projects', 'updated_at',
     "ALTER TABLE projects ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
     $results);
 
+// ── 18b. projects: NAS-Freigabelinks (Korrekturschleife über Ugreen NAS) ──────
+// 01_Rohmaterial (read-only Cutter), 03_Exporte_Cutter (Cutter-Upload),
+// 04_Freigaben_Manager (finaler Review). Nur Share-Links, keine Dateiübertragung.
+addCol($pdo, 'projects', 'nas_rohmaterial_url',
+    "ALTER TABLE projects ADD COLUMN nas_rohmaterial_url TEXT NULL", $results);
+addCol($pdo, 'projects', 'nas_export_url',
+    "ALTER TABLE projects ADD COLUMN nas_export_url TEXT NULL", $results);
+addCol($pdo, 'projects', 'nas_freigabe_url',
+    "ALTER TABLE projects ADD COLUMN nas_freigabe_url TEXT NULL", $results);
+
 // ── 19. projects: ungültige status-Werte bereinigen + Spalte auf ENUM umstellen ─
 step($pdo, "projects: ungültige status-Werte auf 'skript' zurücksetzen",
     "UPDATE projects SET status = 'skript'

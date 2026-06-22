@@ -110,6 +110,9 @@ function project_to_doc(array $p): array
         'status'       => $p['status'] ?? 'skript',
         'isInternal'   => (bool)$p['is_internal'],
         'approvedAt'   => $p['approved_at'],
+        'nasRohmaterialUrl' => $p['nas_rohmaterial_url'] ?? null,
+        'nasExportUrl'      => $p['nas_export_url'] ?? null,
+        'nasFreigabeUrl'    => $p['nas_freigabe_url'] ?? null,
         'createdAt'    => $p['created_at'],
     ];
 }
@@ -628,15 +631,19 @@ if ($action === 'push') {
                     "INSERT INTO projects (
                         id, title, customer_id, videograf_id, cutter_id,
                         shoot_date, shoot_day_id, deadline, posting_date, script,
-                        status, is_internal, approved_at
-                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        status, is_internal, approved_at,
+                        nas_rohmaterial_url, nas_export_url, nas_freigabe_url
+                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                      ON DUPLICATE KEY UPDATE
                         title = VALUES(title), customer_id = VALUES(customer_id),
                         videograf_id = VALUES(videograf_id), cutter_id = VALUES(cutter_id),
                         shoot_date = VALUES(shoot_date), shoot_day_id = VALUES(shoot_day_id),
                         deadline = VALUES(deadline), posting_date = VALUES(posting_date),
                         script = VALUES(script), status = VALUES(status), is_internal = VALUES(is_internal),
-                        approved_at = VALUES(approved_at)"
+                        approved_at = VALUES(approved_at),
+                        nas_rohmaterial_url = VALUES(nas_rohmaterial_url),
+                        nas_export_url = VALUES(nas_export_url),
+                        nas_freigabe_url = VALUES(nas_freigabe_url)"
                 );
             } catch (\Throwable $e) {
                 error_log('[push/projects prepare] status column missing – trying ALTER: ' . $e->getMessage());
@@ -648,15 +655,19 @@ if ($action === 'push') {
                         "INSERT INTO projects (
                             id, title, customer_id, videograf_id, cutter_id,
                             shoot_date, shoot_day_id, deadline, posting_date, script,
-                            status, is_internal, approved_at
-                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            status, is_internal, approved_at,
+                            nas_rohmaterial_url, nas_export_url, nas_freigabe_url
+                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                          ON DUPLICATE KEY UPDATE
                             title = VALUES(title), customer_id = VALUES(customer_id),
                             videograf_id = VALUES(videograf_id), cutter_id = VALUES(cutter_id),
                             shoot_date = VALUES(shoot_date), shoot_day_id = VALUES(shoot_day_id),
                             deadline = VALUES(deadline), posting_date = VALUES(posting_date),
                             script = VALUES(script), status = VALUES(status), is_internal = VALUES(is_internal),
-                            approved_at = VALUES(approved_at)"
+                            approved_at = VALUES(approved_at),
+                            nas_rohmaterial_url = VALUES(nas_rohmaterial_url),
+                            nas_export_url = VALUES(nas_export_url),
+                            nas_freigabe_url = VALUES(nas_freigabe_url)"
                     );
                 } catch (\Throwable $e2) {
                     error_log('[push/projects prepare-retry] ' . $e2->getMessage());
@@ -669,12 +680,15 @@ if ($action === 'push') {
                     $d = $p['data'];
                     if (!$isManager) {
                         $cur = db_one(
-                            "SELECT videograf_id, cutter_id, title, customer_id, shoot_date, shoot_day_id, deadline, posting_date, script, status, is_internal, approved_at
+                            "SELECT videograf_id, cutter_id, title, customer_id, shoot_date, shoot_day_id, deadline, posting_date, script, status, is_internal, approved_at, nas_rohmaterial_url, nas_export_url, nas_freigabe_url
                                FROM projects WHERE id = ?",
                             [(string)$p['id']]
                         );
                         if (!$cur) continue;
                         if ($session['uid'] !== $cur['videograf_id'] && $session['uid'] !== $cur['cutter_id']) continue;
+                        // Cutter darf zusätzlich seinen Export-Link setzen; alle anderen Felder bleiben unverändert.
+                        $isCutter = $session['uid'] === $cur['cutter_id'];
+                        $clientAllowed = array_intersect_key($d, $isCutter ? ['status' => 1, 'nasExportUrl' => 1] : ['status' => 1]);
                         $d = array_merge([
                             'title'       => $cur['title'],
                             'customerId'  => $cur['customer_id'],
@@ -687,7 +701,10 @@ if ($action === 'push') {
                             'script'      => $cur['script'],
                             'isInternal'  => (bool)$cur['is_internal'],
                             'approvedAt'  => $cur['approved_at'],
-                        ], array_intersect_key($d, ['status' => 1]));
+                            'nasRohmaterialUrl' => $cur['nas_rohmaterial_url'],
+                            'nasExportUrl'      => $cur['nas_export_url'],
+                            'nasFreigabeUrl'    => $cur['nas_freigabe_url'],
+                        ], $clientAllowed);
                     }
                     $status     = in_array($d['status'] ?? null, $validStatus, true) ? $d['status'] : 'skript';
                     $approvedAt = $d['approvedAt'] ?? null;
@@ -707,6 +724,9 @@ if ($action === 'push') {
                             $status,
                             !empty($d['isInternal']) ? 1 : 0,
                             $approvedAt ? date('Y-m-d H:i:s', strtotime($approvedAt)) : null,
+                            !empty($d['nasRohmaterialUrl']) ? (string)$d['nasRohmaterialUrl'] : null,
+                            !empty($d['nasExportUrl'])      ? (string)$d['nasExportUrl']      : null,
+                            !empty($d['nasFreigabeUrl'])    ? (string)$d['nasFreigabeUrl']    : null,
                         ]);
                     } catch (\Throwable $e) {
                         error_log('[push/projects exec ' . $p['id'] . '] ' . $e->getMessage());

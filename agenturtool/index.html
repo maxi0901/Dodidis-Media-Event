@@ -817,6 +817,23 @@
   }
   .row-trash:hover { opacity: 1; color: var(--danger, #ff5a5f); background: rgba(255,90,95,0.12); }
 
+  /* NAS-Freigabelinks im Projekt-Detail */
+  .nas-links { display: flex; flex-direction: column; gap: 12px; }
+  .nas-link-row { display: flex; flex-direction: column; gap: 5px; }
+  .nas-link-meta { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .nas-link-folder {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+    font-weight: 700; color: var(--accent); background: var(--accent-soft);
+    padding: 1px 7px; border-radius: 5px;
+  }
+  .nas-link-hint { font-size: 11.5px; color: var(--text-3); }
+  .nas-link-input { display: flex; gap: 8px; align-items: center; }
+  .nas-link-input input {
+    flex: 1; min-width: 0; padding: 8px 12px; border-radius: 8px;
+    background: var(--bg-2); border: 1px solid var(--border); color: inherit; font-size: 13px;
+  }
+  .nas-link-input input[readonly] { opacity: 0.8; cursor: default; }
+
   /* =========================================
      STAT GRID
      ========================================= */
@@ -7219,6 +7236,17 @@ function openProjectModal(projectId = null) {
               ` : ''}
             </div>
 
+            ${!isNew ? `
+            <div class="form-group">
+              <label class="form-label">NAS-Freigabelinks (Ugreen)</label>
+              <div class="nas-links">
+                ${nasLinkField('nasRohmaterialUrl', '01_Rohmaterial', 'Rohmaterial für Cutter (read-only)', project?.nasRohmaterialUrl, canEdit)}
+                ${nasLinkField('nasExportUrl', '03_Exporte_Cutter', 'Export-Upload des Cutters', project?.nasExportUrl, canEdit)}
+                ${nasLinkField('nasFreigabeUrl', '04_Freigaben_Manager', 'Finaler Manager-Review', project?.nasFreigabeUrl, canEdit)}
+              </div>
+            </div>
+            ` : ''}
+
             ${folderName ? `
               <div class="form-group">
                 <label class="form-label">Ordnername (automatisch generiert)</label>
@@ -7501,6 +7529,8 @@ async function openProjectViewerModal(project) {
               </div>
             </div>
           ` : ''; })()}
+
+          ${renderNasViewerSection(project, user)}
 
           ${renderProjectFilesSection(project, session)}
 
@@ -7809,6 +7839,11 @@ async function saveProject(e, projectId) {
     isInternal: data.isInternal ? 1 : 0,
     status: data.status || undefined
   };
+  // NAS-Freigabelinks nur mitschicken, wenn die Felder im Formular vorhanden waren
+  // (nur Bearbeiten-Ansicht, nicht bei Neuanlage).
+  if ('nasRohmaterialUrl' in data) apiPayload.nasRohmaterialUrl = data.nasRohmaterialUrl || null;
+  if ('nasExportUrl' in data)      apiPayload.nasExportUrl      = data.nasExportUrl || null;
+  if ('nasFreigabeUrl' in data)    apiPayload.nasFreigabeUrl    = data.nasFreigabeUrl || null;
   // Für neue Projekte: id mitschicken
   if (!projectId) apiPayload.id = insertedId;
 
@@ -7909,6 +7944,98 @@ function scriptFileOf(project) {
   if (!project || !Array.isArray(project.files)) return null;
   const scripts = project.files.filter(f => f && f.kind === 'script');
   return scripts.length ? scripts[0] : null; // list_files liefert neueste zuerst
+}
+
+// Ein NAS-Freigabelink-Feld (Ordner-Label + Hinweis + Eingabe + "Öffnen"-Shortcut).
+// editable=false → read-only (z. B. für Cutter/Videograf im Viewer).
+function nasLinkField(name, folderLabel, hint, value, editable) {
+  const v = value || '';
+  const safeV = escape(v);
+  const open = v
+    ? `<a class="btn btn-ghost btn-sm" href="${safeV}" target="_blank" rel="noopener noreferrer">Öffnen</a>`
+    : '';
+  return `
+    <div class="nas-link-row">
+      <div class="nas-link-meta">
+        <span class="nas-link-folder">${escape(folderLabel)}</span>
+        <span class="nas-link-hint">${escape(hint)}</span>
+      </div>
+      <div class="nas-link-input">
+        <input type="url" name="${name}" value="${safeV}" ${editable ? '' : 'readonly'}
+               placeholder="https://nas… Freigabelink einfügen" />
+        ${open}
+      </div>
+    </div>`;
+}
+
+// NAS-Sektion im Read-Only-Viewer (Cutter/Videograf):
+// Rohmaterial + Freigabe als reine Öffnen-Shortcuts; Export-Link für den zugewiesenen
+// Cutter editierbar (er trägt seinen Upload-/Export-Share-Link ein und speichert ihn).
+function renderNasViewerSection(project, user) {
+  const isAssignedCutter = project.cutterId && project.cutterId === user.id;
+  const shortcut = (folderLabel, hint, value) => {
+    if (!value) return '';
+    return `
+      <div class="nas-link-row">
+        <div class="nas-link-meta">
+          <span class="nas-link-folder">${escape(folderLabel)}</span>
+          <span class="nas-link-hint">${escape(hint)}</span>
+        </div>
+        <div class="nas-link-input">
+          <a class="btn btn-secondary btn-sm" href="${escape(value)}" target="_blank" rel="noopener noreferrer">Öffnen</a>
+        </div>
+      </div>`;
+  };
+  const rohmaterial = shortcut('01_Rohmaterial', 'Rohmaterial (read-only)', project.nasRohmaterialUrl);
+  const freigabe    = shortcut('04_Freigaben_Manager', 'Manager-Freigabe', project.nasFreigabeUrl);
+  // Export: Cutter editierbar, sonst Shortcut (falls gesetzt)
+  let exportBlock = '';
+  if (isAssignedCutter) {
+    const v = project.nasExportUrl || '';
+    exportBlock = `
+      <div class="nas-link-row">
+        <div class="nas-link-meta">
+          <span class="nas-link-folder">03_Exporte_Cutter</span>
+          <span class="nas-link-hint">Dein Export-Freigabelink</span>
+        </div>
+        <div class="nas-link-input">
+          <input type="url" id="nas-export-input" value="${escape(v)}" placeholder="https://nas… Export-Link einfügen" />
+          <button type="button" class="btn btn-primary btn-sm" onclick="saveCutterNasExport('${project.id}')">Speichern</button>
+        </div>
+      </div>`;
+  } else {
+    exportBlock = shortcut('03_Exporte_Cutter', 'Cutter-Export', project.nasExportUrl);
+  }
+  if (!rohmaterial && !exportBlock && !freigabe) return '';
+  return `
+    <div style="margin-top: 14px;">
+      <div class="cutter-detail-label" style="margin-bottom:6px;">NAS-Freigabelinks (Ugreen)</div>
+      <div class="nas-links">${rohmaterial}${exportBlock}${freigabe}</div>
+    </div>`;
+}
+
+// Cutter speichert seinen Export-Link (nur dieses Feld ist serverseitig für ihn erlaubt).
+async function saveCutterNasExport(projectId) {
+  const input = document.getElementById('nas-export-input');
+  if (!input) return;
+  const val = input.value.trim();
+  const idx = store.projects.findIndex(p => p.id === projectId);
+  const prev = idx >= 0 ? store.projects[idx].nasExportUrl : undefined;
+  if (idx >= 0) store.projects[idx].nasExportUrl = val || null;
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ nasExportUrl: val })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data && idx >= 0) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    showToast('Export-Link gespeichert', 'success');
+  } catch (err) {
+    if (idx >= 0) store.projects[idx].nasExportUrl = prev;
+    showToast('Fehler beim Speichern', err.message);
+  }
 }
 
 let pendingScriptFile = null;
