@@ -808,6 +808,32 @@
   tbody tr:hover td { background: rgba(255,255,255,0.03); cursor: pointer; }
   tbody tr:hover td:first-child { color: var(--accent); }
 
+  /* Zeilen-Titel mit optionalem Lösch-Icon (z. B. Ideen direkt löschen) */
+  .row-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .row-trash {
+    background: transparent; border: none; cursor: pointer; color: var(--text-3);
+    font-size: 14px; line-height: 1; padding: 4px 6px; border-radius: 6px; flex: none;
+    opacity: 0.5; transition: var(--transition);
+  }
+  .row-trash:hover { opacity: 1; color: var(--danger, #ff5a5f); background: rgba(255,90,95,0.12); }
+
+  /* NAS-Freigabelinks im Projekt-Detail */
+  .nas-links { display: flex; flex-direction: column; gap: 12px; }
+  .nas-link-row { display: flex; flex-direction: column; gap: 5px; }
+  .nas-link-meta { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .nas-link-folder {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+    font-weight: 700; color: var(--accent); background: var(--accent-soft);
+    padding: 1px 7px; border-radius: 5px;
+  }
+  .nas-link-hint { font-size: 11.5px; color: var(--text-3); }
+  .nas-link-input { display: flex; gap: 8px; align-items: center; }
+  .nas-link-input input {
+    flex: 1; min-width: 0; padding: 8px 12px; border-radius: 8px;
+    background: var(--bg-2); border: 1px solid var(--border); color: inherit; font-size: 13px;
+  }
+  .nas-link-input input[readonly] { opacity: 0.8; cursor: default; }
+
   /* =========================================
      STAT GRID
      ========================================= */
@@ -1906,18 +1932,25 @@
     z-index: 2;
     min-width: 0;
   }
-  /* Text inside bars: JS keeps this label visible while scrolling horizontally. */
+  /* Inner-Hülle: Kürzel (Avatar) + Text wandern beim Horizontal-Scroll als EINE Einheit.
+     Transform sitzt hier (nicht am Label allein), sonst klebt das Kürzel in Safari links. */
+  .ical-event-inner {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1 1 auto;
+    min-width: 0;
+    transform: translate3d(var(--label-offset, 0px), 0, 0);
+    -webkit-transform: translate3d(var(--label-offset, 0px), 0, 0);
+    max-width: var(--label-max-width, 100%);
+    will-change: transform;
+  }
+  /* Text inside bars: JS keeps the inner unit visible while scrolling horizontally. */
   .ical-event-label {
-    position: relative;
-    z-index: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex: 1 1 auto;
     min-width: 0;
-    transform: translateX(var(--label-offset, 0px));
-    max-width: var(--label-max-width, 100%);
-    will-change: transform, max-width;
   }
   .ical-event::before {
     content: "";
@@ -2469,6 +2502,11 @@
   .phase-tab.active { background:var(--accent-soft); border-color:var(--accent); color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
   .phase-tab .phase-count { flex:none; min-width:20px; padding:1px 7px; border-radius:999px; background:var(--bg-3); color:var(--text-2); font-size:12px; font-weight:700; text-align:center; }
   .phase-tab.active .phase-count { background:var(--accent); color:#04221a; }
+  /* Mobile-Dropdown für die übrigen Phasen (Desktop ausgeblendet) */
+  .phase-select-mobile {
+    display:none; width:100%; margin-bottom:14px; padding:10px 12px; border-radius:10px;
+    background:var(--bg-2); border:1px solid var(--border); color:inherit; font-size:14px; font-weight:600;
+  }
   /* Mobil: horizontaler Scroll-Streifen statt Quetschen – Schrift bleibt einzeilig und ragt nicht heraus */
   @media (max-width: 640px) {
     .phase-hotbar { flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; gap:6px; margin-bottom:12px; padding-bottom:4px; scrollbar-width:none; }
@@ -3143,6 +3181,34 @@
     to { transform: translateY(0); opacity: 1; }
   }
 
+  /* ============ Mobile-UX-Feinschliff (≤768px) ============ */
+  @media (max-width: 768px) {
+    /* (5) Header scrollt normal weg statt oben zu kleben */
+    .topbar { position: static; }
+
+    /* (6) Projekte-Tabs: nur die ersten 3, Rest im Dropdown */
+    .phase-hotbar { flex-wrap: nowrap; overflow: visible; }
+    .phase-hotbar .phase-tab { flex: 1 1 0; }
+    .phase-hotbar .phase-tab:nth-child(n+4) { display: none; }
+    .phase-select-mobile { display: block; }
+
+    /* (7) Modal-Aktionsleiste läuft nicht mit – erscheint erst am Formularende */
+    .modal { overflow-y: auto; }
+    .modal > form { overflow: visible; }
+    .modal-body { overflow: visible; }
+    .modal-footer { position: static; flex-direction: column; flex-wrap: nowrap; }
+    .modal-footer .btn { width: 100%; flex: none; min-width: 0; }
+
+    /* (8) Dashboard-Kacheln als flache Liste (Icon links, Wert rechts) */
+    .stat-grid { grid-template-columns: 1fr; gap: 8px; }
+    .stat { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; }
+    .stat::before { display: none; }
+    .stat-icon { margin-bottom: 0; flex: none; }
+    .stat-label { flex: 1; order: 1; margin: 0; }
+    .stat-value { order: 2; font-size: 22px; margin: 0; letter-spacing: -0.5px; }
+    .stat-sub { order: 3; flex-basis: 100%; margin-top: 2px; }
+  }
+
   @media (max-width: 480px) {
     .stat-grid { grid-template-columns: 1fr; }
     .topbar { padding: 12px 14px; }
@@ -3295,6 +3361,21 @@
     table:not(.keep-table) td .badge,
     table:not(.keep-table) td .avatar-stack,
     table:not(.keep-table) td .progress-bar { flex-shrink: 0; }
+    /* Feldnamen als Label in der Karte zeigen (nur Zellen mit data-label) */
+    table:not(.keep-table) td[data-label]::before {
+      content: attr(data-label);
+      color: var(--text-3); font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.4px; font-weight: 600; flex: none; text-align: left;
+    }
+    /* Auswahl-Checkbox-Spalte in der Kartenansicht ausblenden … */
+    table:not(.keep-table) td.col-select { display: none; }
+    /* … und die Namens-Zelle (nicht die Checkbox) als Kartentitel behandeln */
+    table:not(.keep-table) td.card-title-cell {
+      font-weight: 600; font-size: 15px; padding-bottom: 10px;
+      border-bottom: 1px solid var(--border); margin-bottom: 6px;
+      display: block; text-align: left;
+    }
+    table:not(.keep-table) td.card-title-cell::before { display: none; }
 
     /* keep-table: horizontaler Scroll + sticky erste Spalte */
     .table-scroll { border-radius: var(--radius-sm); }
@@ -3435,6 +3516,22 @@
     .btn-sm { padding: 8px 11px; font-size: 12.5px; }
   }
 
+  /* (5) Kompakte Suche auf Mobile: standardmäßig nur Lupe, expandiert bei Fokus.
+     Bewusst NACH den 640px-Filterregeln, damit es auf Phones gewinnt. */
+  @media (max-width: 768px) {
+    div:has(> #cust-search), div:has(> #proj-search) {
+      flex-direction: row !important; flex-wrap: wrap !important; align-items: center !important;
+    }
+    #proj-search, #cust-search {
+      width: 46px !important; min-width: 46px !important; flex: 0 0 46px !important;
+      cursor: pointer; transition: flex-basis .2s ease, width .2s ease; min-height: 44px;
+    }
+    #proj-search:focus, #cust-search:focus {
+      width: 100% !important; min-width: 0 !important; flex: 1 1 100% !important; cursor: text;
+    }
+    #proj-status, #cust-status { flex: 1 1 auto !important; width: auto !important; }
+  }
+
   /* ----------- Touch-Feedback (Geraete ohne Hover) ----------- */
   @media (hover: none) {
     .btn:active { transform: scale(0.97); opacity: 0.88; }
@@ -3506,16 +3603,23 @@
     min-width: 0;
   }
   .ical-event:hover { z-index: 10; }
-  .ical-event-label {
-    position: relative;
-    left: auto;
-    z-index: 1;
+  .ical-event-inner {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     flex: 1 1 auto;
     min-width: 0;
     transform: translate3d(var(--label-offset, 0px), 0, 0);
+    -webkit-transform: translate3d(var(--label-offset, 0px), 0, 0);
     max-width: var(--label-max-width, 100%);
     transition: none;
-    will-change: transform, max-width;
+    will-change: transform;
+  }
+  .ical-event-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
   }
   @media (max-width: 640px) {
     .ical-day-head.today .ical-dnum {
@@ -6077,7 +6181,12 @@ function renderProjects(session) {
       <button type="button" class="phase-tab ${projectPhaseTab === 'kunden' ? 'active' : ''}" onclick="setProjectPhase('kunden')">
         <span>Kunden</span><span class="phase-count">${kundenCount}</span>
       </button>
-    </div>` : '';
+    </div>
+    <select class="phase-select-mobile" onchange="setProjectPhase(this.value)" aria-label="Phase wählen">
+      ${Object.entries(PROJECT_PHASES).map(([k, v]) => `
+        <option value="${k}" ${projectPhaseTab === k ? 'selected' : ''}>${v} (${phaseCounts[k]})</option>`).join('')}
+      <option value="kunden" ${projectPhaseTab === 'kunden' ? 'selected' : ''}>Kunden (${kundenCount})</option>
+    </select>` : '';
 
   $('#topbar-actions').innerHTML = canCreate
     ? `<div class="flex gap-2">
@@ -6200,9 +6309,13 @@ function renderProjects(session) {
           ? `<span class="badge badge-ueberfaellig">${fmtDate(p.deadline)}</span>`
           : fmtDate(p.deadline))
       : '–';
+    // Ideen direkt aus der Liste löschbar (kein Umwandeln nötig) – nur für Admins.
+    const ideaTrash = (canQuickIdea && isProjectIdea(p))
+      ? `<button type="button" class="row-trash" title="Idee löschen" aria-label="Idee löschen" onclick="event.stopPropagation(); deleteProject('${p.id}')">🗑</button>`
+      : '';
     return `
       <tr style="cursor:pointer" onclick="openProjectModal('${p.id}')">
-        <td><strong>${escape(p.title)}</strong></td>
+        <td><div class="row-title"><strong>${escape(p.title)}</strong>${ideaTrash}</div></td>
         <td>${customerCell}</td>
         <td><span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span></td>
         <td>${escape(vg?.name || '–')}</td>
@@ -6294,6 +6407,8 @@ function openQuickIdeaModal(ideaId = null) {
 
   const convertBtn = isEdit ? `
     <button type="button" class="btn btn-secondary" onclick="convertIdeaToProject('${idea.id}')">In Projekt umwandeln</button>` : '';
+  const deleteBtn = isEdit ? `
+    <button type="button" class="btn btn-danger" onclick="deleteProject('${idea.id}')">Löschen</button>` : '';
 
   const html = `<div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
     <div class="modal" style="max-width:520px;">
@@ -6320,6 +6435,7 @@ function openQuickIdeaModal(ideaId = null) {
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+          ${deleteBtn}
           ${convertBtn}
           <button type="submit" class="btn btn-primary" id="quick-idea-btn">${isEdit ? 'Speichern' : 'Idee speichern'}</button>
         </div>
@@ -7189,6 +7305,17 @@ function openProjectModal(projectId = null) {
               ` : ''}
             </div>
 
+            ${!isNew ? `
+            <div class="form-group">
+              <label class="form-label">NAS-Freigabelinks (Ugreen)</label>
+              <div class="nas-links">
+                ${nasLinkField('nasRohmaterialUrl', '01_Rohmaterial', 'Rohmaterial für Cutter (read-only)', project?.nasRohmaterialUrl, canEdit)}
+                ${nasLinkField('nasExportUrl', '03_Exporte_Cutter', 'Export-Upload des Cutters', project?.nasExportUrl, canEdit)}
+                ${nasLinkField('nasFreigabeUrl', '04_Freigaben_Manager', 'Finaler Manager-Review', project?.nasFreigabeUrl, canEdit)}
+              </div>
+            </div>
+            ` : ''}
+
             ${folderName ? `
               <div class="form-group">
                 <label class="form-label">Ordnername (automatisch generiert)</label>
@@ -7471,6 +7598,8 @@ async function openProjectViewerModal(project) {
               </div>
             </div>
           ` : ''; })()}
+
+          ${renderNasViewerSection(project, user)}
 
           ${renderProjectFilesSection(project, session)}
 
@@ -7779,6 +7908,11 @@ async function saveProject(e, projectId) {
     isInternal: data.isInternal ? 1 : 0,
     status: data.status || undefined
   };
+  // NAS-Freigabelinks nur mitschicken, wenn die Felder im Formular vorhanden waren
+  // (nur Bearbeiten-Ansicht, nicht bei Neuanlage).
+  if ('nasRohmaterialUrl' in data) apiPayload.nasRohmaterialUrl = data.nasRohmaterialUrl || null;
+  if ('nasExportUrl' in data)      apiPayload.nasExportUrl      = data.nasExportUrl || null;
+  if ('nasFreigabeUrl' in data)    apiPayload.nasFreigabeUrl    = data.nasFreigabeUrl || null;
   // Für neue Projekte: id mitschicken
   if (!projectId) apiPayload.id = insertedId;
 
@@ -7879,6 +8013,98 @@ function scriptFileOf(project) {
   if (!project || !Array.isArray(project.files)) return null;
   const scripts = project.files.filter(f => f && f.kind === 'script');
   return scripts.length ? scripts[0] : null; // list_files liefert neueste zuerst
+}
+
+// Ein NAS-Freigabelink-Feld (Ordner-Label + Hinweis + Eingabe + "Öffnen"-Shortcut).
+// editable=false → read-only (z. B. für Cutter/Videograf im Viewer).
+function nasLinkField(name, folderLabel, hint, value, editable) {
+  const v = value || '';
+  const safeV = escape(v);
+  const open = v
+    ? `<a class="btn btn-ghost btn-sm" href="${safeV}" target="_blank" rel="noopener noreferrer">Öffnen</a>`
+    : '';
+  return `
+    <div class="nas-link-row">
+      <div class="nas-link-meta">
+        <span class="nas-link-folder">${escape(folderLabel)}</span>
+        <span class="nas-link-hint">${escape(hint)}</span>
+      </div>
+      <div class="nas-link-input">
+        <input type="url" name="${name}" value="${safeV}" ${editable ? '' : 'readonly'}
+               placeholder="https://nas… Freigabelink einfügen" />
+        ${open}
+      </div>
+    </div>`;
+}
+
+// NAS-Sektion im Read-Only-Viewer (Cutter/Videograf):
+// Rohmaterial + Freigabe als reine Öffnen-Shortcuts; Export-Link für den zugewiesenen
+// Cutter editierbar (er trägt seinen Upload-/Export-Share-Link ein und speichert ihn).
+function renderNasViewerSection(project, user) {
+  const isAssignedCutter = project.cutterId && project.cutterId === user.id;
+  const shortcut = (folderLabel, hint, value) => {
+    if (!value) return '';
+    return `
+      <div class="nas-link-row">
+        <div class="nas-link-meta">
+          <span class="nas-link-folder">${escape(folderLabel)}</span>
+          <span class="nas-link-hint">${escape(hint)}</span>
+        </div>
+        <div class="nas-link-input">
+          <a class="btn btn-secondary btn-sm" href="${escape(value)}" target="_blank" rel="noopener noreferrer">Öffnen</a>
+        </div>
+      </div>`;
+  };
+  const rohmaterial = shortcut('01_Rohmaterial', 'Rohmaterial (read-only)', project.nasRohmaterialUrl);
+  const freigabe    = shortcut('04_Freigaben_Manager', 'Manager-Freigabe', project.nasFreigabeUrl);
+  // Export: Cutter editierbar, sonst Shortcut (falls gesetzt)
+  let exportBlock = '';
+  if (isAssignedCutter) {
+    const v = project.nasExportUrl || '';
+    exportBlock = `
+      <div class="nas-link-row">
+        <div class="nas-link-meta">
+          <span class="nas-link-folder">03_Exporte_Cutter</span>
+          <span class="nas-link-hint">Dein Export-Freigabelink</span>
+        </div>
+        <div class="nas-link-input">
+          <input type="url" id="nas-export-input" value="${escape(v)}" placeholder="https://nas… Export-Link einfügen" />
+          <button type="button" class="btn btn-primary btn-sm" onclick="saveCutterNasExport('${project.id}')">Speichern</button>
+        </div>
+      </div>`;
+  } else {
+    exportBlock = shortcut('03_Exporte_Cutter', 'Cutter-Export', project.nasExportUrl);
+  }
+  if (!rohmaterial && !exportBlock && !freigabe) return '';
+  return `
+    <div style="margin-top: 14px;">
+      <div class="cutter-detail-label" style="margin-bottom:6px;">NAS-Freigabelinks (Ugreen)</div>
+      <div class="nas-links">${rohmaterial}${exportBlock}${freigabe}</div>
+    </div>`;
+}
+
+// Cutter speichert seinen Export-Link (nur dieses Feld ist serverseitig für ihn erlaubt).
+async function saveCutterNasExport(projectId) {
+  const input = document.getElementById('nas-export-input');
+  if (!input) return;
+  const val = input.value.trim();
+  const idx = store.projects.findIndex(p => p.id === projectId);
+  const prev = idx >= 0 ? store.projects[idx].nasExportUrl : undefined;
+  if (idx >= 0) store.projects[idx].nasExportUrl = val || null;
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ nasExportUrl: val })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data && idx >= 0) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    showToast('Export-Link gespeichert', 'success');
+  } catch (err) {
+    if (idx >= 0) store.projects[idx].nasExportUrl = prev;
+    showToast('Fehler beim Speichern', err.message);
+  }
 }
 
 let pendingScriptFile = null;
@@ -8451,10 +8677,10 @@ function renderCustomers(session) {
   const isAdmin = hasRole(user, ROLES.ADMIN);
   $('#content').innerHTML = custFilterBar + `
     <div class="card">
-      <table>
+      <table class="cards-mobile">
         <thead>
           <tr>
-            ${isAdmin ? `<th style="width:30px;"><input type="checkbox" onchange="this.checked ? bulkSelectAll('customers', ${JSON.stringify(customers.map(c=>c.id))}) : clearBulk()"/></th>` : ''}
+            ${isAdmin ? `<th class="col-select" style="width:30px;"><input type="checkbox" onchange="this.checked ? bulkSelectAll('customers', ${JSON.stringify(customers.map(c=>c.id))}) : clearBulk()"/></th>` : ''}
             <th>Kunde</th>
             <th>Kundennr.</th>
             <th>Status</th>
@@ -8475,15 +8701,15 @@ function renderCustomers(session) {
             const status = customerStatus(c);
             return `
               <tr style="cursor:pointer" onclick="if(!event.target.classList.contains('bulk-checkbox'))openCustomerModal('${c.id}')">
-                ${isAdmin ? `<td onclick="event.stopPropagation()"><input type="checkbox" class="bulk-checkbox" onchange="toggleBulk('customers','${c.id}',this.checked)"/></td>` : ''}
-                <td>
+                ${isAdmin ? `<td class="col-select" onclick="event.stopPropagation()"><input type="checkbox" class="bulk-checkbox" onchange="toggleBulk('customers','${c.id}',this.checked)"/></td>` : ''}
+                <td class="card-title-cell">
                   <strong>${escape(c.name)}</strong>
                   ${c.industry ? `<div class="text-sm text-muted">${escape(c.industry)}</div>` : ''}
                 </td>
-                <td><code style="background:var(--bg-2);padding:2px 6px;border-radius:4px;font-size:11.5px;">${escape(c.customerNumber)}</code></td>
-                <td><span class="badge badge-status-${status}">${CUSTOMER_STATUS_LABELS[status]}</span></td>
-                <td>${escape(mgr?.name || '–')}</td>
-                <td>
+                <td data-label="Kundennr."><code style="background:var(--bg-2);padding:2px 6px;border-radius:4px;font-size:11.5px;">${escape(c.customerNumber)}</code></td>
+                <td data-label="Status"><span class="badge badge-status-${status}">${CUSTOMER_STATUS_LABELS[status]}</span></td>
+                <td data-label="Manager">${escape(mgr?.name || '–')}</td>
+                <td data-label="Onboarding">
                   <div style="display:flex;align-items:center;gap:8px;">
                     <div class="progress-bar" style="flex:1; max-width:90px; margin-top:0;">
                       <div class="progress-fill" style="width:${pct}%;"></div>
@@ -8491,8 +8717,8 @@ function renderCustomers(session) {
                     <span class="text-sm" style="color:${pct === 100 ? 'var(--accent)' : 'var(--text-2)'}; font-weight:600;">${done}/${total}</span>
                   </div>
                 </td>
-                <td>${escape(c.package || '–')}</td>
-                <td>${projectCount}</td>
+                <td data-label="Paket">${escape(c.package || '–')}</td>
+                <td data-label="Projekte">${projectCount}</td>
               </tr>
             `;
           }).join('')}
@@ -9854,7 +10080,7 @@ function renderCategoryEvent(b, row, startCol, endCol) {
   }
   const isMobile = window.innerWidth < 640;
   const avatar = (!b.cutsLeft && avatarUser && !isMobile) ? renderAvatar(avatarUser, 16, 9) : '';
-  return `<div class="${cls}" style="grid-column: ${startCol} / ${endCol}; grid-row: ${row};" ${click} title="${escape(title)}">${avatar}<span class="ical-event-label">${escape(text)}</span></div>`;
+  return `<div class="${cls}" style="grid-column: ${startCol} / ${endCol}; grid-row: ${row};" ${click} title="${escape(title)}"><div class="ical-event-inner">${avatar}<span class="ical-event-label">${escape(text)}</span></div></div>`;
 }
 
 function renderICWAllDay(b) {
@@ -12928,10 +13154,11 @@ setTimeout(() => { if (_calDebugOn()) _calDebugInit(); }, 0);
     const writes = [];
     for (let i = 0; i < events.length; i++) {
       const eventEl = events[i];
-      const label = eventEl.querySelector('.ical-event-label');
+      // Bewegte Einheit = Kürzel (Avatar) + Text zusammen, damit in Safari nichts kleben bleibt.
+      const label = eventEl.querySelector('.ical-event-inner');
       if (!label) continue;
-      const evRect = eventEl.getBoundingClientRect();        // Balken ohne Transform (Transform liegt nur am Label)
-      const naturalLeft = evRect.left + label.offsetLeft;    // natürliche Textposition (Balkenanfang)
+      const evRect = eventEl.getBoundingClientRect();        // Balken ohne Transform (Transform liegt am Inner)
+      const naturalLeft = evRect.left + label.offsetLeft;    // natürliche Position (Balkenanfang)
       const innerRight = evRect.right - 2;                   // rechtes Balkenende
 
       // Anschlag direkt am rechten Balkenende (nicht abzüglich Textbreite – sonst
