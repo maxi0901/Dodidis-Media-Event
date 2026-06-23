@@ -13155,8 +13155,12 @@ setTimeout(() => { if (_calDebugOn()) _calDebugInit(); }, 0);
     const track = scroller.querySelector('.ical-track');
     if (!track) return;
     const styles = getComputedStyle(track);
-    const sidebarWidth = Number.parseFloat(styles.getPropertyValue('--ical-sidebar')) || 48;
-    const labelGutter = Number.parseFloat(styles.getPropertyValue('--ical-label-gutter')) || 18;
+    // Number.isFinite statt `|| 48`, sonst würde der explizite Wert 0 (volle Ansicht
+    // ohne Sidebar) als „fehlend" behandelt und ein Phantom-Offset von 48px bleiben.
+    const rawSidebar = Number.parseFloat(styles.getPropertyValue('--ical-sidebar'));
+    const sidebarWidth = Number.isFinite(rawSidebar) ? rawSidebar : 48;
+    const rawGutter = Number.parseFloat(styles.getPropertyValue('--ical-label-gutter'));
+    const labelGutter = Number.isFinite(rawGutter) ? rawGutter : 18;
 
     // Viewport-relative Messung (getBoundingClientRect) statt offsetLeft:
     // offsetLeft hängt vom offsetParent ab und liefert je nach Layout (Desktop
