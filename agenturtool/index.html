@@ -3147,14 +3147,24 @@
       padding: 0;
       padding-top: max(8px, env(safe-area-inset-top, 0px));
       align-items: flex-end;
+      /* iOS: an den SICHTBAREN Viewport binden (dvh), sonst nutzt 100%/vh den großen
+         Viewport und das Sheet ragt oben unter die App-Chrome bzw. unten aus dem Bild. */
+      height: 100vh;
+      height: 100dvh;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
     .modal {
       max-width: 100% !important;
       width: 100%;
-      max-height: calc(92vh - env(safe-area-inset-top, 0px));
+      /* vh-Fallback, dann dvh: passt das Sheet in den sichtbaren Bereich → kein
+         Header-Overlap, Footer bleibt erreichbar, komplett scrollbar. */
+      max-height: calc(92vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+      max-height: calc(100dvh - max(8px, env(safe-area-inset-top, 0px)) - env(safe-area-inset-bottom, 0px));
       border-radius: 18px 18px 0 0;
       animation: modal-mobile-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
+    /* Kopf bleibt beim Scrollen sichtbar/erreichbar (Titel + ✕), überlappt nichts. */
+    .modal-header { position: sticky; top: 0; z-index: 3; background: var(--bg-1); }
     .modal-tabs { padding: 0 12px; }
     .modal-tab { padding: 12px 10px; font-size: 12.5px; }
     .modal-body { padding: 16px; }
