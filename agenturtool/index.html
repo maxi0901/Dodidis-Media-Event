@@ -1939,8 +1939,12 @@
     gap: 5px;
     flex: 1 1 auto;
     min-width: 0;
-    transform: translate3d(var(--label-offset, 0px), 0, 0);
-    -webkit-transform: translate3d(var(--label-offset, 0px), 0, 0);
+    /* 2D-Transform statt translate3d: kein erzwungener GPU-Layer pro Balken. Sonst
+       überlagern die Label-Layer auf iOS den Sticky-Header und „schwimmen" beim
+       Momentum-Scrollen. So bleibt das Label im normalen Scroll-Layer → verschwindet
+       sauber hinter dem Header und scrollt ruckelfrei. */
+    transform: translateX(var(--label-offset, 0px));
+    -webkit-transform: translateX(var(--label-offset, 0px));
     max-width: var(--label-max-width, 100%);
   }
   /* Text inside bars: JS keeps the inner unit visible while scrolling horizontally. */
@@ -3637,8 +3641,10 @@
     gap: 5px;
     flex: 1 1 auto;
     min-width: 0;
-    transform: translate3d(var(--label-offset, 0px), 0, 0);
-    -webkit-transform: translate3d(var(--label-offset, 0px), 0, 0);
+    /* 2D-Transform statt translate3d (siehe Basis-Regel): kein eigener GPU-Layer →
+       kein Header-Overlap und kein „Schwimmen" beim Scrollen auf iOS. */
+    transform: translateX(var(--label-offset, 0px));
+    -webkit-transform: translateX(var(--label-offset, 0px));
     max-width: var(--label-max-width, 100%);
     transition: none;
   }
