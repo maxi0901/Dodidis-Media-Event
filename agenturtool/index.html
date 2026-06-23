@@ -1724,7 +1724,11 @@
        nicht. Touch (Mobil) blieb ohnehin ohne Snap. */
     scroll-snap-type: x proximity;
     overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
+    /* KEIN -webkit-overflow-scrolling: touch: dieser Legacy-Momentum-Modus erzeugt auf
+       iOS Safari einen eigenen Compositing-Layer, in dem der Sticky-Tages-Header und die
+       transformierten Event-Labels falsch gestapelt werden (Text schob sich ÜBER den
+       Header statt dahinter). iOS ≥13 scrollt ohnehin mit Momentum. Ohne die Property
+       greift normale Mal-Reihenfolge → Header (z-index:20, opak) verdeckt Balken (z-index:2). */
     /* Scroll-Container für den Compositor markieren → weniger Repaint beim
        horizontalen Scrollen in datendichten Wochen. */
     --ical-sidebar: 48px;
