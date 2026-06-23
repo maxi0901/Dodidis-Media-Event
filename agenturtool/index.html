@@ -3610,8 +3610,13 @@
     --ical-label-gutter: 8px;
   }
   .ical-track { isolation: isolate; }
-  .ical-corner { z-index: 30; }
-  .ical-day-head { z-index: 20; }
+  /* translateZ(0) hebt Corner + Tages-Header in den Compositing-Layer-Baum. Sonst malt iOS
+     Safari die compositeten Event-Label-Layer (transform) ÜBER den nicht-compositeten Sticky-
+     Header (z-index allein greift dann nicht). So entscheidet der z-index wieder: Header (30/20)
+     liegt über den Balken/Labels (2) → Text verschwindet beim Scrollen sauber dahinter.
+     Nur wenige Header-Zellen (eine Woche) → unkritisch für die Scroll-Performance. */
+  .ical-corner { z-index: 30; transform: translateZ(0); }
+  .ical-day-head { z-index: 20; transform: translateZ(0); }
   .ical-cat-label {
     z-index: 25;
     box-shadow: 8px 0 14px rgba(0,0,0,0.28);
