@@ -1727,7 +1727,6 @@
     -webkit-overflow-scrolling: touch;
     /* Scroll-Container für den Compositor markieren → weniger Repaint beim
        horizontalen Scrollen in datendichten Wochen. */
-    will-change: scroll-position;
     --ical-sidebar: 48px;
   }
   @media (max-width: 640px) {
@@ -1943,7 +1942,6 @@
     transform: translate3d(var(--label-offset, 0px), 0, 0);
     -webkit-transform: translate3d(var(--label-offset, 0px), 0, 0);
     max-width: var(--label-max-width, 100%);
-    will-change: transform;
   }
   /* Text inside bars: JS keeps the inner unit visible while scrolling horizontally. */
   .ical-event-label {
@@ -3602,7 +3600,7 @@
   /* Management-Kalender: conflict-light fixes for sticky labels/layering. */
   .ical-scroll {
     --ical-sidebar: 48px;
-    --ical-label-gutter: 18px;
+    --ical-label-gutter: 8px;
   }
   .ical-track { isolation: isolate; }
   .ical-corner { z-index: 30; }
@@ -3644,7 +3642,6 @@
     -webkit-transform: translate3d(var(--label-offset, 0px), 0, 0);
     max-width: var(--label-max-width, 100%);
     transition: none;
-    will-change: transform;
   }
   .ical-event-label {
     overflow: hidden;
@@ -9934,7 +9931,9 @@ function renderCategoryWeekView(elementId, session, mini = false) {
 
   const isMobile = window.innerWidth < 640;
   const colWidth = isMobile ? 70 : (mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH);
-  const sidebarWidth = mini ? 120 : 48;
+  // Volle Kalenderansicht ohne linke Sidebar-Spalte (mehr Platz, weniger Sticky-Layer).
+  // Der Mini-Dashboard-Kalender behält seine 120px-Beschriftungsspalte.
+  const sidebarWidth = mini ? 120 : 0;
 
   // Dynamische Cat-Liste: nur sichtbare Kategorien rendern – Reihenfolge: Drehtag, Urlaub, Videos, Aufgaben
   let nextRow = 2;
@@ -9990,8 +9989,8 @@ function renderCategoryWeekView(elementId, session, mini = false) {
     <div class="ical ${mini ? 'mini' : ''}">
       <div class="ical-scroll" id="${elementId}-scroller">
         <div class="ical-track" style="width: ${sidebarWidth + totalDays * colWidth}px; grid-template-columns: ${sidebarWidth}px repeat(${totalDays}, ${colWidth}px); --ical-sidebar: ${sidebarWidth}px;">
-          <!-- Top-left corner (sticky) -->
-          <div class="ical-corner"></div>
+          <!-- Top-left corner (sticky) – nur wenn es eine Sidebar-Spalte gibt -->
+          ${sidebarWidth > 0 ? `<div class="ical-corner"></div>` : ''}
           <!-- Day headers (Drehtag-Info steckt in der eigenen Drehtag-Lane unten) -->
           ${days.map((d, i) => `
             <div class="ical-day-head ${d.isToday ? 'today' : ''} ${d.isShoot ? 'is-shoot' : ''} ${d.isRescheduled ? 'is-rescheduled' : ''}" style="grid-column:${i+2}; grid-row:1;">
@@ -10016,11 +10015,13 @@ function renderCategoryWeekView(elementId, session, mini = false) {
               const endCol = b.endCol + 3;     // +1 für Sidebar, +2 für grid-column end (exclusive)
               return renderCategoryEvent(b, row, startCol, endCol);
             }).join('');
-            return `
+            const labelHtml = sidebarWidth > 0 ? `
               <div class="ical-cat-label ${c.cls}" style="${labelRowSpan}">
                 <span class="ical-cat-icon">${c.icon}</span>
                 <span>${c.label}</span>
-              </div>
+              </div>` : '';
+            return `
+              ${labelHtml}
               ${bgCells.join('')}
               ${eventsHtml}
             `;
@@ -13164,8 +13165,12 @@ setTimeout(() => { if (_calDebugOn()) _calDebugInit(); }, 0);
     const track = scroller.querySelector('.ical-track');
     if (!track) return;
     const styles = getComputedStyle(track);
-    const sidebarWidth = Number.parseFloat(styles.getPropertyValue('--ical-sidebar')) || 48;
-    const labelGutter = Number.parseFloat(styles.getPropertyValue('--ical-label-gutter')) || 18;
+    // Number.isFinite statt `|| 48`, sonst würde der explizite Wert 0 (volle Ansicht
+    // ohne Sidebar) als „fehlend" behandelt und ein Phantom-Offset von 48px bleiben.
+    const rawSidebar = Number.parseFloat(styles.getPropertyValue('--ical-sidebar'));
+    const sidebarWidth = Number.isFinite(rawSidebar) ? rawSidebar : 48;
+    const rawGutter = Number.parseFloat(styles.getPropertyValue('--ical-label-gutter'));
+    const labelGutter = Number.isFinite(rawGutter) ? rawGutter : 18;
 
     // Viewport-relative Messung (getBoundingClientRect) statt offsetLeft:
     // offsetLeft hängt vom offsetParent ab und liefert je nach Layout (Desktop
@@ -13191,6 +13196,9 @@ setTimeout(() => { if (_calDebugOn()) _calDebugInit(); }, 0);
       const label = eventEl.querySelector('.ical-event-inner');
       if (!label) continue;
       const evRect = eventEl.getBoundingClientRect();        // Balken ohne Transform (Transform liegt am Inner)
+      // Off-Screen-Balken überspringen: spart auf iOS pro Scroll-Frame massiv
+      // getBoundingClientRect-/Style-Writes (Safari ruckelte sonst bei 180-Tage-Wochen).
+      if (evRect.right < scRect.left || evRect.left > scRect.right) continue;
       const naturalLeft = evRect.left + label.offsetLeft;    // natürliche Position (Balkenanfang)
       const innerRight = evRect.right - 2;                   // rechtes Balkenende
 
