@@ -3228,18 +3228,17 @@
     .modal-footer { position: static; flex-direction: row; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
     .modal-footer .btn { width: auto; flex: 0 0 auto; min-width: 0; }
 
-    /* (8) Dashboard-Kacheln als flache Liste (Icon links, Wert rechts) */
-    .stat-grid { grid-template-columns: 1fr; gap: 8px; }
-    .stat { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; }
-    .stat::before { display: none; }
-    .stat-icon { margin-bottom: 0; flex: none; }
-    .stat-label { flex: 1; order: 1; margin: 0; }
-    .stat-value { order: 2; font-size: 22px; margin: 0; letter-spacing: -0.5px; }
-    .stat-sub { order: 3; flex-basis: 100%; margin-top: 2px; }
+    /* (8) Dashboard-Kacheln: zwei kompakte Karten nebeneinander (statt einspaltiger Liste) */
+    .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .stat { padding: 12px 14px; }
+    .stat-icon { width: 30px; height: 30px; margin-bottom: 8px; }
+    .stat-label { font-size: 10.5px; }
+    .stat-value { font-size: 22px; margin-top: 2px; letter-spacing: -0.5px; }
+    .stat-sub { font-size: 10.5px; margin-top: 4px; }
   }
 
   @media (max-width: 480px) {
-    .stat-grid { grid-template-columns: 1fr; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
     .topbar { padding: 12px 14px; }
     .page-title { font-size: 17px; }
     .login-box { padding: 24px 18px; }
@@ -9931,9 +9930,9 @@ function renderCategoryWeekView(elementId, session, mini = false) {
 
   const isMobile = window.innerWidth < 640;
   const colWidth = isMobile ? 70 : (mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH);
-  // Volle Kalenderansicht ohne linke Sidebar-Spalte (mehr Platz, weniger Sticky-Layer).
-  // Der Mini-Dashboard-Kalender behält seine 120px-Beschriftungsspalte.
-  const sidebarWidth = mini ? 120 : 0;
+  // Kalenderansicht ohne linke Sidebar-Spalte (mehr Platz, weniger Sticky-Layer) – sowohl
+  // volle Ansicht als auch Mini-Dashboard-Kalender: Event-Labels hängen am linken Rand.
+  const sidebarWidth = 0;
 
   // Dynamische Cat-Liste: nur sichtbare Kategorien rendern – Reihenfolge: Drehtag, Urlaub, Videos, Aufgaben
   let nextRow = 2;
