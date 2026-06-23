@@ -3158,8 +3158,8 @@
       width: 100%;
       /* vh-Fallback, dann dvh: passt das Sheet in den sichtbaren Bereich → kein
          Header-Overlap, Footer bleibt erreichbar, komplett scrollbar. */
-      max-height: calc(92vh - env(safe-area-inset-top, 0px));
-      max-height: calc(100dvh - max(8px, env(safe-area-inset-top, 0px)));
+      max-height: calc(92vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+      max-height: calc(100dvh - max(8px, env(safe-area-inset-top, 0px)) - env(safe-area-inset-bottom, 0px));
       border-radius: 18px 18px 0 0;
       animation: modal-mobile-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
