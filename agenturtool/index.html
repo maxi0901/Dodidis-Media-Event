@@ -3940,14 +3940,14 @@ function statusCls(s)   { const k = s === 'skript' ? 'idee' : s; return STATUS_L
 
 /* ----------- PROJEKT-PHASEN (Head-Bar/Kanban, nur Admin/Manager) -----------
    3 Reiter, nach Status gruppiert:
-   - Ideen:           Idee (ohne Drehdatum) + Geplant (mit Drehtag/Drehdatum)
-   - Production:      Gedreht
+   - Ideen:           Idee (ohne Drehdatum)
+   - Production:      Geplant (mit Drehtag/Drehdatum) + Gedreht
    - Post Production: Im Schnitt, Korrektur, Fertig, Freigegeben (Abnahme eingegliedert)
    Archiviert bleibt auf der Archiv-Seite (nicht im Board). */
 const PROJECT_PHASES = { ideen: 'Ideen', production: 'Production', post: 'Post Production' };
 const PHASE_OF_STATUS = {
-  idee: 'ideen', geplant: 'ideen',
-  gedreht: 'production',
+  idee: 'ideen',
+  geplant: 'production', gedreht: 'production',
   schnitt: 'post', korrektur: 'post',
   fertig: 'post', freigegeben: 'post'
 };
@@ -6304,7 +6304,7 @@ function renderProjects(session) {
     if (filtered) {
       emptyMsg = 'Keine Projekte entsprechen deinem Filter.';
     } else if (showPhases && projectPhaseTab === 'ideen') {
-      emptyMsg = 'Noch keine Ideen oder geplanten Videos.';
+      emptyMsg = 'Noch keine Ideen festgehalten.';
       cta = canQuickIdea
         ? '<br/><br/><button class="btn btn-primary" onclick="openQuickIdeaModal()">Erste Idee festhalten</button>'
         : '';
