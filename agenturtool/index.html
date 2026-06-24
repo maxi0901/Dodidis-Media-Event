@@ -3910,7 +3910,6 @@ function canEditVacationOf(viewer, target) {
 
 const STATUS = {
   IDEE: 'idee',
-  SKRIPT: 'skript',
   GEPLANT: 'geplant',
   GEDREHT: 'gedreht',
   SCHNITT: 'schnitt',
@@ -3922,7 +3921,6 @@ const STATUS = {
 
 const STATUS_LABELS = {
   idee: 'Idee',
-  skript: 'Skript',
   geplant: 'Geplant',
   gedreht: 'Gedreht',
   schnitt: 'Im Schnitt',
@@ -3931,39 +3929,51 @@ const STATUS_LABELS = {
   freigegeben: 'Freigegeben',
   archiviert: 'Archiviert'
 };
-function statusLabel(s) { return STATUS_LABELS[s] ?? 'Überfällig'; }
-function statusCls(s)   { return STATUS_LABELS[s] ? s : 'ueberfaellig'; }
+// Legacy: 'skript' gibt es nicht mehr. Alte Einträge als Idee/Geplant (je nach Drehdatum)
+// anzeigen, damit nie mehr ein "Skript"-Badge erscheint.
+function legacyStatus(p) {
+  if (p && p.status === 'skript') return (p.shootDate || p.shootDayId) ? 'geplant' : 'idee';
+  return p ? p.status : undefined;
+}
+function statusLabel(s) { return STATUS_LABELS[s === 'skript' ? 'idee' : s] ?? 'Überfällig'; }
+function statusCls(s)   { const k = s === 'skript' ? 'idee' : s; return STATUS_LABELS[k] ? k : 'ueberfaellig'; }
 
 /* ----------- PROJEKT-PHASEN (Head-Bar/Kanban, nur Admin/Manager) -----------
-   Reiter, nach Status gruppiert:
-   - Ideen:           Brainstorming – Status skript OHNE Kunde/Drehdatum ("+ Neue Idee")
-   - Planung:         Geplant
-   - Production:      Skript MIT Kunde/Drehdatum + Gedreht
-   - Post Production: In Bearbeitung (schnitt), Korrektur
-   - Abnahme:         Fertig, Freigegeben
+   3 Reiter, nach Status gruppiert:
+   - Ideen:           Idee (ohne Drehdatum) + Geplant (mit Drehtag/Drehdatum)
+   - Production:      Gedreht
+   - Post Production: Im Schnitt, Korrektur, Fertig, Freigegeben (Abnahme eingegliedert)
    Archiviert bleibt auf der Archiv-Seite (nicht im Board). */
-const PROJECT_PHASES = { ideen: 'Ideen', planung: 'Planung', production: 'Production', post: 'Post Production', abnahme: 'Abnahme' };
+const PROJECT_PHASES = { ideen: 'Ideen', production: 'Production', post: 'Post Production' };
 const PHASE_OF_STATUS = {
-  idee: 'ideen',
-  geplant: 'planung',
-  skript: 'production', gedreht: 'production',
+  idee: 'ideen', geplant: 'ideen',
+  gedreht: 'production',
   schnitt: 'post', korrektur: 'post',
-  fertig: 'abnahme', freigegeben: 'abnahme'
+  fertig: 'post', freigegeben: 'post'
 };
-// Idee = eigener Status 'idee'. Solche Einträge landen im "Ideen"-Reiter und können
-// Titel + Skript (Text und PDF) tragen, bevor man sie in ein Projekt umwandelt.
-// Fallback: alte Ideen ohne eigenen Status (skript ohne Kunde/Drehdatum) zählen weiter
-// als Idee, damit beim Update bestehende Brainstorming-Einträge nicht verschwinden.
+// Vor-Dreh-Automatik: Status 'idee' ohne Drehdatum, 'geplant' mit Drehtag/Drehdatum.
+// Status ab 'gedreht' (bereits abgedreht) wird NICHT verändert. Liefert true, wenn der
+// Status geändert wurde (für selektives Persistieren bei Migration/Save).
+function normalizeIdeaPhase(p) {
+  if (!p) return false;
+  if (p.status === 'skript' || p.status === 'idee' || p.status === 'geplant') {
+    const next = (p.shootDate || p.shootDayId) ? 'geplant' : 'idee';
+    if (p.status !== next) { p.status = next; return true; }
+  }
+  return false;
+}
 function isProjectIdea(p) {
   if (!p) return false;
   if (p.status === 'idee') return true;
-  return p.status === 'skript' && !p.customerId && !p.shootDate && !p.shootDayId && !p.isInternal;
+  // Legacy: altes 'skript' ohne Drehdatum zählt weiter als Idee.
+  return p.status === 'skript' && !p.shootDate && !p.shootDayId;
 }
 function getProjectPhase(p) {
-  if (isProjectIdea(p)) return 'ideen';
-  return PHASE_OF_STATUS[p.status] || 'production';
+  if (!p) return 'ideen';
+  const s = p.status === 'skript' ? legacyStatus(p) : p.status;
+  return PHASE_OF_STATUS[s] || 'ideen';
 }
-let projectPhaseTab = 'planung';
+let projectPhaseTab = 'ideen';
 function setProjectPhase(ph) {
   if (ph !== 'kunden' && !PROJECT_PHASES[ph]) return;
   projectPhaseTab = ph;
@@ -4149,7 +4159,7 @@ function countActionableProjects(user) {
     if (p.status === STATUS.ARCHIVIERT || p.status === STATUS.FREIGEGEBEN) return;
     // Videograf: noch nicht abgedreht
     if (hasRole(user, ROLES.VIDEOGRAF) && p.videografId === userId
-        && (p.status === STATUS.SKRIPT || p.status === STATUS.GEPLANT)) {
+        && p.status === STATUS.GEPLANT) {
       ids.add(p.id);
       return;
     }
@@ -4334,6 +4344,23 @@ async function pushAllToCloud() {
   store._pendingDeletions = pending;
 }
 
+// Einmalige Migration alter 'skript'-Projekte in der DB → idee/geplant (best-effort, sequenziell).
+let _skriptMigrationDone = false;
+async function migrateLegacySkript(legacyProjects) {
+  for (const p of legacyProjects) {
+    const status = (p.shootDate || p.shootDayId) ? 'geplant' : 'idee';
+    try {
+      lockProjectStatus(p.id, status);
+      const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(p.id)}`, {
+        method: 'PUT', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) unlockProjectStatus(p.id);
+    } catch (e) { /* best-effort: In-Memory ist bereits korrekt, beim nächsten Laden erneut versucht */ }
+  }
+}
+
 // Vollständiger Pull aus api.php?action=pull (liefert Document-Form).
 async function pullAllFromCloud() {
   if (cloudPullInFlight) return false;
@@ -4369,12 +4396,16 @@ async function pullAllFromCloud() {
             if (Date.now() < lock.until) return { ...incoming, status: lock.status };
             _pendingStatusLock.delete(incoming.id);
           }
-          // Null/ungültiger Status aus DB → Überfällig-Anzeige verhindern.
-          if (!STATUS_LABELS[incoming.status]) {
-            const existing = store.projects.find(p => p.id === incoming.id);
-            return { ...incoming, status: STATUS_LABELS[existing?.status] ? existing.status : 'skript' };
+          const proj = { ...incoming };
+          // Legacy 'skript' gibt es nicht mehr → idee/geplant je nach Drehdatum.
+          if (proj.status === 'skript') {
+            proj.status = (proj.shootDate || proj.shootDayId) ? 'geplant' : 'idee';
+          } else if (!STATUS_LABELS[proj.status]) {
+            // Null/ungültiger Status aus DB → Überfällig-Anzeige verhindern.
+            const existing = store.projects.find(p => p.id === proj.id);
+            proj.status = STATUS_LABELS[existing?.status] ? existing.status : 'idee';
           }
-          return incoming;
+          return proj;
         });
       } else {
         store[c.local] = data[c.table];
@@ -4384,6 +4415,18 @@ async function pullAllFromCloud() {
     if (Array.isArray(data.app_config)) {
       const act = data.app_config.find(r => r.key === 'activity');
       if (act && act.value && Array.isArray(act.value.entries)) store.activity = act.value.entries;
+    }
+    // Einmalige DB-Migration: Legacy 'skript' dauerhaft auf idee/geplant umstellen (nur Admin,
+    // best-effort). In-Memory ist der Status bereits normalisiert, das hier räumt die DB auf.
+    if (!_skriptMigrationDone) {
+      const legacy = (data.projects || []).filter(p => p.status === 'skript');
+      const cu = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+      if (legacy.length === 0) {
+        _skriptMigrationDone = true;
+      } else if (cu && hasRole(cu, ROLES.ADMIN)) {
+        _skriptMigrationDone = true;
+        migrateLegacySkript(legacy);
+      }
     }
     return true;
   } catch (e) {
@@ -6183,7 +6226,7 @@ function renderProjects(session) {
 
   // Phasen-Headbar nur für Admin/Manager. Andere (z. B. Videograf) sehen die Seite wie bisher.
   const showPhases = canCreate;
-  const phaseCounts = { ideen: 0, planung: 0, production: 0, post: 0, abnahme: 0 };
+  const phaseCounts = { ideen: 0, production: 0, post: 0 };
   let kundenCount = 0;
   if (showPhases) {
     const stored = localStorage.getItem(_filterKey('proj_phase'));
@@ -6261,13 +6304,10 @@ function renderProjects(session) {
     if (filtered) {
       emptyMsg = 'Keine Projekte entsprechen deinem Filter.';
     } else if (showPhases && projectPhaseTab === 'ideen') {
-      emptyMsg = 'Noch keine Ideen festgehalten.';
+      emptyMsg = 'Noch keine Ideen oder geplanten Videos.';
       cta = canQuickIdea
         ? '<br/><br/><button class="btn btn-primary" onclick="openQuickIdeaModal()">Erste Idee festhalten</button>'
         : '';
-    } else if (showPhases && projectPhaseTab === 'planung') {
-      emptyMsg = 'Noch keine Projekte in der Planung.';
-      cta = canCreate ? '<br/><br/><button class="btn btn-primary" onclick="openProjectModal()">Projekt anlegen</button>' : '';
     } else if (showPhases && projectPhaseTab === 'kunden') {
       emptyMsg = 'Noch keine Projekte vorhanden.';
     } else if (showPhases) {
@@ -6568,36 +6608,14 @@ async function submitQuickIdea(e, ideaId = '') {
   }
 }
 
-// Wandelt eine Idee in ein echtes Projekt um: Status idee → skript, danach das
-// volle Projektformular öffnen, damit Kunde/Drehdatum/Cutter ergänzt werden können.
+// Idee mit Projektdetails anreichern: einfach das volle Formular öffnen. Der Status bleibt
+// 'idee', bis ein Drehtag/Drehdatum gesetzt wird – dann wird beim Speichern automatisch 'geplant'.
 async function convertIdeaToProject(ideaId) {
   const idx = store.projects.findIndex(p => p.id === ideaId);
   if (idx < 0) return;
-  const prevStatus = store.projects[idx].status;
-  lockProjectStatus(ideaId, STATUS.SKRIPT);
-  store.projects[idx].status = STATUS.SKRIPT;
   closeModal();
-  try {
-    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(ideaId)}`, {
-      method: 'PUT', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
-      body: JSON.stringify({ status: STATUS.SKRIPT })
-    });
-    const json = await res.json();
-    if (!res.ok || !json.ok) throw new Error(json.error || 'Umwandeln fehlgeschlagen');
-    if (json.data) {
-      const i = store.projects.findIndex(p => p.id === ideaId);
-      if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
-    }
-    unlockProjectStatus(ideaId);
-    showToast('In Projekt umgewandelt', 'Jetzt Kunde & Drehdatum ergänzen.');
-    openProjectModal(ideaId);
-  } catch (err) {
-    unlockProjectStatus(ideaId);
-    store.projects[idx].status = prevStatus;
-    renderProjects(getCurrentUser());
-    showToast('Umwandeln fehlgeschlagen', err.message);
-  }
+  showToast('Projektdetails ergänzen', 'Mit Drehtag/Drehdatum wird daraus automatisch „Geplant".');
+  openProjectModal(ideaId);
 }
 
 /* Aufgeräumte Cutter-Projektsicht – nur abgedrehte Projekte, gruppiert nach Status */
@@ -6828,7 +6846,7 @@ function renderReports(session) {
       <div class="card" style="grid-column:1 / -1;">
         <div class="card-header"><div class="card-title">Pipeline – aktive Projekte nach Status</div></div>
         <div style="padding:14px; display:flex; flex-wrap:wrap; gap:14px;">
-          ${[STATUS.SKRIPT, STATUS.GEPLANT, STATUS.GEDREHT, STATUS.SCHNITT, STATUS.KORREKTUR, STATUS.FERTIG].map(s => `
+          ${[STATUS.IDEE, STATUS.GEPLANT, STATUS.GEDREHT, STATUS.SCHNITT, STATUS.KORREKTUR, STATUS.FERTIG].map(s => `
             <div style="flex:1; min-width:120px; background:var(--bg-2); padding:14px; border-radius:10px;">
               <div class="text-sm text-muted">${escape(STATUS_LABELS[s])}</div>
               <div style="font-size:24px; font-weight:600; margin-top:4px;">${statusCounts[s] || 0}</div>
@@ -7443,7 +7461,7 @@ function getStatusActions(project, session) {
 
   // Permission-gestützte Buttons – Buttons erscheinen nur, wenn die Aktion auch wirklich erlaubt ist
   // Videograf: Drehtag-Status setzen
-  if ((project.status === STATUS.SKRIPT || project.status === STATUS.GEPLANT)
+  if (project.status === STATUS.GEPLANT
       && canActOnProject(project, session, 'markAsShot')) {
     const label = isInternal ? '✓ Bereit für Schnitt' : '✓ Als abgedreht markieren';
     buttons.push(`<button class="btn btn-primary btn-sm" onclick="markAsShot('${project.id}')">${label}</button>`);
@@ -7905,9 +7923,17 @@ async function saveProject(e, projectId) {
       deadline: data.deadline || null,
       postingDate: data.postingDate || null,
       script: data.script || '',
-      status: STATUS.SKRIPT,
+      status: (data.shootDate || data.shootDayId) ? STATUS.GEPLANT : STATUS.IDEE,
       createdAt: new Date().toISOString()
     });
+  }
+
+  // Vor-Dreh-Automatik: Status aus Drehtag/Drehdatum ableiten (idee↔geplant) und in den
+  // DB-Payload spiegeln. Status ab 'gedreht' bleibt unangetastet.
+  const _savedIdx = store.projects.findIndex(p => p.id === (projectId || insertedId));
+  if (_savedIdx >= 0) {
+    normalizeIdeaPhase(store.projects[_savedIdx]);
+    data.status = store.projects[_savedIdx].status;
   }
 
   // Pending Skript-PDF sichern, BEVOR closeModal() sie auf null setzt.
@@ -7918,11 +7944,8 @@ async function saveProject(e, projectId) {
   closeModal();
 
   if (!projectId) {
-    // Zur Phase des neuen Projekts wechseln (Ideen wenn reine Idee, sonst Production etc.)
-    const tempP = { status: STATUS.SKRIPT, customerId: data.customerId || null,
-                    shootDate: data.shootDate || null, shootDayId: data.shootDayId || null,
-                    isInternal: data.isInternal ? 1 : 0 };
-    const newPhase = getProjectPhase(tempP);
+    // Zur Phase des neuen Projekts wechseln (Ideen bei Idee/Geplant, sonst Production etc.)
+    const newPhase = _savedIdx >= 0 ? getProjectPhase(store.projects[_savedIdx]) : 'ideen';
     projectPhaseTab = newPhase;
     try { localStorage.setItem(_filterKey('proj_phase'), newPhase); } catch (e) {}
 
