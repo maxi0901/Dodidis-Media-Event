@@ -13207,11 +13207,15 @@ setTimeout(() => { if (_calDebugOn()) _calDebugInit(); }, 0);
       // Bewegte Einheit = Kürzel (Avatar) + Text zusammen, damit in Safari nichts kleben bleibt.
       const label = eventEl.querySelector('.ical-event-inner');
       if (!label) continue;
-      const evRect = eventEl.getBoundingClientRect();        // Balken ohne Transform (Transform liegt am Inner)
+      const evRect = eventEl.getBoundingClientRect();        // Balken (unverschoben; Versatz liegt am Inner)
       // Off-Screen-Balken überspringen: spart auf iOS pro Scroll-Frame massiv
       // getBoundingClientRect-/Style-Writes (Safari ruckelte sonst bei 180-Tage-Wochen).
       if (evRect.right < scRect.left || evRect.left > scRect.right) continue;
-      const naturalLeft = evRect.left + label.offsetLeft;    // natürliche Position (Balkenanfang)
+      // Der Versatz wird über `left` (position:relative) angewendet, NICHT über transform.
+      // Dadurch enthält label.offsetLeft bereits den zuletzt gesetzten left-Wert. Diesen
+      // wieder abziehen, sonst entsteht eine Rückkopplung (Offset → 0, Text rutscht links raus).
+      const appliedLeft = parseFloat(label.style.getPropertyValue('--label-offset')) || 0;
+      const naturalLeft = evRect.left + label.offsetLeft - appliedLeft; // natürliche Position (Balkenanfang)
       const innerRight = evRect.right - 2;                   // rechtes Balkenende
 
       // Anschlag direkt am rechten Balkenende (nicht abzüglich Textbreite – sonst
