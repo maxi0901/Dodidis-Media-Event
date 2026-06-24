@@ -1943,12 +1943,12 @@
     gap: 5px;
     flex: 1 1 auto;
     min-width: 0;
-    /* 2D-Transform statt translate3d: kein erzwungener GPU-Layer pro Balken. Sonst
-       überlagern die Label-Layer auf iOS den Sticky-Header und „schwimmen" beim
-       Momentum-Scrollen. So bleibt das Label im normalen Scroll-Layer → verschwindet
-       sauber hinter dem Header und scrollt ruckelfrei. */
-    transform: translateX(var(--label-offset, 0px));
-    -webkit-transform: translateX(var(--label-offset, 0px));
+    /* Label-Pinning per position/left statt transform: erzeugt KEINEN Composite-Layer.
+       Ein transform-Layer wird auf iOS Safari beim Scrollen über den Sticky-Header gemalt
+       (egal welcher z-index). Mit position:relative + left (ohne z-index) bleibt das Label
+       im normalen Mal-Fluss → der opake Header (z-index 20) verdeckt es zuverlässig. */
+    position: relative;
+    left: var(--label-offset, 0px);
     max-width: var(--label-max-width, 100%);
   }
   /* Text inside bars: JS keeps the inner unit visible while scrolling horizontally. */
@@ -3610,13 +3610,11 @@
     --ical-label-gutter: 8px;
   }
   .ical-track { isolation: isolate; }
-  /* translateZ(0) hebt Corner + Tages-Header in den Compositing-Layer-Baum. Sonst malt iOS
-     Safari die compositeten Event-Label-Layer (transform) ÜBER den nicht-compositeten Sticky-
-     Header (z-index allein greift dann nicht). So entscheidet der z-index wieder: Header (30/20)
-     liegt über den Balken/Labels (2) → Text verschwindet beim Scrollen sauber dahinter.
-     Nur wenige Header-Zellen (eine Woche) → unkritisch für die Scroll-Performance. */
-  .ical-corner { z-index: 30; transform: translateZ(0); }
-  .ical-day-head { z-index: 20; transform: translateZ(0); }
+  /* Kein transform am Header: Sobald nirgends im Grid composited wird (Labels nutzen
+     left statt transform), reicht reines z-index-Stacking – der opake Header (30/20)
+     verdeckt die Balken (2). Ein Composite-Layer am Header wäre Teil des iOS-Problems. */
+  .ical-corner { z-index: 30; }
+  .ical-day-head { z-index: 20; }
   .ical-cat-label {
     z-index: 25;
     box-shadow: 8px 0 14px rgba(0,0,0,0.28);
@@ -3650,10 +3648,10 @@
     gap: 5px;
     flex: 1 1 auto;
     min-width: 0;
-    /* 2D-Transform statt translate3d (siehe Basis-Regel): kein eigener GPU-Layer →
-       kein Header-Overlap und kein „Schwimmen" beim Scrollen auf iOS. */
-    transform: translateX(var(--label-offset, 0px));
-    -webkit-transform: translateX(var(--label-offset, 0px));
+    /* position/left statt transform (siehe Basis-Regel): kein Composite-Layer → kein
+       Header-Overlap und kein „Schwimmen" beim Scrollen auf iOS. */
+    position: relative;
+    left: var(--label-offset, 0px);
     max-width: var(--label-max-width, 100%);
     transition: none;
   }
