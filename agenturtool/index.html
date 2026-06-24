@@ -905,6 +905,15 @@
   .badge-archiviert { color: #6b7280; background: rgba(107,114,128,0.1); border-color: rgba(107,114,128,0.2); }
   .badge-ueberfaellig { color: #ff453a; background: rgba(255,69,58,0.12); border-color: rgba(255,69,58,0.3); }
 
+  /* Hinweis: aktives Projekt ohne Posting-Datum (dezent orange). */
+  .badge-no-posting { color: #fbbf24; background: rgba(245,158,11,0.14); border-color: rgba(245,158,11,0.35); white-space: nowrap; }
+  tr.row-no-posting td { background: rgba(245,158,11,0.06); }
+  tr.row-no-posting td:first-child { box-shadow: inset 3px 0 0 rgba(245,158,11,0.55); }
+  .card.card-no-posting { border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.05); }
+
+  /* Auto-Resize-Textarea: wächst mit dem Inhalt, kein interner Scrollbalken. */
+  textarea.autogrow { resize: none; overflow: hidden; field-sizing: content; }
+
   .badge-role-admin { color: #ff453a; background: rgba(255,69,58,0.1); border-color: rgba(255,69,58,0.2); }
   .badge-role-manager { color: #2dd4bf; background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.25); }
   .badge-role-videograf { color: #a78bfa; background: rgba(167,139,250,0.1); border-color: rgba(167,139,250,0.2); }
@@ -3973,6 +3982,12 @@ function getProjectPhase(p) {
   const s = p.status === 'skript' ? legacyStatus(p) : p.status;
   return PHASE_OF_STATUS[s] || 'ideen';
 }
+// Aktives Projekt in Planung/Produktion ohne Posting-Datum → dezenter Orange-Hinweis.
+// Ideen (idee) sowie abgeschlossene/archivierte/interne Projekte sind ausgenommen.
+function needsPostingDate(p) {
+  if (!p || p.isInternal || p.postingDate) return false;
+  return p.status === 'geplant' || p.status === 'gedreht' || p.status === 'schnitt' || p.status === 'korrektur';
+}
 let projectPhaseTab = 'ideen';
 function setProjectPhase(ph) {
   if (ph !== 'kunden' && !PROJECT_PHASES[ph]) return;
@@ -6366,6 +6381,10 @@ function renderProjects(session) {
       noShootDay.push(p);
     }
   });
+  // Ideen/Projekte ohne Drehtag (z. B. der Ideen-Reiter) haben kein Drehdatum zum Sortieren →
+  // alphabetisch nach Kundenname (ohne Kunde ans Ende), Titel als Zweitkriterium.
+  const _custName = p => (store.customers.find(c => c.id === p.customerId)?.name || '￿').toLowerCase();
+  noShootDay.sort((a, b) => _custName(a).localeCompare(_custName(b), 'de') || (a.title || '').localeCompare(b.title || '', 'de'));
 
   const shootDayGroups = Object.keys(byShootDay)
     .map(id => {
@@ -6396,9 +6415,13 @@ function renderProjects(session) {
     const ideaTrash = (canQuickIdea && isProjectIdea(p))
       ? `<button type="button" class="row-trash" title="Idee löschen" aria-label="Idee löschen" onclick="event.stopPropagation(); deleteProject('${p.id}')">🗑</button>`
       : '';
+    const noPosting = needsPostingDate(p);
+    const noPostingBadge = noPosting
+      ? `<span class="badge badge-no-posting">Kein Posting-Datum festgelegt</span>`
+      : '';
     return `
-      <tr style="cursor:pointer" onclick="openProjectModal('${p.id}')">
-        <td><div class="row-title"><strong>${escape(p.title)}</strong>${ideaTrash}</div></td>
+      <tr class="${noPosting ? 'row-no-posting' : ''}" style="cursor:pointer" onclick="openProjectModal('${p.id}')">
+        <td><div class="row-title"><strong>${escape(p.title)}</strong>${ideaTrash}${noPostingBadge}</div></td>
         <td>${customerCell}</td>
         <td><span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span></td>
         <td>${escape(vg?.name || '–')}</td>
@@ -6512,7 +6535,7 @@ function openQuickIdeaModal(ideaId = null) {
           </div>
           <div class="form-group">
             <label class="form-label">Skript / Notizen (optional)</label>
-            <textarea name="script" rows="6" placeholder="Hook, Ablauf, Ideen…">${isEdit ? escape(idea.script || '') : ''}</textarea>
+            <textarea name="script" class="autogrow" rows="6" placeholder="Hook, Ablauf, Ideen…">${isEdit ? escape(idea.script || '') : ''}</textarea>
           </div>
           ${scriptPdfBlock}
         </div>
@@ -6526,6 +6549,7 @@ function openQuickIdeaModal(ideaId = null) {
     </div>
   </div>`;
   $('#modal-container').innerHTML = html;
+  initAutogrowTextareas();
 }
 
 async function submitQuickIdea(e, ideaId = '') {
@@ -6614,8 +6638,8 @@ async function convertIdeaToProject(ideaId) {
   const idx = store.projects.findIndex(p => p.id === ideaId);
   if (idx < 0) return;
   closeModal();
-  showToast('Projektdetails ergänzen', 'Mit Drehtag/Drehdatum wird daraus automatisch „Geplant".');
-  openProjectModal(ideaId);
+  showToast('Projektdetails ergänzen', 'Kunde/Deadline/Zuweisung ergänzen – mit Drehtag wird daraus automatisch „Geplant".');
+  openProjectModal(ideaId, true); // forceFull: volles Projektformular statt schlankem Ideen-Editor
 }
 
 /* Aufgeräumte Cutter-Projektsicht – nur abgedrehte Projekte, gruppiert nach Status */
@@ -7176,7 +7200,7 @@ async function deleteShootDay(shootDayId) {
   }
 }
 
-function openProjectModal(projectId = null) {
+function openProjectModal(projectId = null, forceFull = false) {
   const session = getCurrentUser();
   const isStaff = session.type === 'staff';
   const isAdmin = isStaff && hasRole(session.user, ROLES.ADMIN);
@@ -7186,7 +7210,9 @@ function openProjectModal(projectId = null) {
   const isNew = !project;
 
   // Ideen (eigener Status 'idee') öffnen den schlanken Ideen-Editor – kein Kunde nötig.
-  if (project && project.status === STATUS.IDEE) {
+  // Ausnahme: forceFull (z. B. „In Projekt umwandeln") öffnet das volle Projektformular,
+  // damit Kunde/Deadline/Zuweisung ergänzt werden können.
+  if (project && project.status === STATUS.IDEE && !forceFull) {
     if (isAdmin) return openQuickIdeaModal(project.id);
     return openProjectViewerModal(project);
   }
@@ -7350,7 +7376,7 @@ function openProjectModal(projectId = null) {
 
             <div class="form-group">
               <label class="form-label">Skript / Konzept</label>
-              <textarea name="script" ${!canEdit ? 'readonly' : ''} placeholder="Skript, Szenen, Anweisungen für Videograf und Cutter...">${escape(project?.script || '')}</textarea>
+              <textarea name="script" class="autogrow" ${!canEdit ? 'readonly' : ''} placeholder="Skript, Szenen, Anweisungen für Videograf und Cutter...">${escape(project?.script || '')}</textarea>
             </div>
 
             <div class="form-group">
@@ -7404,6 +7430,7 @@ function openProjectModal(projectId = null) {
     </div>
   `;
   $('#modal-container').innerHTML = html;
+  initAutogrowTextareas();
   if (projectId) loadAndRenderProjectComments(projectId, isManagerOrAdmin, 'proj-comments-box');
 
   // Draft autosave for new projects
@@ -8622,6 +8649,23 @@ async function deleteProject(projectId) {
     showToast('Fehler beim Speichern', err.message);
   }
 }
+
+// Auto-Resize für Textareas mit Klasse "autogrow": wächst mit dem Inhalt, kein interner
+// Scrollbalken. Moderne Browser erledigen das via CSS field-sizing:content; für ältere
+// Safari/Chrome greift dieser JS-Fallback (Höhe = scrollHeight).
+const SUPPORTS_FIELD_SIZING = !!(window.CSS && CSS.supports && CSS.supports('field-sizing', 'content'));
+function autoGrowTextarea(el) {
+  if (!el || SUPPORTS_FIELD_SIZING) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+function initAutogrowTextareas() {
+  if (SUPPORTS_FIELD_SIZING) return;
+  document.querySelectorAll('#modal-container textarea.autogrow').forEach(autoGrowTextarea);
+}
+document.addEventListener('input', e => {
+  if (e.target && e.target.matches && e.target.matches('textarea.autogrow')) autoGrowTextarea(e.target);
+});
 
 function closeModal() {
   $('#modal-container').innerHTML = '';
