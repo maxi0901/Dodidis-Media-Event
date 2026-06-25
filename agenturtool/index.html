@@ -7866,21 +7866,11 @@ async function saveProject(e, projectId) {
       }
     }
     // Beim Anlegen: Cutter-Deadline = Posting − 48 h (= 2 Tage)
-    // Beim Bearbeiten: Deadline editierbar, fällt zurück auf Posting − 2 Tage falls leer
-    if (!projectId) {
-      // Neu angelegt → Deadline nur setzen wenn leer
-      if (!data.deadline && data.postingDate) {
-        data.deadline = addDays(data.postingDate, -2);
-      }
-    } else {
-      // Bearbeiten: Fallback wenn Posting da, Deadline leer
-      if (!data.deadline && data.postingDate) {
-        data.deadline = addDays(data.postingDate, -2);
-      }
-      // Fallback wenn Deadline da, Posting leer (Posting = Deadline + 2 Tage)
-      if (!data.postingDate && data.deadline) {
-        data.postingDate = addDays(data.deadline, 2);
-      }
+    // Beim Bearbeiten: Deadline editierbar, fällt zurück auf Posting − 2 Tage falls leer.
+    // Posting-Datum wird NICHT aus der Deadline fabriziert – es darf bewusst leer bleiben
+    // (siehe Orange-Hinweis „Kein Posting-Datum festgelegt"); sonst würde der Hinweis nie greifen.
+    if (!data.deadline && data.postingDate) {
+      data.deadline = addDays(data.postingDate, -2);
     }
   }
 
