@@ -3950,14 +3950,14 @@ function statusCls(s)   { const k = s === 'skript' ? 'idee' : s; return STATUS_L
 /* ----------- PROJEKT-PHASEN (Head-Bar/Kanban, nur Admin/Manager) -----------
    3 Reiter, nach Status gruppiert:
    - Ideen:           Idee (ohne Drehdatum)
-   - Production:      Geplant (mit Drehtag/Drehdatum) + Gedreht
-   - Post Production: Im Schnitt, Korrektur, Fertig, Freigegeben (Abnahme eingegliedert)
+   - Production:      Geplant (mit Drehtag/Drehdatum, noch nicht abgedreht)
+   - Post Production: Gedreht, Im Schnitt, Korrektur, Fertig, Freigegeben (Abnahme eingegliedert)
    Archiviert bleibt auf der Archiv-Seite (nicht im Board). */
 const PROJECT_PHASES = { ideen: 'Ideen', production: 'Production', post: 'Post Production' };
 const PHASE_OF_STATUS = {
   idee: 'ideen',
-  geplant: 'production', gedreht: 'production',
-  schnitt: 'post', korrektur: 'post',
+  geplant: 'production',
+  gedreht: 'post', schnitt: 'post', korrektur: 'post',
   fertig: 'post', freigegeben: 'post'
 };
 // Vor-Dreh-Automatik: Status 'idee' ohne Drehdatum, 'geplant' mit Drehtag/Drehdatum.
