@@ -10086,7 +10086,8 @@ function renderCategoryWeekView(elementId, session, mini = false) {
 
   const shootLayout    = visible('shoot')    ? layoutCat(shootBars)    : [];
   const vacationLayout = visible('vacation') ? layoutCat(vacationBars) : [];
-  const videoLayout    = visible('videos')   ? layoutCat(videoBars)    : [];
+  // videoLayout: nur für Mini-Kalender global (Vollansicht legt pro Kunde separat an)
+  const videoLayout    = (visible('videos') && mini) ? layoutCat(videoBars) : [];
   const todoLayout     = visible('todos')    ? layoutCat(todoBars)     : [];
 
   const isMobile = window.innerWidth < 640;
@@ -10114,17 +10115,21 @@ function renderCategoryWeekView(elementId, session, mini = false) {
       cats.push({ key: 'videos', label: 'Videos', icon: '🎬', cls: 'cat-videos', isEmoji: true, start: nextRow, lanes, items: videoLayout });
       nextRow += lanes;
     } else {
-      // Vollansicht: pro Kunde eigene Zeile, alphabetisch sortiert
-      const custMap = new Map();
-      videoLayout.forEach(b => {
+      // Vollansicht: pro Kunde eigene Zeile, alphabetisch sortiert.
+      // videoBars (ungrouped) → nach Kunde aufteilen → layoutCat() pro Gruppe separat.
+      // So hat jeder Kunde eigene Lane-Nummern ab 0 und belegt nur so viele Zeilen
+      // wie nötig – keine aufgeblähten Lane-Offsets aus dem globalen Layout.
+      const custRaw = new Map();
+      videoBars.forEach(b => {
         const k = b.customer || '';
-        if (!custMap.has(k)) custMap.set(k, []);
-        custMap.get(k).push(b);
+        if (!custRaw.has(k)) custRaw.set(k, []);
+        custRaw.get(k).push(b);
       });
-      [...custMap.keys()]
+      [...custRaw.keys()]
         .sort((a, z) => a.toLowerCase().localeCompare(z.toLowerCase(), 'de'))
         .forEach(custName => {
-          const items = custMap.get(custName);
+          const items = layoutCat(custRaw.get(custName)); // eigenes Lane-Layout pro Kunde
+          if (!items.length) return;
           const lanes = Math.max(1, items.reduce((acc, b) => Math.max(acc, b.lane + 1), 0));
           cats.push({
             key: 'videos',
