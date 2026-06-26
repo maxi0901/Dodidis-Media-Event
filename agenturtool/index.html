@@ -1726,7 +1726,10 @@
     overflow-x: scroll;
     overflow-y: auto;
     cursor: grab;
-    max-height: 720px;
+    /* Keine Höhenbegrenzung: der Kalender wächst/schrumpft mit der Zeilenzahl statt
+       vertikal zu scrollen (Inhalt passt komplett → kein vertikaler Scrollbalken).
+       Horizontales Scrollen der Tagesspalten bleibt erhalten. */
+    max-height: none;
     /* „proximity" statt „mandatory": Mandatory-Snap kämpft auf dem Desktop gegen
        Maus-/Trackpad-Scrollen und das Drag-/Wheel-Handling (Ruckeln/Hängen).
        Proximity rastet sanft an Tagesspalten ein, blockiert aber freies Scrollen
@@ -1743,7 +1746,7 @@
     --ical-sidebar: 48px;
   }
   @media (max-width: 640px) {
-    .ical-scroll { scroll-snap-type: none; max-height: 480px; cursor: default; }
+    .ical-scroll { scroll-snap-type: none; max-height: none; cursor: default; }
   }
   .ical-scroll.dragging { cursor: grabbing; scroll-snap-type: none; scroll-behavior: auto; }
   .ical-scroll::-webkit-scrollbar { height: 10px; width: 10px; background: #1c1c1e; }
@@ -1999,7 +2002,7 @@
     .ical-track { grid-template-rows: minmax(44px, auto); grid-auto-rows: minmax(24px, auto); grid-row-gap: 2px; padding-bottom: 12px; }
     /* Scrollbar verstecken */
     .ical-scroll::-webkit-scrollbar { height: 0; }
-    .ical-scroll { max-height: 420px; }
+    .ical-scroll { max-height: none; }
     /* Kategorie-Labels: nur Icon – bereits in Base-CSS, hier nur compact override */
     .ical-cat-label .ical-cat-icon { width: 22px; height: 22px; font-size: 12px; }
     /* Tag-Header kompakter */
@@ -3950,14 +3953,14 @@ function statusCls(s)   { const k = s === 'skript' ? 'idee' : s; return STATUS_L
 /* ----------- PROJEKT-PHASEN (Head-Bar/Kanban, nur Admin/Manager) -----------
    3 Reiter, nach Status gruppiert:
    - Ideen:           Idee (ohne Drehdatum)
-   - Production:      Geplant (mit Drehtag/Drehdatum) + Gedreht
-   - Post Production: Im Schnitt, Korrektur, Fertig, Freigegeben (Abnahme eingegliedert)
+   - Production:      Geplant (mit Drehtag/Drehdatum, noch nicht abgedreht)
+   - Post Production: Gedreht, Im Schnitt, Korrektur, Fertig, Freigegeben (Abnahme eingegliedert)
    Archiviert bleibt auf der Archiv-Seite (nicht im Board). */
 const PROJECT_PHASES = { ideen: 'Ideen', production: 'Production', post: 'Post Production' };
 const PHASE_OF_STATUS = {
   idee: 'ideen',
-  geplant: 'production', gedreht: 'production',
-  schnitt: 'post', korrektur: 'post',
+  geplant: 'production',
+  gedreht: 'post', schnitt: 'post', korrektur: 'post',
   fertig: 'post', freigegeben: 'post'
 };
 // Vor-Dreh-Automatik: Status 'idee' ohne Drehdatum, 'geplant' mit Drehtag/Drehdatum.
