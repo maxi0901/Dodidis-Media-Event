@@ -1919,6 +1919,15 @@
   .ical-cat-label.cat-vacation .ical-cat-icon { background: rgba(148,163,184,0.22); }
   .ical-cat-label.cat-videos   .ical-cat-icon { background: rgba(20,184,166,0.22); }
   .ical-cat-label.cat-todos    .ical-cat-icon { background: rgba(100,210,255,0.22); }
+  /* Kunden-Kürzel-Icon: kompaktes Text-Kürzel statt Emoji */
+  .ical-kuerzel-icon {
+    font-size: 9px !important;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    font-family: inherit;
+    font-style: normal;
+    line-height: 1;
+  }
 
   .ical-cat-bg {
     position: relative;
@@ -3993,6 +4002,16 @@ function needsPostingDate(p) {
   if (p.status === 'geplant' || p.status === 'gedreht' || p.status === 'schnitt' || p.status === 'korrektur') return true;
   return p.status === 'idee' && !!p.customerId;
 }
+
+// 2-3-Zeichen Abkürzung aus Kundenname: "Dodidis Media" → "DM", "Auto Müller GmbH" → "AM"
+function makeKuerzel(name) {
+  if (!name) return '?';
+  const stripped = name.replace(/\b(GmbH|AG|KG|UG|GbR|OHG|Ltd|Inc)\b/gi, '').replace(/\s+/g, ' ').trim();
+  const words = stripped.split(/[\s\-_]+/).filter(w => /[A-Za-zÀ-ž]/.test(w));
+  if (words.length >= 2) return words.slice(0, 3).map(w => w[0].toUpperCase()).join('');
+  return (stripped.replace(/\s/g, '').slice(0, 3) || '?').toUpperCase();
+}
+
 let projectPhaseTab = 'ideen';
 function setProjectPhase(ph) {
   if (ph !== 'kunden' && !PROJECT_PHASES[ph]) return;
@@ -9582,11 +9601,12 @@ function buildCalendarBars(session) {
   myProjects.forEach(p => {
     const c = store.customers.find(x => x.id === p.customerId);
     const customerName = c?.name || '';
+    const kuerzel = makeKuerzel(customerName);
     const fullTitle = p.title + (customerName ? ' · ' + customerName : '');
     const sd = p.shootDate || null;
     const pd = p.postingDate || null;
     const dl = p.deadline || null; // = Cutter-Deadline
-    const base = { projectId: p.id, title: p.title, customer: customerName, fullTitle };
+    const base = { projectId: p.id, title: p.title, customer: customerName, kuerzel, fullTitle };
 
     // KEIN 'shoot' mehr pro Projekt – Drehtag ist nur die Drehtag-Entität oben
 
@@ -9943,10 +9963,11 @@ function renderMonthBar(b, startIdx, endIdx, cutsLeft, cutsRight) {
     shoot: 'Drehtag', cutter: 'Cutter', posting: 'Posting',
     production: 'Produktion', editing: 'Schnitt', vacation: 'Urlaub', deadline: 'Deadline'
   };
+  const mpfx = b.kuerzel ? b.kuerzel + ' · ' : '';
   let text;
   if (b.phase === 'vacation') text = 'Urlaub – ' + b.customer;
-  else if (b.phase === 'production' || b.phase === 'editing') text = b.title;
-  else text = b.title;
+  else if (b.phase === 'shoot') text = b.title;
+  else text = mpfx + b.title;
   const cls = `month-bar phase-${b.phase} ${cutsLeft ? 'cuts-left' : ''} ${cutsRight ? 'cuts-right' : ''}`;
   const click = b.vacationId ? `onclick="navigateTo('vacation')"` : `onclick="openProjectModal('${b.projectId}')"`;
   const time = b.time ? `<span class="month-bar-time">${b.time}</span>` : '';
@@ -10070,31 +10091,63 @@ function renderCategoryWeekView(elementId, session, mini = false) {
 
   const isMobile = window.innerWidth < 640;
   const colWidth = isMobile ? 70 : (mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH);
-  // Kalenderansicht ohne linke Sidebar-Spalte (mehr Platz, weniger Sticky-Layer) – sowohl
-  // volle Ansicht als auch Mini-Dashboard-Kalender: Event-Labels hängen am linken Rand.
-  const sidebarWidth = 0;
+  // Mini-Kalender ohne Sidebar; volle Ansicht mit schmaler Kunden-Kürzel-Spalte.
+  const sidebarWidth = mini ? 0 : 44;
 
   // Dynamische Cat-Liste: nur sichtbare Kategorien rendern – Reihenfolge: Drehtag, Urlaub, Videos, Aufgaben
   let nextRow = 2;
   const cats = [];
   if (visible('shoot')) {
     const lanes = Math.max(1, shootLayout.reduce((a,b) => Math.max(a, b.lane+1), 0));
-    cats.push({ key: 'shoot', label: 'Drehtag', icon: '🎥', cls: 'cat-shoot', start: nextRow, lanes, items: shootLayout });
+    cats.push({ key: 'shoot', label: 'Drehtag', icon: '🎥', cls: 'cat-shoot', isEmoji: true, start: nextRow, lanes, items: shootLayout });
     nextRow += lanes;
   }
   if (visible('vacation')) {
     const lanes = Math.max(1, vacationLayout.reduce((a,b) => Math.max(a, b.lane+1), 0));
-    cats.push({ key: 'vacation', label: 'Urlaub', icon: '🏖', cls: 'cat-vacation', start: nextRow, lanes, items: vacationLayout });
+    cats.push({ key: 'vacation', label: 'Urlaub', icon: '🏖', cls: 'cat-vacation', isEmoji: true, start: nextRow, lanes, items: vacationLayout });
     nextRow += lanes;
   }
   if (visible('videos')) {
-    const lanes = Math.max(1, videoLayout.reduce((a,b) => Math.max(a, b.lane+1), 0));
-    cats.push({ key: 'videos', label: 'Videos', icon: '🎬', cls: 'cat-videos', start: nextRow, lanes, items: videoLayout });
-    nextRow += lanes;
+    if (mini) {
+      // Mini-Kalender: einfache Videos-Kategorie ohne Kundenaufteilung
+      const lanes = Math.max(1, videoLayout.reduce((a,b) => Math.max(a, b.lane+1), 0));
+      cats.push({ key: 'videos', label: 'Videos', icon: '🎬', cls: 'cat-videos', isEmoji: true, start: nextRow, lanes, items: videoLayout });
+      nextRow += lanes;
+    } else {
+      // Vollansicht: pro Kunde eigene Zeile, alphabetisch sortiert
+      const custMap = new Map();
+      videoLayout.forEach(b => {
+        const k = b.customer || '';
+        if (!custMap.has(k)) custMap.set(k, []);
+        custMap.get(k).push(b);
+      });
+      [...custMap.keys()]
+        .sort((a, z) => a.toLowerCase().localeCompare(z.toLowerCase(), 'de'))
+        .forEach(custName => {
+          const items = custMap.get(custName);
+          const lanes = Math.max(1, items.reduce((acc, b) => Math.max(acc, b.lane + 1), 0));
+          cats.push({
+            key: 'videos',
+            label: custName || '—',
+            icon: makeKuerzel(custName),
+            cls: 'cat-videos',
+            isEmoji: false,
+            start: nextRow,
+            lanes,
+            items
+          });
+          nextRow += lanes;
+        });
+      // Fallback: keine Videos sichtbar → leere Platzhalterzeile damit Kategorie nicht fehlt
+      if (cats.filter(c => c.key === 'videos').length === 0) {
+        cats.push({ key: 'videos', label: 'Videos', icon: '🎬', cls: 'cat-videos', isEmoji: true, start: nextRow, lanes: 1, items: [] });
+        nextRow += 1;
+      }
+    }
   }
   if (visible('todos')) {
     const lanes = Math.max(1, todoLayout.reduce((a,b) => Math.max(a, b.lane+1), 0));
-    cats.push({ key: 'todos', label: 'Aufgaben', icon: '✅', cls: 'cat-todos', start: nextRow, lanes, items: todoLayout });
+    cats.push({ key: 'todos', label: 'Aufgaben', icon: '✅', cls: 'cat-todos', isEmoji: true, start: nextRow, lanes, items: todoLayout });
     nextRow += lanes;
   }
 
@@ -10154,10 +10207,13 @@ function renderCategoryWeekView(elementId, session, mini = false) {
               const endCol = b.endCol + 3;     // +1 für Sidebar, +2 für grid-column end (exclusive)
               return renderCategoryEvent(b, row, startCol, endCol);
             }).join('');
+            const iconHtml = c.isEmoji
+              ? `<span class="ical-cat-icon">${c.icon}</span>`
+              : `<span class="ical-cat-icon ical-kuerzel-icon">${escape(c.icon)}</span>`;
             const labelHtml = sidebarWidth > 0 ? `
-              <div class="ical-cat-label ${c.cls}" style="${labelRowSpan}">
-                <span class="ical-cat-icon">${c.icon}</span>
-                <span>${c.label}</span>
+              <div class="ical-cat-label ${c.cls}" style="${labelRowSpan}" title="${escape(c.label)}">
+                ${iconHtml}
+                <span>${escape(c.label)}</span>
               </div>` : '';
             return `
               ${labelHtml}
@@ -10230,12 +10286,13 @@ function renderCategoryEvent(b, row, startCol, endCol) {
     production: 'Produktion', editing: 'Schnitt', vacation: 'Urlaub',
     deadline: 'Deadline', todo: 'Aufgabe'
   };
+  const pfx = b.kuerzel ? b.kuerzel + ' · ' : '';
   let text;
   if (b.phase === 'vacation') text = (b.customer ? b.customer + ' – ' : '') + 'Urlaub';
   else if (b.phase === 'todo') text = b.title;
   else if (b.phase === 'shoot') text = b.title; // schon vollständig formatiert ("Drehtag · X Videos")
-  else if (b.phase === 'production' || b.phase === 'editing') text = b.title + ' · ' + labels[b.phase];
-  else text = labels[b.phase] + ': ' + b.title;
+  else if (b.phase === 'production' || b.phase === 'editing') text = pfx + b.title + ' · ' + labels[b.phase];
+  else text = pfx + labels[b.phase] + ': ' + b.title;
   const cls = `ical-event phase-${b.phase} ${b.cutsLeft ? 'cuts-left' : ''} ${b.cutsRight ? 'cuts-right' : ''}`;
   let click;
   if (b.shootDayId) click = `onclick="openShootDayModal('${b.shootDayId}')"`;
