@@ -47,8 +47,8 @@ $isCutterOnly = $isCutter && !$isAdmin && !$isManager && !$isVideograf;
 
 // ── Projekte holen ──────────────────────────────────────────────────────────
 $pCols = "p.id, p.title, p.customer_id AS customerId, p.videograf_id AS videografId,
-          p.cutter_id AS cutterId, COALESCE(p.shoot_date, sd.date) AS shootDate, p.deadline,
-          p.posting_date AS postingDate, p.script, p.status";
+          p.cutter_id AS cutterId, COALESCE(p.shoot_date, sd.date) AS shootDate, p.shoot_day_id AS shootDayId,
+          p.deadline, p.posting_date AS postingDate, p.script, p.status";
 
 if ($isAdmin || $isManager) {
     $projects = db_all(
@@ -205,6 +205,12 @@ $lines = [
 ];
 
 // ── Projekte als Events ────────────────────────────────────────────────────
+// Drehtage werden NICHT mehr pro Video erzeugt, sondern je Drehtag zu EINEM Event
+// gebündelt; die einzelnen Videos stehen in der Beschreibung. Hier nur sammeln.
+$videosByShootDay   = []; // shoot_day_id => [Videotitel, …]
+$shootDayDate       = []; // shoot_day_id => Datum (für Fallback ohne sichtbares Drehtag-Event)
+$videosByManualDate = []; // Datum => [Videotitel, …] (Projekte mit Drehdatum ohne Drehtag-Eintrag)
+$emittedShootDays   = []; // shoot_day_id => true, wenn der Drehtag bereits als Event ausgegeben wurde
 foreach ($projects as $p) {
     $cLabel = $customerMap[$p['customerId']] ?? '–';
     $vgName = $userMap[$p['videografId']] ?? '–';
@@ -214,17 +220,14 @@ foreach ($projects as $p) {
         $desc .= '\\nSkript: ' . ics_escape($p['script']);
     }
 
-    // Drehtag
+    // Drehtag: kein Event pro Video – stattdessen Video je Drehtag sammeln (s. u.).
     if ($p['shootDate']) {
-        $lines[] = 'BEGIN:VEVENT';
-        $lines[] = 'UID:project-' . $p['id'] . '-shoot@dodidis.media';
-        $lines[] = 'DTSTAMP:' . $stamp;
-        $lines[] = 'DTSTART;VALUE=DATE:' . ics_allday($p['shootDate']);
-        $lines[] = 'DTEND;VALUE=DATE:'   . ics_allday_next($p['shootDate']);
-        $lines[] = 'SUMMARY:🎥 Drehtag – ' . ics_escape($p['title']);
-        $lines[] = 'DESCRIPTION:' . ics_escape($desc);
-        $lines[] = 'CATEGORIES:Drehtag';
-        $lines[] = 'END:VEVENT';
+        if (!empty($p['shootDayId'])) {
+            $videosByShootDay[$p['shootDayId']][] = $p['title'];
+            $shootDayDate[$p['shootDayId']] = $p['shootDate'];
+        } else {
+            $videosByManualDate[$p['shootDate']][] = $p['title'];
+        }
     }
 
     // Posting-Deadline (18 Uhr, Tag vor Posting) + Posting
@@ -278,12 +281,19 @@ foreach ($projects as $p) {
 
 // ── Drehtage als Events ────────────────────────────────────────────────────
 foreach ($shootDays as $sd) {
+    $emittedShootDays[$sd['id']] = true;
     $cLabel  = $customerMap[$sd['customerId']] ?? null;
     $vgName  = $userMap[$sd['videografId']] ?? '–';
     $summary = '📷 Drehtag' . ($cLabel ? ' – ' . $cLabel : '');
     $descParts = ["Videograf: {$vgName}"];
     if ($cLabel) $descParts[] = "Kunde: {$cLabel}";
     if ($sd['note']) $descParts[] = $sd['note'];
+    // Videos dieses Drehtags in die Beschreibung (ein Drehtag-Event statt eins pro Video).
+    $sdTitles = $videosByShootDay[$sd['id']] ?? [];
+    if ($sdTitles) {
+        $descParts[] = count($sdTitles) === 1 ? 'Video:' : 'Videos:';
+        foreach ($sdTitles as $t) $descParts[] = '• ' . $t;
+    }
     $desc = implode('\\n', array_map('ics_escape', $descParts));
 
     // Abgesagter Drehtag (alter Termin bei Verschiebung)
@@ -324,6 +334,34 @@ foreach ($shootDays as $sd) {
         $lines[] = 'CATEGORIES:Drehtag';
         $lines[] = 'END:VEVENT';
     }
+}
+
+// ── Gruppierte Drehtag-Events (ein Drehtag = ein Event, Videos in der Beschreibung) ──
+// Deckt ab: manuelle Drehdaten ohne Drehtag-Eintrag UND Drehtage, die der Nutzer nicht
+// als eigenes Event sieht (z. B. Cutter ohne Drehtag-Zugriff). Mehrere Drehtage am selben
+// Datum werden zusammengefasst.
+$groupedShoots = $videosByManualDate; // [Datum => Titel[]]
+foreach ($videosByShootDay as $sdId => $titles) {
+    if (!empty($emittedShootDays[$sdId])) continue; // bereits als 📷 Drehtag ausgegeben
+    $d = $shootDayDate[$sdId] ?? null;
+    if (!$d) continue;
+    foreach ($titles as $t) $groupedShoots[$d][] = $t;
+}
+foreach ($groupedShoots as $date => $titles) {
+    $count   = count($titles);
+    $summary = $count === 1 ? '🎥 Drehtag – ' . $titles[0] : '🎥 Drehtag (' . $count . ' Videos)';
+    $descParts = [$count === 1 ? 'Video:' : 'Videos:'];
+    foreach ($titles as $t) $descParts[] = '• ' . $t;
+    $desc = implode('\\n', array_map('ics_escape', $descParts));
+    $lines[] = 'BEGIN:VEVENT';
+    $lines[] = 'UID:shootdate-' . ics_allday($date) . '@dodidis.media';
+    $lines[] = 'DTSTAMP:' . $stamp;
+    $lines[] = 'DTSTART;VALUE=DATE:' . ics_allday($date);
+    $lines[] = 'DTEND;VALUE=DATE:'   . ics_allday_next($date);
+    $lines[] = 'SUMMARY:' . ics_escape($summary);
+    $lines[] = 'DESCRIPTION:' . $desc;
+    $lines[] = 'CATEGORIES:Drehtag';
+    $lines[] = 'END:VEVENT';
 }
 
 // ── Verschobene Projekt-Drehtage als ABGESAGT-Events ──────────────────────
