@@ -69,14 +69,16 @@ if ($isAdmin || $isManager) {
     $projects = [];
 }
 
-// ── Kunden-Namen (Map id → label) ──────────────────────────────────────────
+// ── Kunden-Namen (Map id → label/name) ─────────────────────────────────────
 $customerIds = array_unique(array_filter(array_column($projects, 'customerId')));
-$customerMap = [];
+$customerMap = []; // id → "Name (Nr)" für Event-Details
+$customerName = []; // id → "Name" für Kürzel-Gruppierung
 if ($customerIds) {
     $ph   = implode(',', array_fill(0, count($customerIds), '?'));
     $rows = db_all("SELECT id, name, customer_number AS num FROM customers WHERE id IN ($ph)", $customerIds);
     foreach ($rows as $r) {
-        $customerMap[$r['id']] = $r['name'] . ' (' . $r['num'] . ')';
+        $customerMap[$r['id']]  = $r['name'] . ' (' . $r['num'] . ')';
+        $customerName[$r['id']] = $r['name'];
     }
 }
 
@@ -172,6 +174,16 @@ try {
 function ics_escape(string $s): string {
     return str_replace(['\\', ';', ',', "\n", "\r"], ['\\\\', '\\;', '\\,', '\\n', ''], $s);
 }
+function ics_make_kuerzel(string $name): string {
+    if ($name === '') return '?';
+    $stripped = preg_replace('/\b(GmbH|AG|KG|UG|GbR|OHG|Ltd|Inc|e\.V\.)\b/iu', '', $name);
+    $stripped = trim(preg_replace('/\s+/', ' ', $stripped ?? $name));
+    $words = array_values(array_filter(preg_split('/[\s\-_]+/', $stripped) ?: [], fn($w) => preg_match('/[A-Za-z\x{00C0}-\x{017E}]/u', $w)));
+    if (count($words) >= 2) {
+        return mb_strtoupper(implode('', array_map(fn($w) => mb_substr($w, 0, 1), array_slice($words, 0, 3))));
+    }
+    return mb_strtoupper(mb_substr(preg_replace('/\s/', '', $stripped) ?: '?', 0, 3));
+}
 function ics_allday(string $date): string {
     return date('Ymd', (int)strtotime($date));
 }
@@ -206,13 +218,14 @@ $lines = [
 
 // ── Projekte als Events ────────────────────────────────────────────────────
 // Drehtage werden NICHT mehr pro Video erzeugt, sondern je Drehtag zu EINEM Event
-// gebündelt; die einzelnen Videos stehen in der Beschreibung. Hier nur sammeln.
-$videosByShootDay   = []; // shoot_day_id => [Videotitel, …]
-$shootDayDate       = []; // shoot_day_id => Datum (für Fallback ohne sichtbares Drehtag-Event)
-$videosByManualDate = []; // Datum => [Videotitel, …] (Projekte mit Drehdatum ohne Drehtag-Eintrag)
+// gebündelt; die einzelnen Videos stehen nach Kunden gruppiert in der Beschreibung.
+$videosByShootDay   = []; // shoot_day_id => [custName => [Videotitel, …], …]
+$shootDayDate       = []; // shoot_day_id => Datum
+$videosByManualDate = []; // Datum => [custName => [Videotitel, …], …]
 $emittedShootDays   = []; // shoot_day_id => true, wenn der Drehtag bereits als Event ausgegeben wurde
 foreach ($projects as $p) {
     $cLabel = $customerMap[$p['customerId']] ?? '–';
+    $cName  = $customerName[$p['customerId']] ?? ($customerMap[$p['customerId']] ?? '–');
     $vgName = $userMap[$p['videografId']] ?? '–';
     $ctName = $userMap[$p['cutterId']]    ?? '–';
     $desc   = "Kunde: {$cLabel}\\nVideograf: {$vgName}\\nCutter: {$ctName}\\nStatus: {$p['status']}";
@@ -220,13 +233,13 @@ foreach ($projects as $p) {
         $desc .= '\\nSkript: ' . ics_escape($p['script']);
     }
 
-    // Drehtag: kein Event pro Video – stattdessen Video je Drehtag sammeln (s. u.).
+    // Drehtag: kein Event pro Video – stattdessen Video je Drehtag/Kunde sammeln.
     if ($p['shootDate']) {
         if (!empty($p['shootDayId'])) {
-            $videosByShootDay[$p['shootDayId']][] = $p['title'];
+            $videosByShootDay[$p['shootDayId']][$cName][] = $p['title'];
             $shootDayDate[$p['shootDayId']] = $p['shootDate'];
         } else {
-            $videosByManualDate[$p['shootDate']][] = $p['title'];
+            $videosByManualDate[$p['shootDate']][$cName][] = $p['title'];
         }
     }
 
@@ -288,11 +301,17 @@ foreach ($shootDays as $sd) {
     $descParts = ["Videograf: {$vgName}"];
     if ($cLabel) $descParts[] = "Kunde: {$cLabel}";
     if ($sd['note']) $descParts[] = $sd['note'];
-    // Videos dieses Drehtags in die Beschreibung (ein Drehtag-Event statt eins pro Video).
-    $sdTitles = $videosByShootDay[$sd['id']] ?? [];
-    if ($sdTitles) {
-        $descParts[] = count($sdTitles) === 1 ? 'Video:' : 'Videos:';
-        foreach ($sdTitles as $t) $descParts[] = '• ' . $t;
+    // Videos dieses Drehtags – nach Kunden gruppiert, mit Kürzel-Prefix.
+    $sdGroups = $videosByShootDay[$sd['id']] ?? [];
+    if ($sdGroups) {
+        ksort($sdGroups);
+        $totalVideos = array_sum(array_map('count', $sdGroups));
+        $descParts[] = $totalVideos === 1 ? 'Video:' : 'Videos (' . $totalVideos . '):';
+        foreach ($sdGroups as $custN => $titles) {
+            $kuerzel = ics_make_kuerzel($custN);
+            $descParts[] = "[{$kuerzel}] {$custN}:";
+            foreach ($titles as $t) $descParts[] = '  • ' . $t;
+        }
     }
     $desc = implode('\\n', array_map('ics_escape', $descParts));
 
@@ -340,18 +359,26 @@ foreach ($shootDays as $sd) {
 // Deckt ab: manuelle Drehdaten ohne Drehtag-Eintrag UND Drehtage, die der Nutzer nicht
 // als eigenes Event sieht (z. B. Cutter ohne Drehtag-Zugriff). Mehrere Drehtage am selben
 // Datum werden zusammengefasst.
-$groupedShoots = $videosByManualDate; // [Datum => Titel[]]
-foreach ($videosByShootDay as $sdId => $titles) {
+$groupedShoots = $videosByManualDate; // [Datum => [custName => Titel[]]]
+foreach ($videosByShootDay as $sdId => $groups) {
     if (!empty($emittedShootDays[$sdId])) continue; // bereits als 📷 Drehtag ausgegeben
     $d = $shootDayDate[$sdId] ?? null;
     if (!$d) continue;
-    foreach ($titles as $t) $groupedShoots[$d][] = $t;
+    foreach ($groups as $custN => $titles) {
+        foreach ($titles as $t) $groupedShoots[$d][$custN][] = $t;
+    }
 }
-foreach ($groupedShoots as $date => $titles) {
-    $count   = count($titles);
-    $summary = $count === 1 ? '🎥 Drehtag – ' . $titles[0] : '🎥 Drehtag (' . $count . ' Videos)';
-    $descParts = [$count === 1 ? 'Video:' : 'Videos:'];
-    foreach ($titles as $t) $descParts[] = '• ' . $t;
+foreach ($groupedShoots as $date => $groups) {
+    $totalVideos = array_sum(array_map('count', $groups));
+    $allTitles   = array_merge(...array_values($groups));
+    $summary = $totalVideos === 1 ? '🎥 Drehtag – ' . $allTitles[0] : '🎥 Drehtag (' . $totalVideos . ' Videos)';
+    ksort($groups);
+    $descParts = [$totalVideos === 1 ? 'Video:' : 'Videos (' . $totalVideos . '):'];
+    foreach ($groups as $custN => $titles) {
+        $kuerzel = ics_make_kuerzel($custN);
+        $descParts[] = "[{$kuerzel}] {$custN}:";
+        foreach ($titles as $t) $descParts[] = '  • ' . $t;
+    }
     $desc = implode('\\n', array_map('ics_escape', $descParts));
     $lines[] = 'BEGIN:VEVENT';
     $lines[] = 'UID:shootdate-' . ics_allday($date) . '@dodidis.media';
