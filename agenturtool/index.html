@@ -4041,18 +4041,23 @@ function needsPostingDate(p) {
 // Projekt noch "geplant" aber Drehtag + 3 Stunden ist bereits vorbei → "nicht gedreht".
 function isNichtGedreht(p) {
   if (!p || p.status !== STATUS.GEPLANT) return false;
-  const shootDate = p.shootDate;
-  if (!shootDate) return false;
+  let shootDate = p.shootDate;
   let endHour = 21, endMin = 0;
   if (p.shootDayId) {
+    // Drehtag kann umgeplant worden sein – immer sd.date aus store verwenden,
+    // nicht das beim letzten Projektspeichern kopierte p.shootDate.
     const sd = (store.shootDays || []).find(s => s.id === p.shootDayId);
-    if (sd?.endTime) {
-      const parts = sd.endTime.split(':');
-      const h = parseInt(parts[0], 10);
-      const m = parseInt(parts[1] || '0', 10);
-      if (!isNaN(h)) { endHour = h; endMin = isNaN(m) ? 0 : m; }
+    if (sd) {
+      shootDate = sd.date;
+      if (sd.endTime) {
+        const parts = sd.endTime.split(':');
+        const h = parseInt(parts[0], 10);
+        const m = parseInt(parts[1] || '0', 10);
+        if (!isNaN(h)) { endHour = h; endMin = isNaN(m) ? 0 : m; }
+      }
     }
   }
+  if (!shootDate) return false;
   const cutoff = new Date(shootDate + 'T00:00:00');
   cutoff.setHours(endHour + 3, endMin, 0, 0);
   return new Date() > cutoff;
