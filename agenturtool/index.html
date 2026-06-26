@@ -4796,6 +4796,68 @@ function toggleMobileSidebar() {
   bd.classList.toggle('show', open);
 }
 
+/* ----------- SWIPE GESTURE: SIDEBAR ----------- */
+(function initSidebarSwipe() {
+  const EDGE_ZONE = 40;   // px from left edge to start open-swipe
+  const MIN_DIST  = 50;   // min horizontal distance to count as swipe
+  const MAX_VERT  = 80;   // max vertical drift before gesture is cancelled
+  const MIN_VEL   = 0.3;  // px/ms threshold (optional speed gate)
+
+  let startX = 0, startY = 0, startTime = 0, tracking = false;
+
+  document.addEventListener('touchstart', (e) => {
+    // Only engage on mobile (sidebar in slide-out mode)
+    if (window.innerWidth > 900) return;
+    const touch = e.touches[0];
+    const sb = document.querySelector('.sidebar');
+    const isOpen = sb && sb.classList.contains('open');
+    // Open: touch anywhere; Close: only if inside sidebar or from the left
+    if (!isOpen && touch.clientX > EDGE_ZONE) return;
+    startX    = touch.clientX;
+    startY    = touch.clientY;
+    startTime = e.timeStamp;
+    tracking  = true;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!tracking) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    // Cancel if vertical movement dominates early (user is scrolling)
+    if (Math.abs(dy) > MAX_VERT && Math.abs(dx) < MIN_DIST) {
+      tracking = false;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+    const touch = e.changedTouches[0];
+    const dx       = touch.clientX - startX;
+    const dy       = touch.clientY - startY;
+    const dt       = e.timeStamp - startTime;
+    const vel      = Math.abs(dx) / dt;
+    const sb       = document.querySelector('.sidebar');
+    const bd       = document.getElementById('sidebar-backdrop');
+    if (!sb || !bd) return;
+
+    // Reject if mostly vertical
+    if (Math.abs(dy) > Math.abs(dx) * 1.5) return;
+
+    const isOpen = sb.classList.contains('open');
+    if (!isOpen && dx >= MIN_DIST && vel >= MIN_VEL) {
+      // Swipe right → open
+      sb.classList.add('open');
+      bd.classList.add('show');
+    } else if (isOpen && dx <= -MIN_DIST && vel >= MIN_VEL) {
+      // Swipe left → close
+      sb.classList.remove('open');
+      bd.classList.remove('show');
+    }
+  }, { passive: true });
+})();
+
 /* ----------- PAGE RENDERER ----------- */
 function renderPage() {
   const session = getCurrentUser();
