@@ -911,6 +911,13 @@
   tr.row-no-posting td:first-child { box-shadow: inset 3px 0 0 rgba(245,158,11,0.55); }
   .card.card-no-posting { border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.05); }
 
+  /* Nicht gedreht: Drehtag vorbei, Status noch „geplant" → rot hervorheben. */
+  .badge-nicht-gedreht { color: #ff453a; background: rgba(255,69,58,0.13); border-color: rgba(255,69,58,0.32); white-space: nowrap; }
+  tr.row-nicht-gedreht td { background: rgba(255,69,58,0.06); }
+  tr.row-nicht-gedreht td:first-child { box-shadow: inset 3px 0 0 rgba(255,69,58,0.6); }
+  .nicht-gedreht-warn { color: #ff453a; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 5px; margin-top: 5px; }
+  .shootday-header-warn { color: #ff453a; font-size: 11px; font-weight: 700; background: rgba(255,69,58,0.1); border: 1px solid rgba(255,69,58,0.28); border-radius: 5px; padding: 2px 8px; }
+
   /* Auto-Resize-Textarea: wächst mit dem Inhalt, kein interner Scrollbalken. */
   textarea.autogrow { resize: none; overflow: hidden; field-sizing: content; }
 
@@ -2030,6 +2037,8 @@
   .ical-event.phase-vacation { background: linear-gradient(90deg,rgba(148,163,184,0.30),rgba(100,116,139,0.22)); color: #e2e8f0; border: 1px solid rgba(148,163,184,0.28); }
   .ical-event.phase-deadline { background: linear-gradient(90deg,rgba(239,68,68,0.30),rgba(220,38,38,0.20)); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
   .ical-event.phase-todo     { background: linear-gradient(90deg,rgba(100,210,255,0.22),rgba(56,189,248,0.14)); color: #7dd3fc; border: 1px solid rgba(100,210,255,0.18); }
+  .ical-event.nicht-gedreht  { background: linear-gradient(90deg,rgba(255,69,58,0.32),rgba(220,38,38,0.22))!important; color: #fca5a5!important; border-color: rgba(255,69,58,0.4)!important; }
+  .month-bar.nicht-gedreht   { background: linear-gradient(90deg,rgba(255,69,58,0.35),rgba(220,38,38,0.22))!important; color: #fca5a5!important; }
 
   /* Mobile: ultra-compact calendar */
   @media (max-width: 640px) {
@@ -4027,6 +4036,26 @@ function needsPostingDate(p) {
   if (!p || p.isInternal || p.postingDate) return false;
   if (p.status === 'geplant' || p.status === 'gedreht' || p.status === 'schnitt' || p.status === 'korrektur') return true;
   return p.status === 'idee' && !!p.customerId;
+}
+
+// Projekt noch "geplant" aber Drehtag + 3 Stunden ist bereits vorbei → "nicht gedreht".
+function isNichtGedreht(p) {
+  if (!p || p.status !== STATUS.GEPLANT) return false;
+  const shootDate = p.shootDate;
+  if (!shootDate) return false;
+  let endHour = 21, endMin = 0;
+  if (p.shootDayId) {
+    const sd = (store.shootDays || []).find(s => s.id === p.shootDayId);
+    if (sd?.endTime) {
+      const parts = sd.endTime.split(':');
+      const h = parseInt(parts[0], 10);
+      const m = parseInt(parts[1] || '0', 10);
+      if (!isNaN(h)) { endHour = h; endMin = isNaN(m) ? 0 : m; }
+    }
+  }
+  const cutoff = new Date(shootDate + 'T00:00:00');
+  cutoff.setHours(endHour + 3, endMin, 0, 0);
+  return new Date() > cutoff;
 }
 
 // 2-3-Zeichen Abkürzung aus Kundenname: "Dodidis Media" → "DM", "Auto Müller GmbH" → "AM"
@@ -6531,9 +6560,14 @@ function renderProjects(session) {
     const noPostingBadge = noPosting
       ? `<span class="badge badge-no-posting">Kein Posting-Datum festgelegt</span>`
       : '';
+    const nichtGedreht = isNichtGedreht(p);
+    const nichtGedrehtBadge = nichtGedreht
+      ? `<span class="badge badge-nicht-gedreht">Nicht gedreht</span>`
+      : '';
+    const rowCls = nichtGedreht ? 'row-nicht-gedreht' : (noPosting ? 'row-no-posting' : '');
     return `
-      <tr class="${noPosting ? 'row-no-posting' : ''}" style="cursor:pointer" onclick="openProjectModal('${p.id}')">
-        <td><div class="row-title"><strong>${escape(p.title)}</strong>${ideaTrash}${noPostingBadge}</div></td>
+      <tr class="${rowCls}" style="cursor:pointer" onclick="openProjectModal('${p.id}')">
+        <td><div class="row-title"><strong>${escape(p.title)}</strong>${ideaTrash}${nichtGedrehtBadge}${noPostingBadge}</div></td>
         <td>${customerCell}</td>
         <td><span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span></td>
         <td>${escape(vg?.name || '–')}</td>
@@ -6569,12 +6603,14 @@ function renderProjects(session) {
       const vg = store.users.find(u => u.id === sd.videografId);
       const cust = store.customers.find(c => c.id === sd.customerId);
       const headerText = `${fmtDate(sd.date)} · ${sd.startTime}–${sd.endTime}${vg ? ' · ' + vg.name : ''}${cust ? ' · ' + cust.name : ''}`;
+      const hasNichtGedreht = g.projects.some(p => isNichtGedreht(p));
       return `
-        <div class="card mb-4">
+        <div class="card mb-4" style="${hasNichtGedreht ? 'border-color:rgba(255,69,58,0.35);' : ''}">
           <div class="card-header" style="cursor:pointer;" onclick="openShootDayModal('${sd.id}')">
             <div class="card-title" style="display:flex; align-items:center; gap:10px;">
               <span style="background:rgba(167,139,250,0.2); color:#c4b5fd; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:700; letter-spacing:0.4px;">🎥 DREHTAG</span>
               <span>${escape(headerText)}</span>
+              ${hasNichtGedreht ? `<span class="shootday-header-warn">⚠ Bitte neu planen</span>` : ''}
               <span style="margin-left:auto; font-size:12px; color:var(--text-3); font-weight:500;">${g.projects.length} Video${g.projects.length === 1 ? '' : 's'}</span>
             </div>
           </div>
@@ -7452,6 +7488,7 @@ function openProjectModal(projectId = null, forceFull = false) {
                       return `<option value="${sd.id}" data-date="${sd.date}" data-videograf="${sd.videografId || ''}" ${project?.shootDayId === sd.id ? 'selected' : ''}>${escape(label)}</option>`;
                     }).join('')}
                   </select>
+                  ${project && isNichtGedreht(project) ? `<div class="nicht-gedreht-warn">⚠ Nicht gedreht – bitte neu planen</div>` : ''}
                 </div>
               </div>
               <div class="form-row" id="manual-shootDate-row" style="${project?.shootDayId ? 'display:none;' : ''}">
@@ -9588,7 +9625,8 @@ function buildCalendarBars(session) {
   const isAdmin = hasRole(user, ROLES.ADMIN);
   // Cutter sehen das Posting NICHT – sie kümmern sich nur um ihre Deadline
   const showsPostings = hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF);
-  const myProjects = getRelevantProjects(user).filter(p => p.status !== STATUS.ARCHIVIERT);
+  // IDEE-Status aus Kalender ausblenden: zurückgeschobene Ideen verschwinden wieder.
+  const myProjects = getRelevantProjects(user).filter(p => p.status !== STATUS.ARCHIVIERT && p.status !== STATUS.IDEE);
   const bars = [];
 
   // Drehtage als eigene Entitäten – EINE Bar pro Drehtag, unabhängig wie viele Projekte zugewiesen sind
@@ -9632,7 +9670,8 @@ function buildCalendarBars(session) {
     const sd = p.shootDate || null;
     const pd = p.postingDate || null;
     const dl = p.deadline || null; // = Cutter-Deadline
-    const base = { projectId: p.id, title: p.title, customer: customerName, kuerzel, fullTitle };
+    const nichtGedreht = isNichtGedreht(p);
+    const base = { projectId: p.id, title: p.title, customer: customerName, kuerzel, fullTitle, nichtGedreht };
 
     // KEIN 'shoot' mehr pro Projekt – Drehtag ist nur die Drehtag-Entität oben
 
@@ -9995,7 +10034,7 @@ function renderMonthBar(b, startIdx, endIdx, cutsLeft, cutsRight) {
   else text = b.title;
   const showMChip = b.kuerzel && b.phase !== 'shoot' && b.phase !== 'vacation';
   const mChip = showMChip ? `<span class="ical-kuerzel-chip">${escape(b.kuerzel)}</span>` : '';
-  const cls = `month-bar phase-${b.phase} ${cutsLeft ? 'cuts-left' : ''} ${cutsRight ? 'cuts-right' : ''}`;
+  const cls = `month-bar phase-${b.phase} ${b.nichtGedreht ? 'nicht-gedreht' : ''} ${cutsLeft ? 'cuts-left' : ''} ${cutsRight ? 'cuts-right' : ''}`;
   const click = b.vacationId ? `onclick="navigateTo('vacation')"` : `onclick="openProjectModal('${b.projectId}')"`;
   const time = b.time ? `<span class="month-bar-time">${b.time}</span>` : '';
   const tooltipPrefix = labels[b.phase] ? labels[b.phase] + ': ' : '';
@@ -10327,7 +10366,7 @@ function renderCategoryEvent(b, row, startCol, endCol) {
   // Kürzel als Kreis-Chip neben dem Balken-Text (nicht als plain-Text-Prefix)
   const showChip = b.kuerzel && b.phase !== 'shoot' && b.phase !== 'vacation' && b.phase !== 'todo';
   const kuerzelChip = showChip ? `<span class="ical-kuerzel-chip">${escape(b.kuerzel)}</span>` : '';
-  const cls = `ical-event phase-${b.phase} ${b.cutsLeft ? 'cuts-left' : ''} ${b.cutsRight ? 'cuts-right' : ''}`;
+  const cls = `ical-event phase-${b.phase} ${b.nichtGedreht ? 'nicht-gedreht' : ''} ${b.cutsLeft ? 'cuts-left' : ''} ${b.cutsRight ? 'cuts-right' : ''}`;
   let click;
   if (b.shootDayId) click = `onclick="openShootDayModal('${b.shootDayId}')"`;
   else if (b.vacationId) click = `onclick="navigateTo('vacation')"`;
