@@ -3983,10 +3983,12 @@ function getProjectPhase(p) {
   return PHASE_OF_STATUS[s] || 'ideen';
 }
 // Aktives Projekt in Planung/Produktion ohne Posting-Datum → dezenter Orange-Hinweis.
-// Ideen (idee) sowie abgeschlossene/archivierte/interne Projekte sind ausgenommen.
+// Greift auch für umgewandelte Ideen (Status 'idee' MIT Kunde = Projekt in Planung, auch ohne
+// Drehtag). Rohe Ideen (ohne Kunde) sowie interne/abgeschlossene/archivierte Projekte ausgenommen.
 function needsPostingDate(p) {
   if (!p || p.isInternal || p.postingDate) return false;
-  return p.status === 'geplant' || p.status === 'gedreht' || p.status === 'schnitt' || p.status === 'korrektur';
+  if (p.status === 'geplant' || p.status === 'gedreht' || p.status === 'schnitt' || p.status === 'korrektur') return true;
+  return p.status === 'idee' && !!p.customerId;
 }
 let projectPhaseTab = 'ideen';
 function setProjectPhase(ph) {
