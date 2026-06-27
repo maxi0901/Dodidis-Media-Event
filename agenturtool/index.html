@@ -6986,8 +6986,11 @@ async function submitSeriesPlan(e) {
   const errors = [];
   const created = [];
   const customer = store.customers.find(c => c.id === cid);
+  // Nur die tatsächlich in der Vorschau gerenderten Zeilen anlegen (kann < count sein).
+  const previewDates = generatePostingDates(cid, shoot, count);
+  const actualCount = previewDates.length;
 
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < actualCount; i++) {
     const postingDate = form[`postingDate_${i}`]?.value;
     const deadline    = form[`deadline_${i}`]?.value;
     const cutterId    = form[`cutterId_${i}`]?.value || null;
@@ -9475,7 +9478,7 @@ function openCustomerModal(customerId = null) {
                 <div class="weekday-picker">
                   ${['So','Mo','Di','Mi','Do','Fr','Sa'].map((day, i) => {
                     const isActive = (c.postingWeekdays || '').split(',').filter(Boolean).includes(String(i));
-                    return `<label class="weekday-chip ${isActive ? 'wd-active' : ''}" onclick="this.classList.toggle('wd-active');this.querySelector('input').checked=this.classList.contains('wd-active')">
+                    return `<label class="weekday-chip ${isActive ? 'wd-active' : ''}" onclick="event.preventDefault();this.classList.toggle('wd-active');this.querySelector('input').checked=this.classList.contains('wd-active')">
                       <input type="checkbox" name="wd_${i}" ${isActive ? 'checked' : ''} style="display:none;" />
                       ${day}
                     </label>`;
