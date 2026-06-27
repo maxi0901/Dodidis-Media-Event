@@ -10169,7 +10169,8 @@ function buildCalendarBars(session) {
     // Teal-Posting-Segment: von Deadline+1 bis Posting-Datum
     if (pd && showsPostings) {
       const postStart = (dl && dl < pd) ? addDays(dl, 1) : pd;
-      bars.push({ ...base, phase: 'posting', startDate: postStart, endDate: pd, time: '18:00' });
+      // postingDate = echtes Posting-Datum (endDate), nicht der visuelle Balken-Start (deadline+1)
+      bars.push({ ...base, phase: 'posting', startDate: postStart, endDate: pd, postingDate: pd, time: '18:00' });
     }
 
     // Separater Deadline-Balken entfällt – Deadline ist der rechte Rand der Produktionslinie
@@ -10526,7 +10527,7 @@ function renderMonthBar(b, startIdx, endIdx, cutsLeft, cutsRight) {
   const _canDnd = _calSess && _calSess.type === 'staff' && hasRole(_calSess.user, ROLES.ADMIN, ROLES.MANAGER);
   const isDraggable = !isMobile && _canDnd && b.phase === 'posting' && b.projectId && !cutsLeft;
   const dndAttrs = isDraggable
-    ? ` draggable="true" ondragstart="calDragStart(event,'${b.projectId}','${b.startDate}')" ondragend="calDragEnd(event)"`
+    ? ` draggable="true" ondragstart="calDragStart(event,'${b.projectId}','${b.postingDate || b.startDate}')" ondragend="calDragEnd(event)"`
     : '';
   return `<div class="${cls}" style="grid-column: ${startIdx+1} / ${endIdx+2}; grid-row: ${b.lane+2};"${dndAttrs} ${click} title="${escape(title)}">${avatar}${time}${mChip}<span class="month-bar-title">${escape(text)}</span></div>`;
 }
@@ -10878,7 +10879,7 @@ function renderCategoryEvent(b, row, startCol, endCol) {
   const _canDndCat = _catSess && _catSess.type === 'staff' && hasRole(_catSess.user, ROLES.ADMIN, ROLES.MANAGER);
   const isDraggable = !isMobile && _canDndCat && b.phase === 'posting' && b.projectId && !b.cutsLeft;
   const dndAttrs = isDraggable
-    ? ` draggable="true" ondragstart="calDragStart(event,'${b.projectId}','${b.startDate}')" ondragend="calDragEnd(event)"`
+    ? ` draggable="true" ondragstart="calDragStart(event,'${b.projectId}','${b.postingDate || b.startDate}')" ondragend="calDragEnd(event)"`
     : '';
   return `<div class="${cls}" style="grid-column: ${startCol} / ${endCol}; grid-row: ${row};"${dndAttrs} ${click} title="${escape(title)}"><div class="ical-event-inner">${avatar}${kuerzelChip}<span class="ical-event-label">${escape(text)}</span></div></div>`;
 }
