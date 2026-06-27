@@ -50,4 +50,10 @@ return [
     // --- Migration ---
     // Wenn nicht leer, kann migrate_legacy.php via ?token=… aus dem Browser gestartet werden
     'migration_token' => '',
+
+    // --- n8n / externe API (Maschine-zu-Maschine) ---
+    // Gültiger Schlüssel für die content_*-Endpunkte (Header: X-API-KEY).
+    // Leer = alle API-Key-Endpunkte antworten mit 401 (fail-closed).
+    // Bei Bedarf rotieren: einfach neuen Wert eintragen.
+    'api_key' => 'n8n_782ed8efb0d186e6140598deb85bec4986b80fcbbbdc8a59',
 ];

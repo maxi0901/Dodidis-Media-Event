@@ -47,8 +47,8 @@ $isCutterOnly = $isCutter && !$isAdmin && !$isManager && !$isVideograf;
 
 // ── Projekte holen ──────────────────────────────────────────────────────────
 $pCols = "p.id, p.title, p.customer_id AS customerId, p.videograf_id AS videografId,
-          p.cutter_id AS cutterId, COALESCE(p.shoot_date, sd.date) AS shootDate, p.deadline,
-          p.posting_date AS postingDate, p.script, p.status";
+          p.cutter_id AS cutterId, COALESCE(p.shoot_date, sd.date) AS shootDate, p.shoot_day_id AS shootDayId,
+          p.deadline, p.posting_date AS postingDate, p.script, p.status";
 
 if ($isAdmin || $isManager) {
     $projects = db_all(
@@ -69,14 +69,16 @@ if ($isAdmin || $isManager) {
     $projects = [];
 }
 
-// ── Kunden-Namen (Map id → label) ──────────────────────────────────────────
+// ── Kunden-Namen (Map id → label/name) ─────────────────────────────────────
 $customerIds = array_unique(array_filter(array_column($projects, 'customerId')));
-$customerMap = [];
+$customerMap = []; // id → "Name (Nr)" für Event-Details
+$customerName = []; // id → "Name" für Kürzel-Gruppierung
 if ($customerIds) {
     $ph   = implode(',', array_fill(0, count($customerIds), '?'));
     $rows = db_all("SELECT id, name, customer_number AS num FROM customers WHERE id IN ($ph)", $customerIds);
     foreach ($rows as $r) {
-        $customerMap[$r['id']] = $r['name'] . ' (' . $r['num'] . ')';
+        $customerMap[$r['id']]  = $r['name'] . ' (' . $r['num'] . ')';
+        $customerName[$r['id']] = $r['name'];
     }
 }
 
@@ -172,6 +174,16 @@ try {
 function ics_escape(string $s): string {
     return str_replace(['\\', ';', ',', "\n", "\r"], ['\\\\', '\\;', '\\,', '\\n', ''], $s);
 }
+function ics_make_kuerzel(string $name): string {
+    if ($name === '') return '?';
+    $stripped = preg_replace('/\b(GmbH|AG|KG|UG|GbR|OHG|Ltd|Inc|e\.V\.)\b/iu', '', $name);
+    $stripped = trim(preg_replace('/\s+/', ' ', $stripped ?? $name));
+    $words = array_values(array_filter(preg_split('/[\s\-_]+/', $stripped) ?: [], fn($w) => preg_match('/[A-Za-z\x{00C0}-\x{017E}]/u', $w)));
+    if (count($words) >= 2) {
+        return mb_strtoupper(implode('', array_map(fn($w) => mb_substr($w, 0, 1), array_slice($words, 0, 3))));
+    }
+    return mb_strtoupper(mb_substr(preg_replace('/\s/', '', $stripped) ?: '?', 0, 3));
+}
 function ics_allday(string $date): string {
     return date('Ymd', (int)strtotime($date));
 }
@@ -205,8 +217,15 @@ $lines = [
 ];
 
 // ── Projekte als Events ────────────────────────────────────────────────────
+// Drehtage werden NICHT mehr pro Video erzeugt, sondern je Drehtag zu EINEM Event
+// gebündelt; die einzelnen Videos stehen nach Kunden gruppiert in der Beschreibung.
+$videosByShootDay   = []; // shoot_day_id => [custName => [Videotitel, …], …]
+$shootDayDate       = []; // shoot_day_id => Datum
+$videosByManualDate = []; // Datum => [custName => [Videotitel, …], …]
+$emittedShootDays   = []; // shoot_day_id => true, wenn der Drehtag bereits als Event ausgegeben wurde
 foreach ($projects as $p) {
     $cLabel = $customerMap[$p['customerId']] ?? '–';
+    $cName  = $customerName[$p['customerId']] ?? ($customerMap[$p['customerId']] ?? '–');
     $vgName = $userMap[$p['videografId']] ?? '–';
     $ctName = $userMap[$p['cutterId']]    ?? '–';
     $desc   = "Kunde: {$cLabel}\\nVideograf: {$vgName}\\nCutter: {$ctName}\\nStatus: {$p['status']}";
@@ -214,17 +233,14 @@ foreach ($projects as $p) {
         $desc .= '\\nSkript: ' . ics_escape($p['script']);
     }
 
-    // Drehtag
+    // Drehtag: kein Event pro Video – stattdessen Video je Drehtag/Kunde sammeln.
     if ($p['shootDate']) {
-        $lines[] = 'BEGIN:VEVENT';
-        $lines[] = 'UID:project-' . $p['id'] . '-shoot@dodidis.media';
-        $lines[] = 'DTSTAMP:' . $stamp;
-        $lines[] = 'DTSTART;VALUE=DATE:' . ics_allday($p['shootDate']);
-        $lines[] = 'DTEND;VALUE=DATE:'   . ics_allday_next($p['shootDate']);
-        $lines[] = 'SUMMARY:🎥 Drehtag – ' . ics_escape($p['title']);
-        $lines[] = 'DESCRIPTION:' . ics_escape($desc);
-        $lines[] = 'CATEGORIES:Drehtag';
-        $lines[] = 'END:VEVENT';
+        if (!empty($p['shootDayId'])) {
+            $videosByShootDay[$p['shootDayId']][$cName][] = $p['title'];
+            $shootDayDate[$p['shootDayId']] = $p['shootDate'];
+        } else {
+            $videosByManualDate[$p['shootDate']][$cName][] = $p['title'];
+        }
     }
 
     // Posting-Deadline (18 Uhr, Tag vor Posting) + Posting
@@ -278,12 +294,25 @@ foreach ($projects as $p) {
 
 // ── Drehtage als Events ────────────────────────────────────────────────────
 foreach ($shootDays as $sd) {
+    $emittedShootDays[$sd['id']] = true;
     $cLabel  = $customerMap[$sd['customerId']] ?? null;
     $vgName  = $userMap[$sd['videografId']] ?? '–';
     $summary = '📷 Drehtag' . ($cLabel ? ' – ' . $cLabel : '');
     $descParts = ["Videograf: {$vgName}"];
     if ($cLabel) $descParts[] = "Kunde: {$cLabel}";
     if ($sd['note']) $descParts[] = $sd['note'];
+    // Videos dieses Drehtags – nach Kunden gruppiert, mit Kürzel-Prefix.
+    $sdGroups = $videosByShootDay[$sd['id']] ?? [];
+    if ($sdGroups) {
+        ksort($sdGroups);
+        $totalVideos = array_sum(array_map('count', $sdGroups));
+        $descParts[] = $totalVideos === 1 ? 'Video:' : 'Videos (' . $totalVideos . '):';
+        foreach ($sdGroups as $custN => $titles) {
+            $kuerzel = ics_make_kuerzel($custN);
+            $descParts[] = "[{$kuerzel}] {$custN}:";
+            foreach ($titles as $t) $descParts[] = '  • ' . $t;
+        }
+    }
     $desc = implode('\\n', array_map('ics_escape', $descParts));
 
     // Abgesagter Drehtag (alter Termin bei Verschiebung)
@@ -326,6 +355,42 @@ foreach ($shootDays as $sd) {
     }
 }
 
+// ── Gruppierte Drehtag-Events (ein Drehtag = ein Event, Videos in der Beschreibung) ──
+// Deckt ab: manuelle Drehdaten ohne Drehtag-Eintrag UND Drehtage, die der Nutzer nicht
+// als eigenes Event sieht (z. B. Cutter ohne Drehtag-Zugriff). Mehrere Drehtage am selben
+// Datum werden zusammengefasst.
+$groupedShoots = $videosByManualDate; // [Datum => [custName => Titel[]]]
+foreach ($videosByShootDay as $sdId => $groups) {
+    if (!empty($emittedShootDays[$sdId])) continue; // bereits als 📷 Drehtag ausgegeben
+    $d = $shootDayDate[$sdId] ?? null;
+    if (!$d) continue;
+    foreach ($groups as $custN => $titles) {
+        foreach ($titles as $t) $groupedShoots[$d][$custN][] = $t;
+    }
+}
+foreach ($groupedShoots as $date => $groups) {
+    $totalVideos = array_sum(array_map('count', $groups));
+    $allTitles   = array_merge(...array_values($groups));
+    $summary = $totalVideos === 1 ? '🎥 Drehtag – ' . $allTitles[0] : '🎥 Drehtag (' . $totalVideos . ' Videos)';
+    ksort($groups);
+    $descParts = [$totalVideos === 1 ? 'Video:' : 'Videos (' . $totalVideos . '):'];
+    foreach ($groups as $custN => $titles) {
+        $kuerzel = ics_make_kuerzel($custN);
+        $descParts[] = "[{$kuerzel}] {$custN}:";
+        foreach ($titles as $t) $descParts[] = '  • ' . $t;
+    }
+    $desc = implode('\\n', array_map('ics_escape', $descParts));
+    $lines[] = 'BEGIN:VEVENT';
+    $lines[] = 'UID:shootdate-' . ics_allday($date) . '@dodidis.media';
+    $lines[] = 'DTSTAMP:' . $stamp;
+    $lines[] = 'DTSTART;VALUE=DATE:' . ics_allday($date);
+    $lines[] = 'DTEND;VALUE=DATE:'   . ics_allday_next($date);
+    $lines[] = 'SUMMARY:' . ics_escape($summary);
+    $lines[] = 'DESCRIPTION:' . $desc;
+    $lines[] = 'CATEGORIES:Drehtag';
+    $lines[] = 'END:VEVENT';
+}
+
 // ── Verschobene Projekt-Drehtage als ABGESAGT-Events ──────────────────────
 foreach ($shootHistory as $h) {
     $cLabel       = $customerMap[$h['customerId']] ?? '–';
@@ -357,6 +422,33 @@ foreach ($vacations as $v) {
 }
 
 $lines[] = 'END:VCALENDAR';
+
+// ── Abo-Filter: nur ausgewählte Kategorien ausliefern ────────────────────────
+// Optionaler URL-Parameter ?cats=drehtag,deadline,posting,urlaub
+// (leer oder "all" = alles). Ermöglicht z. B. ein Abo nur mit Drehtagen.
+$catsParam = strtolower(trim($_GET['cats'] ?? ''));
+if ($catsParam !== '' && $catsParam !== 'all') {
+    $allowed  = array_filter(array_map('trim', explode(',', $catsParam)));
+    $filtered = [];
+    $block    = null;
+    foreach ($lines as $ln) {
+        if ($ln === 'BEGIN:VEVENT') { $block = [$ln]; continue; }
+        if ($block === null) { $filtered[] = $ln; continue; }
+        $block[] = $ln;
+        if ($ln === 'END:VEVENT') {
+            $cat = '';
+            foreach ($block as $bl) {
+                if (strncmp($bl, 'CATEGORIES:', 11) === 0) { $cat = strtolower(trim(substr($bl, 11))); break; }
+            }
+            // Events ohne Kategorie immer behalten; sonst nur erlaubte Kategorien.
+            if ($cat === '' || in_array($cat, $allowed, true)) {
+                foreach ($block as $bl) $filtered[] = $bl;
+            }
+            $block = null;
+        }
+    }
+    $lines = $filtered;
+}
 
 $ics = implode("\r\n", $lines) . "\r\n";
 

@@ -14,11 +14,18 @@ if (in_array($method, ['POST', 'PUT', 'DELETE'], true)) {
     require_csrf();
 }
 
+// NAS-Freigabelinks sind staff-intern: niemals an Kunden ausliefern (sonst könnten
+// Kunden die Roh-/Export-/Freigabe-Links über die rohe API auslesen).
+$isStaff = (($session['type'] ?? 'staff') === 'staff');
 $cols = "id, title, customer_id AS customerId, videograf_id AS videografId,
          cutter_id AS cutterId, shoot_date AS shootDate, shoot_day_id AS shootDayId,
          deadline, posting_date AS postingDate, script, status,
          is_internal AS isInternal, approved_at AS approvedAt,
          created_at AS createdAt, updated_at AS updatedAt";
+if ($isStaff) {
+    $cols .= ", nas_rohmaterial_url AS nasRohmaterialUrl, nas_export_url AS nasExportUrl,
+               nas_freigabe_url AS nasFreigabeUrl";
+}
 
 switch ($method) {
 
@@ -89,7 +96,7 @@ switch ($method) {
         } catch (\Throwable $e) {
             // status-Spalte fehlt – nachrüsten und erneut versuchen
             try {
-                db()->exec("ALTER TABLE projects ADD COLUMN status ENUM('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert') NOT NULL DEFAULT 'skript'");
+                db()->exec("ALTER TABLE projects ADD COLUMN status ENUM('idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert') NOT NULL DEFAULT 'skript'");
             } catch (\Throwable $_) {}
             try {
                 $cur = db_one("SELECT id, title, videograf_id, cutter_id, customer_id, status, shoot_date FROM projects WHERE id = ?", [$id]);
@@ -109,9 +116,13 @@ switch ($method) {
             json_err(403, 'Keine Berechtigung.');
         }
 
-        // Videograf/Cutter dürfen nur status (+ approved_at via Status 'freigegeben') ändern
+        // Videograf/Cutter dürfen nur status (+ approved_at via Status 'freigegeben') ändern.
+        // Sonderrecht: der zugewiesene Cutter darf zusätzlich seinen Export-Link (03_Exporte_Cutter)
+        // setzen. Rohmaterial- und Freigabe-Link bleiben admin/manager-only.
         if (!$isPriv) {
-            $b = array_intersect_key($b, ['status' => 1]);
+            $allowed = ['status' => 1];
+            if ($isCut) $allowed['nasExportUrl'] = 1;
+            $b = array_intersect_key($b, $allowed);
         }
 
         $params = build_project_params($b, false);
@@ -234,7 +245,7 @@ function can_read_project(array $p, array $session): bool
 
 function build_project_params(array $b, bool $forInsert): array
 {
-    $valid = ['skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
+    $valid = ['idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
     $out = [];
 
     if (array_key_exists('title', $b))         $out['title']        = s($b['title'], 190);
@@ -246,6 +257,9 @@ function build_project_params(array $b, bool $forInsert): array
     if (array_key_exists('deadline', $b))      $out['deadline']     = as_date((string)$b['deadline']);
     if (array_key_exists('postingDate', $b))   $out['posting_date'] = as_date((string)$b['postingDate']);
     if (array_key_exists('script', $b))        $out['script']       = $b['script'] !== null ? (string)$b['script'] : null;
+    if (array_key_exists('nasRohmaterialUrl', $b)) $out['nas_rohmaterial_url'] = $b['nasRohmaterialUrl'] !== null ? (string)$b['nasRohmaterialUrl'] : null;
+    if (array_key_exists('nasExportUrl', $b))      $out['nas_export_url']      = $b['nasExportUrl'] !== null ? (string)$b['nasExportUrl'] : null;
+    if (array_key_exists('nasFreigabeUrl', $b))    $out['nas_freigabe_url']    = $b['nasFreigabeUrl'] !== null ? (string)$b['nasFreigabeUrl'] : null;
     if (array_key_exists('isInternal', $b))    $out['is_internal']  = as_bool($b['isInternal']);
     if (array_key_exists('status', $b)) {
         $st = $b['status'];

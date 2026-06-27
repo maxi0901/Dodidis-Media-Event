@@ -1,0 +1,49 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * POST /api/content_error.php
+ * n8n meldet einen Fehler beim Veröffentlichen zurück.
+ * Body: { "content_id": 123, "error_message": "..." }
+ * Auth: Header X-API-KEY.
+ */
+
+require_once __DIR__ . '/../includes/api_auth.php';
+
+require_api_key();
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    api_send(405, ['success' => false, 'error' => 'Method not allowed']);
+}
+
+$body      = input_json();
+$contentId = api_require_content_id($body);
+
+$row = db_one("SELECT id, status FROM content_queue WHERE id = ?", [$contentId]);
+if (!$row) {
+    api_send(404, ['success' => false, 'error' => 'Content not found']);
+}
+// Ein Fehler beim Posten kann nur bei einem freigegebenen Eintrag auftreten
+// (Flow: draft → approved → published/error). Schützt vor stale/vertippten content_id.
+if ($row['status'] !== 'approved') {
+    api_send(409, ['success' => false, 'error' => 'Content is not in approved state']);
+}
+
+$set    = ["status = 'error'"];
+$params = [];
+
+if (api_has_column('content_queue', 'error_message')) {
+    $set[]    = 'error_message = ?';
+    $params[] = isset($body['error_message']) ? (string)$body['error_message'] : null;
+}
+if (api_has_column('content_queue', 'updated_at')) {
+    $set[] = 'updated_at = NOW()';
+}
+
+$params[] = $contentId;
+$affected = db_exec("UPDATE content_queue SET " . implode(', ', $set) . " WHERE id = ? AND status = 'approved'", $params);
+if ($affected < 1) {
+    api_send(409, ['success' => false, 'error' => 'Content is not in approved state']);
+}
+
+api_send(200, ['success' => true, 'message' => 'Content marked as error']);

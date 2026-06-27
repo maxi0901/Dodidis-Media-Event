@@ -37,6 +37,7 @@ html, body { margin: 0; padding: 0; }
 html {
     scroll-behavior: smooth;
     scroll-padding-top: 110px;
+    width: 100%;
 }
 
 body {
@@ -44,20 +45,56 @@ body {
     color: var(--text-primary);
     background: var(--bg-primary);
     line-height: 1.55;
-    overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-image:
-        radial-gradient(1100px 700px at 85% -5%, rgba(108, 211, 193, 0.18), transparent 60%),
-        radial-gradient(800px 600px at -10% 30%, rgba(70, 169, 154, 0.12), transparent 60%),
-        radial-gradient(900px 700px at 50% 105%, rgba(53, 143, 129, 0.12), transparent 60%),
-        radial-gradient(600px 400px at 18% 75%, rgba(108, 211, 193, 0.06), transparent 60%);
-    background-attachment: fixed;
     position: relative;
 }
 
-/* ===== Ambient glass orbs ===== */
+/* Horizontal-Scroll-Schutz auf die Inhalts-Container statt auf html/body –
+   so bleibt die sticky-Navi (Vorfahre: body) auf iOS klickbar, während
+   überlaufende Inhalte trotzdem geklippt werden. */
+main,
+.site-footer {
+    overflow-x: hidden;   /* Fallback */
+    overflow-x: clip;
+}
+
+/* Fester Verlaufs-Layer (position:fixed statt `background-attachment: fixed`,
+   das iOS-Safari fehlerhaft rendert). Bewusst sehr dezenter, MONOCHROMER
+   Dunkel-Verlauf: winziger Tonwertbereich -> keine sichtbaren 8-Bit-Stufen
+   (Banding/Streifen). */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background: linear-gradient(160deg, #101b2b 0%, #0E1422 52%, #0b1019 100%);
+}
+
+/* Subtiles Hintergrund-Raster: feine horizontale und vertikale Linien wie im
+   Referenz-Screenshot. Separater Fixed-Layer, damit der Verlauf sauber bleibt
+   und die Linien auf allen Sections gleichmäßig im Hintergrund liegen. */
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        linear-gradient(rgba(245, 248, 255, 0.026) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(245, 248, 255, 0.022) 1px, transparent 1px);
+    background-size: 120px 120px;
+    background-position: top center;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.72), rgba(0,0,0,0.48) 55%, rgba(0,0,0,0.28));
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.72), rgba(0,0,0,0.48) 55%, rgba(0,0,0,0.28));
+}
+
+/* ===== Ambient glass orbs (deaktiviert – nur sauberer Verlauf gewünscht) ===== */
 .ambient {
+    display: none;
     position: fixed;
     inset: 0;
     z-index: -1;
@@ -171,6 +208,7 @@ p { margin: 0; }
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
     white-space: nowrap;
+    max-width: 100%;
     font-family: inherit;
 }
 
@@ -511,7 +549,7 @@ main { padding-top: 2rem; }
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.2rem;
+    gap: 0.4rem;
     position: relative;
     z-index: 5;
 }
@@ -537,6 +575,11 @@ main { padding-top: 2rem; }
 
 .hero-headline-stack .hero-line {
     display: block;
+    /* overflow:visible + breathing room so glyph descenders/caps of the
+       gradient-clipped "Ergebnisse" aren't clipped at the bottom. */
+    overflow: visible;
+    line-height: 1.14;
+    padding-bottom: 0.08em;
 }
 
 .eyebrow-pill {
@@ -566,12 +609,29 @@ main { padding-top: 2rem; }
     position: relative;
     width: 100%;
     max-width: 860px;
-    margin: 1.4rem auto 0.6rem;
+    margin: -0.5rem auto 0;
     aspect-ratio: auto;
     display: flex;
     align-items: flex-end;
     justify-content: center;
     pointer-events: none;
+    /* Cooler Einblend-Effekt: steigt vom Boden hoch, skaliert & blendet ein */
+    transform-origin: bottom center;
+    animation: heroStageIn 1.25s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+    will-change: transform, opacity;
+}
+
+/* Desktop: kleiner Abstand zwischen den CTA-Buttons und dem Hero-Bild,
+   damit sich die Köpfe nicht mit den Buttons überlagern. Mobile bleibt
+   unverändert (dort sitzt das Bild ohnehin weiter unten). */
+@media (min-width: 861px) {
+    .hero-founders-stage { margin-top: 2.5rem; }
+}
+
+@keyframes heroStageIn {
+    0%   { opacity: 0; transform: translateY(70px) scale(0.82); }
+    55%  { opacity: 1; }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .hero-founders-glow {
@@ -591,6 +651,10 @@ main { padding-top: 2rem; }
     50%      { transform: scale(1.04); opacity: 1; }
 }
 
+/* <picture>-Wrapper aus dem Layout nehmen, damit das <img> direkter
+   Flex-Child der Stage bleibt (Zentrierung/Breite wie zuvor). */
+.hero-founders-stage picture { display: contents; }
+
 .hero-founders-cutout {
     position: relative;
     z-index: 2;
@@ -599,8 +663,8 @@ main { padding-top: 2rem; }
     max-width: 100%;
     height: auto;
     margin: 0 auto;
-    transform: translate3d(var(--hero-parallax-x, 0), var(--hero-parallax-y, 0), 0);
-    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    transform: translate3d(var(--hero-parallax-x, 0), var(--hero-parallax-y, 0), 0) scale(var(--hero-scale, 1));
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
     filter: drop-shadow(0 30px 50px rgba(0,0,0,0.55));
     animation: heroFloat 9s ease-in-out infinite;
 }
@@ -620,8 +684,8 @@ main { padding-top: 2rem; }
 }
 
 @keyframes heroFloat {
-    0%, 100% { transform: translate3d(var(--hero-parallax-x, 0), var(--hero-parallax-y, 0), 0); }
-    50%      { transform: translate3d(var(--hero-parallax-x, 0), calc(var(--hero-parallax-y, 0px) - 8px), 0); }
+    0%, 100% { transform: translate3d(var(--hero-parallax-x, 0), var(--hero-parallax-y, 0), 0) scale(var(--hero-scale, 1)); }
+    50%      { transform: translate3d(var(--hero-parallax-x, 0), calc(var(--hero-parallax-y, 0px) - 8px), 0) scale(var(--hero-scale, 1)); }
 }
 
 .hero-tagline-pill {
@@ -867,6 +931,14 @@ main { padding-top: 2rem; }
     color: var(--accent);
 }
 
+/* Akkordeon-Icons: nicht schrumpfen (sonst vertikales Oval) + rund */
+.service-acc-head .service-icon {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+}
+
 .service-card h3 { font-size: 1.05rem; }
 
 .service-card p {
@@ -958,7 +1030,7 @@ main { padding-top: 2rem; }
     position: relative;
     margin-top: 2rem;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     padding: 1.6rem 0.75rem;
     background:
         linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0.06) 100%),
@@ -1372,7 +1444,8 @@ main { padding-top: 2rem; }
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center top;
+    /* Bildmitte exakt im Kreis zentrieren */
+    object-position: center center;
     filter: grayscale(100%) contrast(1.05);
     transition: filter 0.4s ease, transform 0.4s ease;
 }
@@ -1420,10 +1493,14 @@ main { padding-top: 2rem; }
 /* ===== Contact ===== */
 .contact-grid {
     display: grid;
-    grid-template-columns: 1fr 1.1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
     gap: 1.6rem;
     margin-top: 2rem;
 }
+
+/* Karten dürfen im Grid schrumpfen -> kein Überlauf/Abschneiden auf Mobile */
+.contact-card,
+.contact-form-card { min-width: 0; max-width: 100%; }
 
 .contact-card,
 .contact-form-card {
@@ -1499,12 +1576,15 @@ main { padding-top: 2rem; }
     display: flex;
     flex-direction: column;
     gap: 0.95rem;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .contact-form-card label {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
+    min-width: 0;
     color: var(--text-secondary);
     font-weight: 600;
     font-size: 0.85rem;
@@ -1513,6 +1593,9 @@ main { padding-top: 2rem; }
 
 .contact-form-card input,
 .contact-form-card textarea {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     background: rgba(11, 15, 20, 0.55);
     border: 1px solid var(--glass-border);
     border-radius: 12px;
@@ -1813,7 +1896,7 @@ main { padding-top: 2rem; }
     .projects-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .detail-grid { grid-template-columns: 1fr; }
     .about-grid { grid-template-columns: 1fr; }
-    .contact-grid { grid-template-columns: 1fr; }
+    .contact-grid { grid-template-columns: minmax(0, 1fr); }
     .footer-grid { grid-template-columns: 1.4fr 1fr 1fr; }
     .footer-col.contact { grid-column: 1 / -1; }
     .projects-nav { display: none; }
@@ -2310,30 +2393,34 @@ main { padding-top: 2rem; }
 
 .scroll-text-line {
     display: block;
-    font-weight: 900;
+    /* Eigene Display-Schrift fürs Banner (Anton) – klar abweichend von Inter */
+    font-family: "Anton", "Inter", sans-serif;
+    font-weight: 400;
     font-size: clamp(2.6rem, 11vw, 8rem);
-    line-height: 0.95;
-    letter-spacing: -0.02em;
+    line-height: 0.98;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
     white-space: nowrap;
     will-change: transform;
-    --banner-progress: 0;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    --banner-x: 0px;
 }
 
-.scroll-text-line[data-banner-line="left"] {
-    /* Drift in from the right edge so the visible side is the trailing left
-       edge — matches the brandcontent.de "VON UNSICHTBAR" effect. */
-    transform: translate3d(calc((1 - var(--banner-progress)) * 30vw), 0, 0);
-}
-
+.scroll-text-line[data-banner-line="left"],
 .scroll-text-line[data-banner-line="right"] {
-    transform: translate3d(calc((var(--banner-progress) - 1) * 30vw), 0, 0);
+    /* Whole-pixel offset (computed in JS) — no fractional vw transforms. */
+    transform: translate3d(var(--banner-x, 0px), 0, 0);
 }
 
+/* "VON UNSICHTBAR": kein -webkit-text-stroke mehr (das hatte den
+   Outline-Bug). Stattdessen klar gefadet = wirkt "unsichtbar". */
 .scroll-text-outline {
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(245,248,255,0.32);
-    text-stroke: 2px rgba(245,248,255,0.32);
+    color: rgba(245, 248, 255, 0.16);
+    -webkit-text-fill-color: rgba(245, 248, 255, 0.16);
+    -webkit-text-stroke: 0;
+    text-stroke: 0;
 }
 
 .scroll-text-solid {
@@ -2374,8 +2461,8 @@ main { padding-top: 2rem; }
 
 @media (max-width: 720px) {
     .scroll-text-banner { padding: 3rem 0 3.5rem; }
-    .scroll-text-emoji-1 { top: 6%; left: 4%; }
-    .scroll-text-emoji-2 { bottom: 6%; right: 4%; }
+    /* Auf Mobile überlappen die Emojis den vollbreiten Text (Bug) -> ausblenden */
+    .scroll-text-emoji { display: none; }
 }
 
 /* ===== Reduced motion: disable reveals & decorative animation ===== */
@@ -2400,7 +2487,7 @@ main { padding-top: 2rem; }
 
     .scroll-text-line {
         transform: none !important;
-        --banner-progress: 1;
+        --banner-x: 0px;
     }
 }
 
@@ -2504,7 +2591,7 @@ main { padding-top: 2rem; }
     gap: 3rem;
     width: max-content;
     align-items: center;
-    animation: logosScroll 90s linear infinite;
+    animation: logosScroll 30s linear infinite;
     will-change: transform;
 }
 
@@ -2514,21 +2601,29 @@ main { padding-top: 2rem; }
 
 .logo-item {
     flex: 0 0 auto;
-    height: 38px;
+    height: 64px;
     display: inline-flex;
     align-items: center;
-    color: rgba(245,248,255,0.55);
-    transition: color 0.25s ease, transform 0.25s ease;
+    justify-content: center;
+    padding: 0.7rem 1.2rem;
+    /* Helle "Chip"-Fläche: zeigt Logos in Originalfarben und blendet
+       Logos mit weißem Hintergrund sauber ein (funktioniert für alle). */
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .logo-item:hover {
-    color: var(--accent-bright);
-    transform: scale(1.05);
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
 }
 
 .logo-item img {
     height: 100%;
     width: auto;
+    max-width: 170px;
+    object-fit: contain;
     display: block;
 }
 
@@ -2757,17 +2852,17 @@ main { padding-top: 2rem; }
 
 .hebel-side-label {
     font-family: "Inter", sans-serif;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 800;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.02em;
     text-transform: uppercase;
 }
 
 .hebel-side-sub {
     font-family: "Inter", sans-serif;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 600;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.02em;
 }
 
 .hebel-particle {
@@ -2813,6 +2908,14 @@ main { padding-top: 2rem; }
     letter-spacing: -0.01em;
 }
 
+/* Zielgruppen-Begriffe als fette Headline-Akzente */
+.hebel-emph {
+    font-weight: 900;
+    color: var(--accent-bright);
+    font-size: 1.18em;
+    letter-spacing: -0.01em;
+}
+
 /* =================== TESTIMONIALS SECTION =================== */
 
 .testimonials-section { padding-top: 4.5rem; padding-bottom: 6rem; }
@@ -2834,8 +2937,9 @@ main { padding-top: 2rem; }
     .painpoint-card.is-visible { transform: translateY(0); opacity: 1; }
     .hebel-stage { aspect-ratio: 16 / 9; }
     .hebel-section { padding: 4.5rem 0; }
-    .logos-track { gap: 2rem; animation-duration: 70s; }
-    .logo-item { height: 30px; }
+    .logos-track { gap: 2rem; animation-duration: 24s; }
+    .logo-item { height: 50px; padding: 0.55rem 0.9rem; }
+    .logo-item img { max-width: 130px; }
     .section { padding: 4rem 0; }
 }
 
@@ -2937,4 +3041,242 @@ body.is-cta-active .btn-primary:hover {
     .painpoint-chart .chart-dot { opacity: 1; transform: scale(1); transition: none; }
     body.is-cta-active .btn-primary { animation: none; }
     [data-hero-bg] { transform: none; transition: none; }
+}
+
+/* =====================================================================
+   ===== REDESIGN PASS 2 — CTAs, Service-Accordion, Denkblasen ========
+   ===================================================================== */
+
+/* ----- Section CTA (repeated conversion anchors) ----- */
+.section-cta {
+    display: flex;
+    justify-content: center;
+    margin-top: 2.6rem;
+}
+
+.section-cta .btn { font-size: 1rem; }
+
+/* ----- Leistungen: Akkordeon (Drop-down) ----- */
+.service-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.service-acc {
+    position: relative;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0.06) 100%),
+        rgba(18, 24, 33, 0.40);
+    backdrop-filter: blur(28px) saturate(170%);
+    -webkit-backdrop-filter: blur(28px) saturate(170%);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 14px 36px rgba(0,0,0,0.35);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    overflow: hidden;
+}
+
+.service-acc[open],
+.service-acc:hover { border-color: var(--accent); }
+
+.service-acc-head {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+    padding: 1.4rem 1.6rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.service-acc-head::-webkit-details-marker { display: none; }
+.service-acc-head:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: -2px; }
+
+.service-acc-titles { flex: 1 1 auto; min-width: 0; }
+.service-acc-titles h3 { font-size: 1.1rem; margin-bottom: 0.25rem; }
+.service-acc-titles p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.service-acc-arrow {
+    flex: 0 0 auto;
+    color: var(--accent);
+    display: inline-flex;
+    transition: transform 0.3s ease;
+}
+
+.service-acc[open] .service-acc-arrow { transform: rotate(180deg); }
+
+.service-acc-body {
+    padding: 0 1.6rem 1.6rem calc(1.6rem + 46px + 1.1rem);
+}
+
+.service-acc[open] .service-acc-body {
+    animation: accBodyIn 0.32s ease both;
+}
+
+@keyframes accBodyIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.service-acc-body p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    margin-bottom: 0.9rem;
+}
+
+.service-acc-body ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.service-acc-body li {
+    position: relative;
+    padding-left: 1.5rem;
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+}
+
+.service-acc-body li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55rem;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--glow);
+}
+
+@media (max-width: 540px) {
+    .service-acc-head { padding: 1.2rem 1.2rem; gap: 0.85rem; }
+    .service-acc-body { padding: 0 1.2rem 1.3rem 1.2rem; }
+}
+
+/* ----- Painpoint: interaktive Denkblasen ----- */
+.thought-hint {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    margin: 0.2rem 0 1.2rem;
+}
+
+.thought-bubbles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+}
+
+.thought-bubble {
+    position: relative;
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    border-radius: 1.4rem;
+    background: rgba(19, 28, 46, 0.55);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    font-family: "Inter", sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.thought-bubble:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.thought-bubble:focus-visible {
+    outline: 2px solid var(--accent-bright);
+    outline-offset: 2px;
+}
+
+.thought-icon { font-size: 1.05rem; line-height: 1; }
+
+.thought-label { white-space: nowrap; }
+
+/* Collapsed by default; the bubble grows to a full row when opened
+   and the answer text appears on its own line below the label. */
+.thought-text {
+    display: none;
+    flex-basis: 100%;
+    width: 100%;
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.thought-bubble.is-open {
+    flex-basis: 100%;
+    align-items: flex-start;
+    background: var(--accent-soft);
+    border-color: var(--accent);
+}
+
+.thought-bubble.is-open .thought-text {
+    display: block;
+    margin-top: 0.4rem;
+    animation: thoughtIn 0.28s ease both;
+}
+
+@keyframes thoughtIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 540px) {
+    .thought-bubble { font-size: 0.85rem; padding: 0.55rem 0.9rem; }
+}
+
+/* =====================================================================
+   ===== MOBILE: Blöcke/Inhalte mittig zentrieren =====================
+   ===================================================================== */
+@media (max-width: 640px) {
+    /* Lange CTA-Buttons dürfen umbrechen statt den Block zu sprengen */
+    .btn { white-space: normal; }
+
+    /* Sektions-Köpfe & Intros */
+    .section-head,
+    .lead,
+    .about-intro,
+    .hebel-text { text-align: center; }
+    .lead,
+    .about-intro,
+    .section-head > p,
+    .section-head [data-reveal-soft] { margin-left: auto; margin-right: auto; }
+
+    /* Painpoint-Karten (Szenarien) */
+    .painpoint-card { text-align: center; }
+    .painpoint-eyebrow { justify-content: center; }
+    .thought-bubbles { justify-content: center; }
+    .thought-hint { text-align: center; }
+
+    /* Kontakt-Karte: Inhalt + Listen mittig */
+    .contact-card { text-align: center; }
+    .contact-card > ul { align-items: center; }
+    .contact-card > ul li { padding-left: 0; }
+    .contact-card > ul li::before { display: none; }
+    .contact-meta-list li { justify-content: center; min-width: 0; }
+    .contact-meta-list a { overflow-wrap: anywhere; }
+
+    /* Stats: jede Kachel mittig */
+    .stat { justify-content: center; }
+
+    /* Leistungs-Akkordeon: Titel/Text mittig (Icon links, Pfeil rechts) */
+    .service-acc-titles { text-align: center; }
 }

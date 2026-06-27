@@ -367,7 +367,7 @@ if (colExists($pdo, 'projects', 'data') && !colExists($pdo, 'projects', 'title')
 } elseif (!colExists($pdo, 'projects', 'status')) {
     // Neue Schema, aber status-Spalte fehlt noch
     addCol($pdo, 'projects', 'status',
-        "ALTER TABLE projects ADD COLUMN status ENUM('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert') NOT NULL DEFAULT 'skript'",
+        "ALTER TABLE projects ADD COLUMN status ENUM('idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert') NOT NULL DEFAULT 'skript'",
         $results);
 } else {
     $results[] = ['ok' => true, 'label' => "projects: individuelle Spalten bereits vorhanden"];
@@ -378,11 +378,21 @@ addCol($pdo, 'projects', 'updated_at',
     "ALTER TABLE projects ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
     $results);
 
+// ── 18b. projects: NAS-Freigabelinks (Korrekturschleife über Ugreen NAS) ──────
+// 01_Rohmaterial (read-only Cutter), 03_Exporte_Cutter (Cutter-Upload),
+// 04_Freigaben_Manager (finaler Review). Nur Share-Links, keine Dateiübertragung.
+addCol($pdo, 'projects', 'nas_rohmaterial_url',
+    "ALTER TABLE projects ADD COLUMN nas_rohmaterial_url TEXT NULL", $results);
+addCol($pdo, 'projects', 'nas_export_url',
+    "ALTER TABLE projects ADD COLUMN nas_export_url TEXT NULL", $results);
+addCol($pdo, 'projects', 'nas_freigabe_url',
+    "ALTER TABLE projects ADD COLUMN nas_freigabe_url TEXT NULL", $results);
+
 // ── 19. projects: ungültige status-Werte bereinigen + Spalte auf ENUM umstellen ─
 step($pdo, "projects: ungültige status-Werte auf 'skript' zurücksetzen",
     "UPDATE projects SET status = 'skript'
      WHERE status = '' OR status IS NULL
-        OR status NOT IN ('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')",
+        OR status NOT IN ('idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')",
     $results);
 
 try {
@@ -394,7 +404,7 @@ try {
     $typeStmt->execute([$dbName]);
     $colDef = (string)$typeStmt->fetchColumn();
 
-    $required = ['skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
+    $required = ['idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
     $needsUpdate = false;
     foreach ($required as $val) {
         if (strpos($colDef, "'$val'") === false) { $needsUpdate = true; break; }
@@ -403,7 +413,7 @@ try {
     if ($needsUpdate) {
         step($pdo, "projects: status-ENUM aktualisieren (fehlende Werte ergänzen)",
             "ALTER TABLE projects MODIFY COLUMN status
-             ENUM('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')
+             ENUM('idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')
              NOT NULL DEFAULT 'skript'",
             $results);
     } else {
@@ -412,6 +422,18 @@ try {
 } catch (\Throwable $e) {
     $results[] = ['ok' => false, 'label' => "projects.status ENUM-Prüfung fehlgeschlagen: " . $e->getMessage()];
 }
+
+// ── 19b. Bestand: alte Brainstorming-Ideen (skript ohne Kunde/Drehdatum) auf 'idee' heben ─
+// Macht den heuristisch ermittelten Ideen-Status dauerhaft, ohne echte Skript-Projekte
+// (mit Kunde oder Drehdatum) anzufassen.
+step($pdo, "projects: bestehende Ideen (skript ohne Kunde/Datum) auf Status 'idee' migrieren",
+    "UPDATE projects SET status = 'idee'
+      WHERE status = 'skript'
+        AND (customer_id IS NULL OR customer_id = '')
+        AND shoot_date IS NULL
+        AND (shoot_day_id IS NULL OR shoot_day_id = '')
+        AND is_internal = 0",
+    $results);
 
 // ── 20. vacations: approved_by + approved_at nachrüsten ──────────────────────
 addCol($pdo, 'vacations', 'approved_by',
@@ -471,6 +493,62 @@ if (!tableExists($pdo, 'project_comments')) {
     addCol($pdo, 'project_comments', 'voice_filename',
         "ALTER TABLE project_comments ADD COLUMN voice_filename VARCHAR(255) NULL", $results);
 }
+
+// ── 24. content_queue (Social-Media-Content-Queue für n8n-Automation) ─────────
+if (!tableExists($pdo, 'content_queue')) {
+    step($pdo, "content_queue: Tabelle anlegen",
+        "CREATE TABLE content_queue (
+           id                INT UNSIGNED NOT NULL AUTO_INCREMENT,
+           customer_id       VARCHAR(64)  NULL,
+           platform          VARCHAR(50)  NOT NULL DEFAULT 'instagram',
+           content_type      VARCHAR(50)  NOT NULL DEFAULT 'story',
+           caption           TEXT         NULL,
+           media_url         TEXT         NULL,
+           status            VARCHAR(50)  NOT NULL DEFAULT 'draft',
+           approved_by       VARCHAR(64)  NULL,
+           scheduled_at      DATETIME     NULL,
+           published_at      DATETIME     NULL,
+           platform_response TEXT         NULL,
+           error_message     TEXT         NULL,
+           created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           updated_at        DATETIME     NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+           PRIMARY KEY (id),
+           KEY idx_cq_due (status, platform, content_type, scheduled_at, published_at),
+           KEY idx_cq_customer (customer_id),
+           CONSTRAINT fk_cq_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+           CONSTRAINT fk_cq_approver FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "content_queue: bereits vorhanden"];
+    // Fehlende Spalten idempotent nachrüsten (falls eine ähnliche Tabelle schon existierte).
+    addCol($pdo, 'content_queue', 'customer_id',       "ALTER TABLE content_queue ADD COLUMN customer_id VARCHAR(64) NULL", $results);
+    addCol($pdo, 'content_queue', 'platform',          "ALTER TABLE content_queue ADD COLUMN platform VARCHAR(50) NOT NULL DEFAULT 'instagram'", $results);
+    addCol($pdo, 'content_queue', 'content_type',      "ALTER TABLE content_queue ADD COLUMN content_type VARCHAR(50) NOT NULL DEFAULT 'story'", $results);
+    addCol($pdo, 'content_queue', 'caption',           "ALTER TABLE content_queue ADD COLUMN caption TEXT NULL", $results);
+    addCol($pdo, 'content_queue', 'media_url',         "ALTER TABLE content_queue ADD COLUMN media_url TEXT NULL", $results);
+    addCol($pdo, 'content_queue', 'status',            "ALTER TABLE content_queue ADD COLUMN status VARCHAR(50) NOT NULL DEFAULT 'draft'", $results);
+    addCol($pdo, 'content_queue', 'approved_by',       "ALTER TABLE content_queue ADD COLUMN approved_by VARCHAR(64) NULL", $results);
+    addCol($pdo, 'content_queue', 'scheduled_at',      "ALTER TABLE content_queue ADD COLUMN scheduled_at DATETIME NULL", $results);
+    addCol($pdo, 'content_queue', 'published_at',      "ALTER TABLE content_queue ADD COLUMN published_at DATETIME NULL", $results);
+    addCol($pdo, 'content_queue', 'platform_response', "ALTER TABLE content_queue ADD COLUMN platform_response TEXT NULL", $results);
+    addCol($pdo, 'content_queue', 'error_message',     "ALTER TABLE content_queue ADD COLUMN error_message TEXT NULL", $results);
+    addCol($pdo, 'content_queue', 'updated_at',        "ALTER TABLE content_queue ADD COLUMN updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP", $results);
+}
+
+// ── 25. customers: Serien-Einstellungen (Posting-Rhythmus, Standard-Cutter) ──
+addCol($pdo, 'customers', 'default_cutter_id',
+    "ALTER TABLE customers ADD COLUMN default_cutter_id VARCHAR(64) DEFAULT NULL AFTER videos_per_month",
+    $results);
+addCol($pdo, 'customers', 'posting_weekdays',
+    "ALTER TABLE customers ADD COLUMN posting_weekdays VARCHAR(20) DEFAULT NULL AFTER default_cutter_id",
+    $results);
+addCol($pdo, 'customers', 'videos_per_week',
+    "ALTER TABLE customers ADD COLUMN videos_per_week TINYINT UNSIGNED NOT NULL DEFAULT 2 AFTER posting_weekdays",
+    $results);
+addCol($pdo, 'customers', 'auto_posting_rhythm',
+    "ALTER TABLE customers ADD COLUMN auto_posting_rhythm TINYINT(1) NOT NULL DEFAULT 0 AFTER videos_per_week",
+    $results);
 
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>

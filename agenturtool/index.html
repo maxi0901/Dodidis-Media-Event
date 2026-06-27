@@ -808,6 +808,32 @@
   tbody tr:hover td { background: rgba(255,255,255,0.03); cursor: pointer; }
   tbody tr:hover td:first-child { color: var(--accent); }
 
+  /* Zeilen-Titel mit optionalem Lösch-Icon (z. B. Ideen direkt löschen) */
+  .row-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .row-trash {
+    background: transparent; border: none; cursor: pointer; color: var(--text-3);
+    font-size: 14px; line-height: 1; padding: 4px 6px; border-radius: 6px; flex: none;
+    opacity: 0.5; transition: var(--transition);
+  }
+  .row-trash:hover { opacity: 1; color: var(--danger, #ff5a5f); background: rgba(255,90,95,0.12); }
+
+  /* NAS-Freigabelinks im Projekt-Detail */
+  .nas-links { display: flex; flex-direction: column; gap: 12px; }
+  .nas-link-row { display: flex; flex-direction: column; gap: 5px; }
+  .nas-link-meta { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .nas-link-folder {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+    font-weight: 700; color: var(--accent); background: var(--accent-soft);
+    padding: 1px 7px; border-radius: 5px;
+  }
+  .nas-link-hint { font-size: 11.5px; color: var(--text-3); }
+  .nas-link-input { display: flex; gap: 8px; align-items: center; }
+  .nas-link-input input {
+    flex: 1; min-width: 0; padding: 8px 12px; border-radius: 8px;
+    background: var(--bg-2); border: 1px solid var(--border); color: inherit; font-size: 13px;
+  }
+  .nas-link-input input[readonly] { opacity: 0.8; cursor: default; }
+
   /* =========================================
      STAT GRID
      ========================================= */
@@ -878,6 +904,40 @@
   .badge-freigegeben { color: #2dd4bf; background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.25); }
   .badge-archiviert { color: #6b7280; background: rgba(107,114,128,0.1); border-color: rgba(107,114,128,0.2); }
   .badge-ueberfaellig { color: #ff453a; background: rgba(255,69,58,0.12); border-color: rgba(255,69,58,0.3); }
+
+  /* Hinweis: aktives Projekt ohne Posting-Datum (dezent orange). */
+  .badge-no-posting { color: #fbbf24; background: rgba(245,158,11,0.14); border-color: rgba(245,158,11,0.35); white-space: nowrap; }
+  tr.row-no-posting td { background: rgba(245,158,11,0.06); }
+  tr.row-no-posting td:first-child { box-shadow: inset 3px 0 0 rgba(245,158,11,0.55); }
+  .card.card-no-posting { border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.05); }
+
+  /* Nicht gedreht: Drehtag vorbei, Status noch „geplant" → rot hervorheben. */
+  .badge-nicht-gedreht { color: #ff453a; background: rgba(255,69,58,0.13); border-color: rgba(255,69,58,0.32); white-space: nowrap; }
+  tr.row-nicht-gedreht td { background: rgba(255,69,58,0.06); }
+  tr.row-nicht-gedreht td:first-child { box-shadow: inset 3px 0 0 rgba(255,69,58,0.6); }
+  .nicht-gedreht-warn { color: #ff453a; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 5px; margin-top: 5px; }
+  .shootday-header-warn { color: #ff453a; font-size: 11px; font-weight: 700; background: rgba(255,69,58,0.1); border: 1px solid rgba(255,69,58,0.28); border-radius: 5px; padding: 2px 8px; }
+
+  /* Auto-Resize-Textarea: wächst mit dem Inhalt, kein interner Scrollbalken. */
+  textarea.autogrow { resize: none; overflow: hidden; field-sizing: content; }
+
+  /* Wochentag-Picker (Kunden-Voreinstellungen) */
+  .weekday-picker { display:flex; gap:6px; flex-wrap:wrap; }
+  .weekday-chip { display:inline-flex; align-items:center; justify-content:center; min-width:36px; padding:5px 9px; border-radius:8px; border:1px solid var(--border); cursor:pointer; font-size:13px; font-weight:600; color:var(--text-2); user-select:none; transition:var(--transition); }
+  .weekday-chip:hover { border-color:var(--accent); color:var(--text-1); }
+  .weekday-chip.wd-active { background:rgba(20,184,166,0.15); color:var(--accent); border-color:var(--accent); }
+
+  /* Validierungs-Warnung im Projekt-Formular */
+  .timeline-warning { display:flex; align-items:flex-start; gap:7px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:8px; padding:8px 12px; font-size:12.5px; color:#fbbf24; margin-top:8px; }
+
+  /* Serien-Planer Vorschau-Tabelle */
+  .series-preview-table { width:100%; border-collapse:collapse; font-size:13px; margin-top:10px; }
+  .series-preview-table th { text-align:left; padding:6px 8px; border-bottom:1px solid var(--border); color:var(--text-3); font-weight:600; font-size:11.5px; letter-spacing:0.3px; }
+  .series-preview-table td { padding:5px 6px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
+  .series-preview-table input[type=text], .series-preview-table input[type=date] { width:100%; background:var(--bg-3); border:1px solid var(--border); border-radius:6px; color:var(--text-1); padding:4px 7px; font-size:12.5px; font-family:inherit; }
+  .series-preview-table input[type=text]:focus, .series-preview-table input[type=date]:focus { outline:none; border-color:var(--accent); }
+  .series-preview-row-num { color:var(--text-3); font-weight:700; font-size:12px; min-width:22px; text-align:center; }
+  .series-no-config { background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:8px; padding:10px 14px; color:#fbbf24; font-size:13px; }
 
   .badge-role-admin { color: #ff453a; background: rgba(255,69,58,0.1); border-color: rgba(255,69,58,0.2); }
   .badge-role-manager { color: #2dd4bf; background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.25); }
@@ -1019,6 +1079,29 @@
     margin-top: 2px;
   }
 
+  /* Kalender-Abo: Kategorie-Auswahl als saubere Chips (statt nativer Checkboxen) */
+  .cal-cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cal-cat-chip {
+    position: relative; display: flex; align-items: center; gap: 9px;
+    padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg-1); color: var(--text-2); font-size: 13px; font-weight: 500;
+    cursor: pointer; user-select: none; transition: var(--transition);
+  }
+  .cal-cat-chip:hover { border-color: var(--border-strong); }
+  .cal-cat-chip input { position: absolute; opacity: 0; width: 0; height: 0; }
+  /* Sichtbarer Tastatur-Fokus: das native Outline liegt auf der unsichtbaren Checkbox,
+     daher den Fokus auf Chip + Box anzeigen, wenn das enthaltene Input fokussiert ist. */
+  .cal-cat-chip:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .cal-cat-chip:focus-within .cal-cat-box { border-color: var(--accent); }
+  .cal-cat-box {
+    flex: none; width: 18px; height: 18px; border-radius: 5px;
+    border: 1.5px solid var(--border-strong); background: var(--bg-3);
+    display: flex; align-items: center; justify-content: center;
+    color: transparent; font-size: 12px; font-weight: 800; line-height: 1; transition: var(--transition);
+  }
+  .cal-cat-chip input:checked ~ .cal-cat-box { background: var(--accent); border-color: var(--accent); color: #04221a; }
+  .cal-cat-chip:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--text-1); }
+
   /* =========================================
      FORMS
      ========================================= */
@@ -1147,6 +1230,10 @@
   .modal-body {
     padding: 22px;
     overflow-y: auto;
+    /* Nur vertikal scrollen: ohne explizites overflow-x rechnet der Browser bei
+       gesetztem overflow-y intern „auto" → zu breite Inhalte ließen das Modal auf
+       dem Handy horizontal wegwischen und wirkten „schwimmend". Fix: hart sperren. */
+    overflow-x: hidden;
     flex: 1;
     min-height: 0;
     -webkit-overflow-scrolling: touch;
@@ -1664,15 +1751,29 @@
     overflow-x: scroll;
     overflow-y: auto;
     cursor: grab;
-    max-height: 720px;
-    scroll-snap-type: x mandatory;
+    /* Keine Höhenbegrenzung: der Kalender wächst/schrumpft mit der Zeilenzahl statt
+       vertikal zu scrollen (Inhalt passt komplett → kein vertikaler Scrollbalken).
+       Horizontales Scrollen der Tagesspalten bleibt erhalten. */
+    max-height: none;
+    /* „proximity" statt „mandatory": Mandatory-Snap kämpft auf dem Desktop gegen
+       Maus-/Trackpad-Scrollen und das Drag-/Wheel-Handling (Ruckeln/Hängen).
+       Proximity rastet sanft an Tagesspalten ein, blockiert aber freies Scrollen
+       nicht. Touch (Mobil) blieb ohnehin ohne Snap. */
+    scroll-snap-type: x proximity;
     overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
+    /* KEIN -webkit-overflow-scrolling: touch: dieser Legacy-Momentum-Modus erzeugt auf
+       iOS Safari einen eigenen Compositing-Layer, in dem der Sticky-Tages-Header und die
+       transformierten Event-Labels falsch gestapelt werden (Text schob sich ÜBER den
+       Header statt dahinter). iOS ≥13 scrollt ohnehin mit Momentum. Ohne die Property
+       greift normale Mal-Reihenfolge → Header (z-index:20, opak) verdeckt Balken (z-index:2). */
+    /* Scroll-Container für den Compositor markieren → weniger Repaint beim
+       horizontalen Scrollen in datendichten Wochen. */
+    --ical-sidebar: 48px;
   }
   @media (max-width: 640px) {
-    .ical-scroll { scroll-snap-type: none; max-height: 480px; cursor: default; }
+    .ical-scroll { scroll-snap-type: none; max-height: none; cursor: default; }
   }
-  .ical-scroll.dragging { cursor: grabbing; }
+  .ical-scroll.dragging { cursor: grabbing; scroll-snap-type: none; scroll-behavior: auto; }
   .ical-scroll::-webkit-scrollbar { height: 10px; width: 10px; background: #1c1c1e; }
   .ical-scroll::-webkit-scrollbar-thumb {
     background: rgba(255,255,255,0.18);
@@ -1681,10 +1782,13 @@
   }
   .ical-track {
     display: grid;
-    grid-template-rows: 64px;
+    /* Header-Zeile darf bei Bedarf wachsen, damit der Tages-Header nicht in
+       die erste Balken-Zeile überläuft (sonst „überlappende" Balken). */
+    grid-template-rows: minmax(64px, auto);
     grid-auto-rows: 36px;
     grid-row-gap: 3px;
     padding-bottom: 20px;
+    isolation: isolate;
   }
 
   .ical-corner {
@@ -1694,7 +1798,7 @@
     position: sticky;
     top: 0;
     left: 0;
-    z-index: 6;
+    z-index: 30;
     border-right: 1px solid rgba(255,255,255,0.07);
     border-bottom: 1px solid rgba(255,255,255,0.07);
   }
@@ -1712,7 +1816,7 @@
     background: #111113;
     position: sticky;
     top: 0;
-    z-index: 5;
+    z-index: 20;
     min-height: 64px;
     text-align: center;
   }
@@ -1737,6 +1841,16 @@
     border-radius: 50%;
     width: 30px;
     height: 30px;
+    /* nicht im Flex-Spaltenlayout schrumpfen -> bleibt ein runder Kreis */
+    flex: 0 0 30px;
+    min-width: 30px;
+    max-width: 30px;
+    min-height: 30px;
+    max-height: 30px;
+    aspect-ratio: 1 / 1;
+    box-sizing: border-box;
+    padding: 0;
+    line-height: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1744,11 +1858,15 @@
     font-weight: 700;
   }
   .ical-day-head.is-shoot {
-    background: linear-gradient(180deg, rgba(167,139,250,0.14), rgba(167,139,250,0.04));
+    /* Solider #111113-Sockel UNTER dem Verlauf: sonst ist der Drehtag-Header semi-
+       transparent und beim Scrollen scheinen die Balken durch (sah wie Overlap nur in
+       der heutigen/Drehtag-Spalte aus, während alle opaken Spalten korrekt verdeckten). */
+    background: linear-gradient(180deg, rgba(167,139,250,0.14), rgba(167,139,250,0.04)), #111113;
     border-bottom: 2px solid rgba(167,139,250,0.6);
   }
   .ical-day-head.is-shoot .ical-dname { color: rgba(196,181,253,0.8); }
   .ical-day-head.is-shoot .ical-dnum { color: #c4b5fd; }
+  .ical-day-head.today.is-shoot .ical-dnum { color: white; }
   .ical-shoot-badge {
     position: absolute;
     top: 7px;
@@ -1786,8 +1904,9 @@
     grid-column: 1;
     position: sticky;
     left: 0;
-    z-index: 1;
+    z-index: 25;
     background: #181819;
+    box-shadow: 8px 0 14px rgba(0,0,0,0.28);
     border-right: 1px solid rgba(255,255,255,0.07);
     padding: 0;
     font-size: 0;
@@ -1825,8 +1944,45 @@
   .ical-cat-label.cat-vacation .ical-cat-icon { background: rgba(148,163,184,0.22); }
   .ical-cat-label.cat-videos   .ical-cat-icon { background: rgba(20,184,166,0.22); }
   .ical-cat-label.cat-todos    .ical-cat-icon { background: rgba(100,210,255,0.22); }
+  /* Kürzel-Chip direkt im Event-Balken: kleiner Kreis mit gefülltem Hintergrund */
+  .ical-kuerzel-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.22);
+    font-size: 7.5px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    color: #fff;
+    line-height: 1;
+    font-style: normal;
+    margin-right: 3px;
+  }
+  @media (max-width: 640px) {
+    .ical-kuerzel-chip { width: 15px; height: 15px; font-size: 6.5px; margin-right: 2px; }
+  }
+
+  /* Kunden-Kürzel-Icon: kompaktes Text-Kürzel statt Emoji */
+  .ical-kuerzel-icon {
+    font-size: 9px !important;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    font-family: inherit;
+    font-style: normal;
+    line-height: 1;
+    border-radius: 50% !important;
+    background: rgba(20,184,166,0.72) !important;
+    color: #fff !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  }
 
   .ical-cat-bg {
+    position: relative;
+    z-index: 0;
     border-right: 1px solid rgba(255,255,255,0.04);
     border-bottom: 1px solid rgba(255,255,255,0.03);
     scroll-snap-align: start;
@@ -1847,19 +2003,34 @@
     gap: 5px;
     cursor: pointer;
     white-space: nowrap;
-    overflow: clip;
+    overflow: hidden;
     margin: 2px 3px;
     transition: var(--transition);
     position: relative;
+    z-index: 2;
+    min-width: 0;
   }
-  /* Text inside bars: sticky so it stays visible while scrolling horizontally */
+  /* Inner-Hülle: Kürzel (Avatar) + Text wandern beim Horizontal-Scroll als EINE Einheit.
+     Transform sitzt hier (nicht am Label allein), sonst klebt das Kürzel in Safari links. */
+  .ical-event-inner {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1 1 auto;
+    min-width: 0;
+    /* Label-Pinning per position/left statt transform: erzeugt KEINEN Composite-Layer.
+       Ein transform-Layer wird auf iOS Safari beim Scrollen über den Sticky-Header gemalt
+       (egal welcher z-index). Mit position:relative + left (ohne z-index) bleibt das Label
+       im normalen Mal-Fluss → der opake Header (z-index 20) verdeckt es zuverlässig. */
+    position: relative;
+    left: var(--label-offset, 0px);
+    max-width: var(--label-max-width, 100%);
+  }
+  /* Text inside bars: JS keeps the inner unit visible while scrolling horizontally. */
   .ical-event-label {
-    position: sticky;
-    left: var(--ical-sidebar, 150px);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex: 1;
     min-width: 0;
   }
   .ical-event::before {
@@ -1871,7 +2042,7 @@
     opacity: 0.85;
     border-radius: 5px 0 0 5px;
   }
-  .ical-event:hover { filter: brightness(1.15); z-index: 5; }
+  .ical-event:hover { filter: brightness(1.15); z-index: 10; }
   .ical-event.cuts-left { border-top-left-radius: 0; border-bottom-left-radius: 0; padding-left: 8px; margin-left: 0; }
   .ical-event.cuts-left::before { display: none; }
   .ical-event.cuts-right { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
@@ -1884,21 +2055,23 @@
   .ical-event.phase-vacation { background: linear-gradient(90deg,rgba(148,163,184,0.30),rgba(100,116,139,0.22)); color: #e2e8f0; border: 1px solid rgba(148,163,184,0.28); }
   .ical-event.phase-deadline { background: linear-gradient(90deg,rgba(239,68,68,0.30),rgba(220,38,38,0.20)); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
   .ical-event.phase-todo     { background: linear-gradient(90deg,rgba(100,210,255,0.22),rgba(56,189,248,0.14)); color: #7dd3fc; border: 1px solid rgba(100,210,255,0.18); }
+  .ical-event.nicht-gedreht  { background: linear-gradient(90deg,rgba(255,69,58,0.32),rgba(220,38,38,0.22))!important; color: #fca5a5!important; border-color: rgba(255,69,58,0.4)!important; }
+  .month-bar.nicht-gedreht   { background: linear-gradient(90deg,rgba(255,69,58,0.35),rgba(220,38,38,0.22))!important; color: #fca5a5!important; }
 
   /* Mobile: ultra-compact calendar */
   @media (max-width: 640px) {
     /* Grid rows kleiner */
-    .ical-track { grid-auto-rows: minmax(24px, auto); grid-row-gap: 2px; padding-bottom: 12px; }
+    .ical-track { grid-template-rows: minmax(44px, auto); grid-auto-rows: minmax(24px, auto); grid-row-gap: 2px; padding-bottom: 12px; }
     /* Scrollbar verstecken */
     .ical-scroll::-webkit-scrollbar { height: 0; }
-    .ical-scroll { max-height: 420px; }
+    .ical-scroll { max-height: none; }
     /* Kategorie-Labels: nur Icon – bereits in Base-CSS, hier nur compact override */
     .ical-cat-label .ical-cat-icon { width: 22px; height: 22px; font-size: 12px; }
     /* Tag-Header kompakter */
     .ical-day-head { padding: 5px 2px 4px; min-height: 44px; gap: 1px; }
     .ical-day-head .ical-dname { font-size: 9px; letter-spacing: 0.3px; }
     .ical-day-head .ical-dnum { font-size: 13px; font-weight: 500; }
-    .ical-day-head.today .ical-dnum { width: 22px; height: 22px; font-size: 11px; font-weight: 700; }
+    .ical-day-head.today .ical-dnum { width: 22px; min-width: 22px; max-width: 22px; height: 22px; min-height: 22px; max-height: 22px; flex-basis: 22px; font-size: 11px; font-weight: 700; }
     /* Events: kompakt */
     .ical-event {
       height: 20px; line-height: 20px;
@@ -2056,7 +2229,7 @@
     scroll-snap-type: none;
     background: #1c1c1e;
   }
-  .icw-scroll.dragging { cursor: grabbing; }
+  .icw-scroll.dragging { cursor: grabbing; scroll-snap-type: none; scroll-behavior: auto; }
   .icw-scroll::-webkit-scrollbar { height: 12px; background: #1c1c1e; }
   .icw-scroll::-webkit-scrollbar-track { background: #1c1c1e; }
   .icw-scroll::-webkit-scrollbar-thumb {
@@ -2398,6 +2571,31 @@
     box-shadow: 0 1px 3px rgba(0,0,0,0.3);
   }
   .view-toggle button:hover:not(.active) { color: var(--text-1); }
+
+  /* Projekt-Phasen-Headbar (nur Admin/Manager) */
+  .phase-hotbar { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .phase-tab {
+    flex:1 1 0; min-width:0; display:flex; align-items:center; justify-content:center; gap:8px;
+    padding:12px 14px; background:var(--bg-2); border:1px solid var(--border); border-radius:10px;
+    color:var(--text-2); font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; transition:var(--transition);
+    white-space:nowrap;
+  }
+  .phase-tab > span:first-child { overflow:hidden; text-overflow:ellipsis; }
+  .phase-tab:hover:not(.active) { color:var(--text-1); border-color:var(--border-strong); }
+  .phase-tab.active { background:var(--accent-soft); border-color:var(--accent); color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .phase-tab .phase-count { flex:none; min-width:20px; padding:1px 7px; border-radius:999px; background:var(--bg-3); color:var(--text-2); font-size:12px; font-weight:700; text-align:center; }
+  .phase-tab.active .phase-count { background:var(--accent); color:#04221a; }
+  /* Mobile-Dropdown für die übrigen Phasen (Desktop ausgeblendet) */
+  .phase-select-mobile {
+    display:none; width:100%; margin-bottom:14px; padding:10px 12px; border-radius:10px;
+    background:var(--bg-2); border:1px solid var(--border); color:inherit; font-size:14px; font-weight:600;
+  }
+  /* Mobil: horizontaler Scroll-Streifen statt Quetschen – Schrift bleibt einzeilig und ragt nicht heraus */
+  @media (max-width: 640px) {
+    .phase-hotbar { flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; gap:6px; margin-bottom:12px; padding-bottom:4px; scrollbar-width:none; }
+    .phase-hotbar::-webkit-scrollbar { display:none; }
+    .phase-tab { flex:0 0 auto; padding:9px 12px; font-size:13px; gap:6px; }
+  }
 
   /* Week view (Apple Kalender Stil) */
   .cal-week {
@@ -2869,6 +3067,24 @@
     margin-bottom: 16px;
   }
 
+  /* Kompakte Status-Zeile im Projekt-Modal: Status-Badge (klickbar = Status ändern)
+     und Workflow-Aktion (z. B. „Als abgedreht markieren") nebeneinander. */
+  .proj-status-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .status-actions { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .status-badge-wrap { position: relative; display: inline-flex; }
+  .status-badge-clickable { cursor: pointer; }
+  .status-badge-wrap .status-badge-select {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: pointer; border: 0; padding: 0; margin: 0;
+    -webkit-appearance: none; appearance: none;
+  }
+
   /* Scrollbar */
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: var(--bg-1); }
@@ -3014,19 +3230,29 @@
       padding: 0;
       padding-top: max(8px, env(safe-area-inset-top, 0px));
       align-items: flex-end;
+      /* iOS: an den SICHTBAREN Viewport binden (dvh), sonst nutzt 100%/vh den großen
+         Viewport und das Sheet ragt oben unter die App-Chrome bzw. unten aus dem Bild. */
+      height: 100vh;
+      height: 100dvh;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
     .modal {
       max-width: 100% !important;
       width: 100%;
-      max-height: calc(92vh - env(safe-area-inset-top, 0px));
+      /* vh-Fallback, dann dvh: passt das Sheet in den sichtbaren Bereich → kein
+         Header-Overlap, Footer bleibt erreichbar, komplett scrollbar. */
+      max-height: calc(92vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+      max-height: calc(100dvh - max(8px, env(safe-area-inset-top, 0px)) - env(safe-area-inset-bottom, 0px));
       border-radius: 18px 18px 0 0;
       animation: modal-mobile-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
+    /* Kopf bleibt beim Scrollen sichtbar/erreichbar (Titel + ✕), überlappt nichts. */
+    .modal-header { position: sticky; top: 0; z-index: 3; background: var(--bg-1); }
     .modal-tabs { padding: 0 12px; }
     .modal-tab { padding: 12px 10px; font-size: 12.5px; }
     .modal-body { padding: 16px; }
-    .modal-footer { padding: 14px 16px; flex-wrap: wrap; }
-    .modal-footer .btn { flex: 1; min-width: 100px; }
+    .modal-footer { padding: 14px 16px; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .modal-footer .btn { flex: 0 0 auto; width: auto; min-width: 0; }
     .form-row { grid-template-columns: 1fr; gap: 10px; }
 
     /* Login auf Mobile */
@@ -3066,8 +3292,38 @@
     to { transform: translateY(0); opacity: 1; }
   }
 
+  /* ============ Mobile-UX-Feinschliff (≤768px) ============ */
+  @media (max-width: 768px) {
+    /* (5) Header scrollt normal weg statt oben zu kleben */
+    .topbar { position: static; }
+
+    /* (6) Projekte-Tabs: nur die ersten 3, Rest im Dropdown */
+    .phase-hotbar { flex-wrap: nowrap; overflow: visible; }
+    .phase-hotbar .phase-tab { flex: 1 1 0; }
+    .phase-hotbar .phase-tab:nth-child(n+4) { display: none; }
+    .phase-select-mobile { display: block; }
+
+    /* (7) Modal-Aktionsleiste läuft nicht mit – erscheint erst am Formularende.
+       Wichtig: Form und Body müssen auf natürliche Inhaltshöhe (flex:none) statt flex:1,
+       sonst bleibt die Body-Box kurz, der Inhalt quillt über und der statische Footer
+       landet mitten im Formular. So wird das Modal selbst zur Scrollfläche. */
+    .modal { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .modal > form { display: block; flex: none; min-height: 0; overflow: visible; }
+    .modal-body { flex: none; overflow: visible; }
+    .modal-footer { position: static; flex-direction: row; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .modal-footer .btn { width: auto; flex: 0 0 auto; min-width: 0; }
+
+    /* (8) Dashboard-Kacheln: zwei kompakte Karten nebeneinander (statt einspaltiger Liste) */
+    .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .stat { padding: 12px 14px; }
+    .stat-icon { width: 30px; height: 30px; margin-bottom: 8px; }
+    .stat-label { font-size: 10.5px; }
+    .stat-value { font-size: 22px; margin-top: 2px; letter-spacing: -0.5px; }
+    .stat-sub { font-size: 10.5px; margin-top: 4px; }
+  }
+
   @media (max-width: 480px) {
-    .stat-grid { grid-template-columns: 1fr; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
     .topbar { padding: 12px 14px; }
     .page-title { font-size: 17px; }
     .login-box { padding: 24px 18px; }
@@ -3218,6 +3474,21 @@
     table:not(.keep-table) td .badge,
     table:not(.keep-table) td .avatar-stack,
     table:not(.keep-table) td .progress-bar { flex-shrink: 0; }
+    /* Feldnamen als Label in der Karte zeigen (nur Zellen mit data-label) */
+    table:not(.keep-table) td[data-label]::before {
+      content: attr(data-label);
+      color: var(--text-3); font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.4px; font-weight: 600; flex: none; text-align: left;
+    }
+    /* Auswahl-Checkbox-Spalte in der Kartenansicht ausblenden … */
+    table:not(.keep-table) td.col-select { display: none; }
+    /* … und die Namens-Zelle (nicht die Checkbox) als Kartentitel behandeln */
+    table:not(.keep-table) td.card-title-cell {
+      font-weight: 600; font-size: 15px; padding-bottom: 10px;
+      border-bottom: 1px solid var(--border); margin-bottom: 6px;
+      display: block; text-align: left;
+    }
+    table:not(.keep-table) td.card-title-cell::before { display: none; }
 
     /* keep-table: horizontaler Scroll + sticky erste Spalte */
     .table-scroll { border-radius: var(--radius-sm); }
@@ -3318,8 +3589,8 @@
     .todo-item input[type="checkbox"] { width: 22px; height: 22px; flex-shrink: 0; }
 
     /* Modal Footer: Buttons gestapelt */
-    .modal-footer { flex-direction: column-reverse; gap: 8px; align-items: stretch; }
-    .modal-footer .btn { width: 100%; min-width: 0; flex: none; }
+    .modal-footer { flex-direction: row; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
+    .modal-footer .btn { width: auto; min-width: 0; flex: 0 0 auto; }
   }
 
   /* ----------- 480px: Topbar-Buttons stapeln ----------- */
@@ -3358,6 +3629,22 @@
     .btn-sm { padding: 8px 11px; font-size: 12.5px; }
   }
 
+  /* (5) Kompakte Suche auf Mobile: standardmäßig nur Lupe, expandiert bei Fokus.
+     Bewusst NACH den 640px-Filterregeln, damit es auf Phones gewinnt. */
+  @media (max-width: 768px) {
+    div:has(> #cust-search), div:has(> #proj-search) {
+      flex-direction: row !important; flex-wrap: wrap !important; align-items: center !important;
+    }
+    #proj-search, #cust-search {
+      width: 46px !important; min-width: 46px !important; flex: 0 0 46px !important;
+      cursor: pointer; transition: flex-basis .2s ease, width .2s ease; min-height: 44px;
+    }
+    #proj-search:focus, #cust-search:focus {
+      width: 100% !important; min-width: 0 !important; flex: 1 1 100% !important; cursor: text;
+    }
+    #proj-status, #cust-status { flex: 1 1 auto !important; width: auto !important; }
+  }
+
   /* ----------- Touch-Feedback (Geraete ohne Hover) ----------- */
   @media (hover: none) {
     .btn:active { transform: scale(0.97); opacity: 0.88; }
@@ -3393,6 +3680,74 @@
     .login-sub { font-size: 12px; }
     .modal { max-height: 96vh; }
   }
+
+  /* Management-Kalender: conflict-light fixes for sticky labels/layering. */
+  .ical-scroll {
+    --ical-sidebar: 48px;
+    --ical-label-gutter: 8px;
+  }
+  .ical-track { isolation: isolate; }
+  /* Kein transform am Header: Sobald nirgends im Grid composited wird (Labels nutzen
+     left statt transform), reicht reines z-index-Stacking – der opake Header (30/20)
+     verdeckt die Balken (2). Ein Composite-Layer am Header wäre Teil des iOS-Problems. */
+  .ical-corner { z-index: 30; }
+  .ical-day-head { z-index: 20; }
+  .ical-cat-label {
+    z-index: 25;
+    box-shadow: 8px 0 14px rgba(0,0,0,0.28);
+  }
+  .ical-cat-bg {
+    position: relative;
+    z-index: 0;
+  }
+  .ical-day-head.today .ical-dnum {
+    flex: 0 0 30px;
+    min-width: 30px;
+    max-width: 30px;
+    min-height: 30px;
+    max-height: 30px;
+    aspect-ratio: 1 / 1;
+    box-sizing: border-box;
+    padding: 0;
+    line-height: 1;
+  }
+  .ical-day-head.today.is-shoot .ical-dnum { color: white; }
+  .ical-event {
+    overflow: hidden;
+    position: relative;
+    z-index: 2;
+    min-width: 0;
+  }
+  .ical-event:hover { z-index: 10; }
+  .ical-event-inner {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1 1 auto;
+    min-width: 0;
+    /* position/left statt transform (siehe Basis-Regel): kein Composite-Layer → kein
+       Header-Overlap und kein „Schwimmen" beim Scrollen auf iOS. */
+    position: relative;
+    left: var(--label-offset, 0px);
+    max-width: var(--label-max-width, 100%);
+    transition: none;
+  }
+  .ical-event-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  @media (max-width: 640px) {
+    .ical-day-head.today .ical-dnum {
+      flex-basis: 22px;
+      min-width: 22px;
+      max-width: 22px;
+      min-height: 22px;
+      max-height: 22px;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -3611,7 +3966,12 @@ function getAssignableUsersFor(viewer) {
 // Darf "viewer" den Urlaub von "target" sehen?
 // Regel: Jeder Mitarbeiter sieht alle Urlaube (volle Transparenz).
 function canViewVacationOf(viewer, target) {
-  return !!(viewer && target);
+  if (!viewer || !target) return false;
+  // Cutter (ohne höhere Rolle) sehen ausschließlich ihren eigenen Urlaub
+  const cutterOnly = hasRole(viewer, ROLES.CUTTER) &&
+    !hasRole(viewer, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF);
+  if (cutterOnly) return viewer.id === target.id;
+  return true;
 }
 
 // Darf "viewer" den Urlaub bearbeiten/löschen?
@@ -3623,7 +3983,7 @@ function canEditVacationOf(viewer, target) {
 }
 
 const STATUS = {
-  SKRIPT: 'skript',
+  IDEE: 'idee',
   GEPLANT: 'geplant',
   GEDREHT: 'gedreht',
   SCHNITT: 'schnitt',
@@ -3634,7 +3994,7 @@ const STATUS = {
 };
 
 const STATUS_LABELS = {
-  skript: 'Skript',
+  idee: 'Idee',
   geplant: 'Geplant',
   gedreht: 'Gedreht',
   schnitt: 'Im Schnitt',
@@ -3643,8 +4003,100 @@ const STATUS_LABELS = {
   freigegeben: 'Freigegeben',
   archiviert: 'Archiviert'
 };
-function statusLabel(s) { return STATUS_LABELS[s] ?? 'Überfällig'; }
-function statusCls(s)   { return STATUS_LABELS[s] ? s : 'ueberfaellig'; }
+// Legacy: 'skript' gibt es nicht mehr. Alte Einträge als Idee/Geplant (je nach Drehdatum)
+// anzeigen, damit nie mehr ein "Skript"-Badge erscheint.
+function legacyStatus(p) {
+  if (p && p.status === 'skript') return (p.shootDate || p.shootDayId) ? 'geplant' : 'idee';
+  return p ? p.status : undefined;
+}
+function statusLabel(s) { return STATUS_LABELS[s === 'skript' ? 'idee' : s] ?? 'Überfällig'; }
+function statusCls(s)   { const k = s === 'skript' ? 'idee' : s; return STATUS_LABELS[k] ? k : 'ueberfaellig'; }
+
+/* ----------- PROJEKT-PHASEN (Head-Bar/Kanban, nur Admin/Manager) -----------
+   3 Reiter, nach Status gruppiert:
+   - Ideen:           Idee (ohne Drehdatum)
+   - Production:      Geplant (mit Drehtag/Drehdatum, noch nicht abgedreht)
+   - Post Production: Gedreht, Im Schnitt, Korrektur, Fertig, Freigegeben (Abnahme eingegliedert)
+   Archiviert bleibt auf der Archiv-Seite (nicht im Board). */
+const PROJECT_PHASES = { ideen: 'Ideen', production: 'Production', post: 'Post Production' };
+const PHASE_OF_STATUS = {
+  idee: 'ideen',
+  geplant: 'production',
+  gedreht: 'post', schnitt: 'post', korrektur: 'post',
+  fertig: 'post', freigegeben: 'post'
+};
+// Vor-Dreh-Automatik: Status 'idee' ohne Drehdatum, 'geplant' mit Drehtag/Drehdatum.
+// Status ab 'gedreht' (bereits abgedreht) wird NICHT verändert. Liefert true, wenn der
+// Status geändert wurde (für selektives Persistieren bei Migration/Save).
+function normalizeIdeaPhase(p) {
+  if (!p) return false;
+  if (p.status === 'skript' || p.status === 'idee' || p.status === 'geplant') {
+    const next = (p.shootDate || p.shootDayId) ? 'geplant' : 'idee';
+    if (p.status !== next) { p.status = next; return true; }
+  }
+  return false;
+}
+function isProjectIdea(p) {
+  if (!p) return false;
+  if (p.status === 'idee') return true;
+  // Legacy: altes 'skript' ohne Drehdatum zählt weiter als Idee.
+  return p.status === 'skript' && !p.shootDate && !p.shootDayId;
+}
+function getProjectPhase(p) {
+  if (!p) return 'ideen';
+  const s = p.status === 'skript' ? legacyStatus(p) : p.status;
+  return PHASE_OF_STATUS[s] || 'ideen';
+}
+// Aktives Projekt in Planung/Produktion ohne Posting-Datum → dezenter Orange-Hinweis.
+// Greift auch für umgewandelte Ideen (Status 'idee' MIT Kunde = Projekt in Planung, auch ohne
+// Drehtag). Rohe Ideen (ohne Kunde) sowie interne/abgeschlossene/archivierte Projekte ausgenommen.
+function needsPostingDate(p) {
+  if (!p || p.isInternal || p.postingDate) return false;
+  if (p.status === 'geplant' || p.status === 'gedreht' || p.status === 'schnitt' || p.status === 'korrektur') return true;
+  return p.status === 'idee' && !!p.customerId;
+}
+
+// Projekt noch "geplant" aber Drehtag + 3 Stunden ist bereits vorbei → "nicht gedreht".
+function isNichtGedreht(p) {
+  if (!p || p.status !== STATUS.GEPLANT) return false;
+  let shootDate = p.shootDate;
+  let endHour = 21, endMin = 0;
+  if (p.shootDayId) {
+    // Drehtag kann umgeplant worden sein – immer sd.date aus store verwenden,
+    // nicht das beim letzten Projektspeichern kopierte p.shootDate.
+    const sd = (store.shootDays || []).find(s => s.id === p.shootDayId);
+    if (sd) {
+      shootDate = sd.date;
+      if (sd.endTime) {
+        const parts = sd.endTime.split(':');
+        const h = parseInt(parts[0], 10);
+        const m = parseInt(parts[1] || '0', 10);
+        if (!isNaN(h)) { endHour = h; endMin = isNaN(m) ? 0 : m; }
+      }
+    }
+  }
+  if (!shootDate) return false;
+  const cutoff = new Date(shootDate + 'T00:00:00');
+  cutoff.setHours(endHour + 3, endMin, 0, 0);
+  return new Date() > cutoff;
+}
+
+// 2-3-Zeichen Abkürzung aus Kundenname: "Dodidis Media" → "DM", "Auto Müller GmbH" → "AM"
+function makeKuerzel(name) {
+  if (!name) return '?';
+  const stripped = name.replace(/\b(GmbH|AG|KG|UG|GbR|OHG|Ltd|Inc)\b/gi, '').replace(/\s+/g, ' ').trim();
+  const words = stripped.split(/[\s\-_]+/).filter(w => /[A-Za-zÀ-ž]/.test(w));
+  if (words.length >= 2) return words.slice(0, 3).map(w => w[0].toUpperCase()).join('');
+  return (stripped.replace(/\s/g, '').slice(0, 3) || '?').toUpperCase();
+}
+
+let projectPhaseTab = 'ideen';
+function setProjectPhase(ph) {
+  if (ph !== 'kunden' && !PROJECT_PHASES[ph]) return;
+  projectPhaseTab = ph;
+  try { localStorage.setItem(_filterKey('proj_phase'), ph); } catch (e) {}
+  renderProjects(getCurrentUser());
+}
 
 const ROLE_LABELS = {
   admin: 'Admin',
@@ -3824,7 +4276,7 @@ function countActionableProjects(user) {
     if (p.status === STATUS.ARCHIVIERT || p.status === STATUS.FREIGEGEBEN) return;
     // Videograf: noch nicht abgedreht
     if (hasRole(user, ROLES.VIDEOGRAF) && p.videografId === userId
-        && (p.status === STATUS.SKRIPT || p.status === STATUS.GEPLANT)) {
+        && p.status === STATUS.GEPLANT) {
       ids.add(p.id);
       return;
     }
@@ -4009,6 +4461,23 @@ async function pushAllToCloud() {
   store._pendingDeletions = pending;
 }
 
+// Einmalige Migration alter 'skript'-Projekte in der DB → idee/geplant (best-effort, sequenziell).
+let _skriptMigrationDone = false;
+async function migrateLegacySkript(legacyProjects) {
+  for (const p of legacyProjects) {
+    const status = (p.shootDate || p.shootDayId) ? 'geplant' : 'idee';
+    try {
+      lockProjectStatus(p.id, status);
+      const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(p.id)}`, {
+        method: 'PUT', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) unlockProjectStatus(p.id);
+    } catch (e) { /* best-effort: In-Memory ist bereits korrekt, beim nächsten Laden erneut versucht */ }
+  }
+}
+
 // Vollständiger Pull aus api.php?action=pull (liefert Document-Form).
 async function pullAllFromCloud() {
   if (cloudPullInFlight) return false;
@@ -4044,12 +4513,16 @@ async function pullAllFromCloud() {
             if (Date.now() < lock.until) return { ...incoming, status: lock.status };
             _pendingStatusLock.delete(incoming.id);
           }
-          // Null/ungültiger Status aus DB → Überfällig-Anzeige verhindern.
-          if (!STATUS_LABELS[incoming.status]) {
-            const existing = store.projects.find(p => p.id === incoming.id);
-            return { ...incoming, status: STATUS_LABELS[existing?.status] ? existing.status : 'skript' };
+          const proj = { ...incoming };
+          // Legacy 'skript' gibt es nicht mehr → idee/geplant je nach Drehdatum.
+          if (proj.status === 'skript') {
+            proj.status = (proj.shootDate || proj.shootDayId) ? 'geplant' : 'idee';
+          } else if (!STATUS_LABELS[proj.status]) {
+            // Null/ungültiger Status aus DB → Überfällig-Anzeige verhindern.
+            const existing = store.projects.find(p => p.id === proj.id);
+            proj.status = STATUS_LABELS[existing?.status] ? existing.status : 'idee';
           }
-          return incoming;
+          return proj;
         });
       } else {
         store[c.local] = data[c.table];
@@ -4059,6 +4532,18 @@ async function pullAllFromCloud() {
     if (Array.isArray(data.app_config)) {
       const act = data.app_config.find(r => r.key === 'activity');
       if (act && act.value && Array.isArray(act.value.entries)) store.activity = act.value.entries;
+    }
+    // Einmalige DB-Migration: Legacy 'skript' dauerhaft auf idee/geplant umstellen (nur Admin,
+    // best-effort). In-Memory ist der Status bereits normalisiert, das hier räumt die DB auf.
+    if (!_skriptMigrationDone) {
+      const legacy = (data.projects || []).filter(p => p.status === 'skript');
+      const cu = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+      if (legacy.length === 0) {
+        _skriptMigrationDone = true;
+      } else if (cu && hasRole(cu, ROLES.ADMIN)) {
+        _skriptMigrationDone = true;
+        migrateLegacySkript(legacy);
+      }
     }
     return true;
   } catch (e) {
@@ -4300,11 +4785,14 @@ function getNavItemsForUser(session) {
   const openTodos = store.todos.filter(t => (t.assigneeIds || []).includes(user.id) && t.status === 'open').length;
   items.push({ id: 'todos', label: 'Aufgaben', icon: 'check', badge: openTodos > 0 ? openTodos : null });
   items.push({ id: 'vacation', label: 'Urlaub', icon: 'sun' });
-  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF, ROLES.CUTTER)) {
+  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF)) {
     items.push({ id: 'archive', label: 'Archiv', icon: 'archive' });
   }
   if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER)) {
     items.push({ id: 'contracts', label: 'Verträge', icon: 'file' });
+  }
+  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER)) {
+    items.push({ id: 'social-content', label: 'Social Content', icon: 'image' });
   }
   if (hasRole(user, ROLES.ADMIN)) {
     items.push({ id: 'admin', label: 'Admin-Bereich', icon: 'shield' });
@@ -4330,7 +4818,8 @@ const ICONS = {
   chart: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
   file: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
   document: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
-  bell: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
+  bell: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+  image: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
 };
 
 function renderNav() {
@@ -4404,6 +4893,68 @@ function toggleMobileSidebar() {
   bd.classList.toggle('show', open);
 }
 
+/* ----------- SWIPE GESTURE: SIDEBAR ----------- */
+(function initSidebarSwipe() {
+  const EDGE_ZONE = 40;   // px from left edge to start open-swipe
+  const MIN_DIST  = 50;   // min horizontal distance to count as swipe
+  const MAX_VERT  = 80;   // max vertical drift before gesture is cancelled
+  const MIN_VEL   = 0.3;  // px/ms threshold (optional speed gate)
+
+  let startX = 0, startY = 0, startTime = 0, tracking = false;
+
+  document.addEventListener('touchstart', (e) => {
+    // Only engage on mobile (sidebar in slide-out mode)
+    if (window.innerWidth > 900) return;
+    const touch = e.touches[0];
+    const sb = document.querySelector('.sidebar');
+    const isOpen = sb && sb.classList.contains('open');
+    // Open: touch anywhere; Close: only if inside sidebar or from the left
+    if (!isOpen && touch.clientX > EDGE_ZONE) return;
+    startX    = touch.clientX;
+    startY    = touch.clientY;
+    startTime = e.timeStamp;
+    tracking  = true;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!tracking) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    // Cancel if vertical movement dominates early (user is scrolling)
+    if (Math.abs(dy) > MAX_VERT && Math.abs(dx) < MIN_DIST) {
+      tracking = false;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+    const touch = e.changedTouches[0];
+    const dx       = touch.clientX - startX;
+    const dy       = touch.clientY - startY;
+    const dt       = e.timeStamp - startTime;
+    const vel      = Math.abs(dx) / dt;
+    const sb       = document.querySelector('.sidebar');
+    const bd       = document.getElementById('sidebar-backdrop');
+    if (!sb || !bd) return;
+
+    // Reject if mostly vertical
+    if (Math.abs(dy) > Math.abs(dx) * 1.5) return;
+
+    const isOpen = sb.classList.contains('open');
+    if (!isOpen && dx >= MIN_DIST && vel >= MIN_VEL) {
+      // Swipe right → open
+      sb.classList.add('open');
+      bd.classList.add('show');
+    } else if (isOpen && dx <= -MIN_DIST && vel >= MIN_VEL) {
+      // Swipe left → close
+      sb.classList.remove('open');
+      bd.classList.remove('show');
+    }
+  }, { passive: true });
+})();
+
 /* ----------- PAGE RENDERER ----------- */
 function renderPage() {
   const session = getCurrentUser();
@@ -4440,8 +4991,8 @@ function renderPage() {
     todos: renderTodos,
     archive: renderArchive,
     contracts: renderContracts,
+    'social-content': renderSocialContent,
     admin: renderAdmin,
-    contracts: renderContracts,
     'customer-overview': renderCustomerOverview
   };
 
@@ -4454,6 +5005,9 @@ function renderPage() {
     currentPage = 'dashboard';
   }
   if (currentPage === 'contracts' && (session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER))) {
+    currentPage = 'dashboard';
+  }
+  if (currentPage === 'social-content' && (session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER))) {
     currentPage = 'dashboard';
   }
 
@@ -5079,6 +5633,151 @@ async function customerSignContract(contractId) {
   }
 }
 
+/* ===========================================================================
+   SOCIAL CONTENT – Freigabe von n8n-erzeugten Instagram-Storys
+   Ablauf: n8n legt Entwürfe an (content_create.php) → hier prüfen & freigeben
+   (mit geplanter Zeit) → n8n holt freigegebene fällige Storys (content_pending.php).
+   =========================================================================== */
+
+function socialStatusBadge(status) {
+  switch (status) {
+    case 'approved':  return '<span class="badge badge-geplant">Freigegeben</span>';
+    case 'published': return '<span class="badge badge-fertig">Veröffentlicht</span>';
+    case 'error':     return '<span class="badge badge-korrektur">Fehler</span>';
+    case 'rejected':  return '<span class="badge badge-archiviert">Abgelehnt</span>';
+    default:          return '<span class="badge badge-skript">Entwurf</span>';
+  }
+}
+
+function socialMediaPreview(url) {
+  if (!url) return '<div class="text-muted text-sm">Kein Medium</div>';
+  const safe = escape(url);
+  if (/\.(mp4|mov|webm)(\?|$)/i.test(url)) {
+    return `<video src="${safe}" controls preload="metadata" style="width:100%;max-height:320px;border-radius:10px;background:#000;"></video>`;
+  }
+  if (/\.(jpe?g|png|webp|gif)(\?|$)/i.test(url)) {
+    return `<img src="${safe}" alt="Vorschau" loading="lazy" style="width:100%;max-height:320px;object-fit:contain;border-radius:10px;background:#000;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
+            <a href="${safe}" target="_blank" class="text-sm" style="display:none;">Medium öffnen ↗</a>`;
+  }
+  return `<a href="${safe}" target="_blank" class="btn btn-ghost btn-sm">Medium öffnen ↗</a>`;
+}
+
+// datetime-local-Default: morgen 09:00 (lokale Zeit), Format YYYY-MM-DDTHH:MM
+function defaultScheduleValue() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(9, 0, 0, 0);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function renderSocialContent(session) {
+  $('#page-title').textContent = 'Social Content';
+  if ($('#page-subtitle')) $('#page-subtitle').textContent = 'Von n8n erzeugte Beiträge prüfen und freigeben';
+  const user = session.user;
+  if (!hasRole(user, ROLES.ADMIN, ROLES.MANAGER)) { navigateTo('dashboard'); return; }
+
+  $('#topbar-actions').innerHTML = `<button class="btn btn-ghost btn-sm" onclick="renderSocialContent(getCurrentUser())">Aktualisieren</button>`;
+  $('#content').innerHTML = '<div class="text-muted text-center" style="padding:40px">Wird geladen…</div>';
+
+  let rows;
+  try {
+    rows = await apiGet('/content.php');
+  } catch (e) {
+    $('#content').innerHTML = `<div class="card"><div class="empty-state"><div class="empty-state-icon">⚠️</div>Fehler beim Laden: ${escape(e.message)}</div></div>`;
+    return;
+  }
+
+  const drafts    = rows.filter(r => r.status === 'draft');
+  const scheduled = rows.filter(r => r.status === 'approved');
+  const done      = rows.filter(r => ['published','error','rejected'].includes(r.status));
+
+  const customerName = (r) => r.customerName || (store.customers.find(x => x.id === r.customerId)?.name) || null;
+
+  const draftCard = (r) => `
+    <div class="card mb-4" id="cq-${r.id}">
+      <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <div style="font-weight:600;">${socialStatusBadge(r.status)} <span class="text-sm text-muted">#${r.id} · ${escape(r.platform)}/${escape(r.contentType)}</span></div>
+          ${customerName(r) ? `<span class="text-sm text-muted">${escape(customerName(r))}</span>` : ''}
+        </div>
+        ${socialMediaPreview(r.mediaUrl)}
+        ${r.caption ? `<div class="text-sm" style="white-space:pre-wrap;">${escape(r.caption)}</div>` : '<div class="text-sm text-muted">Keine Caption</div>'}
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;border-top:1px solid var(--border);padding-top:12px;">
+          <div class="form-group" style="margin:0;flex:1;min-width:220px;">
+            <label class="form-label">Geplante Veröffentlichung</label>
+            <input type="datetime-local" id="cq-when-${r.id}" value="${r.scheduledAt ? toLocalInput(r.scheduledAt) : defaultScheduleValue()}" />
+          </div>
+          <button class="btn btn-primary" onclick="approveSocialContent(${r.id})">✅ Freigeben</button>
+          <button class="btn btn-ghost" onclick="rejectSocialContent(${r.id})">Ablehnen</button>
+        </div>
+      </div>
+    </div>`;
+
+  const compactRow = (r) => `
+    <tr>
+      <td class="text-sm">#${r.id}</td>
+      <td>${socialStatusBadge(r.status)}</td>
+      <td class="text-sm">${customerName(r) ? escape(customerName(r)) : '–'}</td>
+      <td class="text-sm" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(r.caption || '–')}</td>
+      <td class="text-sm text-muted">${r.scheduledAt ? fmtDateTime(r.scheduledAt) : '–'}</td>
+      <td class="text-sm text-muted">${r.publishedAt ? fmtDateTime(r.publishedAt) : (r.errorMessage ? escape(r.errorMessage) : '')}</td>
+      <td><a href="${escape(r.mediaUrl || '#')}" target="_blank" class="btn btn-ghost btn-sm">Medium</a></td>
+    </tr>`;
+
+  $('#content').innerHTML = `
+    <div class="card mb-4">
+      <div class="card-header"><div class="card-title">Zu prüfen (${drafts.length})</div></div>
+      ${drafts.length ? '' : '<div class="empty-state"><div class="empty-state-icon">📭</div>Keine offenen Entwürfe. n8n legt neue Beiträge automatisch an.</div>'}
+    </div>
+    ${drafts.map(draftCard).join('')}
+
+    ${scheduled.length ? `<div class="card mb-4">
+      <div class="card-header"><div class="card-title">Freigegeben & geplant (${scheduled.length})</div></div>
+      <table><thead><tr><th>#</th><th>Status</th><th>Kunde</th><th>Caption</th><th>Geplant</th><th>Info</th><th></th></tr></thead>
+        <tbody>${scheduled.map(compactRow).join('')}</tbody></table>
+    </div>` : ''}
+
+    ${done.length ? `<div class="card">
+      <div class="card-header"><div class="card-title">Verlauf (${done.length})</div></div>
+      <table><thead><tr><th>#</th><th>Status</th><th>Kunde</th><th>Caption</th><th>Geplant</th><th>Info</th><th></th></tr></thead>
+        <tbody>${done.map(compactRow).join('')}</tbody></table>
+    </div>` : ''}
+  `;
+}
+
+// MySQL-DATETIME ("YYYY-MM-DD HH:MM:SS") → datetime-local-Wert ("YYYY-MM-DDTHH:MM")
+function toLocalInput(mysqlDt) {
+  if (!mysqlDt) return defaultScheduleValue();
+  const s = String(mysqlDt).replace(' ', 'T');
+  return s.slice(0, 16);
+}
+
+async function approveSocialContent(id) {
+  const input = document.getElementById('cq-when-' + id);
+  const when = input?.value;
+  if (!when) { showToast('Bitte Datum/Uhrzeit wählen.', 'warn'); return; }
+  try {
+    await apiPut('/content.php?action=approve&id=' + id, { scheduledAt: when });
+    showToast('Freigegeben – n8n postet zur geplanten Zeit.', 'success');
+    renderSocialContent(getCurrentUser());
+  } catch (e) {
+    showToast('Fehler: ' + e.message, 'error');
+  }
+}
+
+async function rejectSocialContent(id) {
+  const ok = await appConfirm('Diesen Beitrag ablehnen?', { title: 'Ablehnen?', okLabel: 'Ablehnen', danger: true });
+  if (!ok) return;
+  try {
+    await apiPut('/content.php?action=reject&id=' + id, {});
+    showToast('Beitrag abgelehnt.', 'success');
+    renderSocialContent(getCurrentUser());
+  } catch (e) {
+    showToast('Fehler: ' + e.message, 'error');
+  }
+}
+
 /* ----------- DASHBOARD ----------- */
 function renderDashboard(session) {
   $('#page-title').textContent = 'Übersicht';
@@ -5102,6 +5801,10 @@ function renderDashboard(session) {
     ? store.customers.filter(c => c.managerId === userId).length
     : store.customers.length;
 
+  // Reine Cutter sehen keine Kunden-/Team-Kennzahlen in der Übersicht
+  const isCutterOnly = hasRole(user, ROLES.CUTTER) &&
+    !hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF);
+
   $('#content').innerHTML = `
     <div class="stat-grid">
       <div class="stat">
@@ -5116,6 +5819,7 @@ function renderDashboard(session) {
         <div class="stat-value">${pendingApproval.length}</div>
         <div class="stat-sub">Status: Fertig</div>
       </div>
+      ${!isCutterOnly ? `
       <div class="stat">
         <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
         <div class="stat-label">Kunden</div>
@@ -5128,6 +5832,7 @@ function renderDashboard(session) {
         <div class="stat-value">${store.users.length}</div>
         <div class="stat-sub">Mitglieder</div>
       </div>
+      ` : ''}
     </div>
 
     <div class="flex" style="justify-content: space-between; align-items: center; margin-bottom: 14px;">
@@ -5694,6 +6399,20 @@ function renderProjects(session) {
 
   let projects = getRelevantProjects(user).filter(p => p.status !== STATUS.ARCHIVIERT);
   const canCreate = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  // Brainstorming-Ideen (kundenlos) nur für Admins – Manager sehen sonst nur Projekte
+  // ihrer eigenen Kunden und würden ihre eigene Idee nicht wiederfinden.
+  const canQuickIdea = hasRole(user, ROLES.ADMIN);
+
+  // Phasen-Headbar nur für Admin/Manager. Andere (z. B. Videograf) sehen die Seite wie bisher.
+  const showPhases = canCreate;
+  const phaseCounts = { ideen: 0, production: 0, post: 0 };
+  let kundenCount = 0;
+  if (showPhases) {
+    const stored = localStorage.getItem(_filterKey('proj_phase'));
+    if (stored && (stored === 'kunden' || PROJECT_PHASES[stored])) projectPhaseTab = stored;
+    projects.forEach(p => { const ph = getProjectPhase(p); if (phaseCounts[ph] != null) phaseCounts[ph]++; });
+    kundenCount = projects.length;
+  }
 
   // Such- und Filterzustand pro Page (persistiert im LocalStorage)
   const projectFilters = JSON.parse(localStorage.getItem(_filterKey('proj_filters')) || '{}');
@@ -5712,10 +6431,34 @@ function renderProjects(session) {
     });
   }
 
+  // Phasen-Filter: nur Projekte des aktiven Reiters anzeigen (Admin/Manager).
+  // Der „Kunden"-Reiter zeigt alle Projekte (nach Kunde gruppiert), filtert also nicht nach Phase.
+  if (showPhases && projectPhaseTab !== 'kunden') {
+    projects = projects.filter(p => getProjectPhase(p) === projectPhaseTab);
+  }
+
+  const hotbar = showPhases ? `
+    <div class="phase-hotbar">
+      ${Object.entries(PROJECT_PHASES).map(([k, v]) => `
+        <button type="button" class="phase-tab ${projectPhaseTab === k ? 'active' : ''}" onclick="setProjectPhase('${k}')">
+          <span>${v}</span><span class="phase-count">${phaseCounts[k]}</span>
+        </button>`).join('')}
+      <button type="button" class="phase-tab ${projectPhaseTab === 'kunden' ? 'active' : ''}" onclick="setProjectPhase('kunden')">
+        <span>Kunden</span><span class="phase-count">${kundenCount}</span>
+      </button>
+    </div>
+    <select class="phase-select-mobile" onchange="setProjectPhase(this.value)" aria-label="Phase wählen">
+      ${Object.entries(PROJECT_PHASES).map(([k, v]) => `
+        <option value="${k}" ${projectPhaseTab === k ? 'selected' : ''}>${v} (${phaseCounts[k]})</option>`).join('')}
+      <option value="kunden" ${projectPhaseTab === 'kunden' ? 'selected' : ''}>Kunden (${kundenCount})</option>
+    </select>` : '';
+
   $('#topbar-actions').innerHTML = canCreate
-    ? `<div class="flex gap-2">
+    ? `<div class="flex gap-2" style="flex-wrap:wrap;">
          <button class="btn btn-secondary" onclick="openShootDayModal()">+ Drehtag</button>
-         <button class="btn btn-primary" onclick="openProjectModal()">+ Neues Projekt</button>
+         <button class="btn btn-secondary" onclick="openSeriesPlannerModal()">Serie planen</button>
+         <button class="btn ${canQuickIdea ? 'btn-secondary' : 'btn-primary'}" onclick="openProjectModal()">+ Neues Projekt</button>
+         ${canQuickIdea ? `<button class="btn btn-primary" onclick="openQuickIdeaModal()">+ Neue Idee</button>` : ''}
        </div>` : '';
 
   const filterBar = `
@@ -5736,15 +6479,60 @@ function renderProjects(session) {
   `;
 
   if (projects.length === 0) {
-    $('#content').innerHTML = filterBar + `
+    const filtered = (searchTerm || statusFilter !== 'all');
+    let emptyMsg, cta = '';
+    if (filtered) {
+      emptyMsg = 'Keine Projekte entsprechen deinem Filter.';
+    } else if (showPhases && projectPhaseTab === 'ideen') {
+      emptyMsg = 'Noch keine Ideen festgehalten.';
+      cta = canQuickIdea
+        ? '<br/><br/><button class="btn btn-primary" onclick="openQuickIdeaModal()">Erste Idee festhalten</button>'
+        : '';
+    } else if (showPhases && projectPhaseTab === 'kunden') {
+      emptyMsg = 'Noch keine Projekte vorhanden.';
+    } else if (showPhases) {
+      emptyMsg = `Keine Projekte in der Phase „${PROJECT_PHASES[projectPhaseTab]}".`;
+    } else {
+      emptyMsg = 'Noch keine Projekte vorhanden.';
+      cta = canCreate ? '<br/><br/><button class="btn btn-primary" onclick="openProjectModal()">Erstes Projekt anlegen</button>' : '';
+    }
+    $('#content').innerHTML = hotbar + filterBar + `
       <div class="card">
         <div class="empty-state">
           <div class="empty-state-icon">🎬</div>
-          ${(searchTerm || statusFilter !== 'all') ? 'Keine Projekte entsprechen deinem Filter.' : 'Noch keine Projekte vorhanden.'}
-          ${canCreate && !(searchTerm || statusFilter !== 'all') ? '<br/><br/><button class="btn btn-primary" onclick="openProjectModal()">Erstes Projekt anlegen</button>' : ''}
+          ${emptyMsg}${cta}
         </div>
       </div>
     `;
+    return;
+  }
+
+  // „Kunden"-Reiter: Projekte nach Kunde gruppiert anzeigen (alphabetisch sortiert).
+  if (showPhases && projectPhaseTab === 'kunden') {
+    const byCustomer = new Map();
+    projects.forEach(p => {
+      let key, label, sortKey;
+      if (p.isInternal) { key = '__intern__'; label = 'Intern'; sortKey = '￿1'; }
+      else if (p.customerId) {
+        const c = store.customers.find(x => x.id === p.customerId);
+        key = p.customerId; label = c?.name || 'Unbekannter Kunde'; sortKey = label.toLowerCase();
+      } else { key = '__none__'; label = 'Ohne Kunde'; sortKey = '￿2'; }
+      if (!byCustomer.has(key)) byCustomer.set(key, { label, sortKey, projects: [] });
+      byCustomer.get(key).projects.push(p);
+    });
+    const groups = Array.from(byCustomer.values()).sort((a, b) => a.sortKey.localeCompare(b.sortKey, 'de'));
+    $('#content').innerHTML = hotbar + filterBar + groups.map(g => `
+      <div class="card mb-4">
+        <div class="card-header">
+          <div class="card-title" style="display:flex; align-items:center; gap:10px;">
+            <span style="background:var(--accent-soft); color:var(--accent); padding:3px 10px; border-radius:6px; font-size:11px; font-weight:700; letter-spacing:0.4px;">👤 KUNDE</span>
+            <span>${escape(g.label)}</span>
+            <span style="margin-left:auto; font-size:12px; color:var(--text-3); font-weight:500;">${g.projects.length} Video${g.projects.length === 1 ? '' : 's'}</span>
+          </div>
+        </div>
+        ${renderTable(g.projects)}
+      </div>
+    `).join('');
     return;
   }
 
@@ -5758,6 +6546,10 @@ function renderProjects(session) {
       noShootDay.push(p);
     }
   });
+  // Ideen/Projekte ohne Drehtag (z. B. der Ideen-Reiter) haben kein Drehdatum zum Sortieren →
+  // alphabetisch nach Kundenname (ohne Kunde ans Ende), Titel als Zweitkriterium.
+  const _custName = p => (store.customers.find(c => c.id === p.customerId)?.name || '￿').toLowerCase();
+  noShootDay.sort((a, b) => _custName(a).localeCompare(_custName(b), 'de') || (a.title || '').localeCompare(b.title || '', 'de'));
 
   const shootDayGroups = Object.keys(byShootDay)
     .map(id => {
@@ -5774,14 +6566,37 @@ function renderProjects(session) {
     const customerCell = p.isInternal
       ? '<span class="badge" style="background:rgba(100,210,255,0.12); color:#64d2ff; border:1px solid rgba(100,210,255,0.25);">Intern</span>'
       : escape(c?.name || '–');
+    // Deadline rot hinterlegen, wenn überschritten (und das Projekt noch nicht freigegeben ist).
+    // Lokales Datum verwenden (nicht UTC via toISOString), sonst kippt der Vergleich
+    // je nach Zeitzone um Mitternacht falsch.
+    const todayStr = localDateStr(new Date());
+    const deadlineOverdue = p.deadline && p.deadline < todayStr && p.status !== STATUS.FREIGEGEBEN;
+    const deadlineCell = p.deadline
+      ? (deadlineOverdue
+          ? `<span class="badge badge-ueberfaellig">${fmtDate(p.deadline)}</span>`
+          : fmtDate(p.deadline))
+      : '–';
+    // Ideen direkt aus der Liste löschbar (kein Umwandeln nötig) – nur für Admins.
+    const ideaTrash = (canQuickIdea && isProjectIdea(p))
+      ? `<button type="button" class="row-trash" title="Idee löschen" aria-label="Idee löschen" onclick="event.stopPropagation(); deleteProject('${p.id}')">🗑</button>`
+      : '';
+    const noPosting = needsPostingDate(p);
+    const noPostingBadge = noPosting
+      ? `<span class="badge badge-no-posting">Kein Posting-Datum festgelegt</span>`
+      : '';
+    const nichtGedreht = isNichtGedreht(p);
+    const nichtGedrehtBadge = nichtGedreht
+      ? `<span class="badge badge-nicht-gedreht">Nicht gedreht</span>`
+      : '';
+    const rowCls = nichtGedreht ? 'row-nicht-gedreht' : (noPosting ? 'row-no-posting' : '');
     return `
-      <tr style="cursor:pointer" onclick="openProjectModal('${p.id}')">
-        <td><strong>${escape(p.title)}</strong></td>
+      <tr class="${rowCls}" style="cursor:pointer" onclick="openProjectModal('${p.id}')">
+        <td><div class="row-title"><strong>${escape(p.title)}</strong>${ideaTrash}${nichtGedrehtBadge}${noPostingBadge}</div></td>
         <td>${customerCell}</td>
         <td><span class="badge badge-${statusCls(p.status)}">${statusLabel(p.status)}</span></td>
         <td>${escape(vg?.name || '–')}</td>
         <td>${escape(ct?.name || '–')}</td>
-        <td>${fmtDate(p.deadline)}</td>
+        <td>${deadlineCell}</td>
         <td>${p.isInternal ? '–' : (fmtDate(p.postingDate) + ' 18:00')}</td>
       </tr>
     `;
@@ -5806,18 +6621,20 @@ function renderProjects(session) {
     `;
   }
 
-  $('#content').innerHTML = filterBar + `
+  $('#content').innerHTML = hotbar + filterBar + `
     ${shootDayGroups.map(g => {
       const sd = g.shootDay;
       const vg = store.users.find(u => u.id === sd.videografId);
       const cust = store.customers.find(c => c.id === sd.customerId);
       const headerText = `${fmtDate(sd.date)} · ${sd.startTime}–${sd.endTime}${vg ? ' · ' + vg.name : ''}${cust ? ' · ' + cust.name : ''}`;
+      const hasNichtGedreht = g.projects.some(p => isNichtGedreht(p));
       return `
-        <div class="card mb-4">
+        <div class="card mb-4" style="${hasNichtGedreht ? 'border-color:rgba(255,69,58,0.35);' : ''}">
           <div class="card-header" style="cursor:pointer;" onclick="openShootDayModal('${sd.id}')">
             <div class="card-title" style="display:flex; align-items:center; gap:10px;">
               <span style="background:rgba(167,139,250,0.2); color:#c4b5fd; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:700; letter-spacing:0.4px;">🎥 DREHTAG</span>
               <span>${escape(headerText)}</span>
+              ${hasNichtGedreht ? `<span class="shootday-header-warn">⚠ Bitte neu planen</span>` : ''}
               <span style="margin-left:auto; font-size:12px; color:var(--text-3); font-weight:500;">${g.projects.length} Video${g.projects.length === 1 ? '' : 's'}</span>
             </div>
           </div>
@@ -5837,6 +6654,379 @@ function renderProjects(session) {
       </div>
     ` : ''}
   `;
+}
+
+/* Brainstorming „Neue Idee" (Phase Planung) – nur Admin/Manager.
+   Nur Titel ist Pflicht, Skript optional, bewusst kein Drehdatum. */
+function openQuickIdeaModal(ideaId = null) {
+  const session = getCurrentUser();
+  if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN)) {
+    appAlert('Nur Admins dürfen Ideen anlegen.', { title: 'Nicht erlaubt' });
+    return;
+  }
+  pendingScriptFile = null;
+  const idea = ideaId ? store.projects.find(p => p.id === ideaId) : null;
+  const isEdit = !!idea;
+  const sf = idea ? scriptFileOf(idea) : null;
+
+  const scriptPdfBlock = isEdit ? `
+    <div class="form-group">
+      <label class="form-label">Skript-PDF (optional)</label>
+      ${sf ? `
+        <div style="display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--bg-2); border:1px solid var(--border); border-radius:8px; margin-bottom:8px;">
+          <span style="flex:1; font-size:13px;">📄 <a href="${API_BASE}/download.php?scope=project&id=${sf.id}" target="_blank" rel="noopener">${escape(sf.filename)}</a></span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="removeScriptFile('${idea.id}', '${sf.id}')">Entfernen</button>
+        </div>` : ''}
+      <label class="file-upload" for="idea-script-upload">
+        <input type="file" id="idea-script-upload" accept="application/pdf" style="display:none;" onchange="uploadScriptFile(event, '${idea.id}')" />
+        <div style="font-size:13px;font-weight:500;">${sf ? 'Skript-PDF ersetzen' : 'Skript-PDF hochladen'}</div>
+      </label>
+    </div>` : '';
+
+  const convertBtn = isEdit ? `
+    <button type="button" class="btn btn-secondary" onclick="convertIdeaToProject('${idea.id}')">In Projekt umwandeln</button>` : '';
+  const deleteBtn = isEdit ? `
+    <button type="button" class="btn btn-danger" onclick="deleteProject('${idea.id}')">Löschen</button>` : '';
+
+  const html = `<div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+    <div class="modal" style="max-width:520px;">
+      <div class="modal-header">
+        <div class="modal-title">${isEdit ? 'Idee bearbeiten' : 'Neue Idee'}</div>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <form onsubmit="submitQuickIdea(event, '${idea?.id || ''}')">
+        <div class="modal-body">
+          <p class="text-sm text-muted" style="margin-bottom:14px;">
+            ${isEdit
+              ? 'Skript hier weiter ausarbeiten. „In Projekt umwandeln", sobald Kunde/Drehdatum dazukommen.'
+              : 'Schneller Brainstorming-Eintrag – es genügt ein Titel. Skript kannst du jetzt oder später ergänzen.'}
+          </p>
+          <div class="form-group">
+            <label class="form-label">Videotitel *</label>
+            <input type="text" name="title" required maxlength="190" ${isEdit ? '' : 'autofocus'} placeholder="Worum geht's?" value="${isEdit ? escape(idea.title || '') : ''}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Skript / Notizen (optional)</label>
+            <textarea name="script" class="autogrow" rows="6" placeholder="Hook, Ablauf, Ideen…">${isEdit ? escape(idea.script || '') : ''}</textarea>
+          </div>
+          ${scriptPdfBlock}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+          ${deleteBtn}
+          ${convertBtn}
+          <button type="submit" class="btn btn-primary" id="quick-idea-btn">${isEdit ? 'Speichern' : 'Idee speichern'}</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+  $('#modal-container').innerHTML = html;
+  initAutogrowTextareas();
+}
+
+async function submitQuickIdea(e, ideaId = '') {
+  e.preventDefault();
+  const session = getCurrentUser();
+  if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN)) {
+    appAlert('Nur Admins dürfen Ideen anlegen.', { title: 'Nicht erlaubt' });
+    return;
+  }
+  const form = e.target;
+  const title = form.title.value.trim();
+  const script = form.script.value.trim();
+  if (!title) { showToast('Bitte einen Titel angeben.', 'warn'); return; }
+
+  const btn = document.getElementById('quick-idea-btn');
+  const btnLabel = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Wird gespeichert…';
+
+  // Pending Skript-PDF sichern, bevor closeModal() sie zurücksetzt.
+  const scriptToUpload = pendingScriptFile;
+  pendingScriptFile = null;
+
+  // ── Bestehende Idee bearbeiten ───────────────────────────────────────────
+  if (ideaId) {
+    const idx = store.projects.findIndex(p => p.id === ideaId);
+    if (idx < 0) { showToast('Idee nicht gefunden', 'error'); return; }
+    const prev = { ...store.projects[idx] };
+    store.projects[idx] = { ...store.projects[idx], title, script: script || null };
+    closeModal();
+    renderProjects(getCurrentUser());
+    try {
+      const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(ideaId)}`, {
+        method: 'PUT', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({ title, script: script || '' })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+      if (json.data) {
+        const i = store.projects.findIndex(p => p.id === ideaId);
+        if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
+      }
+      if (scriptToUpload) await uploadScriptForProject(ideaId, scriptToUpload);
+      showToast('Idee gespeichert', 'success');
+    } catch (err) {
+      const i = store.projects.findIndex(p => p.id === ideaId);
+      if (i >= 0) store.projects[i] = prev;
+      renderProjects(getCurrentUser());
+      showToast('Fehler beim Speichern: ' + err.message, 'error');
+    }
+    return;
+  }
+
+  // ── Neue Idee anlegen ────────────────────────────────────────────────────
+  const newId = uid('p');
+  const optimistic = {
+    id: newId, title, script: script || null, status: STATUS.IDEE,
+    customerId: null, videografId: null, cutterId: null,
+    shootDate: null, shootDayId: null, deadline: null, postingDate: null,
+    isInternal: 0, createdAt: new Date().toISOString()
+  };
+  try {
+    const res = await fetch(`${API_BASE}/projects.php`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ id: newId, title, script: script || '', status: STATUS.IDEE, isInternal: 0 })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    store.projects.unshift(json.data ? { ...optimistic, ...json.data } : optimistic);
+    projectPhaseTab = 'ideen';
+    try { localStorage.setItem(_filterKey('proj_phase'), 'ideen'); } catch (e) {}
+    closeModal();
+    showToast('Idee gespeichert', 'success');
+    renderProjects(getCurrentUser());
+    if (scriptToUpload) await uploadScriptForProject(newId, scriptToUpload);
+  } catch (err) {
+    showToast('Fehler beim Speichern: ' + err.message, 'error');
+    btn.disabled = false; btn.textContent = btnLabel;
+  }
+}
+
+// Idee mit Projektdetails anreichern: einfach das volle Formular öffnen. Der Status bleibt
+// 'idee', bis ein Drehtag/Drehdatum gesetzt wird – dann wird beim Speichern automatisch 'geplant'.
+async function convertIdeaToProject(ideaId) {
+  const idx = store.projects.findIndex(p => p.id === ideaId);
+  if (idx < 0) return;
+  closeModal();
+  showToast('Projektdetails ergänzen', 'Kunde/Deadline/Zuweisung ergänzen – mit Drehtag wird daraus automatisch „Geplant".');
+  openProjectModal(ideaId, true); // forceFull: volles Projektformular statt schlankem Ideen-Editor
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feature 2: Posting-Serien-Generator
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Erzeugt n Posting-Daten für einen Kunden ab einem Startdatum.
+ * Überspringt bereits belegte Tage (Kunde hat schon ein Projekt an diesem Datum)
+ * und Wochentage die nicht im Rhythmus des Kunden sind.
+ * @returns Array of { postingDate, deadline, cutterId }
+ */
+function generatePostingDates(customerId, shootDate, count) {
+  const customer = store.customers.find(c => c.id === customerId);
+  if (!customer || !shootDate) return [];
+
+  const weekdays = (customer.postingWeekdays || '')
+    .split(',').filter(Boolean).map(Number);
+  if (weekdays.length === 0) return [];
+
+  // Bereits belegte Posting-Tage dieses Kunden
+  const usedDates = new Set(
+    store.projects
+      .filter(p => p.customerId === customerId && p.postingDate)
+      .map(p => p.postingDate)
+  );
+
+  const results = [];
+  // Mindestens 3 Tage nach Drehtag
+  const start = new Date(shootDate + 'T00:00:00');
+  start.setDate(start.getDate() + 3);
+
+  let cur = new Date(start);
+  const limit = 365;
+  for (let iter = 0; results.length < count && iter < limit; iter++) {
+    const dow = cur.getDay(); // 0=So … 6=Sa
+    const dateStr = localDateStr(cur);
+    if (weekdays.includes(dow) && !usedDates.has(dateStr)) {
+      const deadline = addDays(dateStr, -2);
+      results.push({ postingDate: dateStr, deadline, cutterId: customer.defaultCutterId || '' });
+      usedDates.add(dateStr); // keine Doppelbelegung innerhalb der Serie
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return results;
+}
+
+function openSeriesPlannerModal() {
+  const session = getCurrentUser();
+  if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) return;
+
+  const isAdmin = hasRole(session.user, ROLES.ADMIN);
+  const myCustomers = store.customers.filter(c =>
+    isAdmin || !c.managerId || c.managerId === session.user.id
+  );
+  const cutters = store.users.filter(u => hasRole(u, ROLES.CUTTER));
+
+  const customerOpts = `<option value="">– Kunde wählen –</option>` +
+    myCustomers.map(c => `<option value="${c.id}">${escape(c.name)} (${escape(c.customerNumber)})</option>`).join('');
+
+  const cutterOptsTpl = (selId) => `<option value="">–</option>` +
+    cutters.map(u => `<option value="${u.id}" ${selId === u.id ? 'selected' : ''}>${escape(u.name)}</option>`).join('');
+
+  const today = localDateStr(new Date());
+
+  const html = `
+    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+      <div class="modal modal-large">
+        <div class="modal-header">
+          <div class="modal-title">Posting-Serie planen</div>
+          <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <form onsubmit="submitSeriesPlan(event)" id="series-planner-form">
+          <div class="modal-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Kunde*</label>
+                <select name="customerId" id="sp-customer" required onchange="updateSeriesPreview()">${customerOpts}</select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Drehtag*</label>
+                <input type="date" name="shootDate" id="sp-shootDate" required value="${today}" onchange="updateSeriesPreview()" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Anzahl Videos</label>
+                <input type="number" name="count" id="sp-count" min="1" max="30" value="4" required onchange="updateSeriesPreview()" />
+              </div>
+            </div>
+            <div id="series-preview-container" style="margin-top:8px;"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+            <button type="submit" class="btn btn-primary" id="sp-submit-btn" disabled>Projekte anlegen</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  $('#modal-container').innerHTML = html;
+  // Store cutter template for preview rows
+  window._seriesCutterOptsTpl = cutterOptsTpl;
+}
+
+function updateSeriesPreview() {
+  const cid     = document.getElementById('sp-customer')?.value;
+  const shoot   = document.getElementById('sp-shootDate')?.value;
+  const count   = parseInt(document.getElementById('sp-count')?.value) || 0;
+  const box     = document.getElementById('series-preview-container');
+  const btn     = document.getElementById('sp-submit-btn');
+  if (!box) return;
+  if (!cid || !shoot || count < 1) { box.innerHTML = ''; if (btn) btn.disabled = true; return; }
+
+  const customer = store.customers.find(c => c.id === cid);
+  if (!customer?.postingWeekdays && !customer?.autoPostingRhythm) {
+    box.innerHTML = `<div class="series-no-config">
+      ⚠ Für diesen Kunden sind noch keine Posting-Wochentage konfiguriert.<br>
+      Bitte zuerst im Kunden-Stammdaten den Posting-Rhythmus einrichten.
+    </div>`;
+    if (btn) btn.disabled = true;
+    return;
+  }
+
+  const dates = generatePostingDates(cid, shoot, count);
+  if (dates.length === 0) {
+    box.innerHTML = `<div class="series-no-config">⚠ Keine freien Posting-Tage gefunden (nächste ${365} Tage geprüft).</div>`;
+    if (btn) btn.disabled = true;
+    return;
+  }
+
+  const rows = dates.map((d, i) => {
+    const warn = d.deadline <= shoot
+      ? `<span title="Cutter-Deadline liegt am/vor Drehtag" style="color:#fbbf24;">⚠</span>` : '';
+    return `<tr>
+      <td class="series-preview-row-num">${i + 1}</td>
+      <td><input type="text" name="title_${i}" placeholder="Titel Video ${i+1}" style="min-width:160px;" /></td>
+      <td><input type="date" name="postingDate_${i}" value="${d.postingDate}" onchange="onSeriesRowDateChange(${i})" /></td>
+      <td><input type="date" name="deadline_${i}" value="${d.deadline}" /> ${warn}</td>
+      <td><select name="cutterId_${i}">${window._seriesCutterOptsTpl(d.cutterId)}</select></td>
+    </tr>`;
+  }).join('');
+
+  box.innerHTML = `<table class="series-preview-table">
+    <thead><tr>
+      <th>#</th><th>Titel</th><th>Posting-Datum</th><th>Cutter-Deadline</th><th>Cutter</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="text-sm text-muted" style="margin-top:8px;">Drehtag für alle: ${fmtDate(shoot)} · Titel kann leer bleiben (dann wird „Video N" verwendet).</div>`;
+  if (btn) { btn.disabled = false; btn.textContent = `${dates.length} Projekt${dates.length === 1 ? '' : 'e'} anlegen`; }
+}
+
+function onSeriesRowDateChange(i) {
+  const postingInput = document.querySelector(`[name="postingDate_${i}"]`);
+  const deadlineInput = document.querySelector(`[name="deadline_${i}"]`);
+  if (postingInput?.value && deadlineInput) {
+    deadlineInput.value = addDays(postingInput.value, -2);
+  }
+}
+
+async function submitSeriesPlan(e) {
+  e.preventDefault();
+  const form = e.target;
+  const cid   = document.getElementById('sp-customer')?.value;
+  const shoot = document.getElementById('sp-shootDate')?.value;
+  const count = parseInt(document.getElementById('sp-count')?.value) || 0;
+  const session = getCurrentUser();
+  if (!session || !cid || !shoot || count < 1) return;
+
+  const btn = document.getElementById('sp-submit-btn');
+  btn.disabled = true; btn.textContent = 'Wird angelegt…';
+
+  const errors = [];
+  const created = [];
+  const customer = store.customers.find(c => c.id === cid);
+  // Nur die tatsächlich in der Vorschau gerenderten Zeilen anlegen (kann < count sein).
+  const previewDates = generatePostingDates(cid, shoot, count);
+  const actualCount = previewDates.length;
+
+  for (let i = 0; i < actualCount; i++) {
+    const postingDate = form[`postingDate_${i}`]?.value;
+    const deadline    = form[`deadline_${i}`]?.value;
+    const cutterId    = form[`cutterId_${i}`]?.value || null;
+    const rawTitle    = (form[`title_${i}`]?.value || '').trim();
+    const title       = rawTitle || `${escape(customer?.name || 'Video')} – Reel ${i + 1}`;
+    const newId = uid('p');
+
+    const payload = {
+      id: newId, title, customerId: cid, shootDate: shoot,
+      cutterId: cutterId || null,
+      postingDate: postingDate || null,
+      deadline: deadline || null,
+      status: STATUS.GEPLANT, isInternal: 0,
+    };
+    try {
+      const res = await fetch(`${API_BASE}/projects.php`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+      store.projects.unshift(json.data ? { ...payload, ...json.data } : payload);
+      created.push(title);
+    } catch (err) {
+      errors.push(`Video ${i+1}: ${err.message}`);
+    }
+  }
+
+  closeModal();
+  renderProjects(session);
+  if (errors.length) {
+    showToast(`${created.length} Projekt(e) angelegt, ${errors.length} Fehler.`, 'warn');
+  } else {
+    showToast(`${created.length} Projekt${created.length === 1 ? '' : 'e'} erfolgreich angelegt.`, 'success');
+  }
 }
 
 /* Aufgeräumte Cutter-Projektsicht – nur abgedrehte Projekte, gruppiert nach Status */
@@ -5887,7 +7077,7 @@ function renderCutterProjects(session) {
             ${vg ? `<span style="display:inline-flex; align-items:center; gap:5px;">${renderAvatar(vg, 18, 9)} ${escape(vg.name)}</span>` : ''}
             ${deadline ? `<span class="${overdue ? 'cutter-card-overdue' : ''}">⏰ Deadline: ${fmtDate(deadline)} 17:00 ${daysLeft !== null && daysLeft >= 0 ? '· in ' + daysLeft + ' Tagen' : (overdue ? '· überfällig' : '')}</span>` : ''}
             ${kind === 'correction' ? `<span class="cutter-card-correction">⚠️ Korrektur angefragt</span>` : ''}
-            ${p.scriptFile ? `<span>📄 Skript-PDF</span>` : ''}
+            ${scriptFileOf(p) ? `<span>📄 Skript-PDF</span>` : ''}
           </div>
         </div>
         ${action ? `<div class="cutter-card-action">${action}</div>` : ''}
@@ -6067,7 +7257,7 @@ function renderReports(session) {
       <div class="card" style="grid-column:1 / -1;">
         <div class="card-header"><div class="card-title">Pipeline – aktive Projekte nach Status</div></div>
         <div style="padding:14px; display:flex; flex-wrap:wrap; gap:14px;">
-          ${[STATUS.SKRIPT, STATUS.GEPLANT, STATUS.GEDREHT, STATUS.SCHNITT, STATUS.KORREKTUR, STATUS.FERTIG].map(s => `
+          ${[STATUS.IDEE, STATUS.GEPLANT, STATUS.GEDREHT, STATUS.SCHNITT, STATUS.KORREKTUR, STATUS.FERTIG].map(s => `
             <div style="flex:1; min-width:120px; background:var(--bg-2); padding:14px; border-radius:10px;">
               <div class="text-sm text-muted">${escape(STATUS_LABELS[s])}</div>
               <div style="font-size:24px; font-weight:600; margin-top:4px;">${statusCounts[s] || 0}</div>
@@ -6397,7 +7587,7 @@ async function deleteShootDay(shootDayId) {
   }
 }
 
-function openProjectModal(projectId = null) {
+function openProjectModal(projectId = null, forceFull = false) {
   const session = getCurrentUser();
   const isStaff = session.type === 'staff';
   const isAdmin = isStaff && hasRole(session.user, ROLES.ADMIN);
@@ -6405,6 +7595,14 @@ function openProjectModal(projectId = null) {
 
   const project = projectId ? store.projects.find(p => p.id === projectId) : null;
   const isNew = !project;
+
+  // Ideen (eigener Status 'idee') öffnen den schlanken Ideen-Editor – kein Kunde nötig.
+  // Ausnahme: forceFull (z. B. „In Projekt umwandeln") öffnet das volle Projektformular,
+  // damit Kunde/Deadline/Zuweisung ergänzt werden können.
+  if (project && project.status === STATUS.IDEE && !forceFull) {
+    if (isAdmin) return openQuickIdeaModal(project.id);
+    return openProjectViewerModal(project);
+  }
 
   if (isNew && !isManagerOrAdmin) return; // only managers/admins create
 
@@ -6478,10 +7676,17 @@ function openProjectModal(projectId = null) {
         <form id="project-form" onsubmit="saveProject(event, '${project?.id || ''}')">
           <div class="modal-body">
             ${!isNew ? `
-              <div class="info-box">
-                <strong>Status:</strong> <span class="badge badge-${statusCls(project.status)}">${statusLabel(project.status)}</span>
-                ${project.isInternal ? `<span class="badge" style="background: rgba(100,210,255,0.12); color: #64d2ff; border: 1px solid rgba(100,210,255,0.25); margin-left:6px;">Intern</span>` : ''}
-                ${statusActions ? `<div style="margin-top:10px;">${statusActions}</div>` : ''}
+              <div class="proj-status-row">
+                ${isAdmin ? `
+                  <span class="status-badge-wrap" title="Status ändern">
+                    <span class="badge badge-${statusCls(project.status)} status-badge-clickable">${statusLabel(project.status)} ▾</span>
+                    <select class="status-badge-select" aria-label="Status ändern" onchange="setProjectStatus('${project.id}', this.value)">
+                      ${Object.entries(STATUS_LABELS).map(([k,v]) => `<option value="${k}" ${project.status===k?'selected':''}>${escape(v)}</option>`).join('')}
+                    </select>
+                  </span>
+                ` : `<span class="badge badge-${statusCls(project.status)}">${statusLabel(project.status)}</span>`}
+                ${project.isInternal ? `<span class="badge" style="background: rgba(100,210,255,0.12); color: #64d2ff; border: 1px solid rgba(100,210,255,0.25);">Intern</span>` : ''}
+                ${statusActions ? `<span class="status-actions">${statusActions}</span>` : ''}
               </div>
               <div id="proj-comments-box"></div>
             ` : ''}
@@ -6506,7 +7711,7 @@ function openProjectModal(projectId = null) {
               <div class="form-row">
                 <div class="form-group">
                   <label class="form-label">Kunde*</label>
-                  <select name="customerId" id="proj-customer" ${!isManagerOrAdmin ? 'disabled' : ''}>
+                  <select name="customerId" id="proj-customer" ${!isManagerOrAdmin ? 'disabled' : ''} onchange="onProjectCustomerChange(this)">
                     <option value="">– bitte wählen –</option>
                     ${customerOptions}
                   </select>
@@ -6522,12 +7727,13 @@ function openProjectModal(projectId = null) {
                       return `<option value="${sd.id}" data-date="${sd.date}" data-videograf="${sd.videografId || ''}" ${project?.shootDayId === sd.id ? 'selected' : ''}>${escape(label)}</option>`;
                     }).join('')}
                   </select>
+                  ${project && isNichtGedreht(project) ? `<div class="nicht-gedreht-warn">⚠ Nicht gedreht – bitte neu planen</div>` : ''}
                 </div>
               </div>
               <div class="form-row" id="manual-shootDate-row" style="${project?.shootDayId ? 'display:none;' : ''}">
                 <div class="form-group">
                   <label class="form-label">Drehtag (manuell)</label>
-                  <input type="date" name="shootDate" id="proj-shootDate" value="${project?.shootDate || ''}" ${!canEdit ? 'readonly' : ''} />
+                  <input type="date" name="shootDate" id="proj-shootDate" value="${project?.shootDate || ''}" ${!canEdit ? 'readonly' : ''} onchange="checkCutterTimeline()" />
                 </div>
               </div>
             </div>
@@ -6540,7 +7746,7 @@ function openProjectModal(projectId = null) {
               </div>
               <div class="form-group">
                 <label class="form-label">Cutter</label>
-                <select name="cutterId" ${!isManagerOrAdmin ? 'disabled' : ''}>${cutterOptions}</select>
+                <select name="cutterId" id="proj-cutter" ${!isManagerOrAdmin ? 'disabled' : ''} onchange="this.dataset.userEdited='1'">${cutterOptions}</select>
               </div>
             </div>
 
@@ -6551,35 +7757,47 @@ function openProjectModal(projectId = null) {
               </div>
               <div class="form-group">
                 <label class="form-label">Cutter-Deadline (17:00)</label>
-                <input type="date" name="deadline" id="proj-deadline" value="${project?.deadline || ''}" ${!canEdit ? 'readonly' : ''} />
+                <input type="date" name="deadline" id="proj-deadline" value="${project?.deadline || ''}" ${!canEdit ? 'readonly' : ''} onchange="checkCutterTimeline()" />
                 ${isNew ? '<div class="text-sm text-muted mt-2">Wird automatisch 2 Tage vor Posting gesetzt, kann aber manuell überschrieben werden.</div>' : ''}
               </div>
             </div>
+            <div id="timeline-warning-box"></div>
 
             <div class="form-group">
               <label class="form-label">Skript / Konzept</label>
-              <textarea name="script" ${!canEdit ? 'readonly' : ''} placeholder="Skript, Szenen, Anweisungen für Videograf und Cutter...">${escape(project?.script || '')}</textarea>
+              <textarea name="script" class="autogrow" ${!canEdit ? 'readonly' : ''} placeholder="Skript, Szenen, Anweisungen für Videograf und Cutter...">${escape(project?.script || '')}</textarea>
             </div>
 
             <div class="form-group">
               <label class="form-label">Skript-PDF</label>
-              ${project?.scriptFile ? `
+              ${(() => { const sf = scriptFileOf(project); return sf ? `
                 <div class="file-uploaded">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  <span style="flex:1;">${escape(project.scriptFileName || 'Skript.pdf')}</span>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="downloadScriptFile('${project.id}')">Öffnen</button>
-                  ${canEdit ? `<button type="button" class="btn btn-ghost btn-sm" onclick="removeScriptFile('${project.id}')" style="color:var(--danger);">×</button>` : ''}
+                  <span style="flex:1;">${escape(sf.filename || 'Skript.pdf')}</span>
+                  <a class="btn btn-ghost btn-sm" href="${API_BASE}/download.php?scope=project&id=${sf.id}" target="_blank" rel="noopener">Öffnen</a>
+                  ${canEdit ? `<button type="button" class="btn btn-ghost btn-sm" onclick="removeScriptFile('${project.id}', '${sf.id}')" style="color:var(--danger);">×</button>` : ''}
                 </div>
-              ` : ''}
+              ` : ''; })()}
               ${canEdit ? `
-                <label class="file-upload" for="script-upload" style="margin-top:${project?.scriptFile ? '10px' : '0'};">
+                <label class="file-upload" for="script-upload" style="margin-top:${scriptFileOf(project) ? '10px' : '0'};">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.5" style="margin-bottom:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  <div style="font-size:13px;font-weight:500;">${project?.scriptFile ? 'Skript-PDF ersetzen' : 'Skript-PDF hochladen'}</div>
-                  <div class="text-sm text-muted mt-2">PDF, max. 4 MB · landet auch im Kalender-Abo</div>
-                  <input type="file" id="script-upload" accept=".pdf,application/pdf" style="display:none;" onchange="uploadScriptFile(event)" />
+                  <div style="font-size:13px;font-weight:500;">${scriptFileOf(project) ? 'Skript-PDF ersetzen' : 'Skript-PDF hochladen'}</div>
+                  <div class="text-sm text-muted mt-2">PDF, max. 50 MB</div>
+                  <input type="file" id="script-upload" accept=".pdf,application/pdf" style="display:none;" onchange="uploadScriptFile(event, '${project?.id || ''}')" />
                 </label>
               ` : ''}
             </div>
+
+            ${!isNew ? `
+            <div class="form-group">
+              <label class="form-label">NAS-Freigabelinks (Ugreen)</label>
+              <div class="nas-links">
+                ${nasLinkField('nasRohmaterialUrl', '01_Rohmaterial', 'Rohmaterial für Cutter (read-only)', project?.nasRohmaterialUrl, canEdit)}
+                ${nasLinkField('nasExportUrl', '03_Exporte_Cutter', 'Export-Upload des Cutters', project?.nasExportUrl, canEdit)}
+                ${nasLinkField('nasFreigabeUrl', '04_Freigaben_Manager', 'Finaler Manager-Review', project?.nasFreigabeUrl, canEdit)}
+              </div>
+            </div>
+            ` : ''}
 
             ${folderName ? `
               <div class="form-group">
@@ -6601,7 +7819,10 @@ function openProjectModal(projectId = null) {
     </div>
   `;
   $('#modal-container').innerHTML = html;
+  initAutogrowTextareas();
   if (projectId) loadAndRenderProjectComments(projectId, isManagerOrAdmin, 'proj-comments-box');
+  // 24h-Validierung beim Öffnen eines bestehenden Projekts prüfen
+  checkCutterTimeline();
 
   // Draft autosave for new projects
   if (isNew && canEdit) {
@@ -6658,7 +7879,7 @@ function getStatusActions(project, session) {
 
   // Permission-gestützte Buttons – Buttons erscheinen nur, wenn die Aktion auch wirklich erlaubt ist
   // Videograf: Drehtag-Status setzen
-  if ((project.status === STATUS.SKRIPT || project.status === STATUS.GEPLANT)
+  if (project.status === STATUS.GEPLANT
       && canActOnProject(project, session, 'markAsShot')) {
     const label = isInternal ? '✓ Bereit für Schnitt' : '✓ Als abgedreht markieren';
     buttons.push(`<button class="btn btn-primary btn-sm" onclick="markAsShot('${project.id}')">${label}</button>`);
@@ -6689,14 +7910,8 @@ function getStatusActions(project, session) {
   if (project.status === STATUS.FREIGEGEBEN && canActOnProject(project, session, 'archive')) {
     buttons.push(`<button class="btn btn-secondary btn-sm" onclick="archiveProject('${project.id}')">→ Archivieren</button>`);
   }
-  // Admin: Status manuell setzen wenn unbekannt/leer
-  if (!STATUS_LABELS[project.status] && isAdmin) {
-    const opts = Object.entries(STATUS_LABELS)
-      .filter(([k]) => k !== STATUS.ARCHIVIERT)
-      .map(([k,v]) => `<option value="${k}">${v}</option>`)
-      .join('');
-    buttons.push(`<select class="btn btn-sm btn-secondary" style="cursor:pointer;" onchange="setProjectStatus('${project.id}', this.value)"><option value="">Status setzen…</option>${opts}</select>`);
-  }
+  // Admin: Status jederzeit direkt setzen – im Projekt-Modal jetzt durch Klick auf das
+  // Status-Badge (status-badge-select). Hier daher kein separater Select-Balken mehr.
   return buttons.join(' ');
 }
 
@@ -6854,16 +8069,18 @@ async function openProjectViewerModal(project) {
             </div>
           ` : ''}
 
-          ${project.scriptFile ? `
+          ${(() => { const sf = scriptFileOf(project); return sf ? `
             <div style="margin-top: 14px;">
               <div class="cutter-detail-label" style="margin-bottom:6px;">Skript-PDF</div>
               <div class="file-uploaded">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                <span style="flex:1;">${escape(project.scriptFileName || 'Skript.pdf')}</span>
-                <button class="btn btn-secondary btn-sm" onclick="downloadScriptFile('${project.id}')">Öffnen</button>
+                <span style="flex:1;">${escape(sf.filename || 'Skript.pdf')}</span>
+                <a class="btn btn-secondary btn-sm" href="${API_BASE}/download.php?scope=project&id=${sf.id}" target="_blank" rel="noopener">Öffnen</a>
               </div>
             </div>
-          ` : ''}
+          ` : ''; })()}
+
+          ${renderNasViewerSection(project, user)}
 
           ${renderProjectFilesSection(project, session)}
 
@@ -7040,21 +8257,11 @@ async function saveProject(e, projectId) {
       }
     }
     // Beim Anlegen: Cutter-Deadline = Posting − 48 h (= 2 Tage)
-    // Beim Bearbeiten: Deadline editierbar, fällt zurück auf Posting − 2 Tage falls leer
-    if (!projectId) {
-      // Neu angelegt → Deadline nur setzen wenn leer
-      if (!data.deadline && data.postingDate) {
-        data.deadline = addDays(data.postingDate, -2);
-      }
-    } else {
-      // Bearbeiten: Fallback wenn Posting da, Deadline leer
-      if (!data.deadline && data.postingDate) {
-        data.deadline = addDays(data.postingDate, -2);
-      }
-      // Fallback wenn Deadline da, Posting leer (Posting = Deadline + 2 Tage)
-      if (!data.postingDate && data.deadline) {
-        data.postingDate = addDays(data.deadline, 2);
-      }
+    // Beim Bearbeiten: Deadline editierbar, fällt zurück auf Posting − 2 Tage falls leer.
+    // Posting-Datum wird NICHT aus der Deadline fabriziert – es darf bewusst leer bleiben
+    // (siehe Orange-Hinweis „Kein Posting-Datum festgelegt"); sonst würde der Hinweis nie greifen.
+    if (!data.deadline && data.postingDate) {
+      data.deadline = addDays(data.postingDate, -2);
     }
   }
 
@@ -7080,14 +8287,7 @@ async function saveProject(e, projectId) {
     if (!confirm(warnings.join('\n\n') + '\n\nTrotzdem speichern?')) return;
   }
 
-  // Skript-PDF anhängen (falls neue Datei hochgeladen)
-  const fileAdds = {};
-  if (pendingScriptFile) {
-    fileAdds.scriptFile = pendingScriptFile.data;
-    fileAdds.scriptFileName = pendingScriptFile.name;
-    pendingScriptFile = null;
-  }
-
+  // Skript-PDF wird erst nach dem DB-Save als Projektdatei hochgeladen (siehe unten).
   // Drehtag "lernt" den Kunden: Wenn Drehtag noch keinen Kunden hat
   // und das Projekt einen, dann auf dem Drehtag speichern – so wird er
   // bei jedem weiteren Projekt mit diesem Drehtag automatisch übernommen.
@@ -7116,7 +8316,7 @@ async function saveProject(e, projectId) {
     const idx = store.projects.findIndex(p => p.id === projectId);
     if (idx >= 0) {
       prevEntry = { ...store.projects[idx] };
-      store.projects[idx] = { ...store.projects[idx], ...data, ...fileAdds };
+      store.projects[idx] = { ...store.projects[idx], ...data };
     }
   } else {
     insertedId = uid('p');
@@ -7131,17 +8331,33 @@ async function saveProject(e, projectId) {
       deadline: data.deadline || null,
       postingDate: data.postingDate || null,
       script: data.script || '',
-      status: STATUS.SKRIPT,
-      createdAt: new Date().toISOString(),
-      ...fileAdds
+      status: (data.shootDate || data.shootDayId) ? STATUS.GEPLANT : STATUS.IDEE,
+      createdAt: new Date().toISOString()
     });
   }
+
+  // Vor-Dreh-Automatik: Status aus Drehtag/Drehdatum ableiten (idee↔geplant) und in den
+  // DB-Payload spiegeln. Status ab 'gedreht' bleibt unangetastet.
+  const _savedIdx = store.projects.findIndex(p => p.id === (projectId || insertedId));
+  if (_savedIdx >= 0) {
+    normalizeIdeaPhase(store.projects[_savedIdx]);
+    data.status = store.projects[_savedIdx].status;
+  }
+
+  // Pending Skript-PDF sichern, BEVOR closeModal() sie auf null setzt.
+  const scriptToUpload = pendingScriptFile;
+  pendingScriptFile = null;
 
   clearProjectDraft();
   closeModal();
 
-  // Neues Projekt → Kalender auf frühestes Datum springen
   if (!projectId) {
+    // Zur Phase des neuen Projekts wechseln (Ideen bei Idee/Geplant, sonst Production etc.)
+    const newPhase = _savedIdx >= 0 ? getProjectPhase(store.projects[_savedIdx]) : 'ideen';
+    projectPhaseTab = newPhase;
+    try { localStorage.setItem(_filterKey('proj_phase'), newPhase); } catch (e) {}
+
+    // Kalender auf frühestes Datum springen
     const dates = [data.shootDate, data.deadline, data.postingDate].filter(Boolean).sort();
     if (dates.length > 0) {
       const earliest = new Date(dates[0] + 'T00:00:00');
@@ -7168,6 +8384,11 @@ async function saveProject(e, projectId) {
     isInternal: data.isInternal ? 1 : 0,
     status: data.status || undefined
   };
+  // NAS-Freigabelinks nur mitschicken, wenn die Felder im Formular vorhanden waren
+  // (nur Bearbeiten-Ansicht, nicht bei Neuanlage).
+  if ('nasRohmaterialUrl' in data) apiPayload.nasRohmaterialUrl = data.nasRohmaterialUrl || null;
+  if ('nasExportUrl' in data)      apiPayload.nasExportUrl      = data.nasExportUrl || null;
+  if ('nasFreigabeUrl' in data)    apiPayload.nasFreigabeUrl    = data.nasFreigabeUrl || null;
   // Für neue Projekte: id mitschicken
   if (!projectId) apiPayload.id = insertedId;
 
@@ -7184,11 +8405,14 @@ async function saveProject(e, projectId) {
     });
     const json = await res.json();
     if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    const targetId = projectId || insertedId;
     if (json.data) {
-      const targetId = projectId || insertedId;
       const i = store.projects.findIndex(p => p.id === targetId);
-      // Merge server response but keep local-only fields (scriptFile, scriptFileName)
       if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
+    }
+    // Skript-PDF jetzt persistent hochladen (Projekt existiert serverseitig)
+    if (scriptToUpload) {
+      await uploadScriptForProject(targetId, scriptToUpload);
     }
   } catch (err) {
     // Rollback
@@ -7217,6 +8441,43 @@ function autoFillDeadline() {
   if (!postingInput || !deadlineInput) return;
   if (postingInput.value && !deadlineInput.value) {
     deadlineInput.value = addDays(postingInput.value, -2);
+  }
+  checkCutterTimeline();
+}
+
+// Feature 4: 24h-Cutter-Validierung
+function checkCutterTimeline() {
+  const box = document.getElementById('timeline-warning-box');
+  if (!box) return;
+  const shootDate  = document.getElementById('proj-shootDate')?.value  || '';
+  const deadline   = document.getElementById('proj-deadline')?.value   || '';
+  const postingDate = document.getElementById('proj-postingDate')?.value || '';
+  const warnings = [];
+  if (shootDate && deadline) {
+    // Rohmaterial muss mind. 24h vor Cutter-Deadline bereitstehen
+    if (deadline <= shootDate) {
+      warnings.push('Cutter-Deadline liegt am selben Tag oder vor dem Drehtag – Cutter hat keine 24 h zum Schneiden.');
+    }
+  }
+  if (deadline && postingDate) {
+    // Cutter braucht mind. 24h zwischen Deadline und Posting
+    if (postingDate <= deadline) {
+      warnings.push('Posting-Datum liegt am selben Tag oder vor der Cutter-Deadline – zu wenig Zeit für Freigabe.');
+    }
+  }
+  if (warnings.length === 0) { box.innerHTML = ''; return; }
+  box.innerHTML = warnings.map(w =>
+    `<div class="timeline-warning">⚠ ${escape(w)}</div>`
+  ).join('');
+}
+
+// Feature 3: Auto-Fill Cutter aus Kunden-Defaults beim Wechsel des Kunden
+function onProjectCustomerChange(select) {
+  const cid = select.value;
+  const customer = cid ? store.customers.find(c => c.id === cid) : null;
+  const cutterSelect = document.getElementById('proj-cutter');
+  if (cutterSelect && customer?.defaultCutterId && !cutterSelect.dataset.userEdited) {
+    cutterSelect.value = customer.defaultCutterId;
   }
 }
 
@@ -7249,6 +8510,12 @@ function onShootDayChange(select) {
         }
         if (inheritedCustomerId) {
           customerSelect.value = inheritedCustomerId;
+          // Auto-Fill Cutter aus Kunden-Defaults
+          const iCust = store.customers.find(c => c.id === inheritedCustomerId);
+          const cutterSel = document.getElementById('proj-cutter');
+          if (cutterSel && iCust?.defaultCutterId && !cutterSel.dataset.userEdited) {
+            cutterSel.value = iCust.defaultCutterId;
+          }
         }
       }
     }
@@ -7260,46 +8527,182 @@ function onShootDayChange(select) {
   }
 }
 
+// Neueste persistierte Skript-PDF eines Projekts (aus project_files, kind=script).
+function scriptFileOf(project) {
+  if (!project || !Array.isArray(project.files)) return null;
+  const scripts = project.files.filter(f => f && f.kind === 'script');
+  return scripts.length ? scripts[0] : null; // list_files liefert neueste zuerst
+}
+
+// Ein NAS-Freigabelink-Feld (Ordner-Label + Hinweis + Eingabe + "Öffnen"-Shortcut).
+// editable=false → read-only (z. B. für Cutter/Videograf im Viewer).
+function nasLinkField(name, folderLabel, hint, value, editable) {
+  const v = value || '';
+  const safeV = escape(v);
+  const open = v
+    ? `<a class="btn btn-ghost btn-sm" href="${safeV}" target="_blank" rel="noopener noreferrer">Öffnen</a>`
+    : '';
+  return `
+    <div class="nas-link-row">
+      <div class="nas-link-meta">
+        <span class="nas-link-folder">${escape(folderLabel)}</span>
+        <span class="nas-link-hint">${escape(hint)}</span>
+      </div>
+      <div class="nas-link-input">
+        <input type="url" name="${name}" value="${safeV}" ${editable ? '' : 'readonly'}
+               placeholder="https://nas… Freigabelink einfügen" />
+        ${open}
+      </div>
+    </div>`;
+}
+
+// NAS-Sektion im Read-Only-Viewer (Cutter/Videograf):
+// Rohmaterial + Freigabe als reine Öffnen-Shortcuts; Export-Link für den zugewiesenen
+// Cutter editierbar (er trägt seinen Upload-/Export-Share-Link ein und speichert ihn).
+function renderNasViewerSection(project, user) {
+  const isAssignedCutter = project.cutterId && project.cutterId === user.id;
+  const shortcut = (folderLabel, hint, value) => {
+    if (!value) return '';
+    return `
+      <div class="nas-link-row">
+        <div class="nas-link-meta">
+          <span class="nas-link-folder">${escape(folderLabel)}</span>
+          <span class="nas-link-hint">${escape(hint)}</span>
+        </div>
+        <div class="nas-link-input">
+          <a class="btn btn-secondary btn-sm" href="${escape(value)}" target="_blank" rel="noopener noreferrer">Öffnen</a>
+        </div>
+      </div>`;
+  };
+  const rohmaterial = shortcut('01_Rohmaterial', 'Rohmaterial (read-only)', project.nasRohmaterialUrl);
+  const freigabe    = shortcut('04_Freigaben_Manager', 'Manager-Freigabe', project.nasFreigabeUrl);
+  // Export: Cutter editierbar, sonst Shortcut (falls gesetzt)
+  let exportBlock = '';
+  if (isAssignedCutter) {
+    const v = project.nasExportUrl || '';
+    exportBlock = `
+      <div class="nas-link-row">
+        <div class="nas-link-meta">
+          <span class="nas-link-folder">03_Exporte_Cutter</span>
+          <span class="nas-link-hint">Dein Export-Freigabelink</span>
+        </div>
+        <div class="nas-link-input">
+          <input type="url" id="nas-export-input" value="${escape(v)}" placeholder="https://nas… Export-Link einfügen" />
+          <button type="button" class="btn btn-primary btn-sm" onclick="saveCutterNasExport('${project.id}')">Speichern</button>
+        </div>
+      </div>`;
+  } else {
+    exportBlock = shortcut('03_Exporte_Cutter', 'Cutter-Export', project.nasExportUrl);
+  }
+  if (!rohmaterial && !exportBlock && !freigabe) return '';
+  return `
+    <div style="margin-top: 14px;">
+      <div class="cutter-detail-label" style="margin-bottom:6px;">NAS-Freigabelinks (Ugreen)</div>
+      <div class="nas-links">${rohmaterial}${exportBlock}${freigabe}</div>
+    </div>`;
+}
+
+// Cutter speichert seinen Export-Link (nur dieses Feld ist serverseitig für ihn erlaubt).
+async function saveCutterNasExport(projectId) {
+  const input = document.getElementById('nas-export-input');
+  if (!input) return;
+  const val = input.value.trim();
+  const idx = store.projects.findIndex(p => p.id === projectId);
+  const prev = idx >= 0 ? store.projects[idx].nasExportUrl : undefined;
+  if (idx >= 0) store.projects[idx].nasExportUrl = val || null;
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ nasExportUrl: val })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data && idx >= 0) store.projects[idx] = { ...store.projects[idx], ...json.data };
+    showToast('Export-Link gespeichert', 'success');
+  } catch (err) {
+    if (idx >= 0) store.projects[idx].nasExportUrl = prev;
+    showToast('Fehler beim Speichern', err.message);
+  }
+}
+
 let pendingScriptFile = null;
-function uploadScriptFile(e) {
+function uploadScriptFile(e, projectId) {
   const file = e.target.files[0];
   if (!file) return;
-  if (file.size > 4 * 1024 * 1024) {
-    alert('Datei ist zu groß (max. 4 MB für LocalStorage).');
+  if (file.type !== 'application/pdf') {
+    showToast('Nur PDF erlaubt', 'Bitte eine PDF-Datei auswählen.');
+    e.target.value = '';
     return;
   }
-  const reader = new FileReader();
-  reader.onload = ev => {
-    pendingScriptFile = { name: file.name, data: ev.target.result };
-    const labelEl = e.target.closest('.file-upload');
-    if (labelEl) {
-      labelEl.style.borderColor = 'var(--accent)';
-      labelEl.style.background = 'var(--accent-soft)';
-      labelEl.querySelector('div').textContent = '✓ ' + file.name + ' bereit zum Speichern';
+  if (file.size > 50 * 1024 * 1024) {
+    showToast('Datei zu groß', 'Maximal 50 MB erlaubt.');
+    e.target.value = '';
+    return;
+  }
+  // Beim Speichern hochladen (für neue UND bestehende Projekte – so gehen
+  // gleichzeitige Änderungen an anderen Feldern nicht verloren).
+  pendingScriptFile = file;
+  const labelEl = e.target.closest('.file-upload');
+  if (labelEl) {
+    labelEl.style.borderColor = 'var(--accent)';
+    labelEl.style.background = 'var(--accent-soft)';
+    const d = labelEl.querySelector('div');
+    if (d) d.textContent = '✓ ' + file.name + ' bereit zum Speichern';
+  }
+}
+
+// Lädt die ausgewählte Skript-PDF zum Projekt hoch (persistiert in project_files)
+// und räumt ältere Skript-Dateien auf. Wird aus saveProject nach dem DB-Save aufgerufen.
+async function uploadScriptForProject(projectId, file) {
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(
+      `${API_BASE}/upload.php?scope=project&kind=script&id=${encodeURIComponent(projectId)}`,
+      { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF }, body: fd }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Skript-Upload fehlgeschlagen');
+    const p = store.projects.find(x => x.id === projectId);
+    if (p) {
+      const old = Array.isArray(p.files) ? p.files : [];
+      const oldScripts = old.filter(f => f && f.kind === 'script');
+      const nonScripts = old.filter(f => !f || f.kind !== 'script');
+      p.files = [{
+        id: json.data.id, kind: 'script', filename: json.data.filename,
+        mime: json.data.mime, size: json.data.size, path: json.data.path
+      }, ...nonScripts];
+      // Vorherige Skript-PDFs serverseitig entfernen (best effort)
+      oldScripts.forEach(f => deleteProjectFileRequest(f.id).catch(() => {}));
     }
-  };
-  reader.readAsDataURL(file);
+    renderPage();
+  } catch (err) {
+    showToast('Skript konnte nicht gespeichert werden', err.message);
+  }
 }
-function downloadScriptFile(projectId) {
-  const p = store.projects.find(x => x.id === projectId);
-  if (!p?.scriptFile) return;
-  const a = document.createElement('a');
-  a.href = p.scriptFile;
-  a.download = p.scriptFileName || 'Skript.pdf';
-  a.click();
+
+function deleteProjectFileRequest(fileId) {
+  return fetch(
+    `${API_BASE}/upload.php?scope=project&id=${encodeURIComponent(fileId)}`,
+    { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+  ).then(r => r.json());
 }
-async function removeScriptFile(projectId) {
+
+async function removeScriptFile(projectId, fileId) {
   const ok = await appConfirm('Die hochgeladene Skript-PDF wird entfernt.', {
     title: 'Skript entfernen?', okLabel: 'Entfernen', danger: true
   });
   if (!ok) return;
-  const idx = store.projects.findIndex(p => p.id === projectId);
-  if (idx >= 0) {
-    delete store.projects[idx].scriptFile;
-    delete store.projects[idx].scriptFileName;
-    saveStore();
-  
+  try {
+    const json = await deleteProjectFileRequest(fileId);
+    if (!json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+    const p = store.projects.find(x => x.id === projectId);
+    if (p && Array.isArray(p.files)) p.files = p.files.filter(f => String(f.id) !== String(fileId));
+    showToast('Skript entfernt', '');
     openProjectModal(projectId);
+  } catch (err) {
+    showToast('Fehler beim Entfernen', err.message);
   }
 }
 
@@ -7671,6 +9074,23 @@ async function deleteProject(projectId) {
   }
 }
 
+// Auto-Resize für Textareas mit Klasse "autogrow": wächst mit dem Inhalt, kein interner
+// Scrollbalken. Moderne Browser erledigen das via CSS field-sizing:content; für ältere
+// Safari/Chrome greift dieser JS-Fallback (Höhe = scrollHeight).
+const SUPPORTS_FIELD_SIZING = !!(window.CSS && CSS.supports && CSS.supports('field-sizing', 'content'));
+function autoGrowTextarea(el) {
+  if (!el || SUPPORTS_FIELD_SIZING) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+function initAutogrowTextareas() {
+  if (SUPPORTS_FIELD_SIZING) return;
+  document.querySelectorAll('#modal-container textarea.autogrow').forEach(autoGrowTextarea);
+}
+document.addEventListener('input', e => {
+  if (e.target && e.target.matches && e.target.matches('textarea.autogrow')) autoGrowTextarea(e.target);
+});
+
 function closeModal() {
   $('#modal-container').innerHTML = '';
   // Pending File-Uploads zurücksetzen damit sie nicht im nächsten Modal versehentlich landen
@@ -7793,10 +9213,10 @@ function renderCustomers(session) {
   const isAdmin = hasRole(user, ROLES.ADMIN);
   $('#content').innerHTML = custFilterBar + `
     <div class="card">
-      <table>
+      <table class="cards-mobile">
         <thead>
           <tr>
-            ${isAdmin ? `<th style="width:30px;"><input type="checkbox" onchange="this.checked ? bulkSelectAll('customers', ${JSON.stringify(customers.map(c=>c.id))}) : clearBulk()"/></th>` : ''}
+            ${isAdmin ? `<th class="col-select" style="width:30px;"><input type="checkbox" onchange="this.checked ? bulkSelectAll('customers', ${JSON.stringify(customers.map(c=>c.id))}) : clearBulk()"/></th>` : ''}
             <th>Kunde</th>
             <th>Kundennr.</th>
             <th>Status</th>
@@ -7817,15 +9237,15 @@ function renderCustomers(session) {
             const status = customerStatus(c);
             return `
               <tr style="cursor:pointer" onclick="if(!event.target.classList.contains('bulk-checkbox'))openCustomerModal('${c.id}')">
-                ${isAdmin ? `<td onclick="event.stopPropagation()"><input type="checkbox" class="bulk-checkbox" onchange="toggleBulk('customers','${c.id}',this.checked)"/></td>` : ''}
-                <td>
+                ${isAdmin ? `<td class="col-select" onclick="event.stopPropagation()"><input type="checkbox" class="bulk-checkbox" onchange="toggleBulk('customers','${c.id}',this.checked)"/></td>` : ''}
+                <td class="card-title-cell">
                   <strong>${escape(c.name)}</strong>
                   ${c.industry ? `<div class="text-sm text-muted">${escape(c.industry)}</div>` : ''}
                 </td>
-                <td><code style="background:var(--bg-2);padding:2px 6px;border-radius:4px;font-size:11.5px;">${escape(c.customerNumber)}</code></td>
-                <td><span class="badge badge-status-${status}">${CUSTOMER_STATUS_LABELS[status]}</span></td>
-                <td>${escape(mgr?.name || '–')}</td>
-                <td>
+                <td data-label="Kundennr."><code style="background:var(--bg-2);padding:2px 6px;border-radius:4px;font-size:11.5px;">${escape(c.customerNumber)}</code></td>
+                <td data-label="Status"><span class="badge badge-status-${status}">${CUSTOMER_STATUS_LABELS[status]}</span></td>
+                <td data-label="Manager">${escape(mgr?.name || '–')}</td>
+                <td data-label="Onboarding">
                   <div style="display:flex;align-items:center;gap:8px;">
                     <div class="progress-bar" style="flex:1; max-width:90px; margin-top:0;">
                       <div class="progress-fill" style="width:${pct}%;"></div>
@@ -7833,8 +9253,8 @@ function renderCustomers(session) {
                     <span class="text-sm" style="color:${pct === 100 ? 'var(--accent)' : 'var(--text-2)'}; font-weight:600;">${done}/${total}</span>
                   </div>
                 </td>
-                <td>${escape(c.package || '–')}</td>
-                <td>${projectCount}</td>
+                <td data-label="Paket">${escape(c.package || '–')}</td>
+                <td data-label="Projekte">${projectCount}</td>
               </tr>
             `;
           }).join('')}
@@ -7871,6 +9291,10 @@ function openCustomerModal(customerId = null) {
   const managers = store.users.filter(u => hasRole(u, ROLES.MANAGER));
   const managerOptions = `<option value="">– bitte wählen –</option>` + managers
     .map(u => `<option value="${u.id}" ${customer?.managerId === u.id ? 'selected' : ''}>${escape(u.name)}</option>`).join('');
+
+  const cutters = store.users.filter(u => hasRole(u, ROLES.CUTTER));
+  const defaultCutterOptions = `<option value="">– kein Standard –</option>` + cutters
+    .map(u => `<option value="${u.id}" ${customer?.defaultCutterId === u.id ? 'selected' : ''}>${escape(u.name)}</option>`).join('');
 
   const nextNum = isNew ? generateNextCustomerNumber() : customer.customerNumber;
   const c = customer || {};
@@ -8029,6 +9453,38 @@ function openCustomerModal(customerId = null) {
                   <label class="form-label">Videos / Monat</label>
                   <input type="number" name="videosPerMonth" value="${escape(c.videosPerMonth || '')}" />
                 </div>
+              </div>
+
+              <div class="section-title" style="margin-top:18px;">Serien-Einstellungen</div>
+              <label class="checkbox-row" style="margin-bottom:14px;">
+                <input type="checkbox" name="autoPostingRhythm" ${c.autoPostingRhythm ? 'checked' : ''} />
+                <div class="checkbox-content">
+                  <div class="checkbox-title">Automatischen Posting-Rhythmus aktivieren</div>
+                  <div class="checkbox-sub">Beim Anlegen von Projekten werden Posting-Daten aus dem Rhythmus vorgeschlagen</div>
+                </div>
+              </label>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Standard-Cutter</label>
+                  <select name="defaultCutterId">${defaultCutterOptions}</select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Videos pro Woche</label>
+                  <input type="number" name="videosPerWeek" min="1" max="7" value="${c.videosPerWeek || 2}" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Posting-Wochentage</label>
+                <div class="weekday-picker">
+                  ${['So','Mo','Di','Mi','Do','Fr','Sa'].map((day, i) => {
+                    const isActive = (c.postingWeekdays || '').split(',').filter(Boolean).includes(String(i));
+                    return `<label class="weekday-chip ${isActive ? 'wd-active' : ''}" onclick="event.preventDefault();this.classList.toggle('wd-active');this.querySelector('input').checked=this.classList.contains('wd-active')">
+                      <input type="checkbox" name="wd_${i}" ${isActive ? 'checked' : ''} style="display:none;" />
+                      ${day}
+                    </label>`;
+                  }).join('')}
+                </div>
+                <div class="text-sm text-muted mt-2">Gewählte Tage werden beim Serien-Generator als Posting-Tage verwendet.</div>
               </div>
 
               <div class="section-title">Vertragsdokumente</div>
@@ -8214,6 +9670,16 @@ async function saveCustomer(e, customerId) {
   // Handle "billing same as address" checkbox
   data.billingSameAsAddress = !!data.billingSameAsAddress;
 
+  // Posting-Wochentage aus Checkboxen sammeln (wd_0 … wd_6)
+  const selectedWeekdays = [];
+  for (let _i = 0; _i <= 6; _i++) {
+    if (e.target.querySelector(`[name="wd_${_i}"]`)?.checked) selectedWeekdays.push(_i);
+    delete data['wd_' + _i];
+  }
+  data.postingWeekdays = selectedWeekdays.join(',') || null;
+  // autoPostingRhythm ist eine Checkbox → "on" oder undefined
+  data.autoPostingRhythm = !!data.autoPostingRhythm;
+
   // Manual status override (paused only)
   const manualStatus = data.manualStatus || '';
   delete data.manualStatus;
@@ -8269,6 +9735,10 @@ async function saveCustomer(e, customerId) {
     package: data.package || null,
     monthlyRate: data.monthlyRate || null,
     videosPerMonth: data.videosPerMonth || null,
+    defaultCutterId: data.defaultCutterId || null,
+    postingWeekdays: data.postingWeekdays || null,
+    videosPerWeek: parseInt(data.videosPerWeek) || 2,
+    autoPostingRhythm: data.autoPostingRhythm ? 1 : 0,
     status: data.status || null,
     checklist,
     ...(pinHashUpdate ? { pinHash: pinHashUpdate } : {})
@@ -8341,6 +9811,12 @@ async function deleteCustomer(customerId) {
 
 /* ----------- ARCHIVE ----------- */
 function renderArchive(session) {
+  // Cutter (ohne höhere Rolle) haben keinen Zugriff aufs Archiv
+  const u = session && session.user;
+  if (u && hasRole(u, ROLES.CUTTER) && !hasRole(u, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF)) {
+    navigateTo('dashboard');
+    return;
+  }
   $('#page-title').textContent = 'Fertige Projekte';
   $('#page-subtitle').textContent = 'Archivierte und freigegebene Videos';
   $('#topbar-actions').innerHTML = '';
@@ -8484,7 +9960,8 @@ function buildCalendarBars(session) {
   const isAdmin = hasRole(user, ROLES.ADMIN);
   // Cutter sehen das Posting NICHT – sie kümmern sich nur um ihre Deadline
   const showsPostings = hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF);
-  const myProjects = getRelevantProjects(user).filter(p => p.status !== STATUS.ARCHIVIERT);
+  // IDEE-Status aus Kalender ausblenden: zurückgeschobene Ideen verschwinden wieder.
+  const myProjects = getRelevantProjects(user).filter(p => p.status !== STATUS.ARCHIVIERT && p.status !== STATUS.IDEE);
   const bars = [];
 
   // Drehtage als eigene Entitäten – EINE Bar pro Drehtag, unabhängig wie viele Projekte zugewiesen sind
@@ -8523,11 +10000,13 @@ function buildCalendarBars(session) {
   myProjects.forEach(p => {
     const c = store.customers.find(x => x.id === p.customerId);
     const customerName = c?.name || '';
+    const kuerzel = makeKuerzel(customerName);
     const fullTitle = p.title + (customerName ? ' · ' + customerName : '');
     const sd = p.shootDate || null;
     const pd = p.postingDate || null;
     const dl = p.deadline || null; // = Cutter-Deadline
-    const base = { projectId: p.id, title: p.title, customer: customerName, fullTitle };
+    const nichtGedreht = isNichtGedreht(p);
+    const base = { projectId: p.id, title: p.title, customer: customerName, kuerzel, fullTitle, nichtGedreht };
 
     // KEIN 'shoot' mehr pro Projekt – Drehtag ist nur die Drehtag-Entität oben
 
@@ -8886,9 +10365,11 @@ function renderMonthBar(b, startIdx, endIdx, cutsLeft, cutsRight) {
   };
   let text;
   if (b.phase === 'vacation') text = 'Urlaub – ' + b.customer;
-  else if (b.phase === 'production' || b.phase === 'editing') text = b.title;
+  else if (b.phase === 'shoot') text = b.title;
   else text = b.title;
-  const cls = `month-bar phase-${b.phase} ${cutsLeft ? 'cuts-left' : ''} ${cutsRight ? 'cuts-right' : ''}`;
+  const showMChip = b.kuerzel && b.phase !== 'shoot' && b.phase !== 'vacation';
+  const mChip = showMChip ? `<span class="ical-kuerzel-chip">${escape(b.kuerzel)}</span>` : '';
+  const cls = `month-bar phase-${b.phase} ${b.nichtGedreht ? 'nicht-gedreht' : ''} ${cutsLeft ? 'cuts-left' : ''} ${cutsRight ? 'cuts-right' : ''}`;
   const click = b.vacationId ? `onclick="navigateTo('vacation')"` : `onclick="openProjectModal('${b.projectId}')"`;
   const time = b.time ? `<span class="month-bar-time">${b.time}</span>` : '';
   const tooltipPrefix = labels[b.phase] ? labels[b.phase] + ': ' : '';
@@ -8896,7 +10377,7 @@ function renderMonthBar(b, startIdx, endIdx, cutsLeft, cutsRight) {
   const user = getBarPrimaryUser(b);
   const showAvatar = !cutsLeft && user;
   const avatar = showAvatar ? renderAvatar(user, 16, 9) : '';
-  return `<div class="${cls}" style="grid-column: ${startIdx+1} / ${endIdx+2}; grid-row: ${b.lane+2};" ${click} title="${escape(title)}">${avatar}${time}<span class="month-bar-title">${escape(text)}</span></div>`;
+  return `<div class="${cls}" style="grid-column: ${startIdx+1} / ${endIdx+2}; grid-row: ${b.lane+2};" ${click} title="${escape(title)}">${avatar}${time}${mChip}<span class="month-bar-title">${escape(text)}</span></div>`;
 }
 
 /* ===== iCLOUD WEEK VIEW – Stunden-Layout, nahtlos horizontal scrollbar ===== */
@@ -9006,34 +10487,73 @@ function renderCategoryWeekView(elementId, session, mini = false) {
 
   const shootLayout    = visible('shoot')    ? layoutCat(shootBars)    : [];
   const vacationLayout = visible('vacation') ? layoutCat(vacationBars) : [];
-  const videoLayout    = visible('videos')   ? layoutCat(videoBars)    : [];
+  // videoLayout: nur für Mini-Kalender global (Vollansicht legt pro Kunde separat an)
+  const videoLayout    = (visible('videos') && mini) ? layoutCat(videoBars) : [];
   const todoLayout     = visible('todos')    ? layoutCat(todoBars)     : [];
 
   const isMobile = window.innerWidth < 640;
   const colWidth = isMobile ? 70 : (mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH);
-  const sidebarWidth = mini ? 120 : 48;
+  // Mini-Kalender ohne Sidebar; volle Ansicht mit schmaler Kunden-Kürzel-Spalte.
+  const sidebarWidth = mini ? 0 : 44;
 
   // Dynamische Cat-Liste: nur sichtbare Kategorien rendern – Reihenfolge: Drehtag, Urlaub, Videos, Aufgaben
   let nextRow = 2;
   const cats = [];
   if (visible('shoot')) {
     const lanes = Math.max(1, shootLayout.reduce((a,b) => Math.max(a, b.lane+1), 0));
-    cats.push({ key: 'shoot', label: 'Drehtag', icon: '🎥', cls: 'cat-shoot', start: nextRow, lanes, items: shootLayout });
+    cats.push({ key: 'shoot', label: 'Drehtag', icon: '🎥', cls: 'cat-shoot', isEmoji: true, start: nextRow, lanes, items: shootLayout });
     nextRow += lanes;
   }
   if (visible('vacation')) {
     const lanes = Math.max(1, vacationLayout.reduce((a,b) => Math.max(a, b.lane+1), 0));
-    cats.push({ key: 'vacation', label: 'Urlaub', icon: '🏖', cls: 'cat-vacation', start: nextRow, lanes, items: vacationLayout });
+    cats.push({ key: 'vacation', label: 'Urlaub', icon: '🏖', cls: 'cat-vacation', isEmoji: true, start: nextRow, lanes, items: vacationLayout });
     nextRow += lanes;
   }
   if (visible('videos')) {
-    const lanes = Math.max(1, videoLayout.reduce((a,b) => Math.max(a, b.lane+1), 0));
-    cats.push({ key: 'videos', label: 'Videos', icon: '🎬', cls: 'cat-videos', start: nextRow, lanes, items: videoLayout });
-    nextRow += lanes;
+    if (mini) {
+      // Mini-Kalender: einfache Videos-Kategorie ohne Kundenaufteilung
+      const lanes = Math.max(1, videoLayout.reduce((a,b) => Math.max(a, b.lane+1), 0));
+      cats.push({ key: 'videos', label: 'Videos', icon: '🎬', cls: 'cat-videos', isEmoji: true, start: nextRow, lanes, items: videoLayout });
+      nextRow += lanes;
+    } else {
+      // Vollansicht: pro Kunde eigene Zeile, alphabetisch sortiert.
+      // videoBars (ungrouped) → nach Kunde aufteilen → layoutCat() pro Gruppe separat.
+      // So hat jeder Kunde eigene Lane-Nummern ab 0 und belegt nur so viele Zeilen
+      // wie nötig – keine aufgeblähten Lane-Offsets aus dem globalen Layout.
+      const custRaw = new Map();
+      videoBars.forEach(b => {
+        const k = b.customer || '';
+        if (!custRaw.has(k)) custRaw.set(k, []);
+        custRaw.get(k).push(b);
+      });
+      [...custRaw.keys()]
+        .sort((a, z) => a.toLowerCase().localeCompare(z.toLowerCase(), 'de'))
+        .forEach(custName => {
+          const items = layoutCat(custRaw.get(custName)); // eigenes Lane-Layout pro Kunde
+          if (!items.length) return;
+          const lanes = Math.max(1, items.reduce((acc, b) => Math.max(acc, b.lane + 1), 0));
+          cats.push({
+            key: 'videos',
+            label: custName || '—',
+            icon: makeKuerzel(custName),
+            cls: 'cat-videos',
+            isEmoji: false,
+            start: nextRow,
+            lanes,
+            items
+          });
+          nextRow += lanes;
+        });
+      // Fallback: keine Videos sichtbar → leere Platzhalterzeile damit Kategorie nicht fehlt
+      if (cats.filter(c => c.key === 'videos').length === 0) {
+        cats.push({ key: 'videos', label: 'Videos', icon: '🎬', cls: 'cat-videos', isEmoji: true, start: nextRow, lanes: 1, items: [] });
+        nextRow += 1;
+      }
+    }
   }
   if (visible('todos')) {
     const lanes = Math.max(1, todoLayout.reduce((a,b) => Math.max(a, b.lane+1), 0));
-    cats.push({ key: 'todos', label: 'Aufgaben', icon: '✅', cls: 'cat-todos', start: nextRow, lanes, items: todoLayout });
+    cats.push({ key: 'todos', label: 'Aufgaben', icon: '✅', cls: 'cat-todos', isEmoji: true, start: nextRow, lanes, items: todoLayout });
     nextRow += lanes;
   }
 
@@ -9067,8 +10587,8 @@ function renderCategoryWeekView(elementId, session, mini = false) {
     <div class="ical ${mini ? 'mini' : ''}">
       <div class="ical-scroll" id="${elementId}-scroller">
         <div class="ical-track" style="width: ${sidebarWidth + totalDays * colWidth}px; grid-template-columns: ${sidebarWidth}px repeat(${totalDays}, ${colWidth}px); --ical-sidebar: ${sidebarWidth}px;">
-          <!-- Top-left corner (sticky) -->
-          <div class="ical-corner"></div>
+          <!-- Top-left corner (sticky) – nur wenn es eine Sidebar-Spalte gibt -->
+          ${sidebarWidth > 0 ? `<div class="ical-corner"></div>` : ''}
           <!-- Day headers (Drehtag-Info steckt in der eigenen Drehtag-Lane unten) -->
           ${days.map((d, i) => `
             <div class="ical-day-head ${d.isToday ? 'today' : ''} ${d.isShoot ? 'is-shoot' : ''} ${d.isRescheduled ? 'is-rescheduled' : ''}" style="grid-column:${i+2}; grid-row:1;">
@@ -9093,11 +10613,16 @@ function renderCategoryWeekView(elementId, session, mini = false) {
               const endCol = b.endCol + 3;     // +1 für Sidebar, +2 für grid-column end (exclusive)
               return renderCategoryEvent(b, row, startCol, endCol);
             }).join('');
+            const iconHtml = c.isEmoji
+              ? `<span class="ical-cat-icon">${c.icon}</span>`
+              : `<span class="ical-cat-icon ical-kuerzel-icon">${escape(c.icon)}</span>`;
+            const labelHtml = sidebarWidth > 0 ? `
+              <div class="ical-cat-label ${c.cls}" style="${labelRowSpan}" title="${escape(c.label)}">
+                ${iconHtml}
+                <span>${escape(c.label)}</span>
+              </div>` : '';
             return `
-              <div class="ical-cat-label ${c.cls}" style="${labelRowSpan}">
-                <span class="ical-cat-icon">${c.icon}</span>
-                <span>${c.label}</span>
-              </div>
+              ${labelHtml}
               ${bgCells.join('')}
               ${eventsHtml}
             `;
@@ -9148,10 +10673,15 @@ function renderCategoryWeekView(elementId, session, mini = false) {
     setTimeout(setInitScroll, 120);
     enableDragScroll(scroller);
     updateWeekHeader(elementId);
+    // Sticky-Beschriftungen werden zentral von initCalendarStickyLabels() verwaltet
+    // (siehe unten) – hier nur den Wochen-Header live nachziehen.
     let frame = null;
     scroller.addEventListener('scroll', () => {
       if (frame) return;
-      frame = requestAnimationFrame(() => { frame = null; updateWeekHeader(elementId); });
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        updateWeekHeader(elementId);
+      });
     });
   }
 }
@@ -9165,10 +10695,13 @@ function renderCategoryEvent(b, row, startCol, endCol) {
   let text;
   if (b.phase === 'vacation') text = (b.customer ? b.customer + ' – ' : '') + 'Urlaub';
   else if (b.phase === 'todo') text = b.title;
-  else if (b.phase === 'shoot') text = b.title; // schon vollständig formatiert ("Drehtag · X Videos")
+  else if (b.phase === 'shoot') text = b.title;
   else if (b.phase === 'production' || b.phase === 'editing') text = b.title + ' · ' + labels[b.phase];
   else text = labels[b.phase] + ': ' + b.title;
-  const cls = `ical-event phase-${b.phase} ${b.cutsLeft ? 'cuts-left' : ''} ${b.cutsRight ? 'cuts-right' : ''}`;
+  // Kürzel als Kreis-Chip neben dem Balken-Text (nicht als plain-Text-Prefix)
+  const showChip = b.kuerzel && b.phase !== 'shoot' && b.phase !== 'vacation' && b.phase !== 'todo';
+  const kuerzelChip = showChip ? `<span class="ical-kuerzel-chip">${escape(b.kuerzel)}</span>` : '';
+  const cls = `ical-event phase-${b.phase} ${b.nichtGedreht ? 'nicht-gedreht' : ''} ${b.cutsLeft ? 'cuts-left' : ''} ${b.cutsRight ? 'cuts-right' : ''}`;
   let click;
   if (b.shootDayId) click = `onclick="openShootDayModal('${b.shootDayId}')"`;
   else if (b.vacationId) click = `onclick="navigateTo('vacation')"`;
@@ -9185,7 +10718,7 @@ function renderCategoryEvent(b, row, startCol, endCol) {
   }
   const isMobile = window.innerWidth < 640;
   const avatar = (!b.cutsLeft && avatarUser && !isMobile) ? renderAvatar(avatarUser, 16, 9) : '';
-  return `<div class="${cls}" style="grid-column: ${startCol} / ${endCol}; grid-row: ${row};" ${click} title="${escape(title)}">${avatar}<span class="ical-event-label">${escape(text)}</span></div>`;
+  return `<div class="${cls}" style="grid-column: ${startCol} / ${endCol}; grid-row: ${row};" ${click} title="${escape(title)}"><div class="ical-event-inner">${avatar}${kuerzelChip}<span class="ical-event-label">${escape(text)}</span></div></div>`;
 }
 
 function renderICWAllDay(b) {
@@ -9904,11 +11437,29 @@ async function openStaffSelfProfile(user) {
                     : 'Erstelle einen persönlichen Abo-Link für Apple Kalender, Google Calendar oder Outlook – aktualisiert sich alle 5 Minuten.'}
                 </div>
                 ${user.calendarToken ? (() => {
-                  const tok = encodeURIComponent(user.calendarToken);
-                  const httpsUrl = 'https://' + location.host + APP_BASE + 'api/calendar.php?token=' + tok;
-                  const webcalUrl = 'webcal://' + location.host + APP_BASE + 'api/calendar.php?token=' + tok;
+                  const cats = _calAboCats(user.id);
+                  const httpsUrl = _calAboUrl(user.calendarToken, cats, 'https');
+                  const webcalUrl = _calAboUrl(user.calendarToken, cats, 'webcal');
+                  const catDefs = [
+                    { key: 'drehtag',  label: 'Drehtage' },
+                    { key: 'deadline', label: 'Deadlines' },
+                    { key: 'posting',  label: 'Postings' },
+                    { key: 'urlaub',   label: 'Urlaub' }
+                  ];
                   return `
-                  <a href="${webcalUrl}"
+                  <div style="margin-bottom:12px;">
+                    <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px;">Was soll im Abo erscheinen?</div>
+                    <div class="cal-cat-grid">
+                      ${catDefs.map(c => `
+                        <label class="cal-cat-chip">
+                          <input type="checkbox" class="cal-abo-cat" value="${c.key}" ${cats.includes(c.key) ? 'checked' : ''}
+                                 onchange="updateCalendarAboLink('${escape(user.id)}','${escape(user.calendarToken)}')" />
+                          <span class="cal-cat-box" aria-hidden="true">✓</span>
+                          <span>${c.label}</span>
+                        </label>`).join('')}
+                    </div>
+                  </div>
+                  <a id="cal-abo-webcal" href="${webcalUrl}"
                      style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;text-decoration:none;margin-bottom:10px;"
                      onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -9917,12 +11468,13 @@ async function openStaffSelfProfile(user) {
                       <div style="font-size:11px;color:var(--text-3);margin-top:1px;">Öffnet Apple Kalender / Google Calendar</div>
                     </div>
                   </a>
-                  <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text-3);word-break:break-all;margin-bottom:10px;font-family:monospace;line-height:1.4;">${httpsUrl}</div>
+                  <div id="cal-abo-url" style="background:var(--bg-1);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text-3);word-break:break-all;margin-bottom:10px;font-family:monospace;line-height:1.4;">${httpsUrl}</div>
                   <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText('${httpsUrl.replace(/'/g,'\\x27')}').then(()=>showToast('Link kopiert',''),()=>showToast('Fehler','Manuell kopieren.'))">Link kopieren</button>
+                    <button type="button" id="cal-abo-copy" data-url="${httpsUrl}" class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(this.getAttribute('data-url')).then(()=>showToast('Link kopiert',''),()=>showToast('Fehler','Manuell kopieren.'))">Link kopieren</button>
                     <button type="button" class="btn btn-ghost btn-sm" onclick="regenerateCalendarToken('${escape(user.id)}')">Token erneuern</button>
                     <button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="removeCalendarToken('${escape(user.id)}')">Abo löschen</button>
-                  </div>`;
+                  </div>
+                  <div style="font-size:11px;color:var(--text-3);margin-top:8px;">Hinweis: Nach Änderung der Auswahl den (neuen) Link erneut abonnieren bzw. das Abo aktualisieren.</div>`;
                 })() : `
                   <button type="button" class="btn btn-primary" style="width:100%;" onclick="generateCalendarToken('${escape(user.id)}')">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -9940,6 +11492,35 @@ async function openStaffSelfProfile(user) {
     </div>
   `;
   $('#modal-container').innerHTML = html;
+}
+
+// Kalender-Abo: gewählte Kategorien (pro Nutzer im LocalStorage gemerkt)
+const _CAL_ABO_ALL = ['drehtag', 'deadline', 'posting', 'urlaub'];
+function _calAboCats(userId) {
+  try {
+    const saved = localStorage.getItem('calAboCats_' + userId);
+    if (saved === null) return _CAL_ABO_ALL.slice();
+    const arr = saved.split(',').filter(Boolean);
+    return arr.length ? arr : _CAL_ABO_ALL.slice();
+  } catch (e) { return _CAL_ABO_ALL.slice(); }
+}
+function _calAboUrl(token, cats, scheme) {
+  const base = (scheme || 'https') + '://' + location.host + APP_BASE + 'api/calendar.php?token=' + encodeURIComponent(token);
+  // Nichts ausgewählt: explizit als leeres Abo kodieren (sonst würde der Server
+  // ein fehlendes cats= als „alles" interpretieren – das wäre genau verkehrt).
+  if (cats.length === 0) return base + '&cats=none';
+  // Echte Teilmenge: Filter anhängen. Alles ausgewählt: volles Abo ohne Parameter.
+  if (cats.length < _CAL_ABO_ALL.length) return base + '&cats=' + cats.join(',');
+  return base;
+}
+function updateCalendarAboLink(userId, token) {
+  const checks = Array.from(document.querySelectorAll('.cal-abo-cat:checked')).map(c => c.value);
+  try { localStorage.setItem('calAboCats_' + userId, checks.join(',')); } catch (e) {}
+  const https = _calAboUrl(token, checks, 'https');
+  const webcal = _calAboUrl(token, checks, 'webcal');
+  const a = document.getElementById('cal-abo-webcal'); if (a) a.href = webcal;
+  const u = document.getElementById('cal-abo-url'); if (u) u.textContent = https;
+  const c = document.getElementById('cal-abo-copy'); if (c) c.setAttribute('data-url', https);
 }
 
 async function generateCalendarToken(userId) {
@@ -11095,6 +12676,8 @@ function openVacationModal(vacationId = null) {
   const userOptions = isAdmin
     ? store.users.map(u => `<option value="${u.id}" ${targetUserId === u.id ? 'selected' : ''}>${escape(u.name)}</option>`).join('')
     : `<option value="${user.id}" selected>${escape(user.name)}</option>`;
+  // „Nur 1 Tag" beim Bearbeiten vorbelegen, wenn Start == Ende
+  const singleChecked = !!(vacation && vacation.startDate && vacation.startDate === vacation.endDate);
 
   const html = `
     <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
@@ -11113,14 +12696,24 @@ function openVacationModal(vacationId = null) {
                    <input type="hidden" name="userId" value="${escape(user.id)}" />`
               }
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Von*</label>
-                <input type="date" name="startDate" required value="${vacation?.startDate || ''}" />
+            <label class="toggle-row" for="vac-single">
+              <div class="toggle-row-content">
+                <div class="toggle-row-title">Nur 1 Tag</div>
+                <div class="toggle-row-desc">Urlaub für einen einzelnen Tag – kein Enddatum nötig.</div>
               </div>
+              <span class="toggle">
+                <input type="checkbox" name="singleDay" id="vac-single" ${singleChecked ? 'checked' : ''} onchange="toggleVacationSingleDay(this)" />
+                <span class="toggle-slider"></span>
+              </span>
+            </label>
+            <div class="form-row" id="vac-date-row">
               <div class="form-group">
+                <label class="form-label">${singleChecked ? 'Tag*' : 'Von*'}</label>
+                <input type="date" name="startDate" id="vac-start" required value="${vacation?.startDate || ''}" oninput="syncVacationSingleDay()" />
+              </div>
+              <div class="form-group" id="vac-end-group" style="${singleChecked ? 'display:none;' : ''}">
                 <label class="form-label">Bis*</label>
-                <input type="date" name="endDate" required value="${vacation?.endDate || ''}" />
+                <input type="date" name="endDate" id="vac-end" ${singleChecked ? '' : 'required'} value="${vacation?.endDate || ''}" />
               </div>
             </div>
             <div class="form-group">
@@ -11140,11 +12733,39 @@ function openVacationModal(vacationId = null) {
   $('#modal-container').innerHTML = html;
 }
 
+// „Nur 1 Tag"-Schalter: blendet das Bis-Feld aus und setzt Ende = Start.
+function toggleVacationSingleDay(cb) {
+  const endGroup = document.getElementById('vac-end-group');
+  const endInput = document.getElementById('vac-end');
+  const startLabel = document.querySelector('#vac-date-row .form-group label');
+  if (!endGroup || !endInput) return;
+  if (cb.checked) {
+    endGroup.style.display = 'none';
+    endInput.required = false;
+    const start = document.getElementById('vac-start');
+    if (start && start.value) endInput.value = start.value;
+    if (startLabel) startLabel.textContent = 'Tag*';
+  } else {
+    endGroup.style.display = '';
+    endInput.required = true;
+    if (startLabel) startLabel.textContent = 'Von*';
+  }
+}
+function syncVacationSingleDay() {
+  const cb = document.getElementById('vac-single');
+  if (!cb || !cb.checked) return;
+  const start = document.getElementById('vac-start');
+  const endInput = document.getElementById('vac-end');
+  if (start && endInput) endInput.value = start.value;
+}
+
 async function saveVacation(e, vacationId) {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));
   const session = getCurrentUser();
   if (!session || session.type !== 'staff') return;
+  // „Nur 1 Tag": Ende = Start erzwingen
+  if (data.singleDay) data.endDate = data.startDate;
   // Non-admins können nur für sich selbst
   if (!hasRole(session.user, ROLES.ADMIN)) data.userId = session.user.id;
 
@@ -12049,6 +13670,204 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') calNav('full', 1);
   if (e.key === 't' || e.key === 'T') calToday('full');
 });
+
+// Hält Event-Beschriftungen in der Wochenansicht sichtbar, ohne die Render-Funktion
+// selbst zu verändern. Dadurch bleibt der Patch klein und merge-freundlich.
+/* ===== Kalender-Scroll-Diagnose – schreibt AUSSCHLIESSLICH in die Server-Logdatei
+   (private_uploads/cal-debug.log). KEINE Anzeige im UI, KEINE Konsolenausgabe.
+   Dauerhaft aktiv; abschaltbar mit calDebug(false), wieder einschalten mit calDebug(true).
+   Geloggt wird je aktiver Sekunde: Scroll-Events, Frames, Ruckel-Frames (>32ms),
+   schlimmste Frame-Zeit, Label-Update (Aufrufe/Ø Balken/max. Dauer), scroll-snap-Modus,
+   Drag-Status und Balkenanzahl; zusätzlich Long-Tasks (>50ms). */
+let _calDbg = null;
+// Diagnose ist DAUERAKTIV (schreibt in private_uploads/cal-debug.log), außer sie
+// wurde explizit mit calDebug(false) abgeschaltet (localStorage 'calDebug' === '0').
+function _calDebugOn() { try { return localStorage.getItem('calDebug') !== '0'; } catch (e) { return true; } }
+function _calDebugActiveScroller() {
+  return Array.from(document.querySelectorAll('.ical-scroll')).find(s => s.offsetParent !== null) || null;
+}
+// Einzige Ausgabe: Zeile an die Server-Logdatei anhängen (private_uploads/cal-debug.log).
+function _calDebugPost(line) {
+  try {
+    fetch(API_BASE + '/cal_debug_log.php', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'text/plain' },
+      body: line, keepalive: true
+    }).catch(function () {});
+  } catch (e) {}
+}
+function _calDebugInit() {
+  if (!_calDebugOn() || (_calDbg && _calDbg.raf)) return;
+  _calDbg = { scrollCount: 0, frames: 0, longFrames: 0, worstFrame: 0,
+              updCount: 0, updEvents: 0, updMax: 0, lastFrameTs: performance.now(),
+              raf: null, report: null, po: null };
+  _calDebugPost('=== Session Start === ' + (window.innerWidth + 'x' + window.innerHeight) + ' UA: ' + navigator.userAgent);
+  try {
+    if (window.PerformanceObserver) {
+      _calDbg.po = new PerformanceObserver(list => {
+        if (!_calDebugOn()) return;
+        for (const e of list.getEntries()) if (e.duration > 50) {
+          _calDebugPost('LongTask ' + e.duration.toFixed(1) + 'ms (blockiert Main-Thread)');
+        }
+      });
+      try { _calDbg.po.observe({ entryTypes: ['longtask'] }); } catch (e) {}
+    }
+  } catch (e) {}
+  const tick = () => {
+    if (!_calDebugOn()) { _calDbg.raf = null; return; }
+    const now = performance.now(), dt = now - _calDbg.lastFrameTs;
+    _calDbg.lastFrameTs = now; _calDbg.frames++;
+    if (dt > _calDbg.worstFrame) _calDbg.worstFrame = dt;
+    if (dt > 32) _calDbg.longFrames++;
+    _calDbg.raf = requestAnimationFrame(tick);
+  };
+  _calDbg.lastFrameTs = performance.now();
+  _calDbg.raf = requestAnimationFrame(tick);
+  _calDbg.report = setInterval(() => {
+    if (!_calDebugOn()) { clearInterval(_calDbg.report); _calDbg.report = null; return; }
+    // Nur bei tatsächlicher Kalender-Aktivität loggen …
+    if (_calDbg.scrollCount > 0 || _calDbg.updCount > 0) {
+      const sc = _calDebugActiveScroller();
+      const snap = sc ? getComputedStyle(sc).scrollSnapType : '?';
+      const nEv = sc ? sc.querySelectorAll('.ical-event').length : 0;
+      const dragging = sc ? sc.classList.contains('dragging') : false;
+      const line = 'scrollEvts=' + _calDbg.scrollCount
+        + ' frames=' + _calDbg.frames
+        + ' ruckelFrames(>32ms)=' + _calDbg.longFrames
+        + ' worstFrame=' + _calDbg.worstFrame.toFixed(1) + 'ms'
+        + ' | labelUpdate: calls=' + _calDbg.updCount
+        + ' avgBalken=' + (_calDbg.updEvents / Math.max(1, _calDbg.updCount)).toFixed(0)
+        + ' maxDauer=' + _calDbg.updMax.toFixed(2) + 'ms'
+        + ' | snap=' + snap + ' dragging=' + dragging + ' balkenImDOM=' + nEv;
+      _calDebugPost(line);
+    }
+    // … aber die Fenster-Zähler IMMER zurücksetzen, damit jeder Report nur die
+    // letzte aktive Sekunde widerspiegelt (sonst summieren sich Idle-Frames auf).
+    _calDbg.scrollCount = _calDbg.frames = _calDbg.longFrames = 0;
+    _calDbg.worstFrame = _calDbg.updCount = _calDbg.updEvents = _calDbg.updMax = 0;
+  }, 1000);
+}
+window.calDebug = function (on) {
+  if (on === undefined) return _calDebugOn();
+  try { localStorage.setItem('calDebug', on ? '1' : '0'); } catch (e) {}
+  if (on) {
+    _calDebugInit();
+  } else if (_calDbg) {
+    if (_calDbg.raf) cancelAnimationFrame(_calDbg.raf);
+    if (_calDbg.report) clearInterval(_calDbg.report);
+    try { if (_calDbg.po) _calDbg.po.disconnect(); } catch (e) {}
+    _calDbg = null;
+  }
+  return on;
+};
+setTimeout(() => { if (_calDebugOn()) _calDebugInit(); }, 0);
+
+(function initCalendarStickyLabels() {
+  function update(scroller) {
+    const _dbgT0 = (_calDbg && _calDebugOn()) ? performance.now() : -1;
+    if (!scroller || !scroller.querySelector) return;
+    const track = scroller.querySelector('.ical-track');
+    if (!track) return;
+    const styles = getComputedStyle(track);
+    // Number.isFinite statt `|| 48`, sonst würde der explizite Wert 0 (volle Ansicht
+    // ohne Sidebar) als „fehlend" behandelt und ein Phantom-Offset von 48px bleiben.
+    const rawSidebar = Number.parseFloat(styles.getPropertyValue('--ical-sidebar'));
+    const sidebarWidth = Number.isFinite(rawSidebar) ? rawSidebar : 48;
+    const rawGutter = Number.parseFloat(styles.getPropertyValue('--ical-label-gutter'));
+    const labelGutter = Number.isFinite(rawGutter) ? rawGutter : 18;
+
+    // Viewport-relative Messung (getBoundingClientRect) statt offsetLeft:
+    // offsetLeft hängt vom offsetParent ab und liefert je nach Layout (Desktop
+    // vs. Mobil) unterschiedliche Bezugspunkte – dadurch blieb der Text auf dem
+    // PC stehen. Über die Bounding-Rects rechnen wir immer im selben Koordinaten-
+    // system und unabhängig vom Scroll-Mechanismus.
+    const scRect = scroller.getBoundingClientRect();
+    const stickyLeft   = scRect.left + sidebarWidth + labelGutter; // linke Haltelinie
+    const visibleRight = scRect.right - 8;
+
+    // WICHTIG (Desktop-Scroll-Performance): Lese- und Schreibphase strikt trennen.
+    // Vorher wurde pro Balken gelesen (getBoundingClientRect) UND sofort geschrieben
+    // (--label-max-width ändert die Label-Breite). Jeder Schreibvorgang macht das
+    // Layout „dirty", sodass das nächste getBoundingClientRect einen erzwungenen
+    // Reflow auslöst → O(n) Layout-Berechnungen pro Frame, die in datendichten Wochen
+    // das Maus-/Wheel-Scrollen blockieren. Jetzt: erst ALLE Geometrien lesen, dann
+    // ALLE Styles schreiben → konstant statt n Reflows pro Frame.
+    const events = scroller.querySelectorAll('.ical-event');
+    const writes = [];
+    for (let i = 0; i < events.length; i++) {
+      const eventEl = events[i];
+      // Bewegte Einheit = Kürzel (Avatar) + Text zusammen, damit in Safari nichts kleben bleibt.
+      const label = eventEl.querySelector('.ical-event-inner');
+      if (!label) continue;
+      const evRect = eventEl.getBoundingClientRect();        // Balken (unverschoben; Versatz liegt am Inner)
+      // Off-Screen-Balken überspringen: spart auf iOS pro Scroll-Frame massiv
+      // getBoundingClientRect-/Style-Writes (Safari ruckelte sonst bei 180-Tage-Wochen).
+      if (evRect.right < scRect.left || evRect.left > scRect.right) continue;
+      // Der Versatz wird über `left` (position:relative) angewendet. Die natürliche Label-
+      // Position = aktuelle Inner-Position minus dem zuletzt gesetzten left-Wert. Über
+      // getBoundingClientRect (fraktional, präzise) statt offsetLeft (gerundet → Drift/Jitter
+      // beim Links-/Rechts-Scrollen) und mit Rückrechnung des angewendeten Versatzes, sonst
+      // entstünde eine Rückkopplung (Offset → 0, Text rutscht links raus).
+      const appliedLeft = parseFloat(label.style.getPropertyValue('--label-offset')) || 0;
+      const naturalLeft = label.getBoundingClientRect().left - appliedLeft; // natürliche Position (Balkenanfang)
+      const innerRight = evRect.right - 2;                   // rechtes Balkenende
+
+      // Anschlag direkt am rechten Balkenende (nicht abzüglich Textbreite – sonst
+      // würde das Pinning bei langen, abgeschnittenen Titeln auf schmalen Balken
+      // ausfallen). Der Text klebt an der Haltelinie, solange der Balken sie
+      // überdeckt; sobald das rechte Balkenende die Haltelinie passiert, schrumpft
+      // der sichtbare Text und verschwindet zusammen mit dem Balken.
+      const targetLeft = Math.max(naturalLeft, Math.min(stickyLeft, innerRight));
+      const offset = Math.max(0, targetLeft - naturalLeft);
+      const maxWidth = Math.max(0, Math.min(innerRight, visibleRight) - targetLeft);
+      writes.push(label, offset.toFixed(2), maxWidth.toFixed(2));
+    }
+    // Schreibphase – keine Layout-Lesezugriffe mehr dazwischen.
+    for (let i = 0; i < writes.length; i += 3) {
+      const label = writes[i];
+      label.style.setProperty('--label-offset', writes[i + 1] + 'px');
+      label.style.setProperty('--label-max-width', writes[i + 2] + 'px');
+    }
+    if (_dbgT0 >= 0 && _calDbg) {
+      const d = performance.now() - _dbgT0;
+      _calDbg.updCount++; _calDbg.updEvents += events.length;
+      if (d > _calDbg.updMax) _calDbg.updMax = d;
+    }
+  }
+
+  function bind(scroller) {
+    if (!scroller || scroller._dmStickyLabelBound) return;
+    scroller._dmStickyLabelBound = true;
+    let frame = null;
+    const schedule = () => {
+      if (_calDbg && _calDebugOn()) _calDbg.scrollCount++;
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        update(scroller);
+      });
+    };
+    scroller.addEventListener('scroll', schedule, { passive: true });
+    schedule();
+    setTimeout(schedule, 120);
+  }
+
+  function bindAll() {
+    document.querySelectorAll('.ical-scroll').forEach(bind);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindAll, { once: true });
+  } else {
+    bindAll();
+  }
+
+  new MutationObserver(bindAll).observe(document.documentElement, { childList: true, subtree: true });
+  window.addEventListener('resize', () => {
+    document.querySelectorAll('.ical-scroll').forEach(update);
+  }, { passive: true });
+})();
+
 </script>
 
 </body>

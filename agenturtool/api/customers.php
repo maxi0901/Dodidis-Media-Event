@@ -14,6 +14,7 @@ if (in_array($method, ['POST', 'PUT', 'DELETE'], true)) {
     require_csrf();
 }
 
+
 $selectCols = "c.id, c.name, c.customer_number AS customerNumber, c.manager_id AS managerId,
                c.email, c.phone, c.contact_name AS contactName,
                c.social_instagram AS socialInstagram, c.social_tiktok AS socialTiktok,
@@ -24,6 +25,10 @@ $selectCols = "c.id, c.name, c.customer_number AS customerNumber, c.manager_id A
                c.vat_id AS vatId, c.billing_email AS billingEmail,
                c.contract_start AS contractStart, c.package_name AS package, c.monthly_rate AS monthlyRate,
                c.videos_per_month AS videosPerMonth, c.status,
+               c.default_cutter_id AS defaultCutterId,
+               c.posting_weekdays AS postingWeekdays,
+               c.videos_per_week AS videosPerWeek,
+               c.auto_posting_rhythm AS autoPostingRhythm,
                COALESCE(cl.contract_signed, 0) AS contract_signed,
                COALESCE(cl.deposit_received, 0) AS deposit_received,
                COALESCE(cl.kickoff_done, 0) AS kickoff_done,
@@ -230,6 +235,21 @@ function build_customer_params(array $b): array
     }
     if (array_key_exists('videosPerMonth', $b)) {
         $out['videos_per_month'] = as_int($b['videosPerMonth']);
+    }
+    // Kunden-Voreinstellungen (Posting-Rhythmus)
+    if (array_key_exists('defaultCutterId', $b)) {
+        $out['default_cutter_id'] = s((string)($b['defaultCutterId'] ?? ''), 64) ?: null;
+    }
+    if (array_key_exists('postingWeekdays', $b)) {
+        // Erlaubte Formate: "1,3,5" oder "" oder null
+        $wd = preg_replace('/[^0-6,]/', '', (string)($b['postingWeekdays'] ?? ''));
+        $out['posting_weekdays'] = $wd ?: null;
+    }
+    if (array_key_exists('videosPerWeek', $b)) {
+        $out['videos_per_week'] = max(1, min(7, as_int($b['videosPerWeek']) ?: 2));
+    }
+    if (array_key_exists('autoPostingRhythm', $b)) {
+        $out['auto_posting_rhythm'] = as_bool($b['autoPostingRhythm']);
     }
     if (array_key_exists('status', $b)) {
         $st = $b['status'];

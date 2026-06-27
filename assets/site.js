@@ -47,7 +47,7 @@
 
         if (prefersReduced) {
             lines.forEach(function (line) {
-                line.style.setProperty('--banner-progress', '1');
+                line.style.setProperty('--banner-x', '0px');
             });
             return;
         }
@@ -60,13 +60,19 @@
             ticking = false;
             var rect = banner.getBoundingClientRect();
             var vh = window.innerHeight || document.documentElement.clientHeight;
+            var vw = window.innerWidth || document.documentElement.clientWidth;
             // 0 when banner enters from below, 1 when it exits from above.
             var raw = (vh - rect.top) / (vh + rect.height);
             // Amplify around the center so the transition completes in a much
             // narrower scroll window — the banner snaps into place faster.
             var p = clamp(0.5 + (raw - 0.5) * 2.8, 0, 1);
+            var amp = vw * 0.30;
             lines.forEach(function (line) {
-                line.style.setProperty('--banner-progress', p.toFixed(4));
+                // Drive a whole-pixel transform instead of a fractional vw value.
+                // Sub-pixel transforms re-rasterise the -webkit-text-stroke outline
+                // every frame, which made the "UNSICHTBAR" letters shimmer/shift.
+                var dir = line.getAttribute('data-banner-line') === 'left' ? (1 - p) : (p - 1);
+                line.style.setProperty('--banner-x', Math.round(dir * amp) + 'px');
             });
         }
 
@@ -101,8 +107,12 @@
             var rel = (center - vh / 2) / vh;
             var clamped = rel < -1 ? -1 : rel > 1 ? 1 : rel;
             // Negative scroll → image drifts up; positive → drifts down.
-            var translate = -clamped * 28;
+            // Stärkere Drift + Skalierung: beim Reinscrollen "kommen" die Gründer
+            // leicht nach vorne, beim Wegscrollen driften sie hoch und schrumpfen.
+            var translate = -clamped * 46;
+            var scale = 1 + (1 - Math.min(Math.abs(clamped), 1)) * 0.07;
             heroImage.style.setProperty('--hero-parallax-y', translate.toFixed(2) + 'px');
+            heroImage.style.setProperty('--hero-scale', scale.toFixed(3));
         }
 
         function requestUpdate() {
@@ -220,7 +230,7 @@
         var groups = document.querySelectorAll('[data-faq]');
         if (!groups.length) return;
         groups.forEach(function (group) {
-            var items = group.querySelectorAll('details.faq-item');
+            var items = group.querySelectorAll('details.faq-item, details.service-acc');
             items.forEach(function (item) {
                 item.addEventListener('toggle', function () {
                     if (item.open) {
@@ -234,7 +244,63 @@
     })();
 
     /* ============================================================
-       Logo marquee — clone track once for seamless infinite loop
+       Team avatars — try each candidate file (handles .JPEG/.jpeg/.jpg
+       case differences) and fall back to the initials if none load.
+       ============================================================ */
+    (function () {
+        var imgs = document.querySelectorAll('[data-team-img]');
+        if (!imgs.length) return;
+        imgs.forEach(function (img) {
+            var candidates = (img.getAttribute('data-candidates') || '')
+                .split(',')
+                .map(function (s) { return s.trim(); })
+                .filter(Boolean);
+            var i = 0;
+            function tryNext() {
+                if (i >= candidates.length) {
+                    img.style.display = 'none';
+                    if (img.parentNode) img.parentNode.classList.add('is-fallback');
+                    return;
+                }
+                img.src = candidates[i++];
+            }
+            img.addEventListener('error', tryNext);
+            img.addEventListener('load', function () {
+                img.style.display = '';
+                if (img.parentNode) img.parentNode.classList.remove('is-fallback');
+            });
+            tryNext();
+        });
+    })();
+
+    /* ============================================================
+       Thought bubbles — painpoint scenarios. Each bubble toggles
+       its own text open; clicking one closes the others in the group.
+       ============================================================ */
+    (function () {
+        var groups = document.querySelectorAll('[data-thought-group]');
+        if (!groups.length) return;
+        groups.forEach(function (group) {
+            var bubbles = group.querySelectorAll('.thought-bubble');
+            bubbles.forEach(function (bubble) {
+                bubble.addEventListener('click', function () {
+                    var willOpen = bubble.getAttribute('aria-expanded') !== 'true';
+                    bubbles.forEach(function (other) {
+                        other.setAttribute('aria-expanded', 'false');
+                        other.classList.remove('is-open');
+                    });
+                    if (willOpen) {
+                        bubble.setAttribute('aria-expanded', 'true');
+                        bubble.classList.add('is-open');
+                    }
+                });
+            });
+        });
+    })();
+
+    /* ============================================================
+       Logo marquee — fill the row first (so few logos don't leave big
+       gaps), then duplicate the whole set once for a seamless -50% loop.
        ============================================================ */
     (function () {
         var marquees = document.querySelectorAll('[data-logos-marquee]');
@@ -242,8 +308,22 @@
         marquees.forEach(function (mq) {
             var track = mq.querySelector('.logos-track');
             if (!track || track.dataset.cloned === 'true') return;
-            var items = Array.prototype.slice.call(track.children);
-            items.forEach(function (item) {
+            var baseItems = Array.prototype.slice.call(track.children);
+            if (!baseItems.length) return;
+
+            // 1) Originalset so oft wiederholen, bis die Reihe mind. die
+            //    Marquee-Breite füllt (wichtig bei wenigen Logos).
+            var guard = 0;
+            while (track.scrollWidth < mq.offsetWidth && guard < 50) {
+                baseItems.forEach(function (item) {
+                    track.appendChild(item.cloneNode(true));
+                });
+                guard++;
+            }
+
+            // 2) Die gefüllte Reihe einmal komplett duplizieren -> -50%-Loop
+            //    ist nahtlos und die Reihe ist nie leer.
+            Array.prototype.slice.call(track.children).forEach(function (item) {
                 var clone = item.cloneNode(true);
                 clone.setAttribute('aria-hidden', 'true');
                 track.appendChild(clone);
@@ -274,8 +354,9 @@
             // 0 when section bottom hits viewport top, 1 when section top reaches bottom
             var raw = (vh - rect.top) / (vh + rect.height);
             var p = clamp(raw, 0, 1);
-            // Map progress to tilt: -10deg (left heavy) → +10deg (right heavy)
-            var tilt = -10 + (p * 20);
+            // Map progress to tilt: -22deg (left heavy) → +22deg (right heavy).
+            // Steeper range so the lever visibly "weighs more" as it swings.
+            var tilt = -22 + (p * 44);
             stage.style.setProperty('--lever-tilt', tilt.toFixed(2) + 'deg');
             stage.style.setProperty('--lever-glow', p.toFixed(3));
         }
@@ -299,7 +380,7 @@
         }
 
         if (prefersReduced) {
-            stage.style.setProperty('--lever-tilt', '5deg');
+            stage.style.setProperty('--lever-tilt', '12deg');
             stage.style.setProperty('--lever-glow', '0.7');
             return;
         }
@@ -496,7 +577,7 @@
                 'Nachricht:',
                 message
             ].filter(Boolean);
-            var mailto = 'mailto:hallo@dodidis-media.de?subject=' + encodeURIComponent(subject) +
+            var mailto = 'mailto:kontakt@dodidis-media.de?subject=' + encodeURIComponent(subject) +
                          '&body=' + encodeURIComponent(bodyLines.join('\n'));
 
             window.location.href = mailto;
@@ -506,7 +587,7 @@
                 status.classList.add('is-success');
             }
             setTimeout(function () {
-                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Erstgespräch anfragen'; }
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Kostenloses Erstgespräch anfragen'; }
             }, 1500);
         });
     }
