@@ -938,6 +938,19 @@
   .series-preview-table input[type=text]:focus, .series-preview-table input[type=date]:focus { outline:none; border-color:var(--accent); }
   .series-preview-row-num { color:var(--text-3); font-weight:700; font-size:12px; min-width:22px; text-align:center; }
   .series-no-config { background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:8px; padding:10px 14px; color:#fbbf24; font-size:13px; }
+  .series-continuation-info { background:rgba(20,184,166,0.07); border:1px solid rgba(20,184,166,0.2); border-radius:8px; padding:8px 12px; color:var(--accent); font-size:12.5px; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+
+  /* Drag-and-Drop Kalender */
+  .ical-event[draggable="true"] { cursor:grab; }
+  .ical-event[draggable="true"]:active { cursor:grabbing; }
+  .ical-event.dnd-dragging { opacity:0.4; }
+  .ical-cat-bg.dnd-over, .month-day-bg.dnd-over { background:rgba(20,184,166,0.12) !important; outline:2px dashed rgba(20,184,166,0.5); outline-offset:-2px; z-index:2; }
+  .month-bar[draggable="true"] { cursor:grab; }
+  .month-bar.dnd-dragging { opacity:0.4; }
+
+  /* Form section dividers */
+  .form-section { font-size:11px; font-weight:700; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-3); margin:18px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+  .form-hint-auto { font-size:11.5px; color:var(--accent); opacity:0.8; margin-top:3px; display:flex; align-items:center; gap:4px; }
 
   .badge-role-admin { color: #ff453a; background: rgba(255,69,58,0.1); border-color: rgba(255,69,58,0.2); }
   .badge-role-manager { color: #2dd4bf; background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.25); }
@@ -6819,9 +6832,9 @@ async function convertIdeaToProject(ideaId) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Erzeugt n Posting-Daten für einen Kunden ab einem Startdatum.
- * Überspringt bereits belegte Tage (Kunde hat schon ein Projekt an diesem Datum)
- * und Wochentage die nicht im Rhythmus des Kunden sind.
+ * Erzeugt n Posting-Daten für einen Kunden.
+ * Startet nach dem letzten bereits belegten Posting-Datum des Kunden (nahtlose
+ * Fortsetzung), frühestens aber 3 Tage nach dem Drehtag.
  * @returns Array of { postingDate, deadline, cutterId }
  */
 function generatePostingDates(customerId, shootDate, count) {
@@ -6839,12 +6852,24 @@ function generatePostingDates(customerId, shootDate, count) {
       .map(p => p.postingDate)
   );
 
-  const results = [];
-  // Mindestens 3 Tage nach Drehtag
-  const start = new Date(shootDate + 'T00:00:00');
-  start.setDate(start.getDate() + 3);
+  // Nahtlose Fortsetzung: ab dem Tag nach dem letzten belegten Posting-Datum starten
+  const sortedExisting = [...usedDates].sort();
+  const lastPostingDate = sortedExisting.length ? sortedExisting[sortedExisting.length - 1] : null;
 
-  let cur = new Date(start);
+  // Frühester möglicher Start: 3 Tage nach Drehtag
+  const minStart = new Date(shootDate + 'T00:00:00');
+  minStart.setDate(minStart.getDate() + 3);
+
+  let startDate = minStart;
+  if (lastPostingDate && lastPostingDate >= localDateStr(minStart)) {
+    // Letztes belegtes Datum liegt hinter dem Mindest-Start → ab dem nächsten Tag
+    const afterLast = new Date(lastPostingDate + 'T00:00:00');
+    afterLast.setDate(afterLast.getDate() + 1);
+    startDate = afterLast;
+  }
+
+  const results = [];
+  let cur = new Date(startDate);
   const limit = 365;
   for (let iter = 0; results.length < count && iter < limit; iter++) {
     const dow = cur.getDay(); // 0=So … 6=Sa
@@ -6941,6 +6966,18 @@ function updateSeriesPreview() {
     return;
   }
 
+  // Nahtlose-Fortsetzung-Hinweis: letztes bereits belegtes Datum ermitteln
+  const existingPostingDates = store.projects
+    .filter(p => p.customerId === cid && p.postingDate)
+    .map(p => p.postingDate)
+    .sort();
+  const lastExisting = existingPostingDates.length ? existingPostingDates[existingPostingDates.length - 1] : null;
+  const minStart3Days = addDays(shoot, 3);
+  const continuesFrom = lastExisting && lastExisting >= minStart3Days ? lastExisting : null;
+  const continuationHint = continuesFrom
+    ? `<div class="series-continuation-info">↪ Nahtlose Fortsetzung nach letztem Posting-Datum (${fmtDate(continuesFrom)})</div>`
+    : '';
+
   const rows = dates.map((d, i) => {
     const warn = d.deadline <= shoot
       ? `<span title="Cutter-Deadline liegt am/vor Drehtag" style="color:#fbbf24;">⚠</span>` : '';
@@ -6953,7 +6990,7 @@ function updateSeriesPreview() {
     </tr>`;
   }).join('');
 
-  box.innerHTML = `<table class="series-preview-table">
+  box.innerHTML = `${continuationHint}<table class="series-preview-table">
     <thead><tr>
       <th>#</th><th>Titel</th><th>Posting-Datum</th><th>Cutter-Deadline</th><th>Cutter</th>
     </tr></thead>
@@ -7707,6 +7744,8 @@ function openProjectModal(projectId = null, forceFull = false) {
               <input type="text" name="title" required value="${escape(project?.title || '')}" ${!canEdit ? 'readonly' : ''} placeholder="z.B. Reels-Kampagne Juni" />
             </div>
 
+            <div class="form-section">Team &amp; Termin</div>
+
             <div id="external-fields" style="${isInternal ? 'display:none;' : ''}">
               <div class="form-row">
                 <div class="form-group">
@@ -7750,6 +7789,8 @@ function openProjectModal(projectId = null, forceFull = false) {
               </div>
             </div>
 
+            <div class="form-section">Planung</div>
+
             <div class="form-row">
               <div class="form-group" id="posting-field" style="${isInternal ? 'display:none;' : ''}">
                 <label class="form-label">Posting-Datum* (18:00)</label>
@@ -7758,10 +7799,12 @@ function openProjectModal(projectId = null, forceFull = false) {
               <div class="form-group">
                 <label class="form-label">Cutter-Deadline (17:00)</label>
                 <input type="date" name="deadline" id="proj-deadline" value="${project?.deadline || ''}" ${!canEdit ? 'readonly' : ''} onchange="checkCutterTimeline()" />
-                ${isNew ? '<div class="text-sm text-muted mt-2">Wird automatisch 2 Tage vor Posting gesetzt, kann aber manuell überschrieben werden.</div>' : ''}
+                ${isNew ? '<div class="form-hint-auto">⚡ Wird automatisch 2 Tage vor Posting gesetzt</div>' : ''}
               </div>
             </div>
             <div id="timeline-warning-box"></div>
+
+            <div class="form-section">Inhalt</div>
 
             <div class="form-group">
               <label class="form-label">Skript / Konzept</label>
@@ -7937,6 +7980,99 @@ async function setProjectStatus(id, status) {
     appAlert('Status konnte nicht gespeichert werden: ' + e.message);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Drag-and-Drop Kalender
+// ---------------------------------------------------------------------------
+let _calDnd = null; // { projectId, origDate }
+
+function calDragStart(event, projectId, origDate) {
+  if (window.matchMedia('(hover: none)').matches) { event.preventDefault(); return; }
+  _calDnd = { projectId, origDate };
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', projectId);
+  event.currentTarget.classList.add('dnd-dragging');
+}
+
+function calDragEnd(event) {
+  event.currentTarget.classList.remove('dnd-dragging');
+  document.querySelectorAll('.dnd-over').forEach(el => el.classList.remove('dnd-over'));
+}
+
+function calDragOver(event) {
+  if (!_calDnd) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  event.currentTarget.classList.add('dnd-over');
+}
+
+function calDragLeave(event) {
+  if (!event.currentTarget.contains(event.relatedTarget)) {
+    event.currentTarget.classList.remove('dnd-over');
+  }
+}
+
+async function calDrop(event, targetDate) {
+  event.preventDefault();
+  event.currentTarget.classList.remove('dnd-over');
+  if (!_calDnd || !targetDate) return;
+  const { projectId, origDate } = _calDnd;
+  _calDnd = null;
+  if (targetDate === origDate) return;
+
+  const project = store.projects.find(p => p.id === projectId);
+  if (!project) return;
+
+  // Anderes Projekt desselben Kunden an diesem Datum → Tausch anbieten
+  const conflict = store.projects.find(p =>
+    p.customerId === project.customerId &&
+    p.postingDate === targetDate &&
+    p.id !== projectId
+  );
+
+  // 24h-Warnung: neues Posting-Datum des gezogenen Projekts ≤ bestehende Deadline + 1 Tag
+  const warn24h = project.deadline && targetDate <= addDays(project.deadline, 1);
+  // Beim Tausch: Konflikt-Deadline wird auf origDate-2 neu berechnet; prüfe ob das knapp ist
+  const conflictNewDeadline = conflict ? addDays(origDate, -2) : null;
+  const warn24hConflict = conflict && conflict.deadline && origDate <= addDays(conflictNewDeadline, 1);
+
+  let msg = conflict
+    ? `„${conflict.title}" belegt ${fmtDate(targetDate)} bereits.\nPosting-Daten tauschen?`
+    : `Posting von ${fmtDate(origDate)} auf ${fmtDate(targetDate)} verschieben?`;
+  if (warn24h) msg += '\n\n⚠ Weniger als 24 Stunden zwischen Cutter-Deadline und neuem Posting-Datum!';
+  if (warn24hConflict) msg += `\n\n⚠ Neue Deadline für „${conflict.title}" (${fmtDate(conflictNewDeadline)}) liegt knapp vor dem Posting-Datum!`;
+
+  if (!confirm(msg)) return;
+
+  try {
+    await patchProject(projectId, { postingDate: targetDate });
+    if (conflict) {
+      // Deadline des Konflikt-Projekts mit verschieben (2 Tage vor neuem Posting)
+      await patchProject(conflict.id, { postingDate: origDate, deadline: conflictNewDeadline });
+    }
+    await pullAllFromCloud();
+    renderPage();
+  } catch (e) {
+    appAlert('Fehler beim Verschieben: ' + e.message);
+  }
+}
+
+// Kleines PUT-Patch-Utility für Projekt-Felder (kein Reload)
+async function patchProject(id, fields) {
+  const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+    body: JSON.stringify(fields)
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || 'Unbekannter Fehler');
+  if (j.data) {
+    const p = store.projects.find(x => x.id === id);
+    if (p) Object.assign(p, j.data);
+  }
+}
+// ---------------------------------------------------------------------------
 
 async function cutterRevert(projectId, targetStatus) {
   const session = getCurrentUser();
@@ -10254,9 +10390,11 @@ function renderMonthViewInto(elementId, session, mini = false) {
           const hiddenCount = laidOut.length - visible.length;
           return `
             <div class="month-week-row" data-week-start="${weekStart}">
-              ${week.map((cell, idx) => `
-                <div class="month-day-bg ${cell.dateStr === todayStr ? 'today' : ''} ${cell.isShoot ? 'is-shoot' : ''} ${cell.isRescheduled ? 'is-rescheduled' : ''}" style="grid-column: ${idx+1};"></div>
-              `).join('')}
+              ${week.map((cell, idx) => {
+                const isTouchDev = window.matchMedia('(hover: none)').matches;
+                const dropA = !isTouchDev ? ` data-date="${cell.dateStr}" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${cell.dateStr}')"` : '';
+                return `<div class="month-day-bg ${cell.dateStr === todayStr ? 'today' : ''} ${cell.isShoot ? 'is-shoot' : ''} ${cell.isRescheduled ? 'is-rescheduled' : ''}" style="grid-column: ${idx+1};"${dropA}></div>`;
+              }).join('')}
               ${week.map((cell, idx) => {
                 const showMonth = cell.firstOfMonth || (idx === 0 && week.findIndex(c => c.firstOfMonth) === -1 && weeks.indexOf(week) === 0);
                 const monthLabel = showMonth ? cell.date.toLocaleString('de-DE', { month: 'short' }) + ' ' : '';
@@ -10377,7 +10515,14 @@ function renderMonthBar(b, startIdx, endIdx, cutsLeft, cutsRight) {
   const user = getBarPrimaryUser(b);
   const showAvatar = !cutsLeft && user;
   const avatar = showAvatar ? renderAvatar(user, 16, 9) : '';
-  return `<div class="${cls}" style="grid-column: ${startIdx+1} / ${endIdx+2}; grid-row: ${b.lane+2};" ${click} title="${escape(title)}">${avatar}${time}${mChip}<span class="month-bar-title">${escape(text)}</span></div>`;
+  const isMobile = window.innerWidth < 640;
+  const _calSess = getCurrentUser();
+  const _canDnd = _calSess && _calSess.type === 'staff' && hasRole(_calSess.user, ROLES.ADMIN, ROLES.MANAGER);
+  const isDraggable = !isMobile && _canDnd && b.phase === 'posting' && b.projectId && !cutsLeft;
+  const dndAttrs = isDraggable
+    ? ` draggable="true" ondragstart="calDragStart(event,'${b.projectId}','${b.startDate}')" ondragend="calDragEnd(event)"`
+    : '';
+  return `<div class="${cls}" style="grid-column: ${startIdx+1} / ${endIdx+2}; grid-row: ${b.lane+2};"${dndAttrs} ${click} title="${escape(title)}">${avatar}${time}${mChip}<span class="month-bar-title">${escape(text)}</span></div>`;
 }
 
 /* ===== iCLOUD WEEK VIEW – Stunden-Layout, nahtlos horizontal scrollbar ===== */
@@ -10604,7 +10749,11 @@ function renderCategoryWeekView(elementId, session, mini = false) {
             const bgCells = [];
             for (let r = 0; r < c.lanes; r++) {
               days.forEach((d, i) => {
-                bgCells.push(`<div class="ical-cat-bg ${d.isToday ? 'today' : ''} ${altCat} ${d.isShoot ? 'is-shoot' : ''} ${d.isRescheduled ? 'is-rescheduled' : ''}" style="grid-column:${i+2}; grid-row:${c.start + r};"></div>`);
+                const isTouchDevice = window.matchMedia('(hover: none)').matches;
+                const dropAttrs = (!isTouchDevice && c.key === 'videos')
+                  ? ` data-date="${d.dateStr}" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${d.dateStr}')"`
+                  : '';
+                bgCells.push(`<div class="ical-cat-bg ${d.isToday ? 'today' : ''} ${altCat} ${d.isShoot ? 'is-shoot' : ''} ${d.isRescheduled ? 'is-rescheduled' : ''}" style="grid-column:${i+2}; grid-row:${c.start + r};"${dropAttrs}></div>`);
               });
             }
             const eventsHtml = c.items.map(b => {
@@ -10718,7 +10867,14 @@ function renderCategoryEvent(b, row, startCol, endCol) {
   }
   const isMobile = window.innerWidth < 640;
   const avatar = (!b.cutsLeft && avatarUser && !isMobile) ? renderAvatar(avatarUser, 16, 9) : '';
-  return `<div class="${cls}" style="grid-column: ${startCol} / ${endCol}; grid-row: ${row};" ${click} title="${escape(title)}"><div class="ical-event-inner">${avatar}${kuerzelChip}<span class="ical-event-label">${escape(text)}</span></div></div>`;
+  // DnD: nur Posting-Balken auf Desktop für Admin/Manager draggable
+  const _catSess = getCurrentUser();
+  const _canDndCat = _catSess && _catSess.type === 'staff' && hasRole(_catSess.user, ROLES.ADMIN, ROLES.MANAGER);
+  const isDraggable = !isMobile && _canDndCat && b.phase === 'posting' && b.projectId && !b.cutsLeft;
+  const dndAttrs = isDraggable
+    ? ` draggable="true" ondragstart="calDragStart(event,'${b.projectId}','${b.startDate}')" ondragend="calDragEnd(event)"`
+    : '';
+  return `<div class="${cls}" style="grid-column: ${startCol} / ${endCol}; grid-row: ${row};"${dndAttrs} ${click} title="${escape(title)}"><div class="ical-event-inner">${avatar}${kuerzelChip}<span class="ical-event-label">${escape(text)}</span></div></div>`;
 }
 
 function renderICWAllDay(b) {
