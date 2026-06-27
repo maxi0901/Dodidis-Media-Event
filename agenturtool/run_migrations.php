@@ -536,6 +536,20 @@ if (!tableExists($pdo, 'content_queue')) {
     addCol($pdo, 'content_queue', 'updated_at',        "ALTER TABLE content_queue ADD COLUMN updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP", $results);
 }
 
+// ── 25. customers: Serien-Einstellungen (Posting-Rhythmus, Standard-Cutter) ──
+addCol($pdo, 'customers', 'default_cutter_id',
+    "ALTER TABLE customers ADD COLUMN default_cutter_id VARCHAR(64) DEFAULT NULL AFTER videos_per_month",
+    $results);
+addCol($pdo, 'customers', 'posting_weekdays',
+    "ALTER TABLE customers ADD COLUMN posting_weekdays VARCHAR(20) DEFAULT NULL AFTER default_cutter_id",
+    $results);
+addCol($pdo, 'customers', 'videos_per_week',
+    "ALTER TABLE customers ADD COLUMN videos_per_week TINYINT UNSIGNED NOT NULL DEFAULT 2 AFTER posting_weekdays",
+    $results);
+addCol($pdo, 'customers', 'auto_posting_rhythm',
+    "ALTER TABLE customers ADD COLUMN auto_posting_rhythm TINYINT(1) NOT NULL DEFAULT 0 AFTER videos_per_week",
+    $results);
+
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>

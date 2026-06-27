@@ -14,21 +14,6 @@ if (in_array($method, ['POST', 'PUT', 'DELETE'], true)) {
     require_csrf();
 }
 
-// Migration: Kunden-Voreinstellungen (Feature: Posting-Rhythmus / Serien-Generator)
-// Idempotent – schlägt still fehl wenn Spalte bereits existiert (MySQL 1060).
-foreach ([
-    "ALTER TABLE customers ADD COLUMN default_cutter_id VARCHAR(64) DEFAULT NULL AFTER videos_per_month",
-    "ALTER TABLE customers ADD COLUMN posting_weekdays  VARCHAR(20)  DEFAULT NULL AFTER default_cutter_id",
-    "ALTER TABLE customers ADD COLUMN videos_per_week   TINYINT UNSIGNED NOT NULL DEFAULT 2 AFTER posting_weekdays",
-    "ALTER TABLE customers ADD COLUMN auto_posting_rhythm TINYINT(1) NOT NULL DEFAULT 0 AFTER videos_per_week",
-] as $_migSql) {
-    try { db_exec($_migSql); } catch (Throwable $_e) {
-        if (!str_contains($_e->getMessage(), '1060') && !str_contains($_e->getMessage(), 'Duplicate column')) {
-            log_err('customer migration', ['sql' => $_migSql, 'msg' => $_e->getMessage()]);
-        }
-    }
-}
-unset($_migSql, $_e);
 
 $selectCols = "c.id, c.name, c.customer_number AS customerNumber, c.manager_id AS managerId,
                c.email, c.phone, c.contact_name AS contactName,
