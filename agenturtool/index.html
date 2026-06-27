@@ -1731,8 +1731,12 @@
   /* Phase colours – rich gradients matching ical-event */
   .month-bar.phase-shoot      { background: linear-gradient(90deg,rgba(167,139,250,0.32),rgba(139,92,246,0.22)); color: #ddd6fe; }
   .month-bar.phase-production { background: linear-gradient(90deg,rgba(251,191,36,0.22),rgba(245,158,11,0.14)); color: #fcd34d; }
+  /* Rechter Abschluss = Deadline → roter Cap (nicht bei cuts-right, da Linie dort abgeschnitten) */
+  .month-bar.phase-production:not(.cuts-right) { border-right: 2px solid rgba(239,68,68,0.65); }
   .month-bar.phase-cutter     { background: linear-gradient(90deg,rgba(251,191,36,0.28),rgba(245,158,11,0.18)); color: #fde68a; }
   .month-bar.phase-editing    { background: linear-gradient(90deg,rgba(52,211,153,0.22),rgba(16,185,129,0.14)); color: #6ee7b7; }
+  /* Posting-Segment startet direkt nach Deadline → kein linkes Padding, wirkt als Fortsetzung */
+  .month-bar.phase-posting:not(.cuts-left) { border-left: 2px solid rgba(20,184,166,0.55); }
   .month-bar.phase-posting    { background: linear-gradient(90deg,rgba(20,184,166,0.32),rgba(45,212,191,0.22)); color: #5eead4; }
   .month-bar.phase-vacation   { background: linear-gradient(90deg,rgba(148,163,184,0.28),rgba(100,116,139,0.18)); color: #cbd5e1; }
   .month-bar.phase-deadline   { background: linear-gradient(90deg,rgba(239,68,68,0.30),rgba(220,38,38,0.20)); color: #fca5a5; }
@@ -2062,8 +2066,10 @@
 
   .ical-event.phase-shoot    { background: linear-gradient(90deg,rgba(167,139,250,0.32),rgba(139,92,246,0.22)); color: #ddd6fe; border: 1px solid rgba(167,139,250,0.25); }
   .ical-event.phase-production { background: linear-gradient(90deg,rgba(251,191,36,0.22),rgba(245,158,11,0.14)); color: #fcd34d; border: 1px solid rgba(251,191,36,0.18); }
+  .ical-event.phase-production:not(.cuts-right) { border-right: 2px solid rgba(239,68,68,0.65); }
   .ical-event.phase-editing  { background: linear-gradient(90deg,rgba(52,211,153,0.22),rgba(16,185,129,0.14)); color: #6ee7b7; border: 1px solid rgba(52,211,153,0.18); }
   .ical-event.phase-cutter   { background: linear-gradient(90deg,rgba(251,191,36,0.28),rgba(245,158,11,0.18)); color: #fde68a; border: 1px solid rgba(251,191,36,0.22); }
+  .ical-event.phase-posting:not(.cuts-left) { border-left: 2px solid rgba(20,184,166,0.55); }
   .ical-event.phase-posting  { background: linear-gradient(90deg,rgba(20,184,166,0.32),rgba(45,212,191,0.22)); color: #5eead4; border: 1px solid rgba(20,184,166,0.28); }
   .ical-event.phase-vacation { background: linear-gradient(90deg,rgba(148,163,184,0.30),rgba(100,116,139,0.22)); color: #e2e8f0; border: 1px solid rgba(148,163,184,0.28); }
   .ical-event.phase-deadline { background: linear-gradient(90deg,rgba(239,68,68,0.30),rgba(220,38,38,0.20)); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
@@ -10134,6 +10140,10 @@ function buildCalendarBars(session) {
   });
 
   myProjects.forEach(p => {
+    // FIX 1: nicht abgedrehte Videos komplett aus dem Kalender entfernen – sie müssen
+    // neu geplant werden und haben bis dahin keinen gültigen Termin mehr.
+    if (isNichtGedreht(p)) return;
+
     const c = store.customers.find(x => x.id === p.customerId);
     const customerName = c?.name || '';
     const kuerzel = makeKuerzel(customerName);
@@ -10141,32 +10151,28 @@ function buildCalendarBars(session) {
     const sd = p.shootDate || null;
     const pd = p.postingDate || null;
     const dl = p.deadline || null; // = Cutter-Deadline
-    const nichtGedreht = isNichtGedreht(p);
-    const base = { projectId: p.id, title: p.title, customer: customerName, kuerzel, fullTitle, nichtGedreht };
+    const base = { projectId: p.id, title: p.title, customer: customerName, kuerzel, fullTitle };
 
     // KEIN 'shoot' mehr pro Projekt – Drehtag ist nur die Drehtag-Entität oben
 
-    // Production-Spanne ab Drehtag bis Deadline-1 (Projekt startet AM Drehtag, nicht erst danach)
+    // FIX 2: Produktionslinie mit farbigen End-Markern.
+    // Gelbe Linie von Drehtag BIS Deadline (Deadline = rechter Endpunkt, roter Cap).
+    // Teal-Segment von Deadline+1 BIS Posting (Posting = rechter Endpunkt, blauer Cap).
+    // Kein separater Deadline-Balken mehr – er ist der Abschluss der gelben Linie.
     if (sd && dl && sd < dl) {
-      const prodStart = sd;
-      const prodEnd = addDays(dl, -1);
-      if (prodEnd >= prodStart) {
-        bars.push({ ...base, phase: 'production', startDate: prodStart, endDate: prodEnd });
-      }
+      // Gelbe Produktionslinie endet am Deadline-Tag (nicht mehr Deadline-1)
+      bars.push({ ...base, phase: 'production', startDate: sd, endDate: dl });
     } else if (sd && !dl) {
-      // Nur Drehtag bekannt – Projekt wird zumindest am Drehtag als Bar gezeigt
       bars.push({ ...base, phase: 'production', startDate: sd, endDate: sd });
     }
 
-    // Deadline
-    if (dl && dl !== sd) {
-      bars.push({ ...base, phase: 'deadline', startDate: dl, endDate: dl, time: '17:00' });
+    // Teal-Posting-Segment: von Deadline+1 bis Posting-Datum
+    if (pd && showsPostings) {
+      const postStart = (dl && dl < pd) ? addDays(dl, 1) : pd;
+      bars.push({ ...base, phase: 'posting', startDate: postStart, endDate: pd, time: '18:00' });
     }
 
-    // Posting – auch anzeigen wenn Deadline = Posting-Tag
-    if (pd && showsPostings) {
-      bars.push({ ...base, phase: 'posting', startDate: pd, endDate: pd, time: '18:00' });
-    }
+    // Separater Deadline-Balken entfällt – Deadline ist der rechte Rand der Produktionslinie
   });
 
   // Hierarchie-Regel: man sieht den Urlaub aller, die ein NIEDRIGERES Rollen-Level haben + eigene
@@ -11127,7 +11133,9 @@ function enableDragScroll(el) {
   // Mausrad: NUR rein vertikales Mausrad (klassische Maus ohne Horizontal-Achse)
   // wird in horizontal umgesetzt. Trackpad-Wisch (deltaX dominiert) wird NICHT
   // angefasst – Browser scrollt nativ.
+  // Mini/Dashboard-Kalender: kein Redirect – sonst kann die Seite nicht vertikal gescrollt werden.
   el.addEventListener('wheel', e => {
+    if (el._cwMini) return; // Dashboard-Kalender: vertikales Scrollen der Seite nicht kapern
     if (Math.abs(e.deltaX) > 0) return; // Trackpad: nicht stören
     if (e.deltaY !== 0) {
       el.scrollLeft += e.deltaY;
