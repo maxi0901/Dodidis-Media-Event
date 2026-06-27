@@ -8030,19 +8030,26 @@ async function calDrop(event, targetDate) {
     p.id !== projectId
   );
 
-  // 24h-Warnung: neues Posting-Datum ≤ Deadline + 1 Tag
+  // 24h-Warnung: neues Posting-Datum des gezogenen Projekts ≤ bestehende Deadline + 1 Tag
   const warn24h = project.deadline && targetDate <= addDays(project.deadline, 1);
+  // Beim Tausch: Konflikt-Deadline wird auf origDate-2 neu berechnet; prüfe ob das knapp ist
+  const conflictNewDeadline = conflict ? addDays(origDate, -2) : null;
+  const warn24hConflict = conflict && conflict.deadline && origDate <= addDays(conflictNewDeadline, 1);
 
   let msg = conflict
     ? `„${conflict.title}" belegt ${fmtDate(targetDate)} bereits.\nPosting-Daten tauschen?`
     : `Posting von ${fmtDate(origDate)} auf ${fmtDate(targetDate)} verschieben?`;
   if (warn24h) msg += '\n\n⚠ Weniger als 24 Stunden zwischen Cutter-Deadline und neuem Posting-Datum!';
+  if (warn24hConflict) msg += `\n\n⚠ Neue Deadline für „${conflict.title}" (${fmtDate(conflictNewDeadline)}) liegt knapp vor dem Posting-Datum!`;
 
   if (!confirm(msg)) return;
 
   try {
     await patchProject(projectId, { postingDate: targetDate });
-    if (conflict) await patchProject(conflict.id, { postingDate: origDate });
+    if (conflict) {
+      // Deadline des Konflikt-Projekts mit verschieben (2 Tage vor neuem Posting)
+      await patchProject(conflict.id, { postingDate: origDate, deadline: conflictNewDeadline });
+    }
     await pullAllFromCloud();
     renderPage();
   } catch (e) {
@@ -10509,7 +10516,9 @@ function renderMonthBar(b, startIdx, endIdx, cutsLeft, cutsRight) {
   const showAvatar = !cutsLeft && user;
   const avatar = showAvatar ? renderAvatar(user, 16, 9) : '';
   const isMobile = window.innerWidth < 640;
-  const isDraggable = !isMobile && b.phase === 'posting' && b.projectId && !cutsLeft;
+  const _calSess = getCurrentUser();
+  const _canDnd = _calSess && _calSess.type === 'staff' && hasRole(_calSess.user, ROLES.ADMIN, ROLES.MANAGER);
+  const isDraggable = !isMobile && _canDnd && b.phase === 'posting' && b.projectId && !cutsLeft;
   const dndAttrs = isDraggable
     ? ` draggable="true" ondragstart="calDragStart(event,'${b.projectId}','${b.startDate}')" ondragend="calDragEnd(event)"`
     : '';
@@ -10858,8 +10867,10 @@ function renderCategoryEvent(b, row, startCol, endCol) {
   }
   const isMobile = window.innerWidth < 640;
   const avatar = (!b.cutsLeft && avatarUser && !isMobile) ? renderAvatar(avatarUser, 16, 9) : '';
-  // DnD: nur Posting-Balken auf Desktop draggable
-  const isDraggable = !isMobile && b.phase === 'posting' && b.projectId && !b.cutsLeft;
+  // DnD: nur Posting-Balken auf Desktop für Admin/Manager draggable
+  const _catSess = getCurrentUser();
+  const _canDndCat = _catSess && _catSess.type === 'staff' && hasRole(_catSess.user, ROLES.ADMIN, ROLES.MANAGER);
+  const isDraggable = !isMobile && _canDndCat && b.phase === 'posting' && b.projectId && !b.cutsLeft;
   const dndAttrs = isDraggable
     ? ` draggable="true" ondragstart="calDragStart(event,'${b.projectId}','${b.startDate}')" ondragend="calDragEnd(event)"`
     : '';
