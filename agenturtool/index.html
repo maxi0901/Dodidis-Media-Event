@@ -921,6 +921,24 @@
   /* Auto-Resize-Textarea: wächst mit dem Inhalt, kein interner Scrollbalken. */
   textarea.autogrow { resize: none; overflow: hidden; field-sizing: content; }
 
+  /* Wochentag-Picker (Kunden-Voreinstellungen) */
+  .weekday-picker { display:flex; gap:6px; flex-wrap:wrap; }
+  .weekday-chip { display:inline-flex; align-items:center; justify-content:center; min-width:36px; padding:5px 9px; border-radius:8px; border:1px solid var(--border); cursor:pointer; font-size:13px; font-weight:600; color:var(--text-2); user-select:none; transition:var(--transition); }
+  .weekday-chip:hover { border-color:var(--accent); color:var(--text-1); }
+  .weekday-chip.wd-active { background:rgba(20,184,166,0.15); color:var(--accent); border-color:var(--accent); }
+
+  /* Validierungs-Warnung im Projekt-Formular */
+  .timeline-warning { display:flex; align-items:flex-start; gap:7px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:8px; padding:8px 12px; font-size:12.5px; color:#fbbf24; margin-top:8px; }
+
+  /* Serien-Planer Vorschau-Tabelle */
+  .series-preview-table { width:100%; border-collapse:collapse; font-size:13px; margin-top:10px; }
+  .series-preview-table th { text-align:left; padding:6px 8px; border-bottom:1px solid var(--border); color:var(--text-3); font-weight:600; font-size:11.5px; letter-spacing:0.3px; }
+  .series-preview-table td { padding:5px 6px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
+  .series-preview-table input[type=text], .series-preview-table input[type=date] { width:100%; background:var(--bg-3); border:1px solid var(--border); border-radius:6px; color:var(--text-1); padding:4px 7px; font-size:12.5px; font-family:inherit; }
+  .series-preview-table input[type=text]:focus, .series-preview-table input[type=date]:focus { outline:none; border-color:var(--accent); }
+  .series-preview-row-num { color:var(--text-3); font-weight:700; font-size:12px; min-width:22px; text-align:center; }
+  .series-no-config { background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:8px; padding:10px 14px; color:#fbbf24; font-size:13px; }
+
   .badge-role-admin { color: #ff453a; background: rgba(255,69,58,0.1); border-color: rgba(255,69,58,0.2); }
   .badge-role-manager { color: #2dd4bf; background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.25); }
   .badge-role-videograf { color: #a78bfa; background: rgba(167,139,250,0.1); border-color: rgba(167,139,250,0.2); }
@@ -6436,8 +6454,9 @@ function renderProjects(session) {
     </select>` : '';
 
   $('#topbar-actions').innerHTML = canCreate
-    ? `<div class="flex gap-2">
+    ? `<div class="flex gap-2" style="flex-wrap:wrap;">
          <button class="btn btn-secondary" onclick="openShootDayModal()">+ Drehtag</button>
+         <button class="btn btn-secondary" onclick="openSeriesPlannerModal()">Serie planen</button>
          <button class="btn ${canQuickIdea ? 'btn-secondary' : 'btn-primary'}" onclick="openProjectModal()">+ Neues Projekt</button>
          ${canQuickIdea ? `<button class="btn btn-primary" onclick="openQuickIdeaModal()">+ Neue Idee</button>` : ''}
        </div>` : '';
@@ -6793,6 +6812,221 @@ async function convertIdeaToProject(ideaId) {
   closeModal();
   showToast('Projektdetails ergänzen', 'Kunde/Deadline/Zuweisung ergänzen – mit Drehtag wird daraus automatisch „Geplant".');
   openProjectModal(ideaId, true); // forceFull: volles Projektformular statt schlankem Ideen-Editor
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feature 2: Posting-Serien-Generator
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Erzeugt n Posting-Daten für einen Kunden ab einem Startdatum.
+ * Überspringt bereits belegte Tage (Kunde hat schon ein Projekt an diesem Datum)
+ * und Wochentage die nicht im Rhythmus des Kunden sind.
+ * @returns Array of { postingDate, deadline, cutterId }
+ */
+function generatePostingDates(customerId, shootDate, count) {
+  const customer = store.customers.find(c => c.id === customerId);
+  if (!customer || !shootDate) return [];
+
+  const weekdays = (customer.postingWeekdays || '')
+    .split(',').filter(Boolean).map(Number);
+  if (weekdays.length === 0) return [];
+
+  // Bereits belegte Posting-Tage dieses Kunden
+  const usedDates = new Set(
+    store.projects
+      .filter(p => p.customerId === customerId && p.postingDate)
+      .map(p => p.postingDate)
+  );
+
+  const results = [];
+  // Mindestens 3 Tage nach Drehtag
+  const start = new Date(shootDate + 'T00:00:00');
+  start.setDate(start.getDate() + 3);
+
+  let cur = new Date(start);
+  const limit = 365;
+  for (let iter = 0; results.length < count && iter < limit; iter++) {
+    const dow = cur.getDay(); // 0=So … 6=Sa
+    const dateStr = localDateStr(cur);
+    if (weekdays.includes(dow) && !usedDates.has(dateStr)) {
+      const deadline = addDays(dateStr, -2);
+      results.push({ postingDate: dateStr, deadline, cutterId: customer.defaultCutterId || '' });
+      usedDates.add(dateStr); // keine Doppelbelegung innerhalb der Serie
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return results;
+}
+
+function openSeriesPlannerModal() {
+  const session = getCurrentUser();
+  if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) return;
+
+  const isAdmin = hasRole(session.user, ROLES.ADMIN);
+  const myCustomers = store.customers.filter(c =>
+    isAdmin || !c.managerId || c.managerId === session.user.id
+  );
+  const cutters = store.users.filter(u => hasRole(u, ROLES.CUTTER));
+
+  const customerOpts = `<option value="">– Kunde wählen –</option>` +
+    myCustomers.map(c => `<option value="${c.id}">${escape(c.name)} (${escape(c.customerNumber)})</option>`).join('');
+
+  const cutterOptsTpl = (selId) => `<option value="">–</option>` +
+    cutters.map(u => `<option value="${u.id}" ${selId === u.id ? 'selected' : ''}>${escape(u.name)}</option>`).join('');
+
+  const today = localDateStr(new Date());
+
+  const html = `
+    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+      <div class="modal modal-large">
+        <div class="modal-header">
+          <div class="modal-title">Posting-Serie planen</div>
+          <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <form onsubmit="submitSeriesPlan(event)" id="series-planner-form">
+          <div class="modal-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Kunde*</label>
+                <select name="customerId" id="sp-customer" required onchange="updateSeriesPreview()">${customerOpts}</select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Drehtag*</label>
+                <input type="date" name="shootDate" id="sp-shootDate" required value="${today}" onchange="updateSeriesPreview()" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Anzahl Videos</label>
+                <input type="number" name="count" id="sp-count" min="1" max="30" value="4" required onchange="updateSeriesPreview()" />
+              </div>
+            </div>
+            <div id="series-preview-container" style="margin-top:8px;"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+            <button type="submit" class="btn btn-primary" id="sp-submit-btn" disabled>Projekte anlegen</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  $('#modal-container').innerHTML = html;
+  // Store cutter template for preview rows
+  window._seriesCutterOptsTpl = cutterOptsTpl;
+}
+
+function updateSeriesPreview() {
+  const cid     = document.getElementById('sp-customer')?.value;
+  const shoot   = document.getElementById('sp-shootDate')?.value;
+  const count   = parseInt(document.getElementById('sp-count')?.value) || 0;
+  const box     = document.getElementById('series-preview-container');
+  const btn     = document.getElementById('sp-submit-btn');
+  if (!box) return;
+  if (!cid || !shoot || count < 1) { box.innerHTML = ''; if (btn) btn.disabled = true; return; }
+
+  const customer = store.customers.find(c => c.id === cid);
+  if (!customer?.postingWeekdays && !customer?.autoPostingRhythm) {
+    box.innerHTML = `<div class="series-no-config">
+      ⚠ Für diesen Kunden sind noch keine Posting-Wochentage konfiguriert.<br>
+      Bitte zuerst im Kunden-Stammdaten den Posting-Rhythmus einrichten.
+    </div>`;
+    if (btn) btn.disabled = true;
+    return;
+  }
+
+  const dates = generatePostingDates(cid, shoot, count);
+  if (dates.length === 0) {
+    box.innerHTML = `<div class="series-no-config">⚠ Keine freien Posting-Tage gefunden (nächste ${365} Tage geprüft).</div>`;
+    if (btn) btn.disabled = true;
+    return;
+  }
+
+  const rows = dates.map((d, i) => {
+    const warn = d.deadline <= shoot
+      ? `<span title="Cutter-Deadline liegt am/vor Drehtag" style="color:#fbbf24;">⚠</span>` : '';
+    return `<tr>
+      <td class="series-preview-row-num">${i + 1}</td>
+      <td><input type="text" name="title_${i}" placeholder="Titel Video ${i+1}" style="min-width:160px;" /></td>
+      <td><input type="date" name="postingDate_${i}" value="${d.postingDate}" onchange="onSeriesRowDateChange(${i})" /></td>
+      <td><input type="date" name="deadline_${i}" value="${d.deadline}" /> ${warn}</td>
+      <td><select name="cutterId_${i}">${window._seriesCutterOptsTpl(d.cutterId)}</select></td>
+    </tr>`;
+  }).join('');
+
+  box.innerHTML = `<table class="series-preview-table">
+    <thead><tr>
+      <th>#</th><th>Titel</th><th>Posting-Datum</th><th>Cutter-Deadline</th><th>Cutter</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="text-sm text-muted" style="margin-top:8px;">Drehtag für alle: ${fmtDate(shoot)} · Titel kann leer bleiben (dann wird „Video N" verwendet).</div>`;
+  if (btn) { btn.disabled = false; btn.textContent = `${dates.length} Projekt${dates.length === 1 ? '' : 'e'} anlegen`; }
+}
+
+function onSeriesRowDateChange(i) {
+  const postingInput = document.querySelector(`[name="postingDate_${i}"]`);
+  const deadlineInput = document.querySelector(`[name="deadline_${i}"]`);
+  if (postingInput?.value && deadlineInput) {
+    deadlineInput.value = addDays(postingInput.value, -2);
+  }
+}
+
+async function submitSeriesPlan(e) {
+  e.preventDefault();
+  const form = e.target;
+  const cid   = document.getElementById('sp-customer')?.value;
+  const shoot = document.getElementById('sp-shootDate')?.value;
+  const count = parseInt(document.getElementById('sp-count')?.value) || 0;
+  const session = getCurrentUser();
+  if (!session || !cid || !shoot || count < 1) return;
+
+  const btn = document.getElementById('sp-submit-btn');
+  btn.disabled = true; btn.textContent = 'Wird angelegt…';
+
+  const errors = [];
+  const created = [];
+  const customer = store.customers.find(c => c.id === cid);
+  // Nur die tatsächlich in der Vorschau gerenderten Zeilen anlegen (kann < count sein).
+  const previewDates = generatePostingDates(cid, shoot, count);
+  const actualCount = previewDates.length;
+
+  for (let i = 0; i < actualCount; i++) {
+    const postingDate = form[`postingDate_${i}`]?.value;
+    const deadline    = form[`deadline_${i}`]?.value;
+    const cutterId    = form[`cutterId_${i}`]?.value || null;
+    const rawTitle    = (form[`title_${i}`]?.value || '').trim();
+    const title       = rawTitle || `${escape(customer?.name || 'Video')} – Reel ${i + 1}`;
+    const newId = uid('p');
+
+    const payload = {
+      id: newId, title, customerId: cid, shootDate: shoot,
+      cutterId: cutterId || null,
+      postingDate: postingDate || null,
+      deadline: deadline || null,
+      status: STATUS.GEPLANT, isInternal: 0,
+    };
+    try {
+      const res = await fetch(`${API_BASE}/projects.php`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Fehler');
+      store.projects.unshift(json.data ? { ...payload, ...json.data } : payload);
+      created.push(title);
+    } catch (err) {
+      errors.push(`Video ${i+1}: ${err.message}`);
+    }
+  }
+
+  closeModal();
+  renderProjects(session);
+  if (errors.length) {
+    showToast(`${created.length} Projekt(e) angelegt, ${errors.length} Fehler.`, 'warn');
+  } else {
+    showToast(`${created.length} Projekt${created.length === 1 ? '' : 'e'} erfolgreich angelegt.`, 'success');
+  }
 }
 
 /* Aufgeräumte Cutter-Projektsicht – nur abgedrehte Projekte, gruppiert nach Status */
@@ -7477,7 +7711,7 @@ function openProjectModal(projectId = null, forceFull = false) {
               <div class="form-row">
                 <div class="form-group">
                   <label class="form-label">Kunde*</label>
-                  <select name="customerId" id="proj-customer" ${!isManagerOrAdmin ? 'disabled' : ''}>
+                  <select name="customerId" id="proj-customer" ${!isManagerOrAdmin ? 'disabled' : ''} onchange="onProjectCustomerChange(this)">
                     <option value="">– bitte wählen –</option>
                     ${customerOptions}
                   </select>
@@ -7499,7 +7733,7 @@ function openProjectModal(projectId = null, forceFull = false) {
               <div class="form-row" id="manual-shootDate-row" style="${project?.shootDayId ? 'display:none;' : ''}">
                 <div class="form-group">
                   <label class="form-label">Drehtag (manuell)</label>
-                  <input type="date" name="shootDate" id="proj-shootDate" value="${project?.shootDate || ''}" ${!canEdit ? 'readonly' : ''} />
+                  <input type="date" name="shootDate" id="proj-shootDate" value="${project?.shootDate || ''}" ${!canEdit ? 'readonly' : ''} onchange="checkCutterTimeline()" />
                 </div>
               </div>
             </div>
@@ -7512,7 +7746,7 @@ function openProjectModal(projectId = null, forceFull = false) {
               </div>
               <div class="form-group">
                 <label class="form-label">Cutter</label>
-                <select name="cutterId" ${!isManagerOrAdmin ? 'disabled' : ''}>${cutterOptions}</select>
+                <select name="cutterId" id="proj-cutter" ${!isManagerOrAdmin ? 'disabled' : ''} onchange="this.dataset.userEdited='1'">${cutterOptions}</select>
               </div>
             </div>
 
@@ -7523,10 +7757,11 @@ function openProjectModal(projectId = null, forceFull = false) {
               </div>
               <div class="form-group">
                 <label class="form-label">Cutter-Deadline (17:00)</label>
-                <input type="date" name="deadline" id="proj-deadline" value="${project?.deadline || ''}" ${!canEdit ? 'readonly' : ''} />
+                <input type="date" name="deadline" id="proj-deadline" value="${project?.deadline || ''}" ${!canEdit ? 'readonly' : ''} onchange="checkCutterTimeline()" />
                 ${isNew ? '<div class="text-sm text-muted mt-2">Wird automatisch 2 Tage vor Posting gesetzt, kann aber manuell überschrieben werden.</div>' : ''}
               </div>
             </div>
+            <div id="timeline-warning-box"></div>
 
             <div class="form-group">
               <label class="form-label">Skript / Konzept</label>
@@ -7586,6 +7821,8 @@ function openProjectModal(projectId = null, forceFull = false) {
   $('#modal-container').innerHTML = html;
   initAutogrowTextareas();
   if (projectId) loadAndRenderProjectComments(projectId, isManagerOrAdmin, 'proj-comments-box');
+  // 24h-Validierung beim Öffnen eines bestehenden Projekts prüfen
+  checkCutterTimeline();
 
   // Draft autosave for new projects
   if (isNew && canEdit) {
@@ -8205,6 +8442,43 @@ function autoFillDeadline() {
   if (postingInput.value && !deadlineInput.value) {
     deadlineInput.value = addDays(postingInput.value, -2);
   }
+  checkCutterTimeline();
+}
+
+// Feature 4: 24h-Cutter-Validierung
+function checkCutterTimeline() {
+  const box = document.getElementById('timeline-warning-box');
+  if (!box) return;
+  const shootDate  = document.getElementById('proj-shootDate')?.value  || '';
+  const deadline   = document.getElementById('proj-deadline')?.value   || '';
+  const postingDate = document.getElementById('proj-postingDate')?.value || '';
+  const warnings = [];
+  if (shootDate && deadline) {
+    // Rohmaterial muss mind. 24h vor Cutter-Deadline bereitstehen
+    if (deadline <= shootDate) {
+      warnings.push('Cutter-Deadline liegt am selben Tag oder vor dem Drehtag – Cutter hat keine 24 h zum Schneiden.');
+    }
+  }
+  if (deadline && postingDate) {
+    // Cutter braucht mind. 24h zwischen Deadline und Posting
+    if (postingDate <= deadline) {
+      warnings.push('Posting-Datum liegt am selben Tag oder vor der Cutter-Deadline – zu wenig Zeit für Freigabe.');
+    }
+  }
+  if (warnings.length === 0) { box.innerHTML = ''; return; }
+  box.innerHTML = warnings.map(w =>
+    `<div class="timeline-warning">⚠ ${escape(w)}</div>`
+  ).join('');
+}
+
+// Feature 3: Auto-Fill Cutter aus Kunden-Defaults beim Wechsel des Kunden
+function onProjectCustomerChange(select) {
+  const cid = select.value;
+  const customer = cid ? store.customers.find(c => c.id === cid) : null;
+  const cutterSelect = document.getElementById('proj-cutter');
+  if (cutterSelect && customer?.defaultCutterId && !cutterSelect.dataset.userEdited) {
+    cutterSelect.value = customer.defaultCutterId;
+  }
 }
 
 function onShootDayChange(select) {
@@ -8236,6 +8510,12 @@ function onShootDayChange(select) {
         }
         if (inheritedCustomerId) {
           customerSelect.value = inheritedCustomerId;
+          // Auto-Fill Cutter aus Kunden-Defaults
+          const iCust = store.customers.find(c => c.id === inheritedCustomerId);
+          const cutterSel = document.getElementById('proj-cutter');
+          if (cutterSel && iCust?.defaultCutterId && !cutterSel.dataset.userEdited) {
+            cutterSel.value = iCust.defaultCutterId;
+          }
         }
       }
     }
@@ -9012,6 +9292,10 @@ function openCustomerModal(customerId = null) {
   const managerOptions = `<option value="">– bitte wählen –</option>` + managers
     .map(u => `<option value="${u.id}" ${customer?.managerId === u.id ? 'selected' : ''}>${escape(u.name)}</option>`).join('');
 
+  const cutters = store.users.filter(u => hasRole(u, ROLES.CUTTER));
+  const defaultCutterOptions = `<option value="">– kein Standard –</option>` + cutters
+    .map(u => `<option value="${u.id}" ${customer?.defaultCutterId === u.id ? 'selected' : ''}>${escape(u.name)}</option>`).join('');
+
   const nextNum = isNew ? generateNextCustomerNumber() : customer.customerNumber;
   const c = customer || {};
   const checklist = c.checklist || {};
@@ -9169,6 +9453,38 @@ function openCustomerModal(customerId = null) {
                   <label class="form-label">Videos / Monat</label>
                   <input type="number" name="videosPerMonth" value="${escape(c.videosPerMonth || '')}" />
                 </div>
+              </div>
+
+              <div class="section-title" style="margin-top:18px;">Serien-Einstellungen</div>
+              <label class="checkbox-row" style="margin-bottom:14px;">
+                <input type="checkbox" name="autoPostingRhythm" ${c.autoPostingRhythm ? 'checked' : ''} />
+                <div class="checkbox-content">
+                  <div class="checkbox-title">Automatischen Posting-Rhythmus aktivieren</div>
+                  <div class="checkbox-sub">Beim Anlegen von Projekten werden Posting-Daten aus dem Rhythmus vorgeschlagen</div>
+                </div>
+              </label>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Standard-Cutter</label>
+                  <select name="defaultCutterId">${defaultCutterOptions}</select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Videos pro Woche</label>
+                  <input type="number" name="videosPerWeek" min="1" max="7" value="${c.videosPerWeek || 2}" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Posting-Wochentage</label>
+                <div class="weekday-picker">
+                  ${['So','Mo','Di','Mi','Do','Fr','Sa'].map((day, i) => {
+                    const isActive = (c.postingWeekdays || '').split(',').filter(Boolean).includes(String(i));
+                    return `<label class="weekday-chip ${isActive ? 'wd-active' : ''}" onclick="event.preventDefault();this.classList.toggle('wd-active');this.querySelector('input').checked=this.classList.contains('wd-active')">
+                      <input type="checkbox" name="wd_${i}" ${isActive ? 'checked' : ''} style="display:none;" />
+                      ${day}
+                    </label>`;
+                  }).join('')}
+                </div>
+                <div class="text-sm text-muted mt-2">Gewählte Tage werden beim Serien-Generator als Posting-Tage verwendet.</div>
               </div>
 
               <div class="section-title">Vertragsdokumente</div>
@@ -9354,6 +9670,16 @@ async function saveCustomer(e, customerId) {
   // Handle "billing same as address" checkbox
   data.billingSameAsAddress = !!data.billingSameAsAddress;
 
+  // Posting-Wochentage aus Checkboxen sammeln (wd_0 … wd_6)
+  const selectedWeekdays = [];
+  for (let _i = 0; _i <= 6; _i++) {
+    if (e.target.querySelector(`[name="wd_${_i}"]`)?.checked) selectedWeekdays.push(_i);
+    delete data['wd_' + _i];
+  }
+  data.postingWeekdays = selectedWeekdays.join(',') || null;
+  // autoPostingRhythm ist eine Checkbox → "on" oder undefined
+  data.autoPostingRhythm = !!data.autoPostingRhythm;
+
   // Manual status override (paused only)
   const manualStatus = data.manualStatus || '';
   delete data.manualStatus;
@@ -9409,6 +9735,10 @@ async function saveCustomer(e, customerId) {
     package: data.package || null,
     monthlyRate: data.monthlyRate || null,
     videosPerMonth: data.videosPerMonth || null,
+    defaultCutterId: data.defaultCutterId || null,
+    postingWeekdays: data.postingWeekdays || null,
+    videosPerWeek: parseInt(data.videosPerWeek) || 2,
+    autoPostingRhythm: data.autoPostingRhythm ? 1 : 0,
     status: data.status || null,
     checklist,
     ...(pinHashUpdate ? { pinHash: pinHashUpdate } : {})
