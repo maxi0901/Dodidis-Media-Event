@@ -13196,81 +13196,82 @@ function openMeetingModal(meetingId = null) {
   const attendeeIds = m?.attendeeIds || [];
 
   const html = `
-    <div class="modal-backdrop" onclick="closeModal()"></div>
-    <div class="modal" style="max-width:560px;">
-      <div class="modal-header">
-        <div class="modal-title">${isNew ? 'Neues Meeting' : (ro ? 'Meeting' : 'Meeting bearbeiten')}</div>
-        <button type="button" class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:560px;">
+        <div class="modal-header">
+          <div class="modal-title">${isNew ? 'Neues Meeting' : (ro ? 'Meeting' : 'Meeting bearbeiten')}</div>
+          <button type="button" class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <form onsubmit="saveMeeting(event,'${meetingId || ''}')">
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">Titel *</label>
+              <input type="text" name="title" value="${escape(m?.title || '')}" ${ro ? 'disabled' : ''} required />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Datum *</label>
+                <input type="date" name="date" value="${m?.date || ''}" ${ro ? 'disabled' : ''} required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Uhrzeit von</label>
+                <input type="time" name="startTime" value="${(m?.startTime || '09:00').slice(0,5)}" ${ro ? 'disabled' : ''} />
+              </div>
+              <div class="form-group">
+                <label class="form-label">bis</label>
+                <input type="time" name="endTime" value="${(m?.endTime || '').slice(0,5)}" ${ro ? 'disabled' : ''} />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Ort / Raum</label>
+                <input type="text" name="location" value="${escape(m?.location || '')}" placeholder="Büro, Zoom, Adresse …" ${ro ? 'disabled' : ''} />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Meeting-Link</label>
+                <input type="url" name="link" value="${escape(m?.link || '')}" placeholder="https://…" ${ro ? 'disabled' : ''} />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Kunde</label>
+              <select name="customerId" ${ro ? 'disabled' : ''}>
+                <option value="">– kein Kunde –</option>
+                ${customers.map(c => `<option value="${c.id}" ${m?.customerId === c.id ? 'selected' : ''}>${escape(c.name)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Teilnehmer</label>
+              <div class="checkbox-list" style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px 10px;">
+                ${allStaff.map(u => `
+                  <label class="checkbox-row">
+                    <input type="checkbox" name="attendeeIds" value="${u.id}" ${attendeeIds.includes(u.id) ? 'checked' : ''} ${ro ? 'disabled' : ''} />
+                    <span>${escape(u.name)}</span>
+                  </label>`).join('')}
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Agenda / Themen</label>
+              <div id="meeting-topics-list">
+                ${topicsArr.map((t, i) => `
+                  <div class="meeting-topic-row" style="display:flex;gap:6px;margin-bottom:6px;">
+                    <input type="text" class="meeting-topic-input" value="${escape(t)}" placeholder="Thema …" style="flex:1;" ${ro ? 'disabled' : ''} />
+                    ${ro ? '' : `<button type="button" class="btn btn-ghost btn-sm" onclick="this.closest('.meeting-topic-row').remove()" style="flex-shrink:0;">✕</button>`}
+                  </div>`).join('')}
+              </div>
+              ${ro ? '' : `<button type="button" class="btn btn-ghost btn-sm" onclick="addMeetingTopicRow()" style="margin-top:4px;">+ Thema hinzufügen</button>`}
+            </div>
+          </div>
+          <div class="modal-footer">
+            ${!isNew && canEdit
+              ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteMeeting('${meetingId}')">Löschen</button>`
+              : '<span></span>'}
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+              ${!ro ? '<button type="submit" class="btn btn-primary">Speichern</button>' : ''}
+            </div>
+          </div>
+        </form>
       </div>
-      <form onsubmit="saveMeeting(event,'${meetingId || ''}')">
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">Titel *</label>
-            <input type="text" name="title" value="${escape(m?.title || '')}" ${ro ? 'disabled' : ''} required />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Datum *</label>
-              <input type="date" name="date" value="${m?.date || ''}" ${ro ? 'disabled' : ''} required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Uhrzeit von</label>
-              <input type="time" name="startTime" value="${(m?.startTime || '09:00').slice(0,5)}" ${ro ? 'disabled' : ''} />
-            </div>
-            <div class="form-group">
-              <label class="form-label">bis</label>
-              <input type="time" name="endTime" value="${(m?.endTime || '').slice(0,5)}" ${ro ? 'disabled' : ''} />
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Ort / Raum</label>
-              <input type="text" name="location" value="${escape(m?.location || '')}" placeholder="Büro, Zoom, Adresse …" ${ro ? 'disabled' : ''} />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Meeting-Link</label>
-              <input type="url" name="link" value="${escape(m?.link || '')}" placeholder="https://…" ${ro ? 'disabled' : ''} />
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Kunde</label>
-            <select name="customerId" ${ro ? 'disabled' : ''}>
-              <option value="">– kein Kunde –</option>
-              ${customers.map(c => `<option value="${c.id}" ${m?.customerId === c.id ? 'selected' : ''}>${escape(c.name)}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Teilnehmer</label>
-            <div class="checkbox-list" style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px 10px;">
-              ${allStaff.map(u => `
-                <label class="checkbox-row">
-                  <input type="checkbox" name="attendeeIds" value="${u.id}" ${attendeeIds.includes(u.id) ? 'checked' : ''} ${ro ? 'disabled' : ''} />
-                  <span>${escape(u.name)}</span>
-                </label>`).join('')}
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Agenda / Themen</label>
-            <div id="meeting-topics-list">
-              ${topicsArr.map((t, i) => `
-                <div class="meeting-topic-row" style="display:flex;gap:6px;margin-bottom:6px;">
-                  <input type="text" class="meeting-topic-input" value="${escape(t)}" placeholder="Thema …" style="flex:1;" ${ro ? 'disabled' : ''} />
-                  ${ro ? '' : `<button type="button" class="btn btn-ghost btn-sm" onclick="this.closest('.meeting-topic-row').remove()" style="flex-shrink:0;">✕</button>`}
-                </div>`).join('')}
-            </div>
-            ${ro ? '' : `<button type="button" class="btn btn-ghost btn-sm" onclick="addMeetingTopicRow()" style="margin-top:4px;">+ Thema hinzufügen</button>`}
-          </div>
-        </div>
-        <div class="modal-footer">
-          ${!isNew && canEdit
-            ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteMeeting('${meetingId}')">Löschen</button>`
-            : '<span></span>'}
-          <div style="display:flex;gap:8px;">
-            <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
-            ${!ro ? '<button type="submit" class="btn btn-primary">Speichern</button>' : ''}
-          </div>
-        </div>
-      </form>
     </div>
   `;
   $('#modal-container').innerHTML = html;
