@@ -335,6 +335,44 @@ if ($action === 'pull') {
         error_log('[api.php pull] customer_files query failed: ' . $e->getMessage());
     }
 
+    // Meetings: Admin/Manager sehen alle; andere nur eigene (attendee_ids-Filter server-seitig)
+    $meetings = [];
+    try {
+        if ($type === 'staff') {
+            if (has_role('admin', 'manager')) {
+                $meetingRows = db_all("SELECT * FROM meetings ORDER BY date, start_time");
+            } else {
+                // Server-seitig auf eigene Meetings beschränken
+                $meetingRows = db_all(
+                    "SELECT * FROM meetings
+                      WHERE JSON_CONTAINS(attendee_ids, ?, '$')
+                      ORDER BY date, start_time",
+                    [json_encode($session['uid'])]
+                );
+            }
+            $meetings = array_map(function($m) {
+                return [
+                    'id'          => $m['id'],
+                    'title'       => $m['title'],
+                    'date'        => $m['date'],
+                    'startTime'   => $m['start_time'],
+                    'endTime'     => $m['end_time'],
+                    'type'        => $m['type'],
+                    'link'        => $m['link'],
+                    'location'    => $m['location'] ?? null,
+                    'topics'      => json_decode($m['topics'] ?? 'null', true) ?? [],
+                    'attendeeIds' => json_decode($m['attendee_ids'] ?? 'null', true) ?? [],
+                    'customerId'  => $m['customer_id'],
+                    'createdBy'   => $m['created_by'],
+                    'createdAt'   => $m['created_at'],
+                    'updatedAt'   => $m['updated_at'],
+                ];
+            }, $meetingRows);
+        }
+    } catch (\Throwable $e) {
+        error_log('[api.php pull] meetings query failed: ' . $e->getMessage());
+    }
+
     // Antwort: kompatibel zum Bestand (ok/data)
     echo json_encode([
         'ok'      => true,
@@ -348,6 +386,7 @@ if ($action === 'pull') {
             'shoot_days'     => $shootDays,
             'app_config'     => $appCfg,
             'customer_files' => $customerFiles,
+            'meetings'       => $meetings,
         ],
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;

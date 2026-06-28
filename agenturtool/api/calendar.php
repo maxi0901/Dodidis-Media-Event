@@ -421,6 +421,103 @@ foreach ($vacations as $v) {
     $lines[] = 'END:VEVENT';
 }
 
+// ── Aufgaben / Todos mit Fälligkeitsdatum ────────────────────────────────
+$todos = [];
+try {
+    if ($isAdmin || $isManager) {
+        $todos = db_all(
+            "SELECT t.id, t.title, t.description, t.due_date AS dueDate, t.status
+               FROM todos t
+              WHERE t.due_date IS NOT NULL AND t.due_date != '' AND t.status != 'done'
+              ORDER BY t.due_date"
+        );
+    } else {
+        // Nur eigene zugewiesene Todos
+        $todos = db_all(
+            "SELECT t.id, t.title, t.description, t.due_date AS dueDate, t.status
+               FROM todos t
+               JOIN todo_assignees ta ON ta.todo_id = t.id AND ta.user_id = ?
+              WHERE t.due_date IS NOT NULL AND t.due_date != '' AND t.status != 'done'
+              ORDER BY t.due_date",
+            [$uid]
+        );
+    }
+} catch (\Throwable $e) {
+    // todos/todo_assignees table may not exist
+}
+
+foreach ($todos as $t) {
+    $lines[] = 'BEGIN:VEVENT';
+    $lines[] = 'UID:todo-' . $t['id'] . '@dodidis.media';
+    $lines[] = 'DTSTAMP:' . $stamp;
+    $lines[] = 'DTSTART;VALUE=DATE:' . ics_allday($t['dueDate']);
+    $lines[] = 'DTEND;VALUE=DATE:'   . ics_allday_next($t['dueDate']);
+    $lines[] = 'SUMMARY:✅ ' . ics_escape($t['title']);
+    if (!empty($t['description'])) {
+        $lines[] = 'DESCRIPTION:' . ics_escape($t['description']);
+    }
+    $lines[] = 'CATEGORIES:Aufgabe';
+    $lines[] = 'END:VEVENT';
+}
+
+// ── Meetings ───────────────────────────────────────────────────────────────
+$meetings = [];
+try {
+    if ($isAdmin || $isManager) {
+        $meetings = db_all(
+            "SELECT * FROM meetings ORDER BY date, start_time"
+        );
+    } else {
+        // Only meetings where user is an attendee
+        $allMeetings = db_all("SELECT * FROM meetings ORDER BY date, start_time");
+        foreach ($allMeetings as $m) {
+            $attendees = json_decode($m['attendee_ids'] ?? '[]', true) ?: [];
+            if (in_array($uid, $attendees, true)) {
+                $meetings[] = $m;
+            }
+        }
+    }
+} catch (\Throwable $e) {
+    // meetings table may not exist yet – silently skip
+}
+
+foreach ($meetings as $m) {
+    $startT = $m['start_time'] ?: '09:00:00';
+    $endT   = $m['end_time']   ?: null;
+
+    $descParts = [];
+    $topics    = json_decode($m['topics'] ?? '[]', true) ?: [];
+    foreach ($topics as $t) {
+        $descParts[] = '• ' . $t;
+    }
+    if (!empty($m['link'])) {
+        $descParts[] = 'Link: ' . $m['link'];
+    }
+    $desc = implode('\\n', array_map('ics_escape', $descParts));
+
+    $lines[] = 'BEGIN:VEVENT';
+    $lines[] = 'UID:meeting-' . $m['id'] . '@dodidis.media';
+    $lines[] = 'DTSTAMP:' . $stamp;
+    $lines[] = 'DTSTART;TZID=Europe/Berlin:' . ics_datetime_local($m['date'], $startT);
+    if ($endT) {
+        $lines[] = 'DTEND;TZID=Europe/Berlin:' . ics_datetime_local($m['date'], $endT);
+    }
+    $lines[] = 'SUMMARY:📅 ' . ics_escape($m['title']);
+    if ($desc)        $lines[] = 'DESCRIPTION:' . $desc;
+    if (!empty($m['location'])) $lines[] = 'LOCATION:' . ics_escape($m['location']);
+
+    $attendeeIds = json_decode($m['attendee_ids'] ?? '[]', true) ?: [];
+    foreach ($attendeeIds as $aId) {
+        $aName = $userMap[$aId] ?? null;
+        if ($aName) {
+            $lines[] = 'ATTENDEE;CN="' . ics_escape($aName) . '":MAILTO:noreply@dodidis.media';
+        }
+    }
+
+    $lines[] = 'CATEGORIES:Meeting';
+    $lines[] = 'END:VEVENT';
+}
+
 $lines[] = 'END:VCALENDAR';
 
 // ── Abo-Filter: nur ausgewählte Kategorien ausliefern ────────────────────────

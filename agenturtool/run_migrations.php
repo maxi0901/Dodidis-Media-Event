@@ -550,6 +550,39 @@ addCol($pdo, 'customers', 'auto_posting_rhythm',
     "ALTER TABLE customers ADD COLUMN auto_posting_rhythm TINYINT(1) NOT NULL DEFAULT 0 AFTER videos_per_week",
     $results);
 
+// ── N. meetings ───────────────────────────────────────────────────────────────
+if (!tableExists($pdo, 'meetings')) {
+    step($pdo, "meetings: Tabelle anlegen",
+        "CREATE TABLE meetings (
+           id           VARCHAR(64)   NOT NULL,
+           title        VARCHAR(255)  NOT NULL,
+           date         DATE          NOT NULL,
+           start_time   TIME          NOT NULL DEFAULT '09:00:00',
+           end_time     TIME          NULL,
+           type         VARCHAR(64)   NOT NULL DEFAULT 'meeting',
+           link         VARCHAR(500)  NULL,
+           location     VARCHAR(500)  NULL,
+           topics       JSON          NULL,
+           attendee_ids JSON          NULL,
+           customer_id  VARCHAR(64)   NULL,
+           created_by   VARCHAR(64)   NULL,
+           created_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           updated_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+           PRIMARY KEY (id),
+           KEY idx_meetings_date (date),
+           KEY idx_meetings_customer (customer_id)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "meetings: bereits vorhanden"];
+    addCol($pdo, 'meetings', 'location',
+        "ALTER TABLE meetings ADD COLUMN location VARCHAR(500) NULL AFTER link", $results);
+    addCol($pdo, 'meetings', 'topics',
+        "ALTER TABLE meetings ADD COLUMN topics JSON NULL AFTER location", $results);
+    addCol($pdo, 'meetings', 'attendee_ids',
+        "ALTER TABLE meetings ADD COLUMN attendee_ids JSON NULL AFTER topics", $results);
+}
+
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>

@@ -2074,6 +2074,8 @@
   .ical-event.phase-vacation { background: linear-gradient(90deg,rgba(148,163,184,0.30),rgba(100,116,139,0.22)); color: #e2e8f0; border: 1px solid rgba(148,163,184,0.28); }
   .ical-event.phase-deadline { background: linear-gradient(90deg,rgba(239,68,68,0.30),rgba(220,38,38,0.20)); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
   .ical-event.phase-todo     { background: linear-gradient(90deg,rgba(100,210,255,0.22),rgba(56,189,248,0.14)); color: #7dd3fc; border: 1px solid rgba(100,210,255,0.18); }
+  .ical-event.phase-meeting  { background: linear-gradient(90deg,rgba(99,102,241,0.30),rgba(79,70,229,0.20)); color: #c7d2fe; border: 1px solid rgba(99,102,241,0.25); }
+  .month-bar.phase-meeting   { background: linear-gradient(90deg,rgba(99,102,241,0.30),rgba(79,70,229,0.20)); color: #c7d2fe; border: 1px solid rgba(99,102,241,0.22); }
   .ical-event.nicht-gedreht  { background: linear-gradient(90deg,rgba(255,69,58,0.32),rgba(220,38,38,0.22))!important; color: #fca5a5!important; border-color: rgba(255,69,58,0.4)!important; }
   .month-bar.nicht-gedreht   { background: linear-gradient(90deg,rgba(255,69,58,0.35),rgba(220,38,38,0.22))!important; color: #fca5a5!important; }
 
@@ -4337,6 +4339,7 @@ let store = {
   vacations: [],
   todos: [],
   shootDays: [],
+  meetings: [],
   customerFiles: [],
   notifications: [],
   session: null,
@@ -4548,6 +4551,7 @@ async function pullAllFromCloud() {
       }
     });
     if (Array.isArray(data.customer_files)) store.customerFiles = data.customer_files;
+    if (Array.isArray(data.meetings)) store.meetings = data.meetings;
     if (Array.isArray(data.app_config)) {
       const act = data.app_config.find(r => r.key === 'activity');
       if (act && act.value && Array.isArray(act.value.entries)) store.activity = act.value.entries;
@@ -4792,6 +4796,8 @@ function getNavItemsForUser(session) {
   if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER)) {
     items.push({ id: 'shootdays', label: 'Drehtage', icon: 'camera' });
   }
+  // Meetings für alle Staff-Rollen sichtbar
+  items.push({ id: 'meetings', label: 'Meetings', icon: 'meeting' });
   items.push({ id: 'calendar', label: 'Kalender', icon: 'calendar' });
   // Auswertungen (Admin + Manager)
   if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER)) {
@@ -4837,6 +4843,7 @@ const ICONS = {
   chart: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
   file: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
   document: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+  meeting: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><line x1="12" y1="22" x2="12" y2="18"/><line x1="10" y1="20" x2="14" y2="20"/></svg>',
   bell: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
   image: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
 };
@@ -5008,6 +5015,7 @@ function renderPage() {
     customers: renderCustomers,
     vacation: renderVacation,
     todos: renderTodos,
+    meetings: renderMeetings,
     archive: renderArchive,
     contracts: renderContracts,
     'social-content': renderSocialContent,
@@ -10005,8 +10013,8 @@ let dashboardView = 'week'; // 'week' | 'month'
 
 // Pro User: welche Kategorien sind im Kalender sichtbar
 // Schema v2: enthält shoot-Kategorie. Älterer State wird automatisch migriert.
-const DEFAULT_CAL_VISIBILITY = { shoot: true, vacation: true, videos: true, todos: true };
-const CAL_VISIBILITY_VERSION = 2;
+const DEFAULT_CAL_VISIBILITY = { shoot: true, vacation: true, videos: true, todos: true, meetings: true };
+const CAL_VISIBILITY_VERSION = 3;
 function getCalCatVisibility() {
   const session = getCurrentUser();
   if (!session || session.type !== 'staff') return { ...DEFAULT_CAL_VISIBILITY };
@@ -10074,6 +10082,8 @@ function getAvailableCalCats(user) {
   }
   // Aufgaben: jeder
   cats.push('todos');
+  // Meetings: jeder
+  cats.push('meetings');
   return cats;
 }
 
@@ -10189,6 +10199,25 @@ function buildCalendarBars(session) {
       title: 'Urlaub',
       customer: u.name,
       fullTitle: 'Urlaub – ' + u.name
+    });
+  });
+
+  // Meetings: Admin/Manager sehen alle; andere nur eigene (attendeeIds)
+  (store.meetings || []).forEach(m => {
+    if (!isAdmin && !hasRole(user, ROLES.MANAGER)) {
+      const ids = m.attendeeIds || [];
+      if (!ids.includes(userId)) return;
+    }
+    const timeLabel = m.startTime ? m.startTime.slice(0, 5) : '';
+    const endLabel  = m.endTime   ? '–' + m.endTime.slice(0, 5) : '';
+    bars.push({
+      meetingId: m.id,
+      phase: 'meeting',
+      startDate: m.date,
+      endDate: m.date,
+      title: m.title,
+      customer: '',
+      fullTitle: m.title + (timeLabel ? ' · ' + timeLabel + endLabel : '') + (m.location ? ' · ' + m.location : '')
     });
   });
 
@@ -10350,6 +10379,7 @@ function renderMonthViewInto(elementId, session, mini = false) {
     if (phase === 'shoot') return 'shoot';
     if (phase === 'vacation') return 'vacation';
     if (phase === 'todo') return 'todos';
+    if (phase === 'meeting') return 'meetings';
     return 'videos'; // production, editing, cutter, posting, deadline
   };
   const filteredBars = bars.filter(b => {
@@ -10374,7 +10404,8 @@ function renderMonthViewInto(elementId, session, mini = false) {
         shoot:    { icon: '🎥', text: 'Drehtag' },
         vacation: { icon: '🏖', text: 'Urlaub' },
         videos:   { icon: '🎬', text: 'Videos' },
-        todos:    { icon: '✅', text: 'Aufgaben' }
+        todos:    { icon: '✅', text: 'Aufgaben' },
+        meetings: { icon: '📅', text: 'Meetings' }
       };
       const buttons = available.map(key => `
         <button type="button" class="cal-filter-btn ${visibility[key] ? 'active' : ''}" onclick="toggleCalCat('${key}')">
@@ -10506,16 +10537,20 @@ function getBarPrimaryUser(b) {
 function renderMonthBar(b, startIdx, endIdx, cutsLeft, cutsRight) {
   const labels = {
     shoot: 'Drehtag', cutter: 'Cutter', posting: 'Posting',
-    production: 'Produktion', editing: 'Schnitt', vacation: 'Urlaub', deadline: 'Deadline'
+    production: 'Produktion', editing: 'Schnitt', vacation: 'Urlaub', deadline: 'Deadline', meeting: 'Meeting'
   };
   let text;
   if (b.phase === 'vacation') text = 'Urlaub – ' + b.customer;
   else if (b.phase === 'shoot') text = b.title;
   else text = b.title;
-  const showMChip = b.kuerzel && b.phase !== 'shoot' && b.phase !== 'vacation';
+  const showMChip = b.kuerzel && b.phase !== 'shoot' && b.phase !== 'vacation' && b.phase !== 'meeting';
   const mChip = showMChip ? `<span class="ical-kuerzel-chip">${escape(b.kuerzel)}</span>` : '';
   const cls = `month-bar phase-${b.phase} ${b.nichtGedreht ? 'nicht-gedreht' : ''} ${cutsLeft ? 'cuts-left' : ''} ${cutsRight ? 'cuts-right' : ''}`;
-  const click = b.vacationId ? `onclick="navigateTo('vacation')"` : `onclick="openProjectModal('${b.projectId}')"`;
+  const click = b.vacationId
+    ? `onclick="navigateTo('vacation')"`
+    : b.meetingId
+      ? `onclick="openMeetingModal('${b.meetingId}')"`
+      : `onclick="openProjectModal('${b.projectId}')"`;
   const time = b.time ? `<span class="month-bar-time">${b.time}</span>` : '';
   const tooltipPrefix = labels[b.phase] ? labels[b.phase] + ': ' : '';
   const title = b.fullTitle ? tooltipPrefix + b.fullTitle : text;
@@ -10551,9 +10586,10 @@ function renderCategoryWeekView(elementId, session, mini = false) {
   const user = session.user;
   const userId = user.id;
 
-  // Bars in 4 Kategorien aufteilen: Drehtag (eigene Lane), Urlaub, Videos, Aufgaben
+  // Bars in 4 Kategorien aufteilen: Drehtag (eigene Lane), Urlaub, Videos, Aufgaben, Meetings
   const shootBars = allBars.filter(b => b.phase === 'shoot');
   const vacationBars = allBars.filter(b => b.phase === 'vacation');
+  const meetingBars = allBars.filter(b => b.phase === 'meeting');
   const videoBars = allBars.filter(b =>
     b.phase === 'production' || b.phase === 'cutter' ||
     b.phase === 'editing' || b.phase === 'posting' || b.phase === 'deadline'
@@ -10642,6 +10678,7 @@ function renderCategoryWeekView(elementId, session, mini = false) {
   // videoLayout: nur für Mini-Kalender global (Vollansicht legt pro Kunde separat an)
   const videoLayout    = (visible('videos') && mini) ? layoutCat(videoBars) : [];
   const todoLayout     = visible('todos')    ? layoutCat(todoBars)     : [];
+  const meetingLayout  = visible('meetings') ? layoutCat(meetingBars)  : [];
 
   const isMobile = window.innerWidth < 640;
   const colWidth = isMobile ? 70 : (mini ? WEEK_COL_WIDTH_MINI : WEEK_COL_WIDTH);
@@ -10708,6 +10745,11 @@ function renderCategoryWeekView(elementId, session, mini = false) {
     cats.push({ key: 'todos', label: 'Aufgaben', icon: '✅', cls: 'cat-todos', isEmoji: true, start: nextRow, lanes, items: todoLayout });
     nextRow += lanes;
   }
+  if (visible('meetings')) {
+    const lanes = Math.max(1, meetingLayout.reduce((a,b) => Math.max(a, b.lane+1), 0));
+    cats.push({ key: 'meetings', label: 'Meetings', icon: '📅', cls: 'cat-meetings', isEmoji: true, start: nextRow, lanes, items: meetingLayout });
+    nextRow += lanes;
+  }
 
   el.innerHTML = `
     <div class="calendar-header">
@@ -10726,7 +10768,8 @@ function renderCategoryWeekView(elementId, session, mini = false) {
         shoot:    { icon: '🎥', text: 'Drehtag' },
         vacation: { icon: '🏖', text: 'Urlaub' },
         videos:   { icon: '🎬', text: 'Videos' },
-        todos:    { icon: '✅', text: 'Aufgaben' }
+        todos:    { icon: '✅', text: 'Aufgaben' },
+        meetings: { icon: '📅', text: 'Meetings' }
       };
       const buttons = available.map(key => `
         <button type="button" class="cal-filter-btn ${visibility[key] ? 'active' : ''}" onclick="toggleCalCat('${key}')">
@@ -10846,24 +10889,26 @@ function renderCategoryEvent(b, row, startCol, endCol) {
   const labels = {
     shoot: 'Drehtag', posting: 'Posting',
     production: 'Produktion', editing: 'Schnitt', vacation: 'Urlaub',
-    deadline: 'Deadline', todo: 'Aufgabe'
+    deadline: 'Deadline', todo: 'Aufgabe', meeting: 'Meeting'
   };
   let text;
   if (b.phase === 'vacation') text = (b.customer ? b.customer + ' – ' : '') + 'Urlaub';
   else if (b.phase === 'todo') text = b.title;
   else if (b.phase === 'shoot') text = b.title;
+  else if (b.phase === 'meeting') text = b.title;
   else if (b.phase === 'production' || b.phase === 'editing') text = b.title + ' · ' + labels[b.phase];
   else text = labels[b.phase] + ': ' + b.title;
   // Kürzel als Kreis-Chip neben dem Balken-Text (nicht als plain-Text-Prefix)
-  const showChip = b.kuerzel && b.phase !== 'shoot' && b.phase !== 'vacation' && b.phase !== 'todo';
+  const showChip = b.kuerzel && b.phase !== 'shoot' && b.phase !== 'vacation' && b.phase !== 'todo' && b.phase !== 'meeting';
   const kuerzelChip = showChip ? `<span class="ical-kuerzel-chip">${escape(b.kuerzel)}</span>` : '';
   const cls = `ical-event phase-${b.phase} ${b.nichtGedreht ? 'nicht-gedreht' : ''} ${b.cutsLeft ? 'cuts-left' : ''} ${b.cutsRight ? 'cuts-right' : ''}`;
   let click;
   if (b.shootDayId) click = `onclick="openShootDayModal('${b.shootDayId}')"`;
   else if (b.vacationId) click = `onclick="navigateTo('vacation')"`;
   else if (b.todoId) click = `onclick="navigateTo('todos')"`;
+  else if (b.meetingId) click = `onclick="openMeetingModal('${b.meetingId}')"`;
   else click = `onclick="openProjectModal('${b.projectId}')"`;
-  const tooltipPrefix = labels[b.phase] && b.phase !== 'shoot' ? labels[b.phase] + ': ' : '';
+  const tooltipPrefix = labels[b.phase] && b.phase !== 'shoot' && b.phase !== 'meeting' ? labels[b.phase] + ': ' : '';
   const title = b.fullTitle ? tooltipPrefix + b.fullTitle : text;
   // Avatar bestimmen
   let avatarUser = null;
@@ -11609,7 +11654,9 @@ async function openStaffSelfProfile(user) {
                     { key: 'drehtag',  label: 'Drehtage' },
                     { key: 'deadline', label: 'Deadlines' },
                     { key: 'posting',  label: 'Postings' },
-                    { key: 'urlaub',   label: 'Urlaub' }
+                    { key: 'urlaub',   label: 'Urlaub' },
+                    { key: 'aufgabe',  label: 'Aufgaben' },
+                    { key: 'meeting',  label: 'Meetings' }
                   ];
                   return `
                   <div style="margin-bottom:12px;">
@@ -11660,7 +11707,7 @@ async function openStaffSelfProfile(user) {
 }
 
 // Kalender-Abo: gewählte Kategorien (pro Nutzer im LocalStorage gemerkt)
-const _CAL_ABO_ALL = ['drehtag', 'deadline', 'posting', 'urlaub'];
+const _CAL_ABO_ALL = ['drehtag', 'deadline', 'posting', 'urlaub', 'aufgabe', 'meeting'];
 function _calAboCats(userId) {
   try {
     const saved = localStorage.getItem('calAboCats_' + userId);
@@ -12142,7 +12189,7 @@ async function resetData() {
     title: 'Bist du dir sicher?', okLabel: 'Alles löschen', danger: true
   });
   if (!ok2) return;
-  store = { users: [], customers: [], projects: [], vacations: [], todos: [], shootDays: [], customerFiles: [], notifications: [], session: null, activity: [] };
+  store = { users: [], customers: [], projects: [], vacations: [], todos: [], shootDays: [], meetings: [], customerFiles: [], notifications: [], session: null, activity: [] };
   saveStore();
   logout();
 }
@@ -13042,6 +13089,281 @@ async function deleteVacation(vacationId) {
     if (removedVacation) store.vacations.push(removedVacation);
     await pullAllFromCloud().then(() => renderPage());
     showToast('Fehler beim Speichern', err.message);
+  }
+}
+
+/* ----------- MEETINGS ----------- */
+function renderMeetings(session) {
+  const user = session.user;
+  const canEdit = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  const isAdmin = hasRole(user, ROLES.ADMIN);
+  const userId = user.id;
+
+  // Meetings sichtbar für: Admin/Manager = alle; andere = nur wo attendee
+  const visibleMeetings = (store.meetings || []).filter(m => {
+    if (canEdit) return true;
+    return (m.attendeeIds || []).includes(userId);
+  }).slice().sort((a, b) => a.date.localeCompare(b.date) || (a.startTime || '').localeCompare(b.startTime || ''));
+
+  $('#page-title').textContent = 'Meetings';
+  $('#page-subtitle').textContent = canEdit ? 'Alle anstehenden Meetings' : 'Deine anstehenden Meetings';
+  $('#topbar-actions').innerHTML = canEdit
+    ? `<button class="btn btn-primary" onclick="openMeetingModal()">+ Neues Meeting</button>`
+    : '';
+
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = visibleMeetings.filter(m => m.date >= today);
+  const past = visibleMeetings.filter(m => m.date < today);
+
+  function meetingRow(m) {
+    const cust = store.customers.find(c => c.id === m.customerId);
+    const attendeeNames = (m.attendeeIds || [])
+      .map(id => store.users.find(u => u.id === id)?.name)
+      .filter(Boolean);
+    const timeStr = m.startTime
+      ? m.startTime.slice(0, 5) + (m.endTime ? '–' + m.endTime.slice(0, 5) : '')
+      : '';
+    const topicsStr = (m.topics || []).length
+      ? (m.topics || []).slice(0, 2).join(' · ') + ((m.topics || []).length > 2 ? ' …' : '')
+      : '';
+    return `
+      <tr style="cursor:pointer;" onclick="openMeetingModal('${m.id}')">
+        <td><span style="font-weight:500;">${escape(m.title)}</span></td>
+        <td>${fmtDate(m.date)}${timeStr ? '<br><span class="text-sm text-muted">' + escape(timeStr) + '</span>' : ''}</td>
+        <td>${cust ? escape(cust.name) : '–'}</td>
+        <td>${escape(m.location || '–')}</td>
+        <td class="text-sm text-muted">${attendeeNames.length ? escape(attendeeNames.join(', ')) : '–'}</td>
+        <td class="text-sm text-muted">${topicsStr ? escape(topicsStr) : '–'}</td>
+        <td>
+          ${canEdit ? `<button type="button" class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); openMeetingModal('${m.id}')">Bearbeiten</button>` : ''}
+        </td>
+      </tr>`;
+  }
+
+  const emptyState = `
+    <div class="empty-state" style="padding:40px 20px;">
+      <div class="empty-state-icon">📅</div>
+      <div class="empty-state-title">Keine Meetings geplant</div>
+      ${canEdit ? `<button class="btn btn-primary" onclick="openMeetingModal()">Erstes Meeting anlegen</button>` : ''}
+    </div>`;
+
+  $('#content').innerHTML = `
+    <div class="page-content">
+      ${upcoming.length === 0 && past.length === 0 ? emptyState : `
+        ${upcoming.length > 0 ? `
+          <div class="section-title" style="margin-bottom:8px;">Anstehend</div>
+          <div class="table-wrap" style="margin-bottom:24px;">
+            <table class="data-table">
+              <thead><tr>
+                <th>Titel</th><th>Datum</th><th>Kunde</th><th>Ort</th>
+                <th>Teilnehmer</th><th>Themen</th><th></th>
+              </tr></thead>
+              <tbody>${upcoming.map(meetingRow).join('')}</tbody>
+            </table>
+          </div>` : ''}
+        ${past.length > 0 ? `
+          <details style="margin-top:8px;">
+            <summary style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);cursor:pointer;margin-bottom:8px;">
+              Vergangene Meetings (${past.length})
+            </summary>
+            <div class="table-wrap" style="opacity:0.65;">
+              <table class="data-table">
+                <thead><tr>
+                  <th>Titel</th><th>Datum</th><th>Kunde</th><th>Ort</th>
+                  <th>Teilnehmer</th><th>Themen</th><th></th>
+                </tr></thead>
+                <tbody>${past.map(meetingRow).join('')}</tbody>
+              </table>
+            </div>
+          </details>` : ''}
+      `}
+    </div>`;
+}
+
+function openMeetingModal(meetingId = null) {
+  const session = getCurrentUser();
+  if (!session || session.type !== 'staff') return;
+  const user = session.user;
+  const canEdit = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  const m = meetingId ? (store.meetings || []).find(x => x.id === meetingId) : null;
+  const isNew = !m;
+  const ro = !canEdit; // read-only for non-editors
+
+  const allStaff = (store.users || []).filter(u => u.active !== false);
+  const customers = (store.customers || []).filter(c => c.status !== 'pausiert');
+
+  const topicsArr = m?.topics || [];
+  const attendeeIds = m?.attendeeIds || [];
+
+  const html = `
+    <div class="modal-backdrop" onclick="closeModal()"></div>
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header">
+        <div class="modal-title">${isNew ? 'Neues Meeting' : (ro ? 'Meeting' : 'Meeting bearbeiten')}</div>
+        <button type="button" class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <form onsubmit="saveMeeting(event,'${meetingId || ''}')">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Titel *</label>
+            <input type="text" name="title" value="${escape(m?.title || '')}" ${ro ? 'disabled' : ''} required />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Datum *</label>
+              <input type="date" name="date" value="${m?.date || ''}" ${ro ? 'disabled' : ''} required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Uhrzeit von</label>
+              <input type="time" name="startTime" value="${(m?.startTime || '09:00').slice(0,5)}" ${ro ? 'disabled' : ''} />
+            </div>
+            <div class="form-group">
+              <label class="form-label">bis</label>
+              <input type="time" name="endTime" value="${(m?.endTime || '').slice(0,5)}" ${ro ? 'disabled' : ''} />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Ort / Raum</label>
+              <input type="text" name="location" value="${escape(m?.location || '')}" placeholder="Büro, Zoom, Adresse …" ${ro ? 'disabled' : ''} />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Meeting-Link</label>
+              <input type="url" name="link" value="${escape(m?.link || '')}" placeholder="https://…" ${ro ? 'disabled' : ''} />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Kunde</label>
+            <select name="customerId" ${ro ? 'disabled' : ''}>
+              <option value="">– kein Kunde –</option>
+              ${customers.map(c => `<option value="${c.id}" ${m?.customerId === c.id ? 'selected' : ''}>${escape(c.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Teilnehmer</label>
+            <div class="checkbox-list" style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px 10px;">
+              ${allStaff.map(u => `
+                <label class="checkbox-row">
+                  <input type="checkbox" name="attendeeIds" value="${u.id}" ${attendeeIds.includes(u.id) ? 'checked' : ''} ${ro ? 'disabled' : ''} />
+                  <span>${escape(u.name)}</span>
+                </label>`).join('')}
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Agenda / Themen</label>
+            <div id="meeting-topics-list">
+              ${topicsArr.map((t, i) => `
+                <div class="meeting-topic-row" style="display:flex;gap:6px;margin-bottom:6px;">
+                  <input type="text" class="meeting-topic-input" value="${escape(t)}" placeholder="Thema …" style="flex:1;" ${ro ? 'disabled' : ''} />
+                  ${ro ? '' : `<button type="button" class="btn btn-ghost btn-sm" onclick="this.closest('.meeting-topic-row').remove()" style="flex-shrink:0;">✕</button>`}
+                </div>`).join('')}
+            </div>
+            ${ro ? '' : `<button type="button" class="btn btn-ghost btn-sm" onclick="addMeetingTopicRow()" style="margin-top:4px;">+ Thema hinzufügen</button>`}
+          </div>
+        </div>
+        <div class="modal-footer">
+          ${!isNew && canEdit
+            ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteMeeting('${meetingId}')">Löschen</button>`
+            : '<span></span>'}
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+            ${!ro ? '<button type="submit" class="btn btn-primary">Speichern</button>' : ''}
+          </div>
+        </div>
+      </form>
+    </div>
+  `;
+  $('#modal-container').innerHTML = html;
+}
+
+function addMeetingTopicRow() {
+  const list = document.getElementById('meeting-topics-list');
+  if (!list) return;
+  const row = document.createElement('div');
+  row.className = 'meeting-topic-row';
+  row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;';
+  row.innerHTML = `<input type="text" class="meeting-topic-input" placeholder="Thema …" style="flex:1;" />
+    <button type="button" class="btn btn-ghost btn-sm" onclick="this.closest('.meeting-topic-row').remove()" style="flex-shrink:0;">✕</button>`;
+  list.appendChild(row);
+  row.querySelector('input').focus();
+}
+
+async function saveMeeting(e, meetingId) {
+  e.preventDefault();
+  const form = e.target;
+  const fd = new FormData(form);
+  const topics = Array.from(document.querySelectorAll('.meeting-topic-input'))
+    .map(el => el.value.trim()).filter(Boolean);
+  const attendeeIds = Array.from(form.querySelectorAll('input[name="attendeeIds"]:checked')).map(el => el.value);
+
+  const payload = {
+    title:       fd.get('title')?.trim(),
+    date:        fd.get('date'),
+    startTime:   fd.get('startTime') || '09:00',
+    endTime:     fd.get('endTime') || null,
+    location:    fd.get('location')?.trim() || null,
+    link:        fd.get('link')?.trim() || null,
+    customerId:  fd.get('customerId') || null,
+    attendeeIds,
+    topics
+  };
+
+  const isNew = !meetingId;
+  const insertedId = isNew ? ('mt_' + Math.random().toString(36).slice(2, 10)) : null;
+  let prevEntry = null;
+
+  if (isNew) {
+    store.meetings = store.meetings || [];
+    store.meetings.push({ id: insertedId, ...payload, createdBy: getCurrentUser()?.user?.id, createdAt: new Date().toISOString() });
+  } else {
+    const idx = store.meetings.findIndex(m => m.id === meetingId);
+    if (idx >= 0) { prevEntry = { ...store.meetings[idx] }; store.meetings[idx] = { ...store.meetings[idx], ...payload }; }
+  }
+
+  closeModal();
+  renderPage();
+
+  try {
+    const url = meetingId ? `${API_BASE}/meetings.php?id=${encodeURIComponent(meetingId)}` : `${API_BASE}/meetings.php`;
+    const method = meetingId ? 'PUT' : 'POST';
+    if (isNew) payload.id = insertedId;
+    const res = await fetch(url, {
+      method, credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
+    if (json.data) {
+      const targetId = meetingId || insertedId;
+      const i = store.meetings.findIndex(m => m.id === targetId);
+      if (i >= 0) store.meetings[i] = { ...store.meetings[i], ...json.data };
+    }
+  } catch (err) {
+    if (isNew && insertedId) store.meetings = store.meetings.filter(m => m.id !== insertedId);
+    else if (prevEntry) { const i = store.meetings.findIndex(m => m.id === meetingId); if (i >= 0) store.meetings[i] = prevEntry; }
+    renderPage();
+    showToast('Fehler beim Speichern', err.message);
+  }
+}
+
+async function deleteMeeting(meetingId) {
+  const ok = await appConfirm('Meeting wirklich löschen?', { title: 'Meeting löschen', okLabel: 'Löschen', danger: true });
+  if (!ok) return;
+  const removed = store.meetings.find(m => m.id === meetingId);
+  store.meetings = store.meetings.filter(m => m.id !== meetingId);
+  closeModal();
+  renderPage();
+  try {
+    const res = await fetch(`${API_BASE}/meetings.php?id=${encodeURIComponent(meetingId)}`, {
+      method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF }
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+  } catch (err) {
+    if (removed) store.meetings.push(removed);
+    renderPage();
+    showToast('Fehler beim Löschen', err.message);
   }
 }
 
