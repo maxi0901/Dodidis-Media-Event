@@ -14,9 +14,13 @@ function start_app_session(): void
     }
     $cfg = require __DIR__ . '/../config.php';
 
+    // GC muss server-seitig mindestens so lang wie die längste mögliche Cookie-Lifetime
+    $gcMax = max($cfg['session_max_age'], $cfg['session_remember_age'] ?? $cfg['session_max_age']);
+    ini_set('session.gc_maxlifetime', (string)$gcMax);
+
     session_name($cfg['session_name']);
     session_set_cookie_params([
-        'lifetime' => $cfg['session_max_age'],
+        'lifetime' => 0,  // Default: Session-Cookie (läuft beim Browser-Schließen ab)
         'path'     => $cfg['cookie_path'],
         'secure'   => (bool)$cfg['cookie_secure'],
         'httponly' => true,
@@ -24,15 +28,21 @@ function start_app_session(): void
     ]);
     session_start();
 
-    // Sliding expiry
-    if (!empty($_SESSION['started_at']) && (time() - (int)$_SESSION['started_at']) > $cfg['session_max_age']) {
-        $_SESSION = [];
-        if (ini_get('session.use_cookies')) {
-            $p = session_get_cookie_params();
-            setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], $p['secure'], $p['httponly']);
+    // Sliding expiry: Timer läuft ab dem letzten Besuch, nicht ab Login
+    if (!empty($_SESSION['uid']) || !empty($_SESSION['cid'])) {
+        $age      = !empty($_SESSION['remember'])
+            ? ($cfg['session_remember_age'] ?? $cfg['session_max_age'])
+            : $cfg['session_max_age'];
+        $lastSeen = (int)($_SESSION['last_seen'] ?? $_SESSION['started_at'] ?? 0);
+        if ($lastSeen > 0 && (time() - $lastSeen) > $age) {
+            $_SESSION = [];
+            if (ini_get('session.use_cookies')) {
+                $p = session_get_cookie_params();
+                setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], $p['secure'], $p['httponly']);
+            }
+            session_destroy();
+            session_start();
         }
-        session_destroy();
-        session_start();
     }
 }
 
@@ -107,10 +117,28 @@ function require_csrf(): void
 
 /**
  * Setzt die Session nach erfolgreichem Login frisch auf und rotiert die SID.
+ * $remember=true → setzt einen langlebigen Cookie (session_remember_age).
  */
-function regenerate_session(): void
+function regenerate_session(bool $remember = false): void
 {
+    $cfg = require __DIR__ . '/../config.php';
+
     session_regenerate_id(true);
     $_SESSION['started_at'] = time();
+    $_SESSION['last_seen']  = time();
     $_SESSION['csrf']       = bin2hex(random_bytes(16));
+    $_SESSION['remember']   = $remember;
+
+    if ($remember) {
+        $age = $cfg['session_remember_age'] ?? $cfg['session_max_age'];
+        setcookie(
+            session_name(),
+            session_id(),
+            time() + $age,
+            $cfg['cookie_path'],
+            '',
+            (bool)$cfg['cookie_secure'],
+            true
+        );
+    }
 }
