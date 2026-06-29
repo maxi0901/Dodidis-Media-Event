@@ -12,10 +12,11 @@ return [
     'charset'  => 'utf8mb4',
 
     // --- Sessions ---
-    'session_name'    => 'AGENTUR_SID',
-    'session_max_age' => 14 * 24 * 60 * 60, // 14 Tage
-    'cookie_secure'   => true,              // bei HTTPS-Betrieb true lassen
-    'cookie_path'     => '/agenturtool/',
+    'session_name'         => 'AGENTUR_SID',
+    'session_max_age'      =>  14 * 24 * 60 * 60, // 14 Tage (Standard)
+    'session_remember_age' =>  90 * 24 * 60 * 60, // 90 Tage (Angemeldet bleiben)
+    'cookie_secure'        => true,               // bei HTTPS-Betrieb true lassen
+    'cookie_path'          => '/agenturtool/',
 
     // --- Uploads ---
     // Avatare + öffentliche Bilder (innerhalb Webroot, per URL erreichbar)

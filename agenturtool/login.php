@@ -69,6 +69,21 @@ $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')
       font-size: 14px; cursor: pointer; }
     .btn-primary:hover { background: var(--accent-hover); }
     .login-hint { font-size: 12px; color: var(--text-3); margin-top: 12px; text-align: center; }
+    .remember-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; cursor: pointer; user-select: none; }
+    .remember-row input[type=checkbox] { display: none; }
+    .remember-toggle {
+      width: 38px; height: 22px; border-radius: 11px; background: var(--bg-3);
+      border: 1px solid var(--border); flex-shrink: 0; position: relative;
+      transition: background .2s;
+    }
+    .remember-toggle::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--text-3); transition: transform .2s, background .2s;
+    }
+    .remember-row input:checked + .remember-toggle { background: var(--accent); border-color: var(--accent); }
+    .remember-row input:checked + .remember-toggle::after { transform: translateX(16px); background: #fff; }
+    .remember-label { font-size: 13px; color: var(--text-2); }
     .login-step-title { font-size: 18px; font-weight: 600; margin: 0 0 6px; }
     .login-step-sub   { font-size: 13px; color: var(--text-2); margin-bottom: 20px; }
     .setup-error { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3);
@@ -135,6 +150,11 @@ $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')
         <label for="login-password">Passwort</label>
         <input type="password" id="login-password" autocomplete="current-password">
         <div class="login-hint" style="text-align:left;margin:6px 0 0">Erstmalig? Passwortfeld leer lassen.</div>
+        <label class="remember-row" for="staff-remember">
+          <input type="checkbox" id="staff-remember" checked>
+          <span class="remember-toggle"></span>
+          <span class="remember-label">Angemeldet bleiben</span>
+        </label>
         <button class="btn-primary" type="submit">Anmelden</button>
       </form>
     </div>
@@ -157,8 +177,13 @@ $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')
       <input type="text" id="login-customer-number" required>
       <label for="login-customer-pin">PIN</label>
       <input type="password" id="login-customer-pin" autocomplete="off" inputmode="numeric" required>
+      <div class="login-hint" style="margin-top:6px;">Erst-Login: PIN = Kundennummer</div>
+      <label class="remember-row" for="customer-remember">
+        <input type="checkbox" id="customer-remember" checked>
+        <span class="remember-toggle"></span>
+        <span class="remember-label">Angemeldet bleiben</span>
+      </label>
       <button class="btn-primary" type="submit">Anmelden</button>
-      <div class="login-hint">Erst-Login: PIN = Kundennummer</div>
     </form>
   </div>
 </div>
@@ -230,7 +255,8 @@ async function loginStaff(e) {
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
   const hash     = password ? await sha256(password) : '';
-  const res = await postJson('login', { type: 'staff', username, password_hash: hash });
+  const remember = document.getElementById('staff-remember').checked;
+  const res = await postJson('login', { type: 'staff', username, password_hash: hash, remember });
   if (!res.ok) { showError(res.error || 'Anmeldung fehlgeschlagen.'); return; }
   _csrf = res.data?.csrf || '';
   if (res.data?.must_set_password) {
@@ -268,7 +294,8 @@ async function loginCustomer(e) {
   const num = document.getElementById('login-customer-number').value.trim();
   const pin = document.getElementById('login-customer-pin').value;
   const pinHash = await sha256(pin || num);
-  const res = await postJson('login', { type: 'customer', customer_number: num, pin_hash: pinHash });
+  const remember = document.getElementById('customer-remember').checked;
+  const res = await postJson('login', { type: 'customer', customer_number: num, pin_hash: pinHash, remember });
   if (!res.ok) { showError(res.error || 'Anmeldung fehlgeschlagen.'); return; }
   location.href = 'index.php';
 }

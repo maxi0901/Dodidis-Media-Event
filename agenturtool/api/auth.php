@@ -81,7 +81,8 @@ switch ($action) {
     case 'login': {
         if ($method !== 'POST') json_err(405, 'POST erwartet.');
         $b = input_json();
-        $type = $b['type'] ?? 'staff';
+        $type     = $b['type'] ?? 'staff';
+        $remember = !empty($b['remember']);
 
         if ($type === 'staff') {
             $nameCol = users_name_column();
@@ -117,7 +118,7 @@ switch ($action) {
             $rolesRows = db_all("SELECT role_name FROM user_roles WHERE user_id = ?", [$u['id']]);
             $roles     = array_column($rolesRows, 'role_name');
 
-            regenerate_session();
+            regenerate_session($remember);
             $_SESSION['type']    = 'staff';
             $_SESSION['uid']     = $u['id'];
             $_SESSION['name']    = $u['name'];
@@ -173,7 +174,7 @@ switch ($action) {
                 }
             }
 
-            regenerate_session();
+            regenerate_session($remember);
             $_SESSION['type']            = 'customer';
             $_SESSION['cid']             = $c['id'];
             $_SESSION['name']            = $c['name'];
