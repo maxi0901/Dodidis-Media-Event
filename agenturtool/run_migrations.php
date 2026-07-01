@@ -15,6 +15,10 @@ if (empty($_SESSION['uid']) || !in_array('admin', (array)($_SESSION['roles'] ?? 
 $pdo = db();
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
+// Dry-run: append ?dry=1 in browser, or pass --dry-run on CLI.
+// Shows every step that WOULD run without actually touching the DB.
+$dryRun = !empty($_GET['dry']) || in_array('--dry-run', $argv ?? [], true);
+
 $results = [];
 
 function colExists(PDO $pdo, string $table, string $col): bool {
@@ -32,6 +36,11 @@ function tableExists(PDO $pdo, string $table): bool {
 }
 
 function step(PDO $pdo, string $label, string $sql, array &$out): void {
+    global $dryRun;
+    if ($dryRun) {
+        $out[] = ['ok' => true, 'label' => "[DRY-RUN] {$label}", 'sql' => $sql];
+        return;
+    }
     try {
         $pdo->exec($sql);
         $out[] = ['ok' => true, 'label' => $label];
@@ -41,8 +50,11 @@ function step(PDO $pdo, string $label, string $sql, array &$out): void {
 }
 
 function addCol(PDO $pdo, string $table, string $col, string $sql, array &$out): void {
+    global $dryRun;
     if (!colExists($pdo, $table, $col)) {
         step($pdo, "{$table}.{$col} hinzufügen", $sql, $out);
+    } elseif ($dryRun) {
+        $out[] = ['ok' => true, 'label' => "[DRY-RUN] {$table}.{$col} bereits vorhanden – würde überspringen"];
     } else {
         $out[] = ['ok' => true, 'label' => "{$table}.{$col} bereits vorhanden"];
     }
@@ -583,6 +595,81 @@ if (!tableExists($pdo, 'meetings')) {
         "ALTER TABLE meetings ADD COLUMN attendee_ids JSON NULL AFTER topics", $results);
 }
 
+// ── 26. NAS-Medien-Schicht: projects.slug + projects.nas_folder ───────────────
+addCol($pdo, 'projects', 'slug',
+    "ALTER TABLE projects ADD COLUMN slug VARCHAR(120) NULL",
+    $results);
+addCol($pdo, 'projects', 'nas_folder',
+    "ALTER TABLE projects ADD COLUMN nas_folder VARCHAR(500) NULL",
+    $results);
+
+// ── 27. NAS-Medien-Schicht: assets-Tabelle ────────────────────────────────────
+// Separate Tabelle (statt project_files erweitern): andere Semantik —
+// project_files speichert lokale Dateien (path = Netcup-Disk),
+// assets speichern auf dem NAS (nas_key = WebDAV-Pfad).
+if (!tableExists($pdo, 'assets')) {
+    step($pdo, "assets: Tabelle anlegen",
+        "CREATE TABLE assets (
+           id           VARCHAR(64)   NOT NULL,
+           project_id   VARCHAR(64)   NOT NULL,
+           customer_id  VARCHAR(64)   NULL,
+           kind         ENUM('raw','final') NOT NULL DEFAULT 'raw',
+           parent_id    VARCHAR(64)   NULL,
+           nas_key      VARCHAR(500)  NOT NULL,
+           nas_key_hash CHAR(64)      AS (SHA2(nas_key,256)) STORED,
+           filename     VARCHAR(500)  NOT NULL,
+           content_type VARCHAR(128)  NOT NULL DEFAULT 'application/octet-stream',
+           size_bytes   BIGINT        UNSIGNED NULL,
+           status       ENUM('pending','stored','failed') NOT NULL DEFAULT 'pending',
+           uploaded_by  VARCHAR(64)   NULL,
+           created_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           confirmed_at DATETIME      NULL,
+           PRIMARY KEY (id),
+           UNIQUE KEY uq_assets_nas_key_hash (nas_key_hash),
+           KEY idx_assets_project (project_id),
+           KEY idx_assets_status  (status)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "assets: Tabelle bereits vorhanden"];
+    addCol($pdo, 'assets', 'parent_id',    "ALTER TABLE assets ADD COLUMN parent_id VARCHAR(64) NULL", $results);
+    addCol($pdo, 'assets', 'customer_id',  "ALTER TABLE assets ADD COLUMN customer_id VARCHAR(64) NULL", $results);
+    addCol($pdo, 'assets', 'confirmed_at', "ALTER TABLE assets ADD COLUMN confirmed_at DATETIME NULL", $results);
+    addCol($pdo, 'assets', 'size_bytes',   "ALTER TABLE assets ADD COLUMN size_bytes BIGINT UNSIGNED NULL", $results);
+    // Swap prefix-only unique key for full-length SHA2 hash (fixes duplicate-key false positives on long paths)
+    addCol($pdo, 'assets', 'nas_key_hash',
+        "ALTER TABLE assets ADD COLUMN nas_key_hash CHAR(64) AS (SHA2(nas_key,256)) STORED",
+        $results);
+    step($pdo, "assets: alten Präfix-Unique-Key entfernen (idempotent)",
+        "ALTER TABLE assets DROP INDEX uq_assets_nas_key",
+        $results);
+    step($pdo, "assets: uq_assets_nas_key_hash anlegen",
+        "ALTER TABLE assets ADD UNIQUE KEY uq_assets_nas_key_hash (nas_key_hash)",
+        $results);
+}
+
+// ── 28. NAS-Medien-Schicht: project_cutters M:N-Tabelle ───────────────────────
+// Ergänzt das bestehende 1:1-Feld projects.cutter_id (bleibt für Rückwärtskompatibilität).
+if (!tableExists($pdo, 'project_cutters')) {
+    step($pdo, "project_cutters: Tabelle anlegen",
+        "CREATE TABLE project_cutters (
+           project_id  VARCHAR(64) NOT NULL,
+           user_id     VARCHAR(64) NOT NULL,
+           assigned_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           PRIMARY KEY (project_id, user_id),
+           KEY idx_pc_user (user_id)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+    // Bestehende 1:1-Zuordnungen (cutter_id) in die neue M:N-Tabelle übernehmen
+    step($pdo, "project_cutters: bestehende cutter_id-Zuordnungen übernehmen",
+        "INSERT IGNORE INTO project_cutters (project_id, user_id)
+         SELECT id, cutter_id FROM projects
+          WHERE cutter_id IS NOT NULL AND cutter_id <> ''",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "project_cutters: Tabelle bereits vorhanden"];
+}
+
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>
@@ -590,7 +677,7 @@ $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Migration</title>
+<title>Migration<?= $dryRun ? ' [DRY-RUN]' : '' ?></title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:system-ui,sans-serif;background:#0f0f0f;color:#e5e5e5;padding:24px;max-width:680px;margin:0 auto}
@@ -610,11 +697,20 @@ $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 </style>
 </head>
 <body>
-<h1>Datenbank-Migration</h1>
-<div class="sub"><?= count($results) ?> Checks · <?= count($fails) ?> Fehler</div>
+<h1>Datenbank-Migration<?= $dryRun ? ' <span style="color:#f90;font-size:14px">[DRY-RUN]</span>' : '' ?></h1>
+<div class="sub"><?= count($results) ?> Checks · <?= count($fails) ?> Fehler<?= $dryRun ? ' · Keine Änderungen vorgenommen' : '' ?></div>
+
+<?php if ($dryRun): ?>
+<div class="banner" style="background:rgba(255,165,0,.12);border:1px solid rgba(255,165,0,.3);color:#f90;margin-bottom:14px;">
+  Dry-Run-Modus: Alle Schritte werden nur angezeigt, nicht ausgeführt.
+  Ohne <code>?dry=1</code> aufrufen, um die Migration wirklich durchzuführen.
+</div>
+<?php endif; ?>
 
 <div class="banner <?= count($fails) === 0 ? 'ok' : 'err' ?>">
-  <?= count($fails) === 0 ? 'Alle Migrationen erfolgreich — App sollte jetzt fehlerfrei laufen.' : count($fails) . ' Fehler aufgetreten (Details unten).' ?>
+  <?= count($fails) === 0
+      ? ($dryRun ? 'Dry-Run abgeschlossen — keine Fehler erkannt.' : 'Alle Migrationen erfolgreich — App sollte jetzt fehlerfrei laufen.')
+      : count($fails) . ' Fehler aufgetreten (Details unten).' ?>
 </div>
 
 <?php foreach ($results as $r): ?>
