@@ -13,6 +13,22 @@ if (empty($_SESSION['uid']) || !in_array('admin', (array)($_SESSION['roles'] ?? 
     exit;
 }
 
+// Tests laufen nur bei explizitem POST mit gültigem CSRF-Token.
+// GET zeigt nur den Bestätigungsbutton — verhindert unbeabsichtigte NAS-Operationen
+// durch Cross-Site-Links oder Top-Level-Navigation.
+$run = false;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $token = $_POST['csrf'] ?? '';
+    if (!isset($_SESSION['csrf']) || !hash_equals($_SESSION['csrf'], $token)) {
+        http_response_code(403);
+        exit('CSRF-Token ungültig.');
+    }
+    $run = true;
+}
+if (!isset($_SESSION['csrf'])) {
+    $_SESSION['csrf'] = bin2hex(random_bytes(16));
+}
+
 $steps = [];
 
 function ok(string $label, string $detail = ''): void {
@@ -25,6 +41,7 @@ function fail(string $label, string $err): void {
     $steps[] = ['ok' => false, 'label' => $label, 'detail' => $err];
 }
 
+if ($run):
 // ── 1. Env-Vars vorhanden? ────────────────────────────────────────────────────
 $base = (string)(getenv('NAS_DAV_BASE') ?: '');
 $user = (string)(getenv('NAS_DAV_USER') ?: '');
@@ -130,6 +147,8 @@ if ($nas) {
     }
 }
 
+endif; // $run
+
 $fails = array_filter($steps, fn($s) => !$s['ok']);
 ?>
 <!DOCTYPE html>
@@ -158,12 +177,22 @@ $fails = array_filter($steps, fn($s) => !$s['ok']);
 </head>
 <body>
 <h1>NAS Verbindungstest</h1>
-<div class="sub">Prüft MKCOL → PUT → HEAD → DELETE gegen <?= htmlspecialchars($base ?: '(kein BASE gesetzt)') ?></div>
+<div class="sub">Prüft MKCOL → PUT → HEAD → DELETE gegen <?= htmlspecialchars(getenv('NAS_DAV_BASE') ?: '(kein BASE gesetzt)') ?></div>
 
+<?php if (!$run): ?>
+<div class="banner" style="background:rgba(255,165,0,.12);border:1px solid rgba(255,165,0,.3);color:#f90">
+  Startet MKCOL, PUT, HEAD und DELETE auf dem NAS. Nur ausführen wenn der Test gewollt ist.
+</div>
+<form method="post">
+  <input type="hidden" name="csrf" value="<?= htmlspecialchars($_SESSION['csrf']) ?>">
+  <button type="submit" style="margin-top:12px;padding:11px 22px;border-radius:10px;background:#0a84ff;color:#fff;border:none;font-size:14px;font-weight:700;cursor:pointer">
+    Test jetzt ausführen
+  </button>
+</form>
+<?php else: ?>
 <div class="banner <?= count($fails) === 0 ? 'ok' : 'err' ?>">
   <?= count($fails) === 0 ? 'Alle Schritte erfolgreich — NAS-Verbindung funktioniert.' : count($fails) . ' Fehler aufgetreten.' ?>
 </div>
-
 <?php foreach ($steps as $s): ?>
 <div class="item <?= $s['ok'] ? 'ok' : 'err' ?>">
   <div class="dot <?= $s['ok'] ? 'ok' : 'err' ?>"></div>
@@ -175,6 +204,7 @@ $fails = array_filter($steps, fn($s) => !$s['ok']);
   </div>
 </div>
 <?php endforeach; ?>
+<?php endif; ?>
 
 <p style="margin-top:20px"><a href="./">← Zurück zur App</a></p>
 </body>
