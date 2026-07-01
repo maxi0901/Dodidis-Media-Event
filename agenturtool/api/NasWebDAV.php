@@ -34,10 +34,11 @@ class NasWebDAV
         $this->pass = $pass;
     }
 
-    /** Full URL from a nas_key (relative path) */
+    /** Full URL from a nas_key (relative path) — each segment rawurlencoded, slashes preserved */
     public function url(string $key): string
     {
-        return $this->base . '/' . ltrim($key, '/');
+        $segments = explode('/', ltrim($key, '/'));
+        return $this->base . '/' . implode('/', array_map('rawurlencode', $segments));
     }
 
     /**
@@ -50,7 +51,7 @@ class NasWebDAV
         foreach (explode('/', trim($path, '/')) as $part) {
             if ($part === '') continue;
             $built .= '/' . $part;
-            $ch = $this->newCurl($this->base . $built);
+            $ch = $this->newCurl($this->url($built));
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'MKCOL');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $code = $this->exec($ch);

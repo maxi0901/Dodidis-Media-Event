@@ -616,6 +616,7 @@ if (!tableExists($pdo, 'assets')) {
            kind         ENUM('raw','final') NOT NULL DEFAULT 'raw',
            parent_id    VARCHAR(64)   NULL,
            nas_key      VARCHAR(500)  NOT NULL,
+           nas_key_hash CHAR(64)      AS (SHA2(nas_key,256)) STORED,
            filename     VARCHAR(500)  NOT NULL,
            content_type VARCHAR(128)  NOT NULL DEFAULT 'application/octet-stream',
            size_bytes   BIGINT        UNSIGNED NULL,
@@ -624,7 +625,7 @@ if (!tableExists($pdo, 'assets')) {
            created_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
            confirmed_at DATETIME      NULL,
            PRIMARY KEY (id),
-           UNIQUE KEY uq_assets_nas_key (nas_key(191)),
+           UNIQUE KEY uq_assets_nas_key_hash (nas_key_hash),
            KEY idx_assets_project (project_id),
            KEY idx_assets_status  (status)
          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
@@ -635,6 +636,16 @@ if (!tableExists($pdo, 'assets')) {
     addCol($pdo, 'assets', 'customer_id',  "ALTER TABLE assets ADD COLUMN customer_id VARCHAR(64) NULL", $results);
     addCol($pdo, 'assets', 'confirmed_at', "ALTER TABLE assets ADD COLUMN confirmed_at DATETIME NULL", $results);
     addCol($pdo, 'assets', 'size_bytes',   "ALTER TABLE assets ADD COLUMN size_bytes BIGINT UNSIGNED NULL", $results);
+    // Swap prefix-only unique key for full-length SHA2 hash (fixes duplicate-key false positives on long paths)
+    addCol($pdo, 'assets', 'nas_key_hash',
+        "ALTER TABLE assets ADD COLUMN nas_key_hash CHAR(64) AS (SHA2(nas_key,256)) STORED",
+        $results);
+    step($pdo, "assets: alten Präfix-Unique-Key entfernen (idempotent)",
+        "ALTER TABLE assets DROP INDEX uq_assets_nas_key",
+        $results);
+    step($pdo, "assets: uq_assets_nas_key_hash anlegen",
+        "ALTER TABLE assets ADD UNIQUE KEY uq_assets_nas_key_hash (nas_key_hash)",
+        $results);
 }
 
 // ── 28. NAS-Medien-Schicht: project_cutters M:N-Tabelle ───────────────────────
