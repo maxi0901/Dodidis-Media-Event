@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/includes/response.php';
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/auth-check.php';
-require_once __DIR__ . '/api/NasWebDAV.php';
+require_once __DIR__ . '/../includes/response.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/auth-check.php';
+require_once __DIR__ . '/NasWebDAV.php';
 
 start_app_session();
 
@@ -43,9 +43,9 @@ function fail(string $label, string $err): void {
 
 if ($run):
 // ── 1. Env-Vars vorhanden? ────────────────────────────────────────────────────
-$base = (string)(getenv('NAS_DAV_BASE') ?: '');
-$user = (string)(getenv('NAS_DAV_USER') ?: '');
-$pass = (string)(getenv('NAS_DAV_PASS') ?: '');
+$base = (string)(getenv('NAS_DAV_BASE') ?: ($_SERVER['NAS_DAV_BASE'] ?? '') ?: '');
+$user = (string)(getenv('NAS_DAV_USER') ?: ($_SERVER['NAS_DAV_USER'] ?? '') ?: '');
+$pass = (string)(getenv('NAS_DAV_PASS') ?: ($_SERVER['NAS_DAV_PASS'] ?? '') ?: '');
 
 if ($base && $user && $pass) {
     ok('Umgebungsvariablen gesetzt', "BASE={$base}  USER={$user}  PASS=***");
