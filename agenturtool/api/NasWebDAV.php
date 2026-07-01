@@ -19,9 +19,10 @@ class NasWebDAV
 
     public function __construct()
     {
-        $base = (string)(getenv('NAS_DAV_BASE') ?: '');
-        $user = (string)(getenv('NAS_DAV_USER') ?: '');
-        $pass = (string)(getenv('NAS_DAV_PASS') ?: '');
+        // Apache SetEnv populates $_SERVER on some PHP-FPM setups but not getenv()
+        $base = (string)(getenv('NAS_DAV_BASE') ?: ($_SERVER['NAS_DAV_BASE'] ?? '') ?: '');
+        $user = (string)(getenv('NAS_DAV_USER') ?: ($_SERVER['NAS_DAV_USER'] ?? '') ?: '');
+        $pass = (string)(getenv('NAS_DAV_PASS') ?: ($_SERVER['NAS_DAV_PASS'] ?? '') ?: '');
 
         if ($base === '' || $user === '' || $pass === '') {
             throw new \RuntimeException(
