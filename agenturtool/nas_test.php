@@ -70,32 +70,25 @@ if ($nas) {
         $content = 'NAS-Test ' . date('Y-m-d H:i:s');
         $len     = strlen($content);
 
-        // Wrap string in a memory stream so NasWebDAV can read php://input equivalent
-        // We bypass putStream (which reads php://input) and use a direct curl PUT here.
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL            => $nas->url($testFile),
-            CURLOPT_USERPWD        => $user . ':' . $pass,
-            CURLOPT_HTTPAUTH       => CURLAUTH_BASIC,
-            CURLOPT_PUT            => true,
-            CURLOPT_POSTFIELDS     => $content,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 30,
-            CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_HTTPHEADER     => [
-                'Content-Type: text/plain',
-                'Content-Length: ' . $len,
-                'Expect:',
-            ],
-        ]);
-        // Use in-memory stream for PUT body
         $fh = fopen('php://temp', 'r+');
         fwrite($fh, $content);
         rewind($fh);
-        curl_setopt($ch, CURLOPT_PUT,    true);
-        curl_setopt($ch, CURLOPT_INFILE, $fh);
-        curl_setopt($ch, CURLOPT_INFILESIZE, $len);
+
+        $ch = curl_init($nas->url($testFile));
+        curl_setopt($ch, CURLOPT_USERPWD,        $user . ':' . $pass);
+        curl_setopt($ch, CURLOPT_HTTPAUTH,        CURLAUTH_BASIC);
+        curl_setopt($ch, CURLOPT_PUT,             true);
+        curl_setopt($ch, CURLOPT_INFILE,          $fh);
+        curl_setopt($ch, CURLOPT_INFILESIZE,      $len);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER,  true);
+        curl_setopt($ch, CURLOPT_TIMEOUT,         30);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT,  10);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION,  false);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: text/plain',
+            'Content-Length: ' . $len,
+            'Expect:',
+        ]);
 
         curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
