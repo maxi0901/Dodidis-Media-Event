@@ -7,6 +7,7 @@ require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 require_once __DIR__ . '/access.php';
 require_once __DIR__ . '/NasWebDAV.php';
+require_once __DIR__ . '/nas_provision.php';
 
 $session = require_login();
 $method  = $_SERVER['REQUEST_METHOD'];
@@ -102,23 +103,9 @@ switch ($method) {
             json_err(409, 'NAS-Ordner existiert bereits: ' . $p['nas_folder']);
         }
 
-        $clientSlug = slugify($p['customerName'] ?? 'intern');
-        $projSlug   = slugify($p['title']);
-        $dateStr    = $p['shootDate'] ? substr((string)$p['shootDate'], 0, 10) : date('Y-m-d');
-        $nasFolder  = "{$clientSlug}/{$dateStr}_{$projSlug}__{$p['id']}";
-
-        db_exec(
-            "UPDATE projects SET slug = ?, nas_folder = ? WHERE id = ?",
-            [$projSlug, $nasFolder, $projectId]
-        );
-
         try {
-            $nas = new NasWebDAV();
-            $nas->ensureDir($nasFolder . '/raw');
-            $nas->ensureDir($nasFolder . '/final');
+            nas_provision_project($projectId);
         } catch (\Throwable $e) {
-            // Roll back so the endpoint is fully retryable
-            db_exec("UPDATE projects SET slug = NULL, nas_folder = NULL WHERE id = ?", [$projectId]);
             json_err(502, 'NAS nicht erreichbar: ' . $e->getMessage());
         }
 
@@ -139,8 +126,6 @@ switch ($method) {
         if (count($cutterIds) === 1) {
             db_exec("UPDATE projects SET cutter_id = ? WHERE id = ?", [reset($cutterIds), $projectId]);
         }
-
-        log_activity('nas_project', $projectId, 'nas_folder_created', ['folder' => $nasFolder]);
 
         $row = db_one(
             "SELECT p.id, p.title, p.slug, p.nas_folder,

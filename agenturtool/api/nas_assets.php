@@ -7,6 +7,7 @@ require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 require_once __DIR__ . '/access.php';
 require_once __DIR__ . '/NasWebDAV.php';
+require_once __DIR__ . '/nas_provision.php';
 
 $session = require_login();
 $method  = $_SERVER['REQUEST_METHOD'];
@@ -54,10 +55,24 @@ if ($method === 'POST' && $action === 'prepare') {
 
     requireProjectAccess($projectId, $session);
 
+    // Rollen: Rohmaterial laden Videografen hoch, finale Schnitte Cutter.
+    // Admin/Manager dürfen beides.
+    if ($kind === 'raw' && !has_role('admin', 'manager', 'videograf')) {
+        json_err(403, 'Rohmaterial dürfen nur Videografen, Manager oder Admins hochladen.');
+    }
+    if ($kind === 'final' && !has_role('admin', 'manager', 'cutter')) {
+        json_err(403, 'Finale Schnitte dürfen nur Cutter, Manager oder Admins hochladen.');
+    }
+
     $p = db_one("SELECT nas_folder FROM projects WHERE id = ?", [$projectId]);
     if (!$p) json_err(404, 'Projekt nicht gefunden.');
     if (empty($p['nas_folder'])) {
-        json_err(409, 'Für dieses Projekt wurden noch keine NAS-Ordner angelegt. Erst POST /api/nas_projects.php aufrufen.');
+        // Ordner fehlen noch (z. B. NAS war beim Anlegen offline) → jetzt nachholen
+        try {
+            $p['nas_folder'] = nas_provision_project($projectId);
+        } catch (\Throwable $e) {
+            json_err(502, 'NAS-Ordner konnten nicht angelegt werden: ' . $e->getMessage());
+        }
     }
 
     // Sanitize filename (keep extension, strip path separators)
