@@ -73,7 +73,8 @@ $hasIPv6 ? ok('PHP / cURL', $curlLine) : fail('PHP / cURL', $curlLine);
 // ── 3. DNS-Auflösung & Host-Analyse ──────────────────────────────────────────
 $parsed   = $base ? parse_url($base) : [];
 $rawHost  = (string)($parsed['host'] ?? '');
-$urlPort  = (int)($parsed['port'] ?? 5005);
+$scheme   = strtolower((string)($parsed['scheme'] ?? 'http'));
+$urlPort  = (int)($parsed['port'] ?? ($scheme === 'https' ? 443 : 5005));
 
 // Literal-IPv6 in eckigen Klammern: [::1] → ::1
 $isLiteralIPv6 = (strlen($rawHost) > 0 && $rawHost[0] === '[');
@@ -136,7 +137,7 @@ if ($base) {
 
     $ch = curl_init($testUrl);
     curl_setopt($ch, CURLOPT_USERPWD,        $user . ':' . $pass);
-    curl_setopt($ch, CURLOPT_HTTPAUTH,        CURLAUTH_BASIC);
+    curl_setopt($ch, CURLOPT_HTTPAUTH,        CURLAUTH_ANY);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST,   'MKCOL');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER,  true);
     curl_setopt($ch, CURLOPT_TIMEOUT,         15);
