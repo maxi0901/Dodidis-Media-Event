@@ -138,6 +138,7 @@ if ($base) {
     $ch = curl_init($testUrl);
     curl_setopt($ch, CURLOPT_USERPWD,        $user . ':' . $pass);
     curl_setopt($ch, CURLOPT_HTTPAUTH,        CURLAUTH_ANY);
+    curl_setopt($ch, CURLOPT_HTTP_VERSION,    CURL_HTTP_VERSION_1_1);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST,   'MKCOL');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER,  true);
     curl_setopt($ch, CURLOPT_TIMEOUT,         15);

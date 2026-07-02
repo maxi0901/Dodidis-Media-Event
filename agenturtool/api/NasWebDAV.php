@@ -176,7 +176,8 @@ class NasWebDAV
     {
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_USERPWD,       $this->user . ':' . $this->pass);
-        curl_setopt($ch, CURLOPT_HTTPAUTH,       CURLAUTH_BASIC);
+        curl_setopt($ch, CURLOPT_HTTPAUTH,       CURLAUTH_ANY);
+        curl_setopt($ch, CURLOPT_HTTP_VERSION,   CURL_HTTP_VERSION_1_1);
         curl_setopt($ch, CURLOPT_TIMEOUT,        3600);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
