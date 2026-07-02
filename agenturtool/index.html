@@ -959,6 +959,14 @@
   .badge-role-mitarbeiter { color: #64d2ff; background: rgba(100,210,255,0.1); border-color: rgba(100,210,255,0.2); }
   .badge-role-contract_uploader { color: #30d158; background: rgba(48,209,88,0.1); border-color: rgba(48,209,88,0.2); }
 
+  /* NAS-Medien (Beta) */
+  .badge-beta { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#ff9f0a; background:rgba(255,159,10,0.12); border:1px solid rgba(255,159,10,0.3); border-radius:5px; padding:2px 7px; vertical-align:middle; }
+  .nas-up-bar-wrap { height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; margin-top:6px; }
+  .nas-up-bar { height:100%; width:0%; background:var(--accent, #0a84ff); border-radius:3px; transition:width .2s ease; }
+  .nas-media-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .nas-media-dot.stored { background:#30d158; }
+  .nas-media-dot.error  { background:#ff453a; }
+
   .badge-status-onboarding { color: #ff9f0a; background: rgba(255,159,10,0.12); border-color: rgba(255,159,10,0.25); }
   .badge-status-active { color: #30d158; background: rgba(48,209,88,0.12); border-color: rgba(48,209,88,0.25); }
   .badge-status-paused { color: #6b7280; background: rgba(107,114,128,0.12); border-color: rgba(107,114,128,0.25); }
@@ -3860,6 +3868,7 @@
 <!-- MODAL CONTAINER -->
 <div id="modal-container"></div>
 
+<script src="api/upload.js"></script>
 <script>
 /* ===========================================================================
    AGENTUR MANAGEMENT TOOL
@@ -7854,6 +7863,8 @@ function openProjectModal(projectId = null, forceFull = false) {
                 ${nasLinkField('nasFreigabeUrl', '04_Freigaben_Manager', 'Finaler Manager-Review', project?.nasFreigabeUrl, canEdit)}
               </div>
             </div>
+
+            <div id="nas-media-section"></div>
             ` : ''}
 
             ${folderName ? `
@@ -7878,6 +7889,7 @@ function openProjectModal(projectId = null, forceFull = false) {
   $('#modal-container').innerHTML = html;
   initAutogrowTextareas();
   if (projectId) loadAndRenderProjectComments(projectId, isManagerOrAdmin, 'proj-comments-box');
+  if (projectId) loadAndRenderNasMedia(projectId);
   // 24h-Validierung beim Öffnen eines bestehenden Projekts prüfen
   checkCutterTimeline();
 
@@ -8232,6 +8244,8 @@ async function openProjectViewerModal(project) {
 
           ${renderNasViewerSection(project, user)}
 
+          <div id="nas-media-section"></div>
+
           ${renderProjectFilesSection(project, session)}
 
         </div>
@@ -8244,6 +8258,7 @@ async function openProjectViewerModal(project) {
   $('#modal-container').innerHTML = html;
   const isPriv = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
   loadAndRenderProjectComments(project.id, isPriv, 'proj-comments-viewer');
+  loadAndRenderNasMedia(project.id);
 }
 
 function renderProjectFilesSection(project, session) {
@@ -8773,6 +8788,187 @@ async function saveCutterNasExport(projectId) {
   } catch (err) {
     if (idx >= 0) store.projects[idx].nasExportUrl = prev;
     showToast('Fehler beim Speichern', err.message);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   NAS-MEDIEN (Beta) — direkter Upload/Download über WebDAV-Streaming
+   Nutzt uploadAsset/downloadAsset/listAssets aus api/upload.js.
+   Ordner werden automatisch angelegt (Idee→Projekt bzw. beim ersten Upload).
+   --------------------------------------------------------------------------- */
+const nasMedia = { projectId: null, assets: [], uploads: [], loading: false, error: null };
+let nasUploadSeq = 0;
+
+async function loadAndRenderNasMedia(projectId) {
+  const container = document.getElementById('nas-media-section');
+  if (!container) return;
+  const session = getCurrentUser();
+  if (session.type !== 'staff') return; // nur intern, nie für Kunden
+
+  if (nasMedia.projectId !== projectId) {
+    nasMedia.projectId = projectId;
+    nasMedia.assets  = [];
+    nasMedia.uploads = [];
+  }
+  nasMedia.loading = true;
+  nasMedia.error   = null;
+  renderNasMedia();
+  try {
+    nasMedia.assets = await listAssets(projectId);
+  } catch (err) {
+    nasMedia.error = err.message;
+  }
+  nasMedia.loading = false;
+  renderNasMedia();
+}
+
+function nasFmtBytes(n) {
+  if (n === null || n === undefined || n === '') return '';
+  n = Number(n);
+  if (n >= 1073741824) return (n / 1073741824).toFixed(2) + ' GB';
+  if (n >= 1048576)    return (n / 1048576).toFixed(1) + ' MB';
+  return Math.max(1, Math.round(n / 1024)) + ' KB';
+}
+
+function renderNasMedia() {
+  const container = document.getElementById('nas-media-section');
+  if (!container) return;
+  const session = getCurrentUser();
+  const user    = session.user;
+  const isPriv     = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  const canUpRaw   = isPriv || hasRole(user, ROLES.VIDEOGRAF);
+  const canUpFinal = isPriv || hasRole(user, ROLES.CUTTER);
+  const pid        = nasMedia.projectId;
+
+  const assetRow = (a) => {
+    const uploader = store.users.find(u => u.id === a.uploadedBy);
+    const meta = [
+      nasFmtBytes(a.sizeBytes),
+      a.createdAt ? fmtDate(String(a.createdAt).slice(0, 10)) : '',
+      uploader ? 'von ' + uploader.name : '',
+    ].filter(Boolean).join(' · ');
+    return `
+      <div class="file-uploaded">
+        <span class="nas-media-dot stored" title="Auf dem NAS gespeichert"></span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(a.filename)}</div>
+          ${meta ? `<div style="font-size:11px;color:var(--text-3);">${escape(meta)}</div>` : ''}
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="downloadAsset('${a.id}')">⬇ Laden</button>
+        ${isPriv ? `<button type="button" class="btn btn-ghost btn-sm" title="Vom NAS löschen" onclick="nasMediaDelete('${a.id}')">🗑</button>` : ''}
+      </div>`;
+  };
+
+  const uploadRow = (u) => `
+    <div class="file-uploaded" style="${u.error ? 'border-color:rgba(255,69,58,0.4);' : ''}">
+      <span class="nas-media-dot ${u.error ? 'error' : ''}" style="${u.error ? '' : 'background:var(--accent,#0a84ff);'}"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(u.name)}</div>
+        ${u.error
+          ? `<div style="font-size:11px;color:#ff453a;">${escape(u.error)}</div>`
+          : `<div class="nas-up-bar-wrap"><div class="nas-up-bar" id="nas-up-bar-${u.key}" style="width:${u.pct}%;"></div></div>`}
+      </div>
+      ${u.error
+        ? `<button type="button" class="btn btn-ghost btn-sm" onclick="nasMediaDismissUpload('${u.key}')">Entfernen</button>`
+        : `<span id="nas-up-pct-${u.key}" style="font-size:11px;color:var(--text-3);flex-shrink:0;">${u.pct} %</span>`}
+    </div>`;
+
+  const group = (kind, label, canUpload, multiple) => {
+    const assets  = nasMedia.assets.filter(a => a.kind === kind);
+    const uploads = nasMedia.uploads.filter(u => u.kind === kind);
+    return `
+      <div style="margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="cutter-detail-label">${label}</div>
+          ${canUpload ? `<button type="button" class="btn btn-secondary btn-sm" onclick="nasMediaPick('${kind}','${pid}')">+ Hochladen${multiple ? ' (mehrere)' : ''}</button>` : ''}
+        </div>
+        ${uploads.map(uploadRow).join('')}
+        ${assets.length
+          ? assets.map(assetRow).join('')
+          : (uploads.length ? '' : `<div class="text-sm text-muted">Noch keine Dateien.</div>`)}
+      </div>`;
+  };
+
+  container.innerHTML = `
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="cutter-detail-label" style="font-size:12px;">Medien (NAS)</div>
+        <span class="badge-beta">Beta</span>
+      </div>
+      ${nasMedia.error ? `<div style="font-size:12px;color:#ff453a;margin-top:8px;">NAS nicht erreichbar: ${escape(nasMedia.error)}</div>` : ''}
+      ${nasMedia.loading && !nasMedia.assets.length ? `<div class="text-sm text-muted" style="margin-top:8px;">Lade Medien…</div>` : ''}
+      ${group('raw', 'Rohmaterial', canUpRaw, true)}
+      ${group('final', 'Finale Schnitte', canUpFinal, false)}
+    </div>`;
+}
+
+function nasMediaPick(kind, projectId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.multiple = kind === 'raw';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.onchange = (e) => {
+    const files = Array.from(e.target.files || []);
+    document.body.removeChild(input);
+    if (files.length) nasMediaStartUploads(kind, projectId, files);
+  };
+  input.click();
+}
+
+async function nasMediaStartUploads(kind, projectId, files) {
+  // Sequentiell hochladen — schont Netcup-Limits und den Tunnel
+  for (const file of files) {
+    const u = { key: 'u' + (++nasUploadSeq), name: file.name, kind, pct: 0, error: null };
+    nasMedia.uploads.push(u);
+    renderNasMedia();
+    try {
+      const asset = await uploadAsset(file, projectId, {
+        kind,
+        onProgress: (pct) => {
+          u.pct = pct;
+          const bar = document.getElementById('nas-up-bar-' + u.key);
+          const lbl = document.getElementById('nas-up-pct-' + u.key);
+          if (bar) bar.style.width = pct + '%';
+          if (lbl) lbl.textContent = pct + ' %';
+        },
+      });
+      nasMedia.uploads = nasMedia.uploads.filter(x => x !== u);
+      nasMedia.assets.unshift(asset);
+      showToast('Upload abgeschlossen', file.name);
+    } catch (err) {
+      u.error = err.message || 'Unbekannter Fehler';
+      showToast('Upload fehlgeschlagen', file.name + ' — ' + u.error);
+    }
+    renderNasMedia();
+  }
+}
+
+function nasMediaDismissUpload(key) {
+  nasMedia.uploads = nasMedia.uploads.filter(x => x.key !== key);
+  renderNasMedia();
+}
+
+async function nasMediaDelete(assetId) {
+  const a = nasMedia.assets.find(x => x.id === assetId);
+  const ok = await appConfirm(
+    `„${a ? a.filename : 'Datei'}" wird endgültig vom NAS gelöscht.`,
+    { title: 'Datei löschen?', okLabel: 'Löschen', danger: true }
+  );
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API_BASE}/nas_assets.php?id=${encodeURIComponent(assetId)}`, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: { 'X-CSRF-Token': CSRF },
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    nasMedia.assets = nasMedia.assets.filter(x => x.id !== assetId);
+    renderNasMedia();
+    showToast('Datei gelöscht', a ? a.filename : '');
+  } catch (err) {
+    showToast('Löschen fehlgeschlagen', err.message);
   }
 }
 

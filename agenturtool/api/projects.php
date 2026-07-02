@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/response.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth-check.php';
+require_once __DIR__ . '/nas_provision.php';
 
 $session = require_login();
 $method  = $_SERVER['REQUEST_METHOD'];
@@ -84,6 +85,10 @@ switch ($method) {
             json_err(500, 'Konnte Projekt nicht anlegen.');
         }
         log_activity('project', $newId, 'created');
+        // Idee mit Kunde = Projekt → NAS-Ordner automatisch anlegen (best-effort)
+        if (!empty($params['customer_id'])) {
+            nas_provision_project_quietly($newId);
+        }
         $row = db_one("SELECT $cols FROM projects WHERE id = ?", [$newId]);
         try { $row['files'] = list_files($newId); } catch (\Throwable $e) { $row['files'] = []; }
         json_ok($row, 201);
@@ -176,6 +181,12 @@ switch ($method) {
                     error_log('[projects] shootdate notification insert: ' . $e->getMessage());
                 }
             }
+        }
+
+        // Idee bekommt (erstmals) einen Kunden = Umwandlung zum Projekt
+        // → NAS-Ordner automatisch anlegen (best-effort, blockiert nie)
+        if (!empty($params['customer_id']) && empty($cur['customer_id'])) {
+            nas_provision_project_quietly($id);
         }
 
         log_activity('project', $id, 'edited', ['fields' => array_keys($params)]);
