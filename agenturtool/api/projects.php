@@ -142,8 +142,13 @@ switch ($method) {
                 json_err(403, 'Freigeben dürfen nur Manager oder Admins.');
             }
             try {
+                // Join auf assets: nur Kommentare zählen, deren Asset noch existiert —
+                // verwaiste Kommentare gelöschter Assets dürfen die Abnahme nicht blockieren
                 $open = db_one(
-                    "SELECT COUNT(*) AS n FROM asset_comments WHERE project_id = ? AND status = 'open'",
+                    "SELECT COUNT(*) AS n
+                       FROM asset_comments c
+                       JOIN assets a ON a.id = c.asset_id AND a.status = 'stored'
+                      WHERE c.project_id = ? AND c.status = 'open'",
                     [$id]
                 );
                 $n = (int)($open['n'] ?? 0);

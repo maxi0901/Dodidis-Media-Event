@@ -82,16 +82,12 @@ if ($method === 'POST' && $action === 'prepare') {
         json_err(403, 'Finale Schnitte dürfen nur Cutter, Manager oder Admins hochladen.');
     }
 
-    $p = db_one("SELECT nas_folder, status AS project_status FROM projects WHERE id = ?", [$projectId]);
+    $p = db_one("SELECT nas_folder FROM projects WHERE id = ?", [$projectId]);
     if (!$p) json_err(404, 'Projekt nicht gefunden.');
 
     // Nach der Abnahme sind finale Schnitte eingefroren — nur Admin/Manager
     // dürfen (z. B. für Nachlieferungen) noch hochladen.
-    if ($kind === 'final'
-        && in_array((string)($p['project_status'] ?? ''), ['freigegeben', 'archiviert'], true)
-        && !has_role('admin', 'manager')) {
-        json_err(409, 'Projekt ist bereits abgenommen — finale Schnitte können nicht mehr ersetzt werden.');
-    }
+    nas_assert_final_not_locked(['kind' => $kind, 'project_id' => $projectId], $session);
     if (empty($p['nas_folder'])) {
         // Ordner fehlen noch (z. B. NAS war beim Anlegen offline) → jetzt nachholen
         try {
@@ -137,6 +133,9 @@ if ($method === 'POST' && $id && $action === 'confirm') {
     $a = db_one("SELECT * FROM assets WHERE id = ?", [$id]);
     if (!$a) json_err(404, 'Asset nicht gefunden.');
     requireProjectAccess((string)$a['project_id'], $session);
+    if ($a['status'] !== 'stored') {
+        nas_assert_final_not_locked($a, $session);
+    }
 
     try {
         $nas = new NasWebDAV();
@@ -171,6 +170,11 @@ if ($method === 'PUT' && $id) {
     if ($a['uploaded_by'] !== $session['uid'] && !has_role('admin', 'manager')) {
         json_err(403, 'Nur der ursprüngliche Uploader oder Admin/Manager darf dieses Asset ersetzen.');
     }
+
+    // Abnahme-Sperre zum Zeitpunkt des tatsächlichen Uploads erneut prüfen —
+    // ein vor der Freigabe vorbereitetes (pending) Asset darf danach nicht
+    // mehr gespeichert werden.
+    nas_assert_final_not_locked($a, $session);
 
     $contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
     $contentType   = $_SERVER['CONTENT_TYPE'] ?? (string)$a['content_type'];
@@ -261,6 +265,9 @@ if ($method === 'DELETE' && $id) {
     }
 
     nas_cache_delete((string)$id);
+    // Kommentare mitlöschen — sonst blockieren verwaiste offene Kommentare
+    // die Projekt-Freigabe, ohne in der UI erreichbar zu sein
+    try { db_exec("DELETE FROM asset_comments WHERE asset_id = ?", [$id]); } catch (\Throwable $_) {}
     db_exec("DELETE FROM assets WHERE id = ?", [$id]);
     log_activity('asset', $id, 'deleted');
     json_ok(['id' => $id]);
@@ -269,6 +276,22 @@ if ($method === 'DELETE' && $id) {
 json_err(400, 'Ungültige Anfrage. Benötigt action=prepare|confirm, id=..., oder project_id=...');
 
 // ── helper ────────────────────────────────────────────────────────────────────
+
+/**
+ * Abnahme-Sperre: Finale Schnitte sind nach Freigabe/Archivierung eingefroren.
+ * Wird bei prepare UND beim tatsächlichen PUT/confirm geprüft, damit ein vor
+ * der Freigabe vorbereitetes Asset danach nicht mehr gespeichert werden kann.
+ * Admin/Manager dürfen weiterhin (Nachlieferungen).
+ */
+function nas_assert_final_not_locked(array $a, array $session): void
+{
+    if (($a['kind'] ?? '') !== 'final') return;
+    if (has_role('admin', 'manager')) return;
+    $p = db_one("SELECT status FROM projects WHERE id = ?", [$a['project_id']]);
+    if ($p && in_array((string)($p['status'] ?? ''), ['freigegeben', 'archiviert'], true)) {
+        json_err(409, 'Projekt ist bereits abgenommen — finale Schnitte können nicht mehr hochgeladen oder ersetzt werden.');
+    }
+}
 
 function asset_to_doc(?array $a): array
 {

@@ -8957,12 +8957,16 @@ function renderNasMedia() {
     const assets  = nasMedia.assets.filter(a => a.kind === kind);
     const uploads = nasMedia.uploads.filter(u => u.kind === kind);
 
-    // Finale Schnitte: neueste Version zuerst (kommt sortiert vom Server) —
-    // die erste ist „aktuell", alle weiteren sind ältere Versionen.
-    // Nach Abnahme ist der Upload für Cutter eingefroren.
+    // Finale Schnitte: „ersetzt" ist ein Asset nur, wenn eine neuere Version
+    // per parent_id darauf zeigt (Versionskette). Eigenständige Deliverables
+    // (z. B. Imagefilm UND Teaser) gelten alle als aktuell und behalten ihren
+    // „Neue Version"-Button. Nach Abnahme ist der Upload für Cutter eingefroren.
     const uploadAllowed = canUpload && (kind !== 'final' || !locked || isPriv);
+    const superseded = kind === 'final'
+      ? new Set(assets.map(a => a.parentId).filter(Boolean))
+      : new Set();
     const rows = kind === 'final'
-      ? assets.map((a, i) => assetRow(a, { old: i > 0, latestFinal: i === 0 })).join('')
+      ? assets.map(a => assetRow(a, { old: superseded.has(a.id), latestFinal: !superseded.has(a.id) })).join('')
       : assets.map(a => assetRow(a)).join('');
 
     return `
