@@ -1,0 +1,3 @@
+# Review-Cache: niemals direkt über HTTP ausliefern.
+# Zugriff ausschließlich über api/nas_media_view.php (Session + Projektrechte).
+Require all denied

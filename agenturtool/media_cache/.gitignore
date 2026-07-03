@@ -1,0 +1,4 @@
+# Cache-Inhalte nie committen — nur die Schutz-Dateien selbst
+*
+!.htaccess
+!.gitignore
