@@ -38,6 +38,23 @@ if ($method === 'GET' && $projId && !$id) {
           ORDER BY created_at DESC",
         [$projId]
     );
+
+    // Offene Review-Kommentare pro Asset (separat, damit eine fehlende
+    // asset_comments-Tabelle die Medienliste nicht bricht)
+    $openByAsset = [];
+    try {
+        $counts = db_all(
+            "SELECT asset_id, COUNT(*) AS n FROM asset_comments
+              WHERE project_id = ? AND status = 'open' GROUP BY asset_id",
+            [$projId]
+        );
+        foreach ($counts as $c) $openByAsset[$c['asset_id']] = (int)$c['n'];
+    } catch (\Throwable $_) {}
+
+    foreach ($rows as &$r) {
+        $r['openComments'] = $openByAsset[$r['id']] ?? 0;
+    }
+    unset($r);
     json_ok($rows);
 }
 
@@ -65,8 +82,16 @@ if ($method === 'POST' && $action === 'prepare') {
         json_err(403, 'Finale Schnitte dürfen nur Cutter, Manager oder Admins hochladen.');
     }
 
-    $p = db_one("SELECT nas_folder FROM projects WHERE id = ?", [$projectId]);
+    $p = db_one("SELECT nas_folder, status AS project_status FROM projects WHERE id = ?", [$projectId]);
     if (!$p) json_err(404, 'Projekt nicht gefunden.');
+
+    // Nach der Abnahme sind finale Schnitte eingefroren — nur Admin/Manager
+    // dürfen (z. B. für Nachlieferungen) noch hochladen.
+    if ($kind === 'final'
+        && in_array((string)($p['project_status'] ?? ''), ['freigegeben', 'archiviert'], true)
+        && !has_role('admin', 'manager')) {
+        json_err(409, 'Projekt ist bereits abgenommen — finale Schnitte können nicht mehr ersetzt werden.');
+    }
     if (empty($p['nas_folder'])) {
         // Ordner fehlen noch (z. B. NAS war beim Anlegen offline) → jetzt nachholen
         try {
@@ -176,6 +201,19 @@ if ($method === 'PUT' && $id) {
           WHERE id = ?",
         [$contentLength ?: null, $contentType, $id]
     );
+    // Auto-Status: neuer finaler Schnitt in aktiver Schnittphase → 'fertig'
+    // (Review kann starten). Nur vorwärts, andere Stati bleiben unberührt.
+    if ($a['kind'] === 'final') {
+        try {
+            db_exec(
+                "UPDATE projects SET status = 'fertig' WHERE id = ? AND status IN ('schnitt', 'korrektur')",
+                [$a['project_id']]
+            );
+        } catch (\Throwable $e) {
+            error_log('[nas_assets] Auto-Status fertig: ' . $e->getMessage());
+        }
+    }
+
     log_activity('asset', $id, 'uploaded', ['size' => $contentLength]);
     json_ok(asset_to_doc(db_one("SELECT * FROM assets WHERE id = ?", [$id])));
 }

@@ -135,6 +135,26 @@ switch ($method) {
         error_log('[projects PUT] id=' . $id . ' uid=' . ($session['uid'] ?? '?') . ' isPriv=' . ($isPriv?'1':'0') . ' isVid=' . ($isVid?'1':'0') . ' isCut=' . ($isCut?'1':'0') . ' body=' . json_encode($b) . ' params=' . json_encode($params));
         if (!$params) json_ok(['id' => $id]);
 
+        // Abnahme (freigegeben) ist Admin/Manager vorbehalten und nur möglich,
+        // wenn keine offenen Review-Kommentare mehr existieren (Abnahme-Gate).
+        if (($params['status'] ?? '') === 'freigegeben') {
+            if (!$isPriv) {
+                json_err(403, 'Freigeben dürfen nur Manager oder Admins.');
+            }
+            try {
+                $open = db_one(
+                    "SELECT COUNT(*) AS n FROM asset_comments WHERE project_id = ? AND status = 'open'",
+                    [$id]
+                );
+                $n = (int)($open['n'] ?? 0);
+                if ($n > 0) {
+                    json_err(409, "Es gibt noch {$n} offene Review-Kommentare. Erst abhaken oder löschen, dann freigeben.");
+                }
+            } catch (\Throwable $e) {
+                // Tabelle fehlt noch (Migration nicht gelaufen) → Gate überspringen
+            }
+        }
+
         $set = [];
         $vals = [];
         foreach ($params as $c => $v) {
@@ -188,6 +208,11 @@ switch ($method) {
         // → NAS-Ordner automatisch anlegen (best-effort, blockiert nie)
         if (!empty($params['customer_id']) && empty($cur['customer_id'])) {
             nas_provision_project_quietly($id);
+        }
+
+        // Abnahme/Archiv → alte Final-Versionen aufräumen (neueste bleibt komplett)
+        if (in_array(($params['status'] ?? ''), ['freigegeben', 'archiviert'], true)) {
+            nas_purge_superseded_finals($id);
         }
 
         // Archiviert → Review-Kopien auf Netcup freigeben (NAS bleibt unberührt)
