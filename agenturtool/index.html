@@ -4117,9 +4117,10 @@ function getAssignableUsersFor(viewer) {
   // Admin, Manager und Videograf sehen alle Nutzer – auch wenn jemand zusätzlich
   // die Cutter-Rolle trägt, soll die privilegierte Rolle Vorrang haben.
   if (hasRole(viewer, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF)) return store.users;
-  // Reine Cutter/Mitarbeiter dürfen Tasks nur an sich selbst oder höhere Rollen vergeben.
+  // Reine Cutter/Mitarbeiter dürfen Tasks nur an sich selbst oder HÖHERE Rollen
+  // vergeben — Gleichgestellte (z. B. andere Cutter) sind bewusst nicht sichtbar.
   const myLevel = getRoleLevel(viewer);
-  return store.users.filter(u => getRoleLevel(u) >= myLevel);
+  return store.users.filter(u => u.id === viewer.id || getRoleLevel(u) > myLevel);
 }
 
 // Darf "viewer" den Urlaub von "target" sehen?
