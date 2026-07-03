@@ -967,16 +967,23 @@
   .nas-media-dot.stored { background:#30d158; }
   .nas-media-dot.error  { background:#ff453a; }
 
-  /* Review-Player Overlay (liegt ÜBER dem Projekt-Modal, eigener Container) */
+  /* Review-Player Overlay (liegt ÜBER dem Projekt-Modal, eigener Container).
+     Aufbau: feste Kopfzeile · Video · scrollbare Kommentarliste · fixe
+     Eingabe. Die ganze Box hat eine feste Höhe, NUR die Kommentarliste
+     scrollt vertikal — Eingabe bleibt immer sichtbar. */
   .nas-player-backdrop {
     position:fixed; inset:0; z-index:2000;
-    background:rgba(0,0,0,0.85); backdrop-filter:blur(6px);
+    background:rgba(0,0,0,0.9); backdrop-filter:blur(6px);
     display:flex; align-items:center; justify-content:center; padding:20px;
   }
-  .nas-player-box { width:100%; max-width:960px; }
+  .nas-player-box {
+    width:100%; max-width:960px;
+    max-height:calc(100vh - 40px);
+    display:flex; flex-direction:column; min-height:0;
+  }
   .nas-player-head {
     display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:10px; gap:12px;
+    margin-bottom:10px; gap:12px; flex-shrink:0;
   }
   .nas-player-title {
     font-size:14px; font-weight:600; color:#fff;
@@ -988,8 +995,9 @@
     cursor:pointer; flex-shrink:0; line-height:1;
   }
   .nas-player-close:hover { background:rgba(255,255,255,0.2); }
-  .nas-player-box video, .nas-player-box img {
-    width:100%; max-height:58vh; border-radius:12px;
+  .nas-player-media { flex-shrink:0; }
+  .nas-player-media video, .nas-player-media img {
+    width:100%; max-height:46vh; border-radius:12px;
     background:#000; display:block; object-fit:contain;
   }
 
@@ -1005,33 +1013,87 @@
     color:var(--text-3); background:rgba(255,255,255,0.06);
     border-radius:4px; padding:1px 6px; flex-shrink:0;
   }
-  .nas-comments-panel {
+  /* Kommentarbereich: nimmt den Restplatz, scrollt nur vertikal */
+  .nas-comments-wrap {
+    flex:1; min-height:0; display:flex; flex-direction:column;
     margin-top:12px; background:var(--bg-1, #16161a);
     border:1px solid var(--border, #2a2a2e); border-radius:12px;
-    padding:14px; max-height:30vh; overflow-y:auto;
+    overflow:hidden;
   }
+  .nas-comments-head {
+    display:flex; align-items:center; gap:8px; flex-shrink:0;
+    padding:12px 14px 8px;
+  }
+  .nas-comments-list {
+    flex:1; min-height:0; overflow-y:auto; overflow-x:hidden;
+    padding:0 14px 10px;
+  }
+  .nas-comments-empty { font-size:12.5px; color:var(--text-3); padding:6px 0 10px; }
+  /* Instagram-Stil: Avatar links, Name+Text im selben Block, kompakt */
   .nas-comment-row {
-    display:flex; align-items:flex-start; gap:9px;
-    padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);
-    font-size:13px;
+    display:flex; align-items:flex-start; gap:10px;
+    padding:9px 0; border-bottom:1px solid rgba(255,255,255,0.05);
   }
   .nas-comment-row:last-child { border-bottom:none; }
   .nas-comment-row.resolved { opacity:0.5; }
-  .nas-comment-row.resolved .nas-comment-body { text-decoration:line-through; }
+  .nas-comment-row.resolved .nas-comment-text { text-decoration:line-through; }
+  .nas-comment-avatar {
+    width:30px; height:30px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; color:#fff; margin-top:1px;
+  }
+  .nas-comment-main { flex:1; min-width:0; cursor:pointer; }
+  .nas-comment-line {
+    font-size:13px; line-height:1.4;
+    overflow-wrap:anywhere; word-break:normal;
+  }
+  .nas-comment-author { font-weight:700; margin-right:6px; }
+  .nas-comment-text { color:var(--text-1, #e5e5e5); }
+  .nas-comment-sub {
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    margin-top:3px; font-size:11px; color:var(--text-3);
+  }
   .nas-tc-chip {
     background:rgba(10,132,255,0.15); color:#64b5ff;
-    font-family:monospace; font-size:11.5px; font-weight:700;
-    border:none; border-radius:5px; padding:2px 7px;
-    cursor:pointer; flex-shrink:0; margin-top:1px;
+    font-family:monospace; font-size:11px; font-weight:700;
+    border:none; border-radius:5px; padding:1px 7px;
+    cursor:pointer; flex-shrink:0;
   }
-  .nas-tc-chip:hover { background:rgba(10,132,255,0.3); }
-  .nas-comment-body { flex:1; min-width:0; word-break:break-word; }
-  .nas-comment-meta { font-size:10.5px; color:var(--text-3); margin-top:2px; }
-  .nas-comment-form { display:flex; gap:8px; margin-top:10px; }
+  .nas-tc-chip:hover { background:rgba(10,132,255,0.35); }
+  .nas-comment-check { margin-top:8px; flex-shrink:0; width:17px; height:17px; }
+  .nas-comment-del {
+    background:none; border:none; color:var(--text-3); cursor:pointer;
+    font-size:15px; padding:2px 6px; flex-shrink:0; line-height:1;
+  }
+  .nas-comment-del:hover { color:#ff453a; }
+  /* Eingabe: immer sichtbar am unteren Rand der Box */
+  .nas-comment-form {
+    display:flex; gap:8px; flex-shrink:0;
+    padding:10px 14px; border-top:1px solid var(--border, #2a2a2e);
+    background:var(--bg-2, #1e1e22);
+  }
   .nas-comment-form input[type=text] {
-    flex:1; background:var(--bg-2, #1e1e22); color:inherit;
+    flex:1; min-width:0; background:var(--bg-1, #16161a); color:inherit;
     border:1px solid var(--border, #2a2a2e); border-radius:8px;
-    padding:9px 12px; font-size:13px;
+    padding:10px 12px; font-size:14px;
+  }
+  .nas-comment-form .btn { flex-shrink:0; }
+
+  /* ── Mobile: Player als Vollbild, Eingabe fest unten, kein Zoom ───────── */
+  @media (max-width: 640px) {
+    .nas-player-backdrop { padding:0; }
+    .nas-player-box {
+      max-width:none; max-height:none;
+      height:100dvh; width:100vw; border-radius:0;
+      padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+    }
+    .nas-player-media video, .nas-player-media img {
+      max-height:38vh; border-radius:10px;
+    }
+    .nas-comment-form { padding:10px 0 0; }
+    .nas-comment-form input[type=text] { font-size:16px; } /* verhindert iOS-Zoom */
+    .nas-comment-form .btn { padding:10px 14px; }
+    .nas-comments-list { padding:0 2px 8px; }
   }
 
   .badge-status-onboarding { color: #ff9f0a; background: rgba(255,159,10,0.12); border-color: rgba(255,159,10,0.25); }
@@ -8866,6 +8928,22 @@ async function saveCutterNasExport(projectId) {
 const nasMedia = { projectId: null, assets: [], uploads: [], loading: false, error: null };
 let nasUploadSeq = 0;
 
+// Zentrale Event-Delegation für Medien-Zeilen-Buttons. data-nas-id wird vom
+// Browser aus dem (per escape() abgesicherten) Attribut dekodiert und NIE als
+// Code ausgewertet — dadurch sind auch NAS-Dateinamen mit Sonderzeichen sicher.
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-nas-act]');
+  if (!el) return;
+  const id  = el.dataset.nasId;
+  const pid = el.dataset.nasPid || null;
+  switch (el.dataset.nasAct) {
+    case 'view':       openNasPlayer(id); break;
+    case 'download':   downloadAsset(id, pid); break;
+    case 'delete':     nasMediaDelete(id); break;
+    case 'newversion': nasMediaPickVersion(id, pid); break;
+  }
+});
+
 async function loadAndRenderNasMedia(projectId) {
   const container = document.getElementById('nas-media-section');
   if (!container) return;
@@ -8920,22 +8998,28 @@ function renderNasMedia() {
     const ct = String(a.contentType || '');
     const viewable = ct.startsWith('video/') || ct.startsWith('image/');
     const openN = Number(a.openComments || 0);
-    const canNewVersion = opts.latestFinal && canUpFinal && (!locked || isPriv);
+    const manual = !!a.manual;
+    const canNewVersion = !manual && opts.latestFinal && canUpFinal && (!locked || isPriv);
+    // WICHTIG: Asset-IDs manuell abgelegter Dateien enthalten den fremd-
+    // bestimmten NAS-Dateinamen. NIE in Inline-Handler einbetten — stattdessen
+    // per escape() ins data-Attribut (nie als Code ausgewertet) + Delegation.
+    const idAttr = escape(String(a.id));
     return `
       <div class="file-uploaded" style="${opts.old ? 'opacity:0.55;' : ''}">
         <span class="nas-media-dot stored" title="Auf dem NAS gespeichert"></span>
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:7px;min-width:0;">
             <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(a.filename)}</div>
+            ${manual ? `<span class="nas-version-chip" title="Direkt auf dem NAS abgelegt">📁 NAS</span>` : ''}
             ${opts.old ? `<span class="nas-version-chip">ältere Version</span>` : ''}
-            ${a.kind === 'final' && openN > 0 ? `<span class="nas-open-badge">${openN} offen</span>` : ''}
+            ${!manual && a.kind === 'final' && openN > 0 ? `<span class="nas-open-badge">${openN} offen</span>` : ''}
           </div>
           ${meta ? `<div style="font-size:11px;color:var(--text-3);">${escape(meta)}</div>` : ''}
         </div>
-        ${viewable ? `<button type="button" class="btn btn-primary btn-sm" onclick="openNasPlayer('${a.id}')">▶ Ansehen</button>` : ''}
-        ${canNewVersion ? `<button type="button" class="btn btn-secondary btn-sm" title="Korrigierte Version hochladen" onclick="nasMediaPickVersion('${a.id}','${pid}')">⟳ Neue Version</button>` : ''}
-        <button type="button" class="btn btn-secondary btn-sm" onclick="downloadAsset('${a.id}')">⬇ Laden</button>
-        ${isPriv ? `<button type="button" class="btn btn-ghost btn-sm" title="Vom NAS löschen" onclick="nasMediaDelete('${a.id}')">🗑</button>` : ''}
+        ${viewable ? `<button type="button" class="btn btn-primary btn-sm" data-nas-act="view" data-nas-id="${idAttr}">▶ Ansehen</button>` : ''}
+        ${canNewVersion ? `<button type="button" class="btn btn-secondary btn-sm" title="Korrigierte Version hochladen" data-nas-act="newversion" data-nas-id="${idAttr}" data-nas-pid="${escape(pid)}">⟳ Neue Version</button>` : ''}
+        <button type="button" class="btn btn-secondary btn-sm" data-nas-act="download" data-nas-id="${idAttr}"${manual ? ` data-nas-pid="${escape(pid)}"` : ''}>⬇ Laden</button>
+        ${isPriv && !manual ? `<button type="button" class="btn btn-ghost btn-sm" title="Vom NAS löschen" data-nas-act="delete" data-nas-id="${idAttr}">🗑</button>` : ''}
       </div>`;
   };
 
@@ -8987,11 +9071,19 @@ function renderNasMedia() {
       <div style="display:flex;align-items:center;gap:8px;">
         <div class="cutter-detail-label" style="font-size:12px;">Medien (NAS)</div>
         <span class="badge-beta">Beta</span>
+        <button type="button" class="btn btn-ghost btn-sm" style="margin-left:auto;padding:3px 10px;"
+                title="Liste neu vom NAS laden (z. B. nach direktem Ablegen von Dateien)"
+                onclick="loadAndRenderNasMedia('${pid}')">${nasMedia.loading ? '…' : '↻ Aktualisieren'}</button>
       </div>
       ${nasMedia.error ? `<div style="font-size:12px;color:#ff453a;margin-top:8px;">NAS nicht erreichbar: ${escape(nasMedia.error)}</div>` : ''}
       ${nasMedia.loading && !nasMedia.assets.length ? `<div class="text-sm text-muted" style="margin-top:8px;">Lade Medien…</div>` : ''}
       ${group('raw', 'Rohmaterial', canUpRaw, true)}
       ${group('final', 'Finale Schnitte', canUpFinal, false)}
+      <div style="font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.5;">
+        💡 Große Dateien (mehrere GB) am besten <b>direkt auf dem NAS</b> im passenden
+        <code>raw</code>- bzw. <code>final</code>-Ordner ablegen — dann hier auf „↻ Aktualisieren".
+        Der Upload über das Tool eignet sich für kleinere Dateien.
+      </div>
     </div>`;
 }
 
@@ -9057,10 +9149,12 @@ function openNasPlayer(assetId) {
   const a = nasMedia.assets.find(x => x.id === assetId);
   if (!a) return;
   closeNasPlayer();
-  const url = `${API_BASE}/nas_media_view.php?id=${encodeURIComponent(assetId)}`;
+  let url = `${API_BASE}/nas_media_view.php?id=${encodeURIComponent(assetId)}`;
+  if (a.manual) url += `&project_id=${encodeURIComponent(nasMedia.projectId)}`;
   const isVideo = String(a.contentType || '').startsWith('video/');
-  // Review-Kommentare gibt es nur für finale Schnitte (Videos)
-  const withComments = isVideo && a.kind === 'final';
+  // Review-Kommentare gibt es nur für finale Schnitte über den Tool-Upload
+  // (manuell abgelegte NAS-Dateien haben keinen DB-Eintrag für Kommentare)
+  const withComments = isVideo && a.kind === 'final' && !a.manual;
 
   const session = getCurrentUser();
   const user = session.user;
@@ -9080,26 +9174,43 @@ function openNasPlayer(assetId) {
         <div class="nas-player-title">${escape(a.filename)}</div>
         <button type="button" class="nas-player-close" onclick="closeNasPlayer()" aria-label="Schließen">×</button>
       </div>
-      ${isVideo
-        ? `<video id="nas-player-video" controls autoplay playsinline preload="metadata" src="${url}"></video>`
-        : `<img src="${url}" alt="${escape(a.filename)}">`}
+      <div class="nas-player-media">
+        ${isVideo
+          ? `<video id="nas-player-video" controls autoplay playsinline preload="metadata" src="${url}"></video>`
+          : `<img src="${url}" alt="${escape(a.filename)}">`}
+      </div>
       ${withComments ? `
-        <div class="nas-comments-panel" id="nas-comments-panel">
-          <div class="text-sm text-muted">Lade Kommentare…</div>
-        </div>
-        ${canComment ? `
-          <div class="nas-comment-form">
-            <input type="text" id="nas-comment-input" maxlength="2000"
-                   placeholder="Verbesserungsvorschlag — Zeitstempel wird automatisch gesetzt"
-                   onkeydown="if(event.key==='Enter')nasCommentSubmit()">
-            <button type="button" class="btn btn-primary btn-sm" onclick="nasCommentSubmit()">@ Zeit kommentieren</button>
+        <div class="nas-comments-wrap">
+          <div class="nas-comments-head" id="nas-comments-head"></div>
+          <div class="nas-comments-list" id="nas-comments-list">
+            <div class="nas-comments-empty">Lade Kommentare…</div>
           </div>
-        ` : ''}
+          ${canComment ? `
+            <div class="nas-comment-form">
+              <input type="text" id="nas-comment-input" maxlength="2000"
+                     placeholder="Kommentar zur aktuellen Videostelle…"
+                     onkeydown="if(event.key==='Enter')nasCommentSubmit()">
+              <button type="button" class="btn btn-primary btn-sm" onclick="nasCommentSubmit()">Senden</button>
+            </div>
+          ` : ''}
+        </div>
       ` : ''}
     </div>`;
   document.body.appendChild(overlay);
   document.addEventListener('keydown', nasPlayerEscHandler);
   if (withComments) loadNasComments(assetId);
+}
+
+/* Avatar-Farbe deterministisch aus Namen (wie Instagram-Initialen) */
+function nasAvatarColor(name) {
+  const palette = ['#0a84ff','#30d158','#ff9f0a','#ff453a','#bf5af2','#64d2ff','#ff6482','#5e5ce6'];
+  let h = 0;
+  for (let i = 0; i < (name || '').length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return palette[h % palette.length];
+}
+function nasInitials(name) {
+  const parts = String(name || '?').trim().split(/\s+/);
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || '?';
 }
 
 /* ── Review-Kommentare im Player ─────────────────────────────────────────── */
@@ -9127,8 +9238,9 @@ async function loadNasComments(assetId) {
 }
 
 function renderNasComments() {
-  const panel = document.getElementById('nas-comments-panel');
-  if (!panel) return;
+  const head = document.getElementById('nas-comments-head');
+  const list = document.getElementById('nas-comments-list');
+  if (!list) return;
   const session = getCurrentUser();
   const user = session.user;
   const isPriv     = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
@@ -9137,35 +9249,46 @@ function renderNasComments() {
   const open     = nasPlayer.comments.filter(c => c.status === 'open');
   const resolved = nasPlayer.comments.filter(c => c.status !== 'open');
 
+  if (head) {
+    head.innerHTML = `
+      <div class="cutter-detail-label" style="font-size:12px;">Kommentare</div>
+      ${nasPlayer.comments.length
+        ? (open.length ? `<span class="nas-open-badge">${open.length} offen</span>` : `<span class="nas-version-chip">alle erledigt</span>`)
+        : ''}`;
+  }
+
+  // Instagram-Stil: Avatar · Name + Text in einer Zeile · Timecode + Zeit darunter.
+  // Klick auf den Textbereich springt zur Videostelle (für den Cutter).
   const row = (c) => {
+    const hasTc = c.timecode !== null && c.timecode !== undefined && c.timecode !== '';
     const canDelete = isPriv || c.userId === user.id;
     const when = c.createdAt ? fmtDate(String(c.createdAt).slice(0, 10)) : '';
+    const seek = hasTc ? `onclick="nasPlayerSeek(${Number(c.timecode)})" title="Zur Stelle springen"` : '';
     return `
       <div class="nas-comment-row ${c.status !== 'open' ? 'resolved' : ''}">
-        ${canResolve
-          ? `<input type="checkbox" ${c.status !== 'open' ? 'checked' : ''} title="${c.status !== 'open' ? 'Wieder öffnen' : 'Als erledigt abhaken'}"
-               onchange="nasCommentToggle('${c.id}', this.checked)" style="margin-top:3px;flex-shrink:0;">`
-          : `<span class="nas-media-dot ${c.status !== 'open' ? 'stored' : 'error'}" style="margin-top:5px;"></span>`}
-        ${c.timecode !== null && c.timecode !== undefined
-          ? `<button type="button" class="nas-tc-chip" onclick="nasPlayerSeek(${Number(c.timecode)})">${nasFmtTimecode(c.timecode)}</button>`
-          : ''}
-        <div class="nas-comment-body">
-          <div>${escape(c.body)}</div>
-          <div class="nas-comment-meta">${escape(c.userName || '?')}${when ? ' · ' + when : ''}</div>
+        <div class="nas-comment-avatar" style="background:${nasAvatarColor(c.userName)}">${escape(nasInitials(c.userName))}</div>
+        <div class="nas-comment-main" ${seek}>
+          <div class="nas-comment-line">
+            <span class="nas-comment-author">${escape(c.userName || '?')}</span><span class="nas-comment-text">${escape(c.body)}</span>
+          </div>
+          <div class="nas-comment-sub">
+            ${hasTc ? `<span class="nas-tc-chip">▶ ${nasFmtTimecode(c.timecode)}</span>` : ''}
+            ${when ? `<span>${when}</span>` : ''}
+            ${c.status !== 'open' ? `<span>· erledigt</span>` : ''}
+          </div>
         </div>
-        ${canDelete ? `<button type="button" class="btn btn-ghost btn-sm" style="padding:2px 7px;" title="Kommentar löschen" onclick="nasCommentDelete('${c.id}')">×</button>` : ''}
+        ${canResolve
+          ? `<input type="checkbox" class="nas-comment-check" ${c.status !== 'open' ? 'checked' : ''}
+               title="${c.status !== 'open' ? 'Wieder öffnen' : 'Als erledigt abhaken'}"
+               onchange="nasCommentToggle('${c.id}', this.checked)">`
+          : ''}
+        ${canDelete ? `<button type="button" class="nas-comment-del" title="Löschen" onclick="nasCommentDelete('${c.id}')">×</button>` : ''}
       </div>`;
   };
 
-  panel.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-      <div class="cutter-detail-label">Review-Kommentare</div>
-      ${open.length ? `<span class="nas-open-badge">${open.length} offen</span>` : `<span class="nas-version-chip">alle erledigt</span>`}
-    </div>
-    ${nasPlayer.comments.length
-      ? open.map(row).join('') + resolved.map(row).join('')
-      : `<div class="text-sm text-muted">Noch keine Kommentare. ${nasPlayer.loading ? '' : 'Klick auf „@ Zeit kommentieren" hält die aktuelle Videostelle fest.'}</div>`}
-  `;
+  list.innerHTML = nasPlayer.comments.length
+    ? open.map(row).join('') + resolved.map(row).join('')
+    : `<div class="nas-comments-empty">${nasPlayer.loading ? 'Lade Kommentare…' : 'Noch keine Kommentare.'}</div>`;
 }
 
 function nasPlayerSeek(t) {
@@ -9173,6 +9296,10 @@ function nasPlayerSeek(t) {
   if (!v) return;
   v.currentTime = Math.max(0, Number(t) || 0);
   v.play().catch(() => {});
+  // Auf dem Handy: hoch zum Video scrollen, damit man die Stelle sieht
+  if (window.matchMedia('(max-width: 640px)').matches) {
+    document.querySelector('.nas-player-media')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 async function nasCommentSubmit() {
