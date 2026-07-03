@@ -8,6 +8,7 @@ require_once __DIR__ . '/../includes/auth-check.php';
 require_once __DIR__ . '/access.php';
 require_once __DIR__ . '/NasWebDAV.php';
 require_once __DIR__ . '/nas_provision.php';
+require_once __DIR__ . '/nas_cache.php';
 
 $session = require_login();
 $method  = $_SERVER['REQUEST_METHOD'];
@@ -149,9 +150,18 @@ if ($method === 'PUT' && $id) {
     $contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
     $contentType   = $_SERVER['CONTENT_TYPE'] ?? (string)$a['content_type'];
 
+    // Finale Schnitte: Review-Kopie auf Netcup beim Durchleiten mitschreiben,
+    // damit der Player sie ohne Tunnel-Roundtrip abspielen kann. Raw bleibt
+    // reines Streaming ohne Disk-Nutzung.
+    $teePath = null;
+    if ($a['kind'] === 'final') {
+        @mkdir(NAS_CACHE_DIR, 0775, true);
+        $teePath = nas_cache_path((string)$id);
+    }
+
     try {
         $nas = new NasWebDAV();
-        $nas->putStream((string)$a['nas_key'], $contentLength, $contentType);
+        $nas->putStream((string)$a['nas_key'], $contentLength, $contentType, $teePath);
     } catch (\Throwable $e) {
         db_exec("UPDATE assets SET status = 'failed' WHERE id = ?", [$id]);
         json_err(502, 'NAS-Upload fehlgeschlagen: ' . $e->getMessage());
@@ -212,6 +222,7 @@ if ($method === 'DELETE' && $id) {
         error_log('[nas_assets DELETE] NAS delete failed for ' . $a['nas_key'] . ': ' . $e->getMessage());
     }
 
+    nas_cache_delete((string)$id);
     db_exec("DELETE FROM assets WHERE id = ?", [$id]);
     log_activity('asset', $id, 'deleted');
     json_ok(['id' => $id]);

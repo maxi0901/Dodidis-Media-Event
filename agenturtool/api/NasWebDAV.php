@@ -64,20 +64,43 @@ class NasWebDAV
 
     /**
      * Stream php://input directly to NAS via PUT.
-     * No temp file, no disk usage on Netcup.
+     * Raw-Uploads: kein Temp-File, keine Disk-Nutzung auf Netcup.
      *
-     * @param int $contentLength  Value of Content-Length header (0 = unknown/chunked)
+     * @param int         $contentLength  Value of Content-Length header (0 = unknown/chunked)
+     * @param string|null $teePath        Optional: Kopie beim Hochladen lokal mitschreiben
+     *                                    (Review-Cache für finale Schnitte — bewusste
+     *                                    Produktentscheidung, gilt nur für kind=final).
+     *                                    Single-Pass: der Stream wird beim Durchleiten
+     *                                    geschrieben, kein doppelter Transfer.
      */
-    public function putStream(string $key, int $contentLength, string $contentType): void
+    public function putStream(string $key, int $contentLength, string $contentType, ?string $teePath = null): void
     {
         $fh = fopen('php://input', 'r');
         if (!$fh) {
             throw new \RuntimeException('Konnte php://input nicht öffnen.');
         }
 
+        $tee = null;
+        if ($teePath !== null) {
+            $tee = @fopen($teePath, 'wb');
+            if (!$tee) {
+                // Cache ist best-effort — Upload läuft ohne Kopie weiter
+                error_log('[NasWebDAV] Tee-Datei nicht schreibbar: ' . $teePath);
+            }
+        }
+
         $ch = $this->newCurl($this->url($key));
-        curl_setopt($ch, CURLOPT_PUT, true);
-        curl_setopt($ch, CURLOPT_INFILE, $fh);
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        if ($tee) {
+            curl_setopt($ch, CURLOPT_READFUNCTION, static function ($ch, $ignored, int $length) use ($fh, $tee): string {
+                $chunk = fread($fh, $length);
+                if ($chunk === false || $chunk === '') return '';
+                fwrite($tee, $chunk);
+                return $chunk;
+            });
+        } else {
+            curl_setopt($ch, CURLOPT_INFILE, $fh);
+        }
         if ($contentLength > 0) {
             curl_setopt($ch, CURLOPT_INFILESIZE, $contentLength);
         }
@@ -87,8 +110,23 @@ class NasWebDAV
         ]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
-        $code = $this->exec($ch);
+        try {
+            $code = $this->exec($ch);
+        } catch (\Throwable $e) {
+            fclose($fh);
+            if ($tee) { fclose($tee); @unlink($teePath); }
+            throw $e;
+        }
         fclose($fh);
+
+        if ($tee) {
+            fclose($tee);
+            // Unvollständige oder fehlgeschlagene Kopien nicht behalten
+            $badSize = $contentLength > 0 && @filesize($teePath) !== $contentLength;
+            if ($code !== 201 && $code !== 204 || $badSize) {
+                @unlink($teePath);
+            }
+        }
 
         if ($code !== 201 && $code !== 204) {
             throw new \RuntimeException("PUT {$key} lieferte HTTP {$code}");
@@ -100,12 +138,12 @@ class NasWebDAV
      * Sends Content-Disposition: attachment so the browser downloads it.
      * No buffering to Netcup disk.
      */
-    public function passthru(string $key, string $filename): void
+    public function passthru(string $key, string $filename, string $disposition = 'attachment'): void
     {
         [$ctype, $size] = $this->head($key);
 
         header('Content-Type: ' . ($ctype ?: 'application/octet-stream'));
-        header('Content-Disposition: attachment; filename="' . str_replace('"', '\\"', $filename) . '"');
+        header('Content-Disposition: ' . $disposition . '; filename="' . str_replace('"', '\\"', $filename) . '"');
         if ($size > 0) {
             header('Content-Length: ' . $size);
         }

@@ -6,6 +6,7 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth-check.php';
 require_once __DIR__ . '/nas_provision.php';
+require_once __DIR__ . '/nas_cache.php';
 
 $session = require_login();
 $method  = $_SERVER['REQUEST_METHOD'];
@@ -187,6 +188,11 @@ switch ($method) {
         // → NAS-Ordner automatisch anlegen (best-effort, blockiert nie)
         if (!empty($params['customer_id']) && empty($cur['customer_id'])) {
             nas_provision_project_quietly($id);
+        }
+
+        // Archiviert → Review-Kopien auf Netcup freigeben (NAS bleibt unberührt)
+        if (($params['status'] ?? '') === 'archiviert') {
+            nas_cache_purge_project($id);
         }
 
         log_activity('project', $id, 'edited', ['fields' => array_keys($params)]);
