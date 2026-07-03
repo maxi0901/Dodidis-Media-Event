@@ -23,8 +23,25 @@ if (($session['type'] ?? '') !== 'staff') {
     json_err(403, 'Nur Mitarbeiter dürfen Medien ansehen.');
 }
 
-$id = $_GET['id'] ?? null;
+$id     = $_GET['id'] ?? null;
+$projId = $_GET['project_id'] ?? null;
 if (!$id) json_err(400, 'id fehlt.');
+
+@set_time_limit(0);
+
+// Manuell abgelegte NAS-Datei (kein DB-Eintrag): direkt vom NAS inline streamen.
+if (str_starts_with((string)$id, 'nas:')) {
+    if (!$projId) json_err(400, 'project_id fehlt.');
+    require_once __DIR__ . '/nas_files.php'; // stellt nas_resolve_manual bereit
+    [$key, $fname, ] = nas_resolve_manual((string)$id, (string)$projId, $session);
+    while (ob_get_level() > 0) ob_end_clean();
+    try {
+        (new NasWebDAV())->passthru($key, $fname, 'inline');
+    } catch (\Throwable $e) {
+        if (!headers_sent()) { http_response_code(502); echo 'NAS-Fehler'; }
+    }
+    exit;
+}
 
 $a = db_one("SELECT * FROM assets WHERE id = ?", [$id]);
 if (!$a) json_err(404, 'Asset nicht gefunden.');

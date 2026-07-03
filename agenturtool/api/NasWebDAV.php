@@ -208,6 +208,80 @@ class NasWebDAV
         }
     }
 
+    /**
+     * List files directly in a NAS directory (PROPFIND Depth: 1).
+     * Nur Dateien (keine Unterordner), relativ zum Verzeichnis.
+     *
+     * @return array<int, array{name:string, size:int, ctype:string}>
+     *         Leeres Array, wenn das Verzeichnis nicht existiert (404).
+     */
+    public function listDir(string $path): array
+    {
+        $dirUrl = $this->url(rtrim($path, '/')) . '/';
+        $ch = $this->newCurl($dirUrl);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PROPFIND');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Depth: 1', 'Content-Type: application/xml']);
+        curl_setopt($ch, CURLOPT_POSTFIELDS,
+            '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop>'
+            . '<d:resourcetype/><d:getcontentlength/><d:getcontenttype/></d:prop></d:propfind>');
+
+        $body = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+
+        if ($err) throw new \RuntimeException("PROPFIND {$path} cURL error: {$err}");
+        if ($code === 404) return [];
+        if ($code !== 207 && $code !== 200) {
+            throw new \RuntimeException("PROPFIND {$path} lieferte HTTP {$code}");
+        }
+
+        return $this->parsePropfind((string)$body);
+    }
+
+    /** Parse a WebDAV multistatus XML into a flat file list (collections skipped). */
+    private function parsePropfind(string $xml): array
+    {
+        if ($xml === '') return [];
+        $prev = libxml_use_internal_errors(true);
+        $doc = simplexml_load_string($xml);
+        libxml_use_internal_errors($prev);
+        if ($doc === false) return [];
+
+        // DAV:-Namespace robust registrieren (Präfix variiert je nach Server)
+        $ns = $doc->getNamespaces(true);
+        $davPrefix = 'd';
+        foreach ($ns as $p => $uri) {
+            if (strtoupper((string)$uri) === 'DAV:') { $davPrefix = $p ?: 'd'; break; }
+        }
+        $doc->registerXPathNamespace('d', 'DAV:');
+
+        $out = [];
+        foreach ($doc->xpath('//d:response') ?: [] as $resp) {
+            $resp->registerXPathNamespace('d', 'DAV:');
+            $hrefN = $resp->xpath('d:href');
+            if (!$hrefN) continue;
+            $href = rawurldecode(trim((string)$hrefN[0]));
+
+            // Kollektionen (Ordner) überspringen
+            $isDir = $resp->xpath('.//d:resourcetype/d:collection');
+            if ($href === '' || substr($href, -1) === '/' || $isDir) continue;
+
+            $name = basename(rtrim($href, '/'));
+            if ($name === '' || $name[0] === '.') continue; // versteckte Dateien ignorieren
+
+            $sizeN  = $resp->xpath('.//d:getcontentlength');
+            $ctypeN = $resp->xpath('.//d:getcontenttype');
+            $out[] = [
+                'name'  => $name,
+                'size'  => $sizeN  ? (int)(string)$sizeN[0] : 0,
+                'ctype' => $ctypeN ? (string)$ctypeN[0] : '',
+            ];
+        }
+        return $out;
+    }
+
     // ── private helpers ───────────────────────────────────────────────────────
 
     private function newCurl(string $url): \CurlHandle

@@ -55,7 +55,15 @@ async function uploadAsset(file, projectId, { kind = 'raw', parentId = null, onP
       if (xhr.status < 400) resolve();
       else reject(new Error(`Upload fehlgeschlagen: HTTP ${xhr.status} — ${xhr.responseText.slice(0, 200)}`));
     });
-    xhr.addEventListener('error', () => reject(new Error('Netzwerkfehler beim Upload')));
+    // Netzwerkfehler bei großen Dateien = meist Server-/Proxy-Limit auf dem
+    // Durchleitungsweg. Hinweis auf den direkten NAS-Weg geben.
+    const big = file.size > 500 * 1024 * 1024;
+    xhr.addEventListener('error', () => reject(new Error(
+      'Netzwerkfehler beim Upload' + (big
+        ? ' — die Datei ist sehr groß. Bitte direkt auf dem NAS im Ordner ablegen und „↻ Aktualisieren" klicken.'
+        : '.')
+    )));
+    xhr.addEventListener('timeout', () => reject(new Error('Zeitüberschreitung beim Upload')));
     xhr.addEventListener('abort', () => reject(new Error('Upload abgebrochen')));
     xhr.send(file);
   });
@@ -81,8 +89,10 @@ async function uploadAsset(file, projectId, { kind = 'raw', parentId = null, onP
  * Trigger a browser download for a stored asset.
  * The server streams the file with Content-Disposition: attachment.
  */
-function downloadAsset(assetId) {
-  const url = `${API_BASE}/nas_assets.php?id=${encodeURIComponent(assetId)}`;
+function downloadAsset(assetId, projectId = null) {
+  // Manuell abgelegte NAS-Dateien (id beginnt mit "nas:") brauchen die project_id
+  let url = `${API_BASE}/nas_assets.php?id=${encodeURIComponent(assetId)}`;
+  if (projectId) url += `&project_id=${encodeURIComponent(projectId)}`;
   const a = document.createElement('a');
   a.href = url;
   a.download = '';

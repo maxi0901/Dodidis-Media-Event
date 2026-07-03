@@ -9,6 +9,7 @@ require_once __DIR__ . '/access.php';
 require_once __DIR__ . '/NasWebDAV.php';
 require_once __DIR__ . '/nas_provision.php';
 require_once __DIR__ . '/nas_cache.php';
+require_once __DIR__ . '/nas_files.php';
 
 $session = require_login();
 $method  = $_SERVER['REQUEST_METHOD'];
@@ -53,8 +54,48 @@ if ($method === 'GET' && $projId && !$id) {
 
     foreach ($rows as &$r) {
         $r['openComments'] = $openByAsset[$r['id']] ?? 0;
+        $r['manual'] = false;
     }
     unset($r);
+
+    // Manuell auf dem NAS abgelegte Dateien mit auflisten (ohne DB-Eintrag).
+    // So tauchen Dateien auf, die jemand direkt in raw/ oder final/ kopiert hat
+    // (z. B. großes Rohmaterial per SMB/lokal statt über den Upload-Durchlauf).
+    $proj = db_one("SELECT nas_folder FROM projects WHERE id = ?", [$projId]);
+    if ($proj && !empty($proj['nas_folder'])) {
+        // Basenames aller bekannten DB-Assets (nas_key steht nicht im Listing-SELECT)
+        $known = [];
+        foreach (db_all("SELECT nas_key FROM assets WHERE project_id = ?", [$projId]) as $k) {
+            $known[basename((string)$k['nas_key'])] = true;
+        }
+
+        try {
+            $nas = new NasWebDAV();
+            foreach (['raw', 'final'] as $kind) {
+                foreach ($nas->listDir($proj['nas_folder'] . '/' . $kind) as $f) {
+                    if (!empty($known[$f['name']])) continue; // schon als DB-Asset gelistet
+                    $rows[] = [
+                        'id'          => 'nas:' . $kind . ':' . $f['name'],
+                        'projectId'   => $projId,
+                        'kind'        => $kind,
+                        'parentId'    => null,
+                        'filename'    => $f['name'],
+                        'contentType' => $f['ctype'] ?: nas_guess_ctype($f['name']),
+                        'sizeBytes'   => $f['size'],
+                        'status'      => 'stored',
+                        'uploadedBy'  => null,
+                        'createdAt'   => null,
+                        'confirmedAt' => null,
+                        'openComments'=> 0,
+                        'manual'      => true,
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('[nas_assets] NAS-Listing für ' . $projId . ' fehlgeschlagen: ' . $e->getMessage());
+        }
+    }
+
     json_ok($rows);
 }
 
@@ -220,6 +261,25 @@ if ($method === 'PUT' && $id) {
 
     log_activity('asset', $id, 'uploaded', ['size' => $contentLength]);
     json_ok(asset_to_doc(db_one("SELECT * FROM assets WHERE id = ?", [$id])));
+}
+
+// ── Route: GET ?id=nas:kind:name — manuelle NAS-Datei herunterladen ──────────
+if ($method === 'GET' && $id && str_starts_with((string)$id, 'nas:')) {
+    if (!$projId) json_err(400, 'project_id fehlt für manuelle NAS-Datei.');
+    [$key, $fname, ] = nas_resolve_manual((string)$id, (string)$projId, $session);
+    log_activity('asset', 'manual', 'downloaded', ['project' => $projId, 'file' => $fname]);
+    try {
+        $nas = new NasWebDAV();
+        while (ob_get_level() > 0) ob_end_clean();
+        $nas->passthru($key, $fname);
+    } catch (\Throwable $e) {
+        if (!headers_sent()) {
+            http_response_code(502);
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => false, 'error' => 'NAS nicht erreichbar: ' . $e->getMessage()]);
+        }
+    }
+    exit;
 }
 
 // ── Route: GET ?id= — download (passthru from NAS) ───────────────────────────
