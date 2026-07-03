@@ -60,7 +60,11 @@ switch ($method) {
         if (!$title) json_err(400, 'title ist Pflicht.');
         $newId = $b['id'] ?? uid('t');
 
-        $assignees = array_values(array_filter((array)($b['assigneeIds'] ?? []), 'is_string'));
+        // Serverseitig erzwingen: reine Cutter/Mitarbeiter dürfen Aufgaben nur
+        // sich selbst oder HÖHEREN Rollen zuweisen — nie gleichgestellten Peers
+        // (z. B. anderen Cuttern). Deckt auch gebastelte Requests ab, die die
+        // UI-Auswahl umgehen.
+        $assignees = filter_allowed_assignees((array)($b['assigneeIds'] ?? []), $session);
         $pdo = db();
         $pdo->beginTransaction();
         try {
@@ -153,6 +157,45 @@ switch ($method) {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * Rollen-Level (muss zur Frontend-Hierarchie passen):
+ * admin > manager > videograf > cutter = mitarbeiter = contract_uploader.
+ */
+function role_level_of(array $roles): int
+{
+    static $map = ['admin'=>4,'manager'=>3,'videograf'=>2,'cutter'=>1,'mitarbeiter'=>1,'contract_uploader'=>1];
+    $lvl = 0;
+    foreach ($roles as $r) $lvl = max($lvl, $map[$r] ?? 0);
+    return $lvl;
+}
+
+/**
+ * Beschränkt eine Zuweisungsliste auf das, was der Ersteller vergeben darf.
+ * Admin/Manager/Videograf dürfen jeden zuweisen. Alle anderen nur sich selbst
+ * plus echt höhere Rollen — spiegelt getAssignableUsersFor() im Frontend.
+ */
+function filter_allowed_assignees(array $requested, array $session): array
+{
+    $requested = array_values(array_unique(array_filter($requested, 'is_string')));
+    if (has_role('admin', 'manager', 'videograf')) return $requested;
+    if (!$requested) return [];
+
+    $uid     = $session['uid'];
+    $myLevel = role_level_of((array)($session['roles'] ?? []));
+
+    $place = implode(',', array_fill(0, count($requested), '?'));
+    $rows  = db_all("SELECT user_id, role_name FROM user_roles WHERE user_id IN ($place)", $requested);
+    $byUser = [];
+    foreach ($rows as $r) $byUser[$r['user_id']][] = $r['role_name'];
+
+    $allowed = [];
+    foreach ($requested as $id) {
+        if ($id === $uid) { $allowed[] = $id; continue; }             // sich selbst
+        if (role_level_of($byUser[$id] ?? []) > $myLevel) $allowed[] = $id; // echt höher
+    }
+    return $allowed;
+}
 
 function sync_assignees(string $todoId, array $userIds): void
 {
