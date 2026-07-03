@@ -8928,6 +8928,22 @@ async function saveCutterNasExport(projectId) {
 const nasMedia = { projectId: null, assets: [], uploads: [], loading: false, error: null };
 let nasUploadSeq = 0;
 
+// Zentrale Event-Delegation für Medien-Zeilen-Buttons. data-nas-id wird vom
+// Browser aus dem (per escape() abgesicherten) Attribut dekodiert und NIE als
+// Code ausgewertet — dadurch sind auch NAS-Dateinamen mit Sonderzeichen sicher.
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-nas-act]');
+  if (!el) return;
+  const id  = el.dataset.nasId;
+  const pid = el.dataset.nasPid || null;
+  switch (el.dataset.nasAct) {
+    case 'view':       openNasPlayer(id); break;
+    case 'download':   downloadAsset(id, pid); break;
+    case 'delete':     nasMediaDelete(id); break;
+    case 'newversion': nasMediaPickVersion(id, pid); break;
+  }
+});
+
 async function loadAndRenderNasMedia(projectId) {
   const container = document.getElementById('nas-media-section');
   if (!container) return;
@@ -8984,7 +9000,10 @@ function renderNasMedia() {
     const openN = Number(a.openComments || 0);
     const manual = !!a.manual;
     const canNewVersion = !manual && opts.latestFinal && canUpFinal && (!locked || isPriv);
-    const aid = String(a.id).replace(/'/g, "\\'");
+    // WICHTIG: Asset-IDs manuell abgelegter Dateien enthalten den fremd-
+    // bestimmten NAS-Dateinamen. NIE in Inline-Handler einbetten — stattdessen
+    // per escape() ins data-Attribut (nie als Code ausgewertet) + Delegation.
+    const idAttr = escape(String(a.id));
     return `
       <div class="file-uploaded" style="${opts.old ? 'opacity:0.55;' : ''}">
         <span class="nas-media-dot stored" title="Auf dem NAS gespeichert"></span>
@@ -8997,10 +9016,10 @@ function renderNasMedia() {
           </div>
           ${meta ? `<div style="font-size:11px;color:var(--text-3);">${escape(meta)}</div>` : ''}
         </div>
-        ${viewable ? `<button type="button" class="btn btn-primary btn-sm" onclick="openNasPlayer('${aid}')">▶ Ansehen</button>` : ''}
-        ${canNewVersion ? `<button type="button" class="btn btn-secondary btn-sm" title="Korrigierte Version hochladen" onclick="nasMediaPickVersion('${aid}','${pid}')">⟳ Neue Version</button>` : ''}
-        <button type="button" class="btn btn-secondary btn-sm" onclick="downloadAsset('${aid}'${manual ? `,'${pid}'` : ''})">⬇ Laden</button>
-        ${isPriv && !manual ? `<button type="button" class="btn btn-ghost btn-sm" title="Vom NAS löschen" onclick="nasMediaDelete('${aid}')">🗑</button>` : ''}
+        ${viewable ? `<button type="button" class="btn btn-primary btn-sm" data-nas-act="view" data-nas-id="${idAttr}">▶ Ansehen</button>` : ''}
+        ${canNewVersion ? `<button type="button" class="btn btn-secondary btn-sm" title="Korrigierte Version hochladen" data-nas-act="newversion" data-nas-id="${idAttr}" data-nas-pid="${escape(pid)}">⟳ Neue Version</button>` : ''}
+        <button type="button" class="btn btn-secondary btn-sm" data-nas-act="download" data-nas-id="${idAttr}"${manual ? ` data-nas-pid="${escape(pid)}"` : ''}>⬇ Laden</button>
+        ${isPriv && !manual ? `<button type="button" class="btn btn-ghost btn-sm" title="Vom NAS löschen" data-nas-act="delete" data-nas-id="${idAttr}">🗑</button>` : ''}
       </div>`;
   };
 
