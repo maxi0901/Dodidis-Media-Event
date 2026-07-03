@@ -989,8 +989,49 @@
   }
   .nas-player-close:hover { background:rgba(255,255,255,0.2); }
   .nas-player-box video, .nas-player-box img {
-    width:100%; max-height:78vh; border-radius:12px;
+    width:100%; max-height:58vh; border-radius:12px;
     background:#000; display:block; object-fit:contain;
+  }
+
+  /* Review-Kommentare im Player */
+  .nas-open-badge {
+    display:inline-block; font-size:10.5px; font-weight:700;
+    color:#ff9f0a; background:rgba(255,159,10,0.14);
+    border:1px solid rgba(255,159,10,0.3); border-radius:5px;
+    padding:1px 6px; flex-shrink:0;
+  }
+  .nas-version-chip {
+    display:inline-block; font-size:10px; font-weight:600;
+    color:var(--text-3); background:rgba(255,255,255,0.06);
+    border-radius:4px; padding:1px 6px; flex-shrink:0;
+  }
+  .nas-comments-panel {
+    margin-top:12px; background:var(--bg-1, #16161a);
+    border:1px solid var(--border, #2a2a2e); border-radius:12px;
+    padding:14px; max-height:30vh; overflow-y:auto;
+  }
+  .nas-comment-row {
+    display:flex; align-items:flex-start; gap:9px;
+    padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);
+    font-size:13px;
+  }
+  .nas-comment-row:last-child { border-bottom:none; }
+  .nas-comment-row.resolved { opacity:0.5; }
+  .nas-comment-row.resolved .nas-comment-body { text-decoration:line-through; }
+  .nas-tc-chip {
+    background:rgba(10,132,255,0.15); color:#64b5ff;
+    font-family:monospace; font-size:11.5px; font-weight:700;
+    border:none; border-radius:5px; padding:2px 7px;
+    cursor:pointer; flex-shrink:0; margin-top:1px;
+  }
+  .nas-tc-chip:hover { background:rgba(10,132,255,0.3); }
+  .nas-comment-body { flex:1; min-width:0; word-break:break-word; }
+  .nas-comment-meta { font-size:10.5px; color:var(--text-3); margin-top:2px; }
+  .nas-comment-form { display:flex; gap:8px; margin-top:10px; }
+  .nas-comment-form input[type=text] {
+    flex:1; background:var(--bg-2, #1e1e22); color:inherit;
+    border:1px solid var(--border, #2a2a2e); border-radius:8px;
+    padding:9px 12px; font-size:13px;
   }
 
   .badge-status-onboarding { color: #ff9f0a; background: rgba(255,159,10,0.12); border-color: rgba(255,159,10,0.25); }
@@ -8866,7 +8907,10 @@ function renderNasMedia() {
   const canUpFinal = isPriv || hasRole(user, ROLES.CUTTER);
   const pid        = nasMedia.projectId;
 
-  const assetRow = (a) => {
+  const proj   = store.projects.find(p => p.id === pid);
+  const locked = !!proj && ['freigegeben', 'archiviert'].includes(proj.status);
+
+  const assetRow = (a, opts = {}) => {
     const uploader = store.users.find(u => u.id === a.uploadedBy);
     const meta = [
       nasFmtBytes(a.sizeBytes),
@@ -8875,14 +8919,21 @@ function renderNasMedia() {
     ].filter(Boolean).join(' · ');
     const ct = String(a.contentType || '');
     const viewable = ct.startsWith('video/') || ct.startsWith('image/');
+    const openN = Number(a.openComments || 0);
+    const canNewVersion = opts.latestFinal && canUpFinal && (!locked || isPriv);
     return `
-      <div class="file-uploaded">
+      <div class="file-uploaded" style="${opts.old ? 'opacity:0.55;' : ''}">
         <span class="nas-media-dot stored" title="Auf dem NAS gespeichert"></span>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(a.filename)}</div>
+          <div style="display:flex;align-items:center;gap:7px;min-width:0;">
+            <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(a.filename)}</div>
+            ${opts.old ? `<span class="nas-version-chip">ältere Version</span>` : ''}
+            ${a.kind === 'final' && openN > 0 ? `<span class="nas-open-badge">${openN} offen</span>` : ''}
+          </div>
           ${meta ? `<div style="font-size:11px;color:var(--text-3);">${escape(meta)}</div>` : ''}
         </div>
         ${viewable ? `<button type="button" class="btn btn-primary btn-sm" onclick="openNasPlayer('${a.id}')">▶ Ansehen</button>` : ''}
+        ${canNewVersion ? `<button type="button" class="btn btn-secondary btn-sm" title="Korrigierte Version hochladen" onclick="nasMediaPickVersion('${a.id}','${pid}')">⟳ Neue Version</button>` : ''}
         <button type="button" class="btn btn-secondary btn-sm" onclick="downloadAsset('${a.id}')">⬇ Laden</button>
         ${isPriv ? `<button type="button" class="btn btn-ghost btn-sm" title="Vom NAS löschen" onclick="nasMediaDelete('${a.id}')">🗑</button>` : ''}
       </div>`;
@@ -8905,16 +8956,29 @@ function renderNasMedia() {
   const group = (kind, label, canUpload, multiple) => {
     const assets  = nasMedia.assets.filter(a => a.kind === kind);
     const uploads = nasMedia.uploads.filter(u => u.kind === kind);
+
+    // Finale Schnitte: „ersetzt" ist ein Asset nur, wenn eine neuere Version
+    // per parent_id darauf zeigt (Versionskette). Eigenständige Deliverables
+    // (z. B. Imagefilm UND Teaser) gelten alle als aktuell und behalten ihren
+    // „Neue Version"-Button. Nach Abnahme ist der Upload für Cutter eingefroren.
+    const uploadAllowed = canUpload && (kind !== 'final' || !locked || isPriv);
+    const superseded = kind === 'final'
+      ? new Set(assets.map(a => a.parentId).filter(Boolean))
+      : new Set();
+    const rows = kind === 'final'
+      ? assets.map(a => assetRow(a, { old: superseded.has(a.id), latestFinal: !superseded.has(a.id) })).join('')
+      : assets.map(a => assetRow(a)).join('');
+
     return `
       <div style="margin-top:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <div class="cutter-detail-label">${label}</div>
-          ${canUpload ? `<button type="button" class="btn btn-secondary btn-sm" onclick="nasMediaPick('${kind}','${pid}')">+ Hochladen${multiple ? ' (mehrere)' : ''}</button>` : ''}
+          ${uploadAllowed
+            ? `<button type="button" class="btn btn-secondary btn-sm" onclick="nasMediaPick('${kind}','${pid}')">+ Hochladen${multiple ? ' (mehrere)' : ''}</button>`
+            : (kind === 'final' && locked ? `<span class="nas-version-chip" title="Projekt ist abgenommen">🔒 abgenommen</span>` : '')}
         </div>
         ${uploads.map(uploadRow).join('')}
-        ${assets.length
-          ? assets.map(assetRow).join('')
-          : (uploads.length ? '' : `<div class="text-sm text-muted">Noch keine Dateien.</div>`)}
+        ${rows || (uploads.length ? '' : `<div class="text-sm text-muted">Noch keine Dateien.</div>`)}
       </div>`;
   };
 
@@ -8931,21 +8995,26 @@ function renderNasMedia() {
     </div>`;
 }
 
-function nasMediaPick(kind, projectId) {
+function nasMediaPick(kind, projectId, parentId = null) {
   const input = document.createElement('input');
   input.type = 'file';
-  input.multiple = kind === 'raw';
+  input.multiple = kind === 'raw' && !parentId;
   input.style.display = 'none';
   document.body.appendChild(input);
   input.onchange = (e) => {
     const files = Array.from(e.target.files || []);
     document.body.removeChild(input);
-    if (files.length) nasMediaStartUploads(kind, projectId, files);
+    if (files.length) nasMediaStartUploads(kind, projectId, files, parentId);
   };
   input.click();
 }
 
-async function nasMediaStartUploads(kind, projectId, files) {
+// Korrigierte Version eines finalen Schnitts hochladen (Versionskette via parent_id)
+function nasMediaPickVersion(parentAssetId, projectId) {
+  nasMediaPick('final', projectId, parentAssetId);
+}
+
+async function nasMediaStartUploads(kind, projectId, files, parentId = null) {
   // Sequentiell hochladen — schont Netcup-Limits und den Tunnel
   for (const file of files) {
     const u = { key: 'u' + (++nasUploadSeq), name: file.name, kind, pct: 0, error: null };
@@ -8954,6 +9023,7 @@ async function nasMediaStartUploads(kind, projectId, files) {
     try {
       const asset = await uploadAsset(file, projectId, {
         kind,
+        parentId,
         onProgress: (pct) => {
           u.pct = pct;
           const bar = document.getElementById('nas-up-bar-' + u.key);
@@ -8981,12 +9051,24 @@ function nasMediaDismissUpload(key) {
 /* Review-Player: eigenes Overlay ÜBER dem Projekt-Modal (das bleibt offen).
    Videos kommen aus der Netcup-Review-Kopie mit Range-Support → Spulen geht.
    Fallback ohne Kopie: Direkt-Stream vom NAS (abspielbar, ohne Seek). */
+const nasPlayer = { assetId: null, comments: [], loading: false };
+
 function openNasPlayer(assetId) {
   const a = nasMedia.assets.find(x => x.id === assetId);
   if (!a) return;
   closeNasPlayer();
   const url = `${API_BASE}/nas_media_view.php?id=${encodeURIComponent(assetId)}`;
   const isVideo = String(a.contentType || '').startsWith('video/');
+  // Review-Kommentare gibt es nur für finale Schnitte (Videos)
+  const withComments = isVideo && a.kind === 'final';
+
+  const session = getCurrentUser();
+  const user = session.user;
+  const canComment = hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF);
+
+  nasPlayer.assetId  = assetId;
+  nasPlayer.comments = [];
+  nasPlayer.loading  = withComments;
 
   const overlay = document.createElement('div');
   overlay.className = 'nas-player-backdrop';
@@ -8999,11 +9081,169 @@ function openNasPlayer(assetId) {
         <button type="button" class="nas-player-close" onclick="closeNasPlayer()" aria-label="Schließen">×</button>
       </div>
       ${isVideo
-        ? `<video controls autoplay playsinline preload="metadata" src="${url}"></video>`
+        ? `<video id="nas-player-video" controls autoplay playsinline preload="metadata" src="${url}"></video>`
         : `<img src="${url}" alt="${escape(a.filename)}">`}
+      ${withComments ? `
+        <div class="nas-comments-panel" id="nas-comments-panel">
+          <div class="text-sm text-muted">Lade Kommentare…</div>
+        </div>
+        ${canComment ? `
+          <div class="nas-comment-form">
+            <input type="text" id="nas-comment-input" maxlength="2000"
+                   placeholder="Verbesserungsvorschlag — Zeitstempel wird automatisch gesetzt"
+                   onkeydown="if(event.key==='Enter')nasCommentSubmit()">
+            <button type="button" class="btn btn-primary btn-sm" onclick="nasCommentSubmit()">@ Zeit kommentieren</button>
+          </div>
+        ` : ''}
+      ` : ''}
     </div>`;
   document.body.appendChild(overlay);
   document.addEventListener('keydown', nasPlayerEscHandler);
+  if (withComments) loadNasComments(assetId);
+}
+
+/* ── Review-Kommentare im Player ─────────────────────────────────────────── */
+
+function nasFmtTimecode(sec) {
+  sec = Math.max(0, Math.floor(Number(sec) || 0));
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  const mm = String(m).padStart(2, '0'), ss = String(s).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+async function loadNasComments(assetId) {
+  try {
+    const res = await fetch(`${API_BASE}/nas_comments.php?asset_id=${encodeURIComponent(assetId)}`,
+                            { credentials: 'same-origin' });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    nasPlayer.comments = json.data || [];
+  } catch (err) {
+    nasPlayer.comments = [];
+    showToast('Kommentare konnten nicht geladen werden', err.message);
+  }
+  nasPlayer.loading = false;
+  renderNasComments();
+}
+
+function renderNasComments() {
+  const panel = document.getElementById('nas-comments-panel');
+  if (!panel) return;
+  const session = getCurrentUser();
+  const user = session.user;
+  const isPriv     = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  const canResolve = isPriv || hasRole(user, ROLES.CUTTER);
+
+  const open     = nasPlayer.comments.filter(c => c.status === 'open');
+  const resolved = nasPlayer.comments.filter(c => c.status !== 'open');
+
+  const row = (c) => {
+    const canDelete = isPriv || c.userId === user.id;
+    const when = c.createdAt ? fmtDate(String(c.createdAt).slice(0, 10)) : '';
+    return `
+      <div class="nas-comment-row ${c.status !== 'open' ? 'resolved' : ''}">
+        ${canResolve
+          ? `<input type="checkbox" ${c.status !== 'open' ? 'checked' : ''} title="${c.status !== 'open' ? 'Wieder öffnen' : 'Als erledigt abhaken'}"
+               onchange="nasCommentToggle('${c.id}', this.checked)" style="margin-top:3px;flex-shrink:0;">`
+          : `<span class="nas-media-dot ${c.status !== 'open' ? 'stored' : 'error'}" style="margin-top:5px;"></span>`}
+        ${c.timecode !== null && c.timecode !== undefined
+          ? `<button type="button" class="nas-tc-chip" onclick="nasPlayerSeek(${Number(c.timecode)})">${nasFmtTimecode(c.timecode)}</button>`
+          : ''}
+        <div class="nas-comment-body">
+          <div>${escape(c.body)}</div>
+          <div class="nas-comment-meta">${escape(c.userName || '?')}${when ? ' · ' + when : ''}</div>
+        </div>
+        ${canDelete ? `<button type="button" class="btn btn-ghost btn-sm" style="padding:2px 7px;" title="Kommentar löschen" onclick="nasCommentDelete('${c.id}')">×</button>` : ''}
+      </div>`;
+  };
+
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <div class="cutter-detail-label">Review-Kommentare</div>
+      ${open.length ? `<span class="nas-open-badge">${open.length} offen</span>` : `<span class="nas-version-chip">alle erledigt</span>`}
+    </div>
+    ${nasPlayer.comments.length
+      ? open.map(row).join('') + resolved.map(row).join('')
+      : `<div class="text-sm text-muted">Noch keine Kommentare. ${nasPlayer.loading ? '' : 'Klick auf „@ Zeit kommentieren" hält die aktuelle Videostelle fest.'}</div>`}
+  `;
+}
+
+function nasPlayerSeek(t) {
+  const v = document.getElementById('nas-player-video');
+  if (!v) return;
+  v.currentTime = Math.max(0, Number(t) || 0);
+  v.play().catch(() => {});
+}
+
+async function nasCommentSubmit() {
+  const input = document.getElementById('nas-comment-input');
+  const v     = document.getElementById('nas-player-video');
+  if (!input) return;
+  const body = input.value.trim();
+  if (!body) { input.focus(); return; }
+  const timecode = v ? Math.round(v.currentTime * 100) / 100 : null;
+  if (v) v.pause();
+
+  try {
+    const res = await fetch(`${API_BASE}/nas_comments.php`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ asset_id: nasPlayer.assetId, body, timecode }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    input.value = '';
+    nasPlayer.comments.push(json.data);
+    nasPlayer.comments.sort((a, b) => (a.timecode ?? 1e9) - (b.timecode ?? 1e9));
+    renderNasComments();
+    nasSyncOpenCount();
+  } catch (err) {
+    showToast('Kommentar fehlgeschlagen', err.message);
+  }
+}
+
+async function nasCommentToggle(commentId, resolved) {
+  try {
+    const res = await fetch(
+      `${API_BASE}/nas_comments.php?id=${encodeURIComponent(commentId)}&action=${resolved ? 'resolve' : 'reopen'}`,
+      { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
+    );
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    const idx = nasPlayer.comments.findIndex(c => c.id === commentId);
+    if (idx >= 0) nasPlayer.comments[idx] = json.data;
+    renderNasComments();
+    nasSyncOpenCount();
+  } catch (err) {
+    showToast('Aktion fehlgeschlagen', err.message);
+    renderNasComments();
+  }
+}
+
+async function nasCommentDelete(commentId) {
+  const ok = await appConfirm('Diesen Kommentar löschen?', { title: 'Kommentar löschen?', okLabel: 'Löschen', danger: true });
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API_BASE}/nas_comments.php?id=${encodeURIComponent(commentId)}`, {
+      method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF },
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    nasPlayer.comments = nasPlayer.comments.filter(c => c.id !== commentId);
+    renderNasComments();
+    nasSyncOpenCount();
+  } catch (err) {
+    showToast('Löschen fehlgeschlagen', err.message);
+  }
+}
+
+// Offene-Kommentare-Badge in der Medien-Sektion aktuell halten
+function nasSyncOpenCount() {
+  const a = nasMedia.assets.find(x => x.id === nasPlayer.assetId);
+  if (!a) return;
+  a.openComments = nasPlayer.comments.filter(c => c.status === 'open').length;
+  renderNasMedia();
 }
 
 function nasPlayerEscHandler(e) {

@@ -670,6 +670,31 @@ if (!tableExists($pdo, 'project_cutters')) {
     $results[] = ['ok' => true, 'label' => "project_cutters: Tabelle bereits vorhanden"];
 }
 
+// ── 29. Review-Kommentare: asset_comments (Timestamp-Kommentare im Player) ────
+// Videograf/Manager/Admin kommentieren finale Schnitte mit Timecode;
+// der Cutter arbeitet die Punkte als Checkliste ab (status open→resolved).
+if (!tableExists($pdo, 'asset_comments')) {
+    step($pdo, "asset_comments: Tabelle anlegen",
+        "CREATE TABLE asset_comments (
+           id          VARCHAR(64)  NOT NULL PRIMARY KEY,
+           asset_id    VARCHAR(64)  NOT NULL,
+           project_id  VARCHAR(64)  NOT NULL,
+           user_id     VARCHAR(64)  NOT NULL,
+           timecode    DECIMAL(10,2) NULL,
+           body        TEXT         NOT NULL,
+           status      ENUM('open','resolved') NOT NULL DEFAULT 'open',
+           resolved_by VARCHAR(64)  NULL,
+           resolved_at DATETIME     NULL,
+           created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           KEY idx_ac_asset   (asset_id),
+           KEY idx_ac_project (project_id),
+           KEY idx_ac_status  (status)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "asset_comments: Tabelle bereits vorhanden"];
+}
+
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>
