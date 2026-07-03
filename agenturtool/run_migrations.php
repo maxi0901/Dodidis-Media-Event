@@ -35,6 +35,23 @@ function tableExists(PDO $pdo, string $table): bool {
     return (int)$s->fetchColumn() > 0;
 }
 
+function indexExists(PDO $pdo, string $table, string $index): bool {
+    $db = $pdo->query("SELECT DATABASE()")->fetchColumn();
+    $s  = $pdo->prepare("SELECT COUNT(*) FROM information_schema.STATISTICS
+                          WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND INDEX_NAME=?");
+    $s->execute([$db, $table, $index]);
+    return (int)$s->fetchColumn() > 0;
+}
+
+function addIndex(PDO $pdo, string $table, string $index, string $sql, array &$out): void {
+    global $dryRun;
+    if (!indexExists($pdo, $table, $index)) {
+        step($pdo, "{$table}: Index {$index} anlegen", $sql, $out);
+    } else {
+        $out[] = ['ok' => true, 'label' => "{$table}: Index {$index} bereits vorhanden"];
+    }
+}
+
 function step(PDO $pdo, string $label, string $sql, array &$out): void {
     global $dryRun;
     if ($dryRun) {
@@ -693,6 +710,52 @@ if (!tableExists($pdo, 'asset_comments')) {
         $results);
 } else {
     $results[] = ['ok' => true, 'label' => "asset_comments: Tabelle bereits vorhanden"];
+}
+
+// ── 30. Posting-Planer: content_queue um Planer-Felder erweitern ──────────────
+// Ein geplanter Post = eine content_queue-Zeile pro Plattform (die bestehende
+// n8n-Publish-Kette bleibt unverändert). Neu: Verknüpfung zu Asset/Projekt
+// (damit der „gepostet"-Status im Board und die Videoliste funktionieren),
+// Thumbnail für die Kalendervorschau. scheduled_at (DATETIME) trägt bereits
+// Datum + Uhrzeit; caption/platform/content_type existieren schon.
+addCol($pdo, 'content_queue', 'asset_id',
+    "ALTER TABLE content_queue ADD COLUMN asset_id VARCHAR(64) NULL", $results);
+addCol($pdo, 'content_queue', 'project_id',
+    "ALTER TABLE content_queue ADD COLUMN project_id VARCHAR(64) NULL", $results);
+addCol($pdo, 'content_queue', 'thumbnail_url',
+    "ALTER TABLE content_queue ADD COLUMN thumbnail_url TEXT NULL", $results);
+addCol($pdo, 'content_queue', 'planned_by',
+    "ALTER TABLE content_queue ADD COLUMN planned_by VARCHAR(64) NULL", $results);
+addIndex($pdo, 'content_queue', 'idx_cq_asset',
+    "ALTER TABLE content_queue ADD KEY idx_cq_asset (asset_id)", $results);
+addIndex($pdo, 'content_queue', 'idx_cq_project',
+    "ALTER TABLE content_queue ADD KEY idx_cq_project (project_id)", $results);
+
+// ── 31. Social-Accounts pro Kunde (für spätere direkte Meta-Anbindung) ────────
+// Vorbereitet, zunächst leer. Speichert je Kunde + Plattform die Verknüpfung
+// zum Meta-Konto (Page-/IG-Business-ID) und – später – die Access-Tokens.
+// Tokens bleiben vorerst NULL; befüllt wird das erst mit dem OAuth-Flow (Stufe C).
+if (!tableExists($pdo, 'social_accounts')) {
+    step($pdo, "social_accounts: Tabelle anlegen",
+        "CREATE TABLE social_accounts (
+           id                VARCHAR(64)  NOT NULL PRIMARY KEY,
+           customer_id       VARCHAR(64)  NOT NULL,
+           platform          VARCHAR(50)  NOT NULL,
+           account_label     VARCHAR(190) NULL,
+           external_id       VARCHAR(190) NULL,
+           page_id           VARCHAR(190) NULL,
+           access_token      TEXT         NULL,
+           token_expires_at  DATETIME     NULL,
+           status            VARCHAR(30)  NOT NULL DEFAULT 'disconnected',
+           created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           updated_at        DATETIME     NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+           UNIQUE KEY uq_sa_customer_platform (customer_id, platform),
+           KEY idx_sa_customer (customer_id),
+           CONSTRAINT fk_sa_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "social_accounts: Tabelle bereits vorhanden"];
 }
 
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
