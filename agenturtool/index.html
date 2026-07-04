@@ -6616,21 +6616,32 @@ function pbDragEnd(ev) {
 }
 function pbDragOver(ev) { if (!_pbDrag) return; ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; ev.currentTarget.classList.add('drop-over'); }
 function pbDragLeave(ev) { if (!ev.currentTarget.contains(ev.relatedTarget)) ev.currentTarget.classList.remove('drop-over'); }
-function pbDrop(ev, entryStatus) {
+function pbColumnOf(status) { return PB_COLUMNS.find(c => c.statuses.includes(status)); }
+function pbDrop(ev, colKey) {
   ev.preventDefault();
   ev.currentTarget.classList.remove('drop-over');
   const id = _pbDrag; _pbDrag = null;
   if (!id) return;
   const p = store.projects.find(x => x.id === id);
-  if (!p || legacyStatus(p) === entryStatus) return;
-  setProjectStatus(id, entryStatus); // bestehende Funktion: optimistisch + PUT + Server-Regeln
+  if (!p) return;
+  const target = PB_COLUMNS.find(c => c.key === colKey);
+  if (!target) return;
+  const src = pbColumnOf(legacyStatus(p));
+  // Drop in DIESELBE Spalte = No-op (Spalten fassen mehrere Status zusammen;
+  // sonst würde z.B. 'gedreht' in „Produktion" fälschlich auf 'geplant' zurückgesetzt).
+  if (src && src.key === target.key) return;
+  setProjectStatus(id, target.entry); // bestehende Funktion: optimistisch + PUT + Server-Regeln
 }
 
 function renderProductionBoard(projects, session) {
   const user = session.user;
   const canCreate   = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
   const canQuickIdea = hasRole(user, ROLES.ADMIN);
-  const canDrag = canCreate;
+  // Freies Verschieben (beliebiger Statuswechsel) nur für Admins — spiegelt die
+  // bestehende Regel: der direkte Status-Wähler im Projekt-Modal ist admin-only.
+  // Manager/Videograf nutzen das Board zum Ansehen/Öffnen; Statuswechsel dort
+  // über die regulären Workflow-Buttons im Modal (keine Regel wird umgangen).
+  const canDrag = hasRole(user, ROLES.ADMIN);
   $('#page-title').textContent = 'Projekte';
   $('#page-subtitle').textContent = 'Produktions-Board';
 
@@ -6661,7 +6672,7 @@ function renderProductionBoard(projects, session) {
       </div>`;
     }).join('');
     return `<section class="pb-col"
-      ${canDrag ? `ondragover="pbDragOver(event)" ondragleave="pbDragLeave(event)" ondrop="pbDrop(event,'${col.entry}')"` : ''}>
+      ${canDrag ? `ondragover="pbDragOver(event)" ondragleave="pbDragLeave(event)" ondrop="pbDrop(event,'${col.key}')"` : ''}>
       <div class="pb-col-head"><span class="pb-col-title">${col.title}</span><span class="pb-col-count">${items.length}</span></div>
       ${cards || '<div class="pb-empty">—</div>'}
     </section>`;
