@@ -137,6 +137,16 @@ function store_accounts(string $customerId, array $page, ?string $expiresAt): vo
             'token'    => $pageToken, // IG-Publishing nutzt das Page-Token
             'expires'  => $expiresAt,
         ]);
+    } else {
+        // Gewählte Seite hat kein verknüpftes Instagram-Konto → eine evtl. noch
+        // vorhandene IG-Zeile trennen und Token löschen, damit der Publisher
+        // nicht auf ein veraltetes Konto zielt.
+        db_exec(
+            "UPDATE social_accounts
+                SET status='disconnected', access_token=NULL, token_expires_at=NULL, updated_at=NOW()
+              WHERE customer_id=? AND platform='instagram'",
+            [$customerId]
+        );
     }
 
     log_activity('social_account', $customerId, 'connected',

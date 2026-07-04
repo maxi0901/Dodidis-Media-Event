@@ -25,11 +25,19 @@ if ($customerId === '') json_err(400, 'customer_id fehlt.');
 $cust = db_one("SELECT id, name FROM customers WHERE id = ?", [$customerId]);
 if (!$cust) json_err(404, 'Kunde nicht gefunden.');
 
-// Redirect-URI: fester Callback-Pfad (muss exakt in der Meta-App hinterlegt sein).
-$scheme  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-$host    = $_SERVER['HTTP_HOST'] ?? 'localhost';
-$apiBase = $scheme . '://' . $host . rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/api/x')), '/');
-$redirectUri = $apiBase . '/meta_callback.php';
+// Redirect-URI: muss EXAKT der in der Meta-App hinterlegten entsprechen.
+// Vorrang hat die explizit gesetzte META_REDIRECT_URI (wichtig hinter Reverse-
+// Proxies, wo PHP nur interne Scheme/Host/Pfad sieht → sonst redirect-uri-
+// mismatch). Nur ohne Env-Override wird sie aus dem Request abgeleitet.
+$envRedirect = (string)(getenv('META_REDIRECT_URI') ?: ($_SERVER['META_REDIRECT_URI'] ?? '') ?: '');
+if ($envRedirect !== '') {
+    $redirectUri = $envRedirect;
+} else {
+    $scheme  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host    = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $apiBase = $scheme . '://' . $host . rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/api/x')), '/');
+    $redirectUri = $apiBase . '/meta_callback.php';
+}
 
 try {
     $meta = new MetaClient($redirectUri);
