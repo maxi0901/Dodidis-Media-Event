@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes" />
-<meta name="theme-color" content="#0a0c10" />
+<meta name="theme-color" content="#f2f1ee" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Dodidis Media" />
@@ -87,7 +87,7 @@
 
   .sidebar {
     width: 240px;
-    background: #0a0c10;
+    background: var(--bg-1);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
@@ -628,7 +628,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    background: rgba(10,11,16,0.88);
+    background: rgba(242,241,238,0.85);
     backdrop-filter: var(--blur);
     -webkit-backdrop-filter: var(--blur);
     position: sticky;
@@ -1253,7 +1253,7 @@
     display: flex; align-items: center; justify-content: center;
     color: transparent; font-size: 12px; font-weight: 800; line-height: 1; transition: var(--transition);
   }
-  .cal-cat-chip input:checked ~ .cal-cat-box { background: var(--accent); border-color: var(--accent); color: #04221a; }
+  .cal-cat-chip input:checked ~ .cal-cat-box { background: var(--accent); border-color: var(--accent); color: #ffffff; }
   .cal-cat-chip:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--text-1); }
 
   /* =========================================
@@ -1870,18 +1870,18 @@
   .month-bar-time { font-size: 10px; opacity: 0.7; font-weight: 500; flex-shrink: 0; }
 
   /* Phase colours – rich gradients matching ical-event */
-  .month-bar.phase-shoot      { background: linear-gradient(90deg,rgba(167,139,250,0.32),rgba(139,92,246,0.22)); color: #ddd6fe; }
-  .month-bar.phase-production { background: linear-gradient(90deg,rgba(251,191,36,0.22),rgba(245,158,11,0.14)); color: #fcd34d; }
+  .month-bar.phase-shoot      { background: linear-gradient(90deg,rgba(167,139,250,0.32),rgba(139,92,246,0.22)); color: #4c1d95; }
+  .month-bar.phase-production { background: linear-gradient(90deg,rgba(251,191,36,0.22),rgba(245,158,11,0.14)); color: #78350f; }
   /* Rechter Abschluss = Deadline → roter Cap (nicht bei cuts-right, da Linie dort abgeschnitten) */
   .month-bar.phase-production:not(.cuts-right) { border-right: 2px solid rgba(239,68,68,0.65); }
-  .month-bar.phase-cutter     { background: linear-gradient(90deg,rgba(251,191,36,0.28),rgba(245,158,11,0.18)); color: #fde68a; }
-  .month-bar.phase-editing    { background: linear-gradient(90deg,rgba(52,211,153,0.22),rgba(16,185,129,0.14)); color: #6ee7b7; }
+  .month-bar.phase-cutter     { background: linear-gradient(90deg,rgba(251,191,36,0.28),rgba(245,158,11,0.18)); color: #78350f; }
+  .month-bar.phase-editing    { background: linear-gradient(90deg,rgba(52,211,153,0.22),rgba(16,185,129,0.14)); color: #145c3d; }
   /* Posting-Segment startet direkt nach Deadline → kein linkes Padding, wirkt als Fortsetzung */
   .month-bar.phase-posting:not(.cuts-left) { border-left: 2px solid rgba(20,184,166,0.55); }
-  .month-bar.phase-posting    { background: linear-gradient(90deg,rgba(20,184,166,0.32),rgba(45,212,191,0.22)); color: #5eead4; }
+  .month-bar.phase-posting    { background: linear-gradient(90deg,rgba(20,184,166,0.32),rgba(45,212,191,0.22)); color: #145c3d; }
   .month-bar.phase-vacation   { background: linear-gradient(90deg,rgba(148,163,184,0.28),rgba(100,116,139,0.18)); color: #cbd5e1; }
   .month-bar.phase-deadline   { background: linear-gradient(90deg,rgba(239,68,68,0.30),rgba(220,38,38,0.20)); color: #fca5a5; }
-  .month-bar.phase-todo       { background: linear-gradient(90deg,rgba(100,210,255,0.22),rgba(56,189,248,0.14)); color: #7dd3fc; }
+  .month-bar.phase-todo       { background: linear-gradient(90deg,rgba(100,210,255,0.22),rgba(56,189,248,0.14)); color: #1e40af; }
 
   .month-bar-more {
     font-size: 10px;
@@ -1981,7 +1981,7 @@
   .ical-day-head .ical-dname {
     font-size: 10px;
     font-weight: 600;
-    color: rgba(255,255,255,0.35);
+    color: var(--text-3);
     text-transform: uppercase;
     letter-spacing: 0.6px;
   }
@@ -1989,10 +1989,10 @@
     font-size: 18px;
     font-weight: 300;
     letter-spacing: -0.5px;
-    color: rgba(255,255,255,0.65);
+    color: var(--text-1);
     line-height: 1;
   }
-  .ical-day-head.today .ical-dname { color: rgba(255,255,255,0.75); font-weight: 700; }
+  .ical-day-head.today .ical-dname { color: var(--text-1); font-weight: 700; }
   .ical-day-head.today .ical-dnum {
     color: white;
     background: var(--apple-red);
@@ -2022,15 +2022,15 @@
     background: linear-gradient(180deg, rgba(167,139,250,0.14), rgba(167,139,250,0.04)), var(--bg-1);
     border-bottom: 2px solid rgba(167,139,250,0.6);
   }
-  .ical-day-head.is-shoot .ical-dname { color: rgba(196,181,253,0.8); }
-  .ical-day-head.is-shoot .ical-dnum { color: #c4b5fd; }
+  .ical-day-head.is-shoot .ical-dname { color: #6d28d9; }
+  .ical-day-head.is-shoot .ical-dnum { color: #4c1d95; }
   .ical-day-head.today.is-shoot .ical-dnum { color: white; }
   .ical-shoot-badge {
     position: absolute;
     top: 7px;
     right: 8px;
     background: rgba(167,139,250,0.22);
-    color: #ddd6fe;
+    color: #4c1d95;
     border: 1px solid rgba(167,139,250,0.35);
     border-radius: 999px;
     padding: 2px 6px;
@@ -2205,16 +2205,16 @@
   .ical-event.cuts-left::before { display: none; }
   .ical-event.cuts-right { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
 
-  .ical-event.phase-shoot    { background: linear-gradient(90deg,rgba(167,139,250,0.32),rgba(139,92,246,0.22)); color: #ddd6fe; border: 1px solid rgba(167,139,250,0.25); }
-  .ical-event.phase-production { background: linear-gradient(90deg,rgba(251,191,36,0.22),rgba(245,158,11,0.14)); color: #fcd34d; border: 1px solid rgba(251,191,36,0.18); }
+  .ical-event.phase-shoot    { background: linear-gradient(90deg,rgba(167,139,250,0.32),rgba(139,92,246,0.22)); color: #4c1d95; border: 1px solid rgba(167,139,250,0.25); }
+  .ical-event.phase-production { background: linear-gradient(90deg,rgba(251,191,36,0.22),rgba(245,158,11,0.14)); color: #78350f; border: 1px solid rgba(251,191,36,0.18); }
   .ical-event.phase-production:not(.cuts-right) { border-right: 2px solid rgba(239,68,68,0.65); }
-  .ical-event.phase-editing  { background: linear-gradient(90deg,rgba(52,211,153,0.22),rgba(16,185,129,0.14)); color: #6ee7b7; border: 1px solid rgba(52,211,153,0.18); }
-  .ical-event.phase-cutter   { background: linear-gradient(90deg,rgba(251,191,36,0.28),rgba(245,158,11,0.18)); color: #fde68a; border: 1px solid rgba(251,191,36,0.22); }
+  .ical-event.phase-editing  { background: linear-gradient(90deg,rgba(52,211,153,0.22),rgba(16,185,129,0.14)); color: #145c3d; border: 1px solid rgba(52,211,153,0.18); }
+  .ical-event.phase-cutter   { background: linear-gradient(90deg,rgba(251,191,36,0.28),rgba(245,158,11,0.18)); color: #78350f; border: 1px solid rgba(251,191,36,0.22); }
   .ical-event.phase-posting:not(.cuts-left) { border-left: 2px solid rgba(20,184,166,0.55); }
-  .ical-event.phase-posting  { background: linear-gradient(90deg,rgba(20,184,166,0.32),rgba(45,212,191,0.22)); color: #5eead4; border: 1px solid rgba(20,184,166,0.28); }
+  .ical-event.phase-posting  { background: linear-gradient(90deg,rgba(20,184,166,0.32),rgba(45,212,191,0.22)); color: #145c3d; border: 1px solid rgba(20,184,166,0.28); }
   .ical-event.phase-vacation { background: linear-gradient(90deg,rgba(148,163,184,0.30),rgba(100,116,139,0.22)); color: #e2e8f0; border: 1px solid rgba(148,163,184,0.28); }
   .ical-event.phase-deadline { background: linear-gradient(90deg,rgba(239,68,68,0.30),rgba(220,38,38,0.20)); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
-  .ical-event.phase-todo     { background: linear-gradient(90deg,rgba(100,210,255,0.22),rgba(56,189,248,0.14)); color: #7dd3fc; border: 1px solid rgba(100,210,255,0.18); }
+  .ical-event.phase-todo     { background: linear-gradient(90deg,rgba(100,210,255,0.22),rgba(56,189,248,0.14)); color: #1e40af; border: 1px solid rgba(100,210,255,0.18); }
   .ical-event.phase-meeting  { background: linear-gradient(90deg,rgba(99,102,241,0.30),rgba(79,70,229,0.20)); color: #c7d2fe; border: 1px solid rgba(99,102,241,0.25); }
   .month-bar.phase-meeting   { background: linear-gradient(90deg,rgba(99,102,241,0.30),rgba(79,70,229,0.20)); color: #c7d2fe; border: 1px solid rgba(99,102,241,0.22); }
   .ical-event.nicht-gedreht  { background: linear-gradient(90deg,rgba(255,69,58,0.32),rgba(220,38,38,0.22))!important; color: #fca5a5!important; border-color: rgba(255,69,58,0.4)!important; }
@@ -2746,7 +2746,7 @@
   .phase-tab:hover:not(.active) { color:var(--text-1); border-color:var(--border-strong); }
   .phase-tab.active { background:var(--accent-soft); border-color:var(--accent); color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
   .phase-tab .phase-count { flex:none; min-width:20px; padding:1px 7px; border-radius:999px; background:var(--bg-3); color:var(--text-2); font-size:12px; font-weight:700; text-align:center; }
-  .phase-tab.active .phase-count { background:var(--accent); color:#04221a; }
+  .phase-tab.active .phase-count { background:var(--accent); color:#ffffff; }
   /* Mobile-Dropdown für die übrigen Phasen (Desktop ausgeblendet) */
   .phase-select-mobile {
     display:none; width:100%; margin-bottom:14px; padding:10px 12px; border-radius:10px;
@@ -6802,7 +6802,7 @@ function renderProjects(session) {
         <div class="card mb-4" style="${hasNichtGedreht ? 'border-color:rgba(255,69,58,0.35);' : ''}">
           <div class="card-header" style="cursor:pointer;" onclick="openShootDayModal('${sd.id}')">
             <div class="card-title" style="display:flex; align-items:center; gap:10px;">
-              <span style="background:rgba(167,139,250,0.2); color:#c4b5fd; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:700; letter-spacing:0.4px;">🎥 DREHTAG</span>
+              <span style="background:rgba(167,139,250,0.2); color:#4c1d95; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:700; letter-spacing:0.4px;">🎥 DREHTAG</span>
               <span>${escape(headerText)}</span>
               ${hasNichtGedreht ? `<span class="shootday-header-warn">⚠ Bitte neu planen</span>` : ''}
               <span style="margin-left:auto; font-size:12px; color:var(--text-3); font-weight:500;">${g.projects.length} Video${g.projects.length === 1 ? '' : 's'}</span>
@@ -7539,7 +7539,7 @@ function renderShootDays(session) {
     <div class="card mb-4">
       <div class="card-header">
         <div class="card-title" style="display:flex; align-items:center; gap:10px;">
-          <span style="background:rgba(167,139,250,0.2); color:#c4b5fd; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:700; letter-spacing:0.4px;">🎥 BEVORSTEHEND</span>
+          <span style="background:rgba(167,139,250,0.2); color:#4c1d95; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:700; letter-spacing:0.4px;">🎥 BEVORSTEHEND</span>
           <span>${upcoming.length} Drehtag${upcoming.length === 1 ? '' : 'e'}</span>
         </div>
       </div>
