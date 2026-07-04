@@ -845,6 +845,33 @@
     margin-bottom: 24px;
   }
 
+  /* Redesign Part 4 — Übersicht-Hero („Nächstes Posting") */
+  .dash-hero {
+    border-radius: 16px; padding: 18px 22px; margin-bottom: 22px;
+    border: 1px solid var(--border);
+    background:
+      radial-gradient(120% 180% at 6% 0%, var(--marker-soft), transparent 55%),
+      radial-gradient(130% 180% at 94% 30%, rgba(240,150,80,0.16), transparent 55%),
+      var(--bg-1);
+    display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  }
+  .dash-hero .ht { font-size: 15px; font-weight: 600; color: var(--text-1); }
+  .dash-hero .hs { font-size: 12.5px; color: var(--text-2); margin-top: 3px; }
+  .dash-hero .hv { font-family: "Doto", ui-monospace, monospace; font-weight: 700; font-size: 24px; color: var(--text-1); white-space: nowrap; letter-spacing: 0.5px; }
+  @media (max-width: 560px) { .dash-hero { flex-direction: column; align-items: flex-start; gap: 8px; } }
+
+  /* Redesign Part 4 — Kunden-Karten (Grid nach Vorlage) */
+  .kgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .kdcard { background: var(--bg-1); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; cursor: pointer; transition: var(--transition); position: relative; }
+  .kdcard:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+  .kdcard-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 10px; }
+  .kdorb { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 700; }
+  .kdname { font-size: 15px; font-weight: 600; color: var(--text-1); }
+  .kdnr { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+  .kdmeta { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-2); margin-top: 12px; }
+  .kdmeta .num { font-family: "Doto", ui-monospace, monospace; font-weight: 700; color: var(--text-1); }
+  .kdcard-sel { position: absolute; top: 12px; right: 12px; }
+
   .stat-label {
     font-size: 11.5px;
     color: var(--text-3);
@@ -6042,7 +6069,23 @@ function renderDashboard(session) {
   const isCutterOnly = hasRole(user, ROLES.CUTTER) &&
     !hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF);
 
-  $('#content').innerHTML = `
+  // Hero „Nächstes Posting" — aus vorhandenen Projektdaten (kein Extra-Request)
+  const _today0 = new Date(); _today0.setHours(0, 0, 0, 0);
+  const nextPost = myProjects
+    .filter(p => p.status !== STATUS.ARCHIVIERT && p.postingDate && new Date(p.postingDate) >= _today0)
+    .sort((a, b) => new Date(a.postingDate) - new Date(b.postingDate))[0];
+  let heroSub = 'Kein Posting geplant', heroVal = '—';
+  if (nextPost) {
+    const cust = store.customers.find(c => c.id === nextPost.customerId);
+    heroSub = `${nextPost.isInternal ? 'Intern' : (cust?.name || '–')} · ${nextPost.title || ''}`;
+    const pd = new Date(nextPost.postingDate); pd.setHours(0, 0, 0, 0);
+    const diff = Math.round((pd - _today0) / 86400000);
+    const when = diff === 0 ? 'HEUTE' : diff === 1 ? 'MORGEN' : fmtDate(nextPost.postingDate);
+    heroVal = `${when} · 18:00`;
+  }
+  const heroHtml = `<div class="dash-hero"><div><div class="ht">Nächstes Posting</div><div class="hs">${escape(heroSub)}</div></div><div class="hv">${escape(heroVal)}</div></div>`;
+
+  $('#content').innerHTML = heroHtml + `
     <div class="stat-grid">
       <div class="stat">
         <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>
@@ -10384,55 +10427,42 @@ function renderCustomers(session) {
   }
 
   const isAdmin = hasRole(user, ROLES.ADMIN);
-  $('#content').innerHTML = custFilterBar + `
-    <div class="card">
-      <table class="cards-mobile">
-        <thead>
-          <tr>
-            ${isAdmin ? `<th class="col-select" style="width:30px;"><input type="checkbox" onchange="this.checked ? bulkSelectAll('customers', ${JSON.stringify(customers.map(c=>c.id))}) : clearBulk()"/></th>` : ''}
-            <th>Kunde</th>
-            <th>Kundennr.</th>
-            <th>Status</th>
-            <th>Manager</th>
-            <th>Onboarding</th>
-            <th>Paket</th>
-            <th>Projekte</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${customers.map(c => {
-            const mgr = store.users.find(u => u.id === c.managerId);
-            const projectCount = store.projects.filter(p => p.customerId === c.id).length;
-            const checklist = c.checklist || {};
-            const done = ONBOARDING_CHECKLIST.filter(i => checklist[i.key]).length;
-            const total = ONBOARDING_CHECKLIST.length;
-            const pct = Math.round((done / total) * 100);
-            const status = customerStatus(c);
-            return `
-              <tr style="cursor:pointer" onclick="if(!event.target.classList.contains('bulk-checkbox'))openCustomerModal('${c.id}')">
-                ${isAdmin ? `<td class="col-select" onclick="event.stopPropagation()"><input type="checkbox" class="bulk-checkbox" onchange="toggleBulk('customers','${c.id}',this.checked)"/></td>` : ''}
-                <td class="card-title-cell">
-                  <strong>${escape(c.name)}</strong>
-                  ${c.industry ? `<div class="text-sm text-muted">${escape(c.industry)}</div>` : ''}
-                </td>
-                <td data-label="Kundennr."><code style="background:var(--bg-2);padding:2px 6px;border-radius:4px;font-size:11.5px;">${escape(c.customerNumber)}</code></td>
-                <td data-label="Status"><span class="badge badge-status-${status}">${CUSTOMER_STATUS_LABELS[status]}</span></td>
-                <td data-label="Manager">${escape(mgr?.name || '–')}</td>
-                <td data-label="Onboarding">
-                  <div style="display:flex;align-items:center;gap:8px;">
-                    <div class="progress-bar" style="flex:1; max-width:90px; margin-top:0;">
-                      <div class="progress-fill" style="width:${pct}%;"></div>
-                    </div>
-                    <span class="text-sm" style="color:${pct === 100 ? 'var(--accent)' : 'var(--text-2)'}; font-weight:600;">${done}/${total}</span>
-                  </div>
-                </td>
-                <td data-label="Paket">${escape(c.package || '–')}</td>
-                <td data-label="Projekte">${projectCount}</td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
+  const bulkAll = isAdmin
+    ? `<div class="mb-4" style="display:flex;align-items:center;gap:8px;">
+         <label style="display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-2);cursor:pointer;">
+           <input type="checkbox" onchange="this.checked ? bulkSelectAll('customers', ${escape(JSON.stringify(customers.map(c=>c.id)))}) : clearBulk()"/> Alle auswählen
+         </label>
+       </div>` : '';
+
+  $('#content').innerHTML = custFilterBar + bulkAll + `
+    <div class="kgrid">
+      ${customers.map(c => {
+        const mgr = store.users.find(u => u.id === c.managerId);
+        const projectCount = store.projects.filter(p => p.customerId === c.id).length;
+        const checklist = c.checklist || {};
+        const done = ONBOARDING_CHECKLIST.filter(i => checklist[i.key]).length;
+        const total = ONBOARDING_CHECKLIST.length;
+        const pct = Math.round((done / total) * 100);
+        const status = customerStatus(c);
+        return `
+          <div class="kdcard" onclick="if(!event.target.closest('.kdcard-sel'))openCustomerModal('${c.id}')">
+            ${isAdmin ? `<label class="kdcard-sel" onclick="event.stopPropagation()"><input type="checkbox" class="bulk-checkbox" onchange="toggleBulk('customers','${c.id}',this.checked)"/></label>` : ''}
+            <div class="kdcard-top">
+              <span style="display:flex;align-items:center;gap:10px;min-width:0;">
+                <span class="kdorb" style="background:${nasAvatarColor(c.name)}">${escape(nasInitials(c.name))}</span>
+                <span style="display:flex;flex-direction:column;min-width:0;">
+                  <span class="kdname" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(c.name)}</span>
+                  <span class="kdnr">${escape(c.customerNumber)}${c.industry ? ' · ' + escape(c.industry) : ''}</span>
+                </span>
+              </span>
+              <span class="badge badge-status-${status}">${CUSTOMER_STATUS_LABELS[status]}</span>
+            </div>
+            <div class="progress-bar" style="margin-top:0;"><div class="progress-fill" style="width:${pct}%;"></div></div>
+            <div class="kdmeta"><span>Onboarding ${done}/${total}</span><span>${escape(mgr?.name || '–')}</span></div>
+            <div class="kdmeta"><span>${escape(c.package || '– Paket')}</span><span><span class="num">${projectCount}</span> Projekte</span></div>
+          </div>
+        `;
+      }).join('')}
     </div>
   `;
 }
