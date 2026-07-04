@@ -3910,6 +3910,30 @@
     }
   }
 
+  /* ===== Redesign Part 2 — Produktions-Board (Kanban, additiv) ===== */
+  .pb-toggle { display:inline-flex; background:var(--bg-3); border-radius:8px; padding:2px; }
+  .pb-toggle button { border:none; background:none; cursor:pointer; font:inherit; font-size:13px; font-weight:600; color:var(--text-2); padding:6px 14px; border-radius:6px; }
+  .pb-toggle button.on { background:var(--bg-1); color:var(--text-1); box-shadow:var(--shadow-sm); }
+  .prod-board { display:grid; grid-template-columns:repeat(4,1fr); }
+  .pb-col { padding:0 18px; border-right:1px dashed var(--border-strong); min-height:60vh; }
+  .pb-col:first-child { padding-left:0; }
+  .pb-col:last-child { border-right:none; padding-right:0; }
+  .pb-col.drop-over { background:var(--accent-soft); border-radius:10px; }
+  .pb-col-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px; }
+  .pb-col-title { font-size:15px; font-weight:600; color:var(--text-1); }
+  .pb-col-count { font-size:15px; color:var(--text-3); font-weight:700; }
+  .pb-card { background:var(--bg-1); border:1px solid var(--border); border-radius:10px; padding:12px 13px; margin-bottom:9px; cursor:pointer; transition:var(--transition); }
+  .pb-card:hover { border-color:var(--border-strong); box-shadow:var(--shadow-sm); }
+  .pb-card[draggable=true] { cursor:grab; }
+  .pb-card.dragging { opacity:.35; }
+  .pb-card-title { font-size:13.5px; font-weight:500; margin-bottom:9px; color:var(--text-1); word-break:break-word; }
+  .pb-card-foot { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .pb-chip { display:inline-block; padding:2px 8px; border-radius:6px; background:var(--bg-3); color:var(--text-2); font-size:10.5px; font-weight:600; letter-spacing:.3px; }
+  .pb-card.featured { background:radial-gradient(120% 150% at 8% 0%, var(--marker-soft), transparent 60%), var(--bg-1); border-color:var(--marker); }
+  .pb-empty { font-size:12.5px; color:var(--text-3); padding:8px 2px; }
+  @media (max-width:900px) { .prod-board { grid-template-columns:1fr 1fr; gap:16px; } .pb-col { border-right:none; padding:0; min-height:auto; } }
+  @media (max-width:560px) { .prod-board { grid-template-columns:1fr; } }
+
 </style>
 </head>
 <body>
@@ -6555,6 +6579,108 @@ function resetCustomerFilters() {
 }
 
 /* ----------- PROJECTS ----------- */
+/* ===== Produktions-Board (Redesign Part 2, additiv) =========================
+   Neuer „Board"-Modus für Admin/Manager. Nutzt AUSSCHLIESSLICH bestehende
+   Logik: Karten öffnen openProjectModal(), Drag-and-Drop ruft setProjectStatus()
+   → alle Rechte/Workflow-Regeln greifen serverseitig unverändert. Die alte
+   Listen-/Phasen-Ansicht bleibt vollständig erhalten (Umschalter). */
+const PB_COLUMNS = [
+  { key: 'idee',       title: 'Idee',            statuses: ['idee'],                        entry: 'idee' },
+  { key: 'production', title: 'Produktion',      statuses: ['geplant', 'gedreht'],          entry: 'geplant' },
+  { key: 'post',       title: 'Post Production', statuses: ['schnitt', 'korrektur', 'fertig'], entry: 'schnitt' },
+  { key: 'fertig',     title: 'Fertige Reels',   statuses: ['freigegeben'],                 entry: 'freigegeben' },
+];
+function getProjectBoardMode() { return localStorage.getItem('proj_board_mode') === '1'; }
+function setProjectBoardMode(on) { localStorage.setItem('proj_board_mode', on ? '1' : '0'); renderPage(); }
+
+function pbKuerzel(p) {
+  if (p.isInternal) return 'INT';
+  const c = store.customers.find(x => x.id === p.customerId);
+  if (!c || !c.name) return '—';
+  const words = c.name.replace(/[^A-Za-zÄÖÜäöüß ]/g, '').split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[1][0] + (words[2] ? words[2][0] : '')).toUpperCase();
+  return c.name.replace(/\s+/g, '').slice(0, 3).toUpperCase();
+}
+
+let _pbDrag = null;
+function pbDragStart(ev, id) {
+  if (window.matchMedia('(hover: none)').matches) { ev.preventDefault(); return; }
+  _pbDrag = id;
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.dataTransfer.setData('text/plain', id);
+  ev.currentTarget.classList.add('dragging');
+}
+function pbDragEnd(ev) {
+  ev.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.pb-col.drop-over').forEach(c => c.classList.remove('drop-over'));
+}
+function pbDragOver(ev) { if (!_pbDrag) return; ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; ev.currentTarget.classList.add('drop-over'); }
+function pbDragLeave(ev) { if (!ev.currentTarget.contains(ev.relatedTarget)) ev.currentTarget.classList.remove('drop-over'); }
+function pbColumnOf(status) { return PB_COLUMNS.find(c => c.statuses.includes(status)); }
+function pbDrop(ev, colKey) {
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('drop-over');
+  const id = _pbDrag; _pbDrag = null;
+  if (!id) return;
+  const p = store.projects.find(x => x.id === id);
+  if (!p) return;
+  const target = PB_COLUMNS.find(c => c.key === colKey);
+  if (!target) return;
+  const src = pbColumnOf(legacyStatus(p));
+  // Drop in DIESELBE Spalte = No-op (Spalten fassen mehrere Status zusammen;
+  // sonst würde z.B. 'gedreht' in „Produktion" fälschlich auf 'geplant' zurückgesetzt).
+  if (src && src.key === target.key) return;
+  setProjectStatus(id, target.entry); // bestehende Funktion: optimistisch + PUT + Server-Regeln
+}
+
+function renderProductionBoard(projects, session) {
+  const user = session.user;
+  const canCreate   = hasRole(user, ROLES.ADMIN, ROLES.MANAGER);
+  const canQuickIdea = hasRole(user, ROLES.ADMIN);
+  // Freies Verschieben (beliebiger Statuswechsel) nur für Admins — spiegelt die
+  // bestehende Regel: der direkte Status-Wähler im Projekt-Modal ist admin-only.
+  // Manager/Videograf nutzen das Board zum Ansehen/Öffnen; Statuswechsel dort
+  // über die regulären Workflow-Buttons im Modal (keine Regel wird umgangen).
+  const canDrag = hasRole(user, ROLES.ADMIN);
+  $('#page-title').textContent = 'Projekte';
+  $('#page-subtitle').textContent = 'Produktions-Board';
+
+  $('#topbar-actions').innerHTML = `
+    <div class="flex gap-2" style="flex-wrap:wrap; align-items:center;">
+      <span class="pb-toggle"><button class="on" type="button">Board</button><button type="button" onclick="setProjectBoardMode(false)">Liste</button></span>
+      <button class="btn btn-secondary" onclick="openShootDayModal()">+ Drehtag</button>
+      <button class="btn btn-secondary" onclick="openSeriesPlannerModal()">Serie planen</button>
+      <button class="btn ${canQuickIdea ? 'btn-secondary' : 'btn-primary'}" onclick="openProjectModal()">+ Neues Projekt</button>
+      ${canQuickIdea ? `<button class="btn btn-primary" onclick="openQuickIdeaModal()">+ Neue Idee</button>` : ''}
+    </div>`;
+
+  const cols = PB_COLUMNS.map(col => {
+    const items = projects
+      .filter(p => col.statuses.includes(legacyStatus(p)))
+      .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+    const cards = items.map(p => {
+      const st = legacyStatus(p);
+      const featured = st === 'freigegeben';
+      return `<div class="pb-card ${featured ? 'featured' : ''}"
+        ${canDrag ? `draggable="true" ondragstart="pbDragStart(event,'${p.id}')" ondragend="pbDragEnd(event)"` : ''}
+        onclick="openProjectModal('${p.id}')">
+        <div class="pb-card-title">${escape(p.title || '—')}</div>
+        <div class="pb-card-foot">
+          <span class="pb-chip">${escape(pbKuerzel(p))}</span>
+          <span class="badge badge-${statusCls(st)}" style="font-size:10px;">${escape(statusLabel(st))}</span>
+        </div>
+      </div>`;
+    }).join('');
+    return `<section class="pb-col"
+      ${canDrag ? `ondragover="pbDragOver(event)" ondragleave="pbDragLeave(event)" ondrop="pbDrop(event,'${col.key}')"` : ''}>
+      <div class="pb-col-head"><span class="pb-col-title">${col.title}</span><span class="pb-col-count">${items.length}</span></div>
+      ${cards || '<div class="pb-empty">—</div>'}
+    </section>`;
+  }).join('');
+
+  $('#content').innerHTML = `<div class="prod-board">${cols}</div>`;
+}
+
 function renderProjects(session) {
   $('#page-title').textContent = 'Projekte';
   $('#page-subtitle').textContent = 'Alle laufenden Videoprojekte';
@@ -6572,6 +6698,14 @@ function renderProjects(session) {
   // Brainstorming-Ideen (kundenlos) nur für Admins – Manager sehen sonst nur Projekte
   // ihrer eigenen Kunden und würden ihre eigene Idee nicht wiederfinden.
   const canQuickIdea = hasRole(user, ROLES.ADMIN);
+
+  // Board-Modus (Redesign Part 2) — nur Admin/Manager; Listen-Ansicht bleibt Fallback.
+  if (canCreate && getProjectBoardMode()) {
+    return renderProductionBoard(
+      getRelevantProjects(user).filter(p => p.status !== STATUS.ARCHIVIERT),
+      session
+    );
+  }
 
   // Phasen-Headbar nur für Admin/Manager. Andere (z. B. Videograf) sehen die Seite wie bisher.
   const showPhases = canCreate;
@@ -6624,7 +6758,8 @@ function renderProjects(session) {
     </select>` : '';
 
   $('#topbar-actions').innerHTML = canCreate
-    ? `<div class="flex gap-2" style="flex-wrap:wrap;">
+    ? `<div class="flex gap-2" style="flex-wrap:wrap; align-items:center;">
+         <span class="pb-toggle"><button type="button" onclick="setProjectBoardMode(true)">Board</button><button class="on" type="button">Liste</button></span>
          <button class="btn btn-secondary" onclick="openShootDayModal()">+ Drehtag</button>
          <button class="btn btn-secondary" onclick="openSeriesPlannerModal()">Serie planen</button>
          <button class="btn ${canQuickIdea ? 'btn-secondary' : 'btn-primary'}" onclick="openProjectModal()">+ Neues Projekt</button>
