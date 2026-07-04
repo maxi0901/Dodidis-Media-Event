@@ -45,10 +45,18 @@
 
             <div class="hero-founders-stage" data-hero-image>
                 <div class="hero-founders-glow" aria-hidden="true" data-hero-bg></div>
-                <picture>
-                    <source srcset="assets/hero-founders.webp" type="image/webp">
-                    <img class="hero-founders-cutout" src="assets/hero-founders.png" alt="Gründer von Dodidis.Media" width="1100" height="1418" loading="eager" decoding="async" fetchpriority="high" data-hero-fg>
-                </picture>
+                <div class="hero-founder" style="--rise-i:0">
+                    <picture>
+                        <source srcset="assets/hero-raphael.webp" type="image/webp">
+                        <img class="hero-founders-cutout" src="assets/hero-raphael.png" alt="Raphael Dodidis" width="387" height="991" loading="eager" decoding="async" fetchpriority="high" data-hero-fg>
+                    </picture>
+                </div>
+                <div class="hero-founder" style="--rise-i:1">
+                    <picture>
+                        <source srcset="assets/hero-timo.webp" type="image/webp">
+                        <img class="hero-founders-cutout" src="assets/hero-timo.png" alt="Timo Block" width="625" height="1084" loading="eager" decoding="async" data-hero-fg>
+                    </picture>
+                </div>
                 <div class="hero-founders-floor" aria-hidden="true"></div>
             </div>
 
