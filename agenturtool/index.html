@@ -10721,6 +10721,7 @@ function openCustomerModal(customerId = null) {
           <div class="modal-footer">
             <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
             <button type="submit" class="btn btn-primary">Speichern</button>
+            ${!isNew && hasRole(getCurrentUser()?.user, ROLES.ADMIN, ROLES.MANAGER) ? `<button type="button" class="btn btn-secondary" onclick="metaConnectCustomer('${customer.id}')">📷 Meta verbinden</button>` : ''}
             ${!isNew && hasRole(getCurrentUser()?.user, ROLES.ADMIN) ? `<button type="button" class="btn btn-danger" onclick="deleteCustomer('${customer.id}')">Löschen</button>` : ''}
           </div>
         </form>
@@ -10728,6 +10729,13 @@ function openCustomerModal(customerId = null) {
     </div>
   `;
   $('#modal-container').innerHTML = html;
+}
+
+// Startet den Meta-OAuth-Flow für diesen Kunden (öffnet meta_connect.php in
+// neuem Tab; nutzt die aktive Session). Ersetzt das manuelle ID-Heraussuchen.
+function metaConnectCustomer(customerId) {
+  if (!customerId) return;
+  window.open(`${API_BASE}/meta_connect.php?customer_id=${encodeURIComponent(customerId)}`, '_blank', 'noopener');
 }
 
 function switchTab(e, tabId) {
