@@ -3934,6 +3934,50 @@
   @media (max-width:900px) { .prod-board { grid-template-columns:1fr 1fr; gap:16px; } .pb-col { border-right:none; padding:0; min-height:auto; } }
   @media (max-width:560px) { .prod-board { grid-template-columns:1fr; } }
 
+  /* ===== Redesign Part 3 — L1-Tabs (Produktion/Posting) + Posting-Planer ===== */
+  .l1tabs { display:flex; gap:26px; align-items:center; border-bottom:1px solid var(--border); margin-bottom:20px; }
+  .l1tab { background:none; border:none; cursor:pointer; font:inherit; font-size:15px; font-weight:500; color:var(--text-3); padding:4px 2px 11px; position:relative; }
+  .l1tab.active { color:var(--text-1); font-weight:600; }
+  .l1tab.active::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:3px; border-radius:3px; background:var(--marker); }
+  .l1tab .mb { font-size:10px; font-weight:600; color:var(--text-3); margin-left:7px; letter-spacing:.4px; text-transform:uppercase; }
+
+  .posting { display:grid; grid-template-columns:320px 1fr; gap:28px; align-items:start; }
+  .pp-list { background:var(--bg-1); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .pp-list-head { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border); }
+  .pp-seg { display:inline-flex; background:var(--bg-3); border-radius:8px; padding:2px; }
+  .pp-seg button { border:none; background:none; cursor:pointer; font:inherit; font-size:11.5px; font-weight:600; color:var(--text-2); padding:4px 10px; border-radius:6px; }
+  .pp-seg button.on { background:var(--bg-1); color:var(--text-1); box-shadow:var(--shadow-sm); }
+  .pp-items { list-style:none; max-height:64vh; overflow-y:auto; }
+  .pp-item { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 16px; border-bottom:1px solid var(--border); cursor:grab; }
+  .pp-item:last-child { border-bottom:none; }
+  .pp-item:hover { background:var(--bg-2); }
+  .pp-item.dragging { opacity:.35; }
+  .pp-item-t { font-size:13px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pp-item-m { display:flex; align-items:center; gap:7px; margin-top:3px; }
+  .pp-hint { font-size:11.5px; color:var(--text-3); padding:0 4px; margin-top:8px; }
+
+  .pcal { background:var(--bg-1); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .pcal-bar { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--border); }
+  .pcal-title { flex:1; text-align:center; font-size:16px; font-weight:600; }
+  .pcal-title .yr { font-weight:400; color:var(--text-2); }
+  .pcal-nav button { background:none; border:1px solid var(--border); border-radius:8px; cursor:pointer; font:inherit; color:var(--text-1); padding:5px 10px; margin-left:4px; }
+  .pcal-nav button:hover { background:var(--bg-2); }
+  .pcal-wds { display:grid; grid-template-columns:repeat(7,1fr); }
+  .pcal-wd { padding:8px 10px; font-size:11px; font-weight:600; color:var(--text-2); border-bottom:1px solid var(--border); }
+  .pcal-grid { display:grid; grid-template-columns:repeat(7,1fr); }
+  .pcal-day { min-height:92px; padding:6px 7px; border-right:1px solid var(--border); border-bottom:1px solid var(--border); }
+  .pcal-day:nth-child(7n) { border-right:none; }
+  .pcal-day.out { background:var(--bg-2); }
+  .pcal-day.out .pcal-dn { color:var(--text-3); opacity:.6; }
+  .pcal-day.today { background:var(--marker-soft); }
+  .pcal-day.dnd-over { outline:2px dashed var(--marker); outline-offset:-2px; background:var(--accent-soft); }
+  .pcal-dn { font-size:12px; color:var(--text-2); }
+  .pchip { display:flex; align-items:center; gap:5px; border-radius:6px; padding:3px 7px; margin-top:5px; font-size:10.5px; font-weight:600; cursor:pointer; line-height:1.3; background:var(--bg-3); color:var(--text-1); }
+  .pchip.pub { background:#e3f3ea; color:#1d6f43; }
+  .pchip.err { background:#fbe1de; color:#8c2318; }
+  .pchip .pf { margin-left:auto; font-size:9px; opacity:.7; text-transform:uppercase; }
+  @media (max-width:860px) { .posting { grid-template-columns:1fr; } .pp-items { max-height:40vh; } }
+
 </style>
 </head>
 <body>
@@ -6678,7 +6722,213 @@ function renderProductionBoard(projects, session) {
     </section>`;
   }).join('');
 
-  $('#content').innerHTML = `<div class="prod-board">${cols}</div>`;
+  const tab = getPbTab();
+  const tabs = `<div class="l1tabs">
+    <button type="button" class="l1tab ${tab === 'produktion' ? 'active' : ''}" onclick="setPbTab('produktion')">Produktion</button>
+    <button type="button" class="l1tab ${tab === 'posting' ? 'active' : ''}" onclick="setPbTab('posting')">Posting<span class="mb">Meta Business</span></button>
+  </div>`;
+
+  if (tab === 'posting') {
+    $('#content').innerHTML = tabs + `<div id="posting-pane"><div class="pb-empty">Lade Posting-Planer…</div></div>`;
+    loadPostingPane();
+    return;
+  }
+
+  $('#content').innerHTML = tabs + `<div class="prod-board">${cols}</div>`;
+}
+
+function getPbTab() { return localStorage.getItem('proj_board_tab') === 'posting' ? 'posting' : 'produktion'; }
+function setPbTab(t) { localStorage.setItem('proj_board_tab', t); renderPage(); }
+
+/* ===== Posting-Planer (Redesign Part 3) — an content_plan.php ===============
+   Links Videoliste (Fertige/Alle), rechts Monats-Kalender. Video per Drag auf
+   einen Tag ziehen → Plattform/Uhrzeit/Caption wählen → content_plan.php.
+   Nur Admin/Manager (serverseitig ohnehin erzwungen). */
+const posting = { month: null, pool: [], scheduled: [], filter: 'ready', error: null };
+const POSTING_PLATFORMS = [
+  { k: 'instagram', label: 'Instagram' }, { k: 'facebook', label: 'Facebook' },
+  { k: 'tiktok', label: 'TikTok' }, { k: 'youtube', label: 'YouTube' }, { k: 'linkedin', label: 'LinkedIn' },
+];
+let _ppDrag = null;
+
+function pmStartOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+function pmISO(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+
+async function loadPostingPane() {
+  if (!posting.month) posting.month = pmStartOfMonth(new Date());
+  posting.error = null;
+  const onlyReady = posting.filter === 'ready' ? '&only_ready=1' : '';
+  try {
+    const [pool, sched] = await Promise.all([
+      fetch(`${API_BASE}/content_plan.php?action=pool${onlyReady}`, { credentials: 'same-origin' }).then(r => r.json()),
+      fetch(`${API_BASE}/content_plan.php?action=scheduled`, { credentials: 'same-origin' }).then(r => r.json()),
+    ]);
+    if (!pool.ok) throw new Error(pool.error || 'Pool-Fehler');
+    if (!sched.ok) throw new Error(sched.error || 'Kalender-Fehler');
+    posting.pool = pool.data || [];
+    posting.scheduled = sched.data || [];
+  } catch (e) {
+    posting.error = e.message;
+  }
+  renderPostingPane();
+}
+
+function renderPostingPane() {
+  const pane = document.getElementById('posting-pane');
+  if (!pane) return;
+  if (posting.error) {
+    pane.innerHTML = `<div class="card"><div class="empty-state">Posting-Planer nicht verfügbar: ${escape(posting.error)}</div></div>`;
+    return;
+  }
+
+  // Linke Videoliste
+  const items = posting.pool.map(a => {
+    const badge = a.projectStatus === 'freigegeben'
+      ? '<span class="badge badge-freigegeben" style="font-size:10px;">freigegeben</span>'
+      : `<span class="badge badge-${statusCls(a.projectStatus)}" style="font-size:10px;">${escape(statusLabel(a.projectStatus))}</span>`;
+    const cust = a.customerName ? `<span class="pb-chip">${escape(a.customerName)}</span>` : '';
+    return `<li class="pp-item" draggable="true" ondragstart="ppDragStart(event,'${a.assetId}')" ondragend="ppDragEnd(event)" title="Auf ein Datum ziehen">
+      <div style="min-width:0;"><div class="pp-item-t">${escape(a.projectTitle || a.filename)}</div><div class="pp-item-m">${cust}${a.plannedCount ? `<span class="pb-chip">📅 ${a.plannedCount}</span>` : ''}</div></div>
+      ${badge}
+    </li>`;
+  }).join('');
+
+  // Rechter Monatskalender
+  const m = posting.month;
+  const monthNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const first = pmStartOfMonth(m);
+  const startWd = (first.getDay() + 6) % 7; // Mo=0
+  const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+  const todayISO = pmISO(new Date());
+  // scheduled nach Tag gruppieren
+  const byDay = {};
+  posting.scheduled.forEach(s => {
+    if (!s.scheduledAt) return;
+    const day = String(s.scheduledAt).slice(0, 10);
+    (byDay[day] = byDay[day] || []).push(s);
+  });
+
+  let cells = '';
+  for (let i = 0; i < startWd; i++) cells += `<div class="pcal-day out"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const chips = (byDay[iso] || []).map(s => {
+      const cls = s.status === 'published' ? 'pub' : (s.status === 'error' ? 'err' : '');
+      const time = s.scheduledAt ? String(s.scheduledAt).slice(11, 16) : '';
+      return `<div class="pchip ${cls}" onclick="ppChipClick(${s.id})" title="${escape(s.projectTitle || '')} — ${escape(s.platform)}">
+        ${time} <span class="pf">${escape((s.platform || '').slice(0,2))}</span></div>`;
+    }).join('');
+    cells += `<div class="pcal-day ${iso === todayISO ? 'today' : ''}" data-iso="${iso}"
+      ondragover="ppDayOver(event)" ondragleave="ppDayLeave(event)" ondrop="ppDayDrop(event,'${iso}')">
+      <div class="pcal-dn">${d}</div>${chips}</div>`;
+  }
+
+  pane.innerHTML = `
+    <div class="posting">
+      <div>
+        <div class="pp-list">
+          <div class="pp-list-head">
+            <span style="font-size:13.5px;font-weight:600;">Videos</span>
+            <span class="pp-seg">
+              <button class="${posting.filter === 'ready' ? 'on' : ''}" onclick="ppSetFilter('ready')">Fertige</button>
+              <button class="${posting.filter === 'all' ? 'on' : ''}" onclick="ppSetFilter('all')">Alle</button>
+            </span>
+          </div>
+          <ul class="pp-items">${items || '<li class="pp-item"><span class="text-sm text-muted">Keine Videos.</span></li>'}</ul>
+        </div>
+        <div class="pp-hint">Titel per Drag &amp; Drop auf ein Datum ziehen, um zu planen.</div>
+      </div>
+      <div class="pcal">
+        <div class="pcal-bar">
+          <span class="pcal-nav"><button onclick="ppMonth(-1)">‹</button><button onclick="ppMonthToday()">Heute</button><button onclick="ppMonth(1)">›</button></span>
+          <span class="pcal-title">${monthNames[m.getMonth()]} <span class="yr">${m.getFullYear()}</span></span>
+          <span style="width:120px;"></span>
+        </div>
+        <div class="pcal-wds">${['Mo','Di','Mi','Do','Fr','Sa','So'].map(w => `<div class="pcal-wd">${w}</div>`).join('')}</div>
+        <div class="pcal-grid">${cells}</div>
+      </div>
+    </div>`;
+}
+
+function ppSetFilter(f) { posting.filter = f; loadPostingPane(); }
+function ppMonth(delta) { posting.month = new Date(posting.month.getFullYear(), posting.month.getMonth() + delta, 1); renderPostingPane(); }
+function ppMonthToday() { posting.month = pmStartOfMonth(new Date()); renderPostingPane(); }
+function ppDragStart(ev, assetId) { _ppDrag = assetId; ev.dataTransfer.effectAllowed = 'copy'; ev.currentTarget.classList.add('dragging'); }
+function ppDragEnd(ev) { ev.currentTarget.classList.remove('dragging'); document.querySelectorAll('.pcal-day.dnd-over').forEach(d => d.classList.remove('dnd-over')); }
+function ppDayOver(ev) { if (!_ppDrag) return; ev.preventDefault(); ev.currentTarget.classList.add('dnd-over'); }
+function ppDayLeave(ev) { ev.currentTarget.classList.remove('dnd-over'); }
+function ppDayDrop(ev, iso) {
+  ev.preventDefault(); ev.currentTarget.classList.remove('dnd-over');
+  const assetId = _ppDrag; _ppDrag = null;
+  if (!assetId) return;
+  openPlanDialog(assetId, iso);
+}
+
+function openPlanDialog(assetId, iso) {
+  const asset = posting.pool.find(a => a.assetId === assetId);
+  const title = asset ? (asset.projectTitle || asset.filename) : 'Video';
+  const html = `
+    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:440px;">
+        <div class="modal-header"><div class="modal-title">Posting planen</div><button class="modal-close" onclick="closeModal()">×</button></div>
+        <div class="modal-body">
+          <div class="text-sm text-muted" style="margin-bottom:12px;">${escape(title)}</div>
+          <div class="form-group"><label class="form-label">Plattformen</label>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              ${POSTING_PLATFORMS.map(p => `<label class="checkbox-row" style="padding:7px 11px;margin:0;"><input type="checkbox" name="pf" value="${p.k}" ${p.k==='instagram'?'checked':''}/> <span>${p.label}</span></label>`).join('')}
+            </div>
+          </div>
+          <div class="form-group" style="display:flex;gap:10px;">
+            <div style="flex:1;"><label class="form-label">Datum</label><input type="date" id="plan-date" value="${iso}" style="width:100%;padding:9px 11px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border);color:inherit;"/></div>
+            <div style="flex:1;"><label class="form-label">Uhrzeit</label><input type="time" id="plan-time" value="18:00" style="width:100%;padding:9px 11px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border);color:inherit;"/></div>
+          </div>
+          <div class="form-group"><label class="form-label">Caption (optional)</label><textarea id="plan-caption" placeholder="Text zum Post…" style="width:100%;min-height:70px;padding:9px 11px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border);color:inherit;"></textarea></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+          <button class="btn btn-primary" onclick="submitPlan('${assetId}')">Einplanen</button>
+        </div>
+      </div>
+    </div>`;
+  $('#modal-container').innerHTML = html;
+}
+
+async function submitPlan(assetId) {
+  const platforms = [...document.querySelectorAll('input[name=pf]:checked')].map(c => c.value);
+  const date = document.getElementById('plan-date')?.value;
+  const time = document.getElementById('plan-time')?.value || '00:00';
+  const caption = document.getElementById('plan-caption')?.value || '';
+  if (!platforms.length) { appAlert('Mindestens eine Plattform wählen.'); return; }
+  if (!date) { appAlert('Datum fehlt.'); return; }
+  try {
+    const res = await fetch(`${API_BASE}/content_plan.php?action=plan`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ asset_id: assetId, platforms, content_type: 'reel', caption, scheduled_at: `${date} ${time}` }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    closeModal();
+    showToast('Eingeplant', `${platforms.length} Plattform(en) · ${date} ${time}`);
+    loadPostingPane();
+  } catch (e) {
+    appAlert('Planung fehlgeschlagen: ' + e.message);
+  }
+}
+
+async function ppChipClick(id) {
+  const ok = await appConfirm('Diese Planung entfernen?', { title: 'Planung entfernen?', okLabel: 'Entfernen', danger: true });
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API_BASE}/content_plan.php?id=${encodeURIComponent(id)}`, {
+      method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF },
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    loadPostingPane();
+  } catch (e) {
+    showToast('Entfernen fehlgeschlagen', e.message);
+  }
 }
 
 function renderProjects(session) {
