@@ -4,6 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes" />
 <meta name="theme-color" content="#f2f1ee" />
+<!-- Redesign: Vorlagen-Schriften (Inter global, Doto für Zahlen). Fällt bei
+     fehlendem Netz sauber auf system-ui zurück. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Doto:wght@600;700&family=Inter:wght@400;500;600;700&display=swap">
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Dodidis Media" />
@@ -66,7 +71,7 @@
     height: 100%;
     background: var(--bg-0);
     color: var(--text-1);
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Inter", system-ui, sans-serif;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
@@ -737,19 +742,11 @@
     position: relative;
     overflow: hidden;
   }
-  .stat::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-    background: var(--accent);
-    opacity: 0.6;
-    border-radius: 18px 18px 0 0;
-  }
+  .stat::before { content: none; }
   .stat:hover {
-    border-color: rgba(0,200,150,0.25);
+    border-color: var(--border-strong);
     transform: translateY(-2px);
-    box-shadow: 0 8px 32px -8px rgba(0,200,150,0.15), var(--shadow-sm);
+    box-shadow: var(--shadow-sm);
   }
   .stat-icon {
     width: 38px;
@@ -857,11 +854,13 @@
   }
 
   .stat-value {
-    font-size: 38px;
-    font-weight: 800;
+    font-family: "Doto", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 40px;
+    font-weight: 700;
     margin-top: 4px;
-    letter-spacing: -2px;
-    line-height: 1;
+    letter-spacing: 0;
+    line-height: 1.1;
     color: var(--text-1);
   }
 
