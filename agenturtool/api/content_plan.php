@@ -37,6 +37,21 @@ if (($session['type'] ?? '') === 'customer' || !has_role('admin', 'manager')) {
     json_err(403, 'Nur Manager oder Admins dürfen den Posting-Planer nutzen.');
 }
 
+// Sichtbarkeits-Scope: Admin sieht alles; ein reiner Manager nur Kunden, die
+// ihm zugewiesen sind (customers.manager_id) — analog zur Board-Einschränkung.
+$isAdmin  = has_role('admin');
+$mgrScope = (!$isAdmin && has_role('manager')) ? (string)$session['uid'] : null;
+
+/** Stellt sicher, dass ein Manager nur auf seine eigenen Kunden zugreift. */
+$assertCustomerScope = static function (?string $customerId) use ($mgrScope): void {
+    if ($mgrScope === null) return; // Admin: keine Einschränkung
+    if (!$customerId) json_err(403, 'Kein Zugriff auf diesen Eintrag.');
+    $c = db_one("SELECT manager_id FROM customers WHERE id = ?", [$customerId]);
+    if (!$c || (string)($c['manager_id'] ?? '') !== $mgrScope) {
+        json_err(403, 'Nur auf zugewiesene Kunden zugreifbar.');
+    }
+};
+
 // Erlaubte Plattformen/Typen (auswählbar im Planer). Facebook kann nativ
 // vorgeplant werden, Instagram wird termingesteuert von uns veröffentlicht.
 const PLAN_PLATFORMS = ['instagram', 'facebook', 'tiktok', 'youtube', 'linkedin'];
@@ -69,6 +84,8 @@ switch ($method) {
                 ? "p.status = 'freigegeben'"
                 : "p.status IN ('fertig','korrektur','freigegeben','archiviert')";
 
+            $scopeCond = $mgrScope !== null ? " AND c.manager_id = ?" : '';
+            $scopeParams = $mgrScope !== null ? [$mgrScope] : [];
             $rows = db_all(
                 "SELECT a.id AS assetId, a.project_id AS projectId, a.filename,
                         a.content_type AS contentType, a.size_bytes AS sizeBytes,
@@ -80,9 +97,9 @@ switch ($method) {
                    JOIN projects p  ON p.id = a.project_id
               LEFT JOIN customers c ON c.id = p.customer_id
                   WHERE a.kind = 'final' AND a.status = 'stored'
-                    AND {$statusCond}
+                    AND {$statusCond}{$scopeCond}
                   ORDER BY p.status = 'freigegeben' DESC, a.created_at DESC",
-                []
+                $scopeParams
             );
             foreach ($rows as &$r) {
                 $r['sizeBytes']    = $r['sizeBytes'] !== null ? (int)$r['sizeBytes'] : null;
@@ -97,6 +114,7 @@ switch ($method) {
             $params = [];
             if (!empty($_GET['from'])) { $where .= " AND cq.scheduled_at >= ?"; $params[] = ($parseWhen($_GET['from']) ?? $_GET['from']); }
             if (!empty($_GET['to']))   { $where .= " AND cq.scheduled_at <= ?"; $params[] = ($parseWhen($_GET['to'])   ?? $_GET['to']); }
+            if ($mgrScope !== null)    { $where .= " AND c.manager_id = ?";     $params[] = $mgrScope; }
 
             $rows = db_all(
                 "SELECT cq.id, cq.customer_id AS customerId, c.name AS customerName,
@@ -147,6 +165,7 @@ switch ($method) {
             [$assetId]
         );
         if (!$a) json_err(404, 'Finaler Schnitt nicht gefunden.');
+        $assertCustomerScope($a['customer_id'] ?? null); // Manager: nur eigene Kunden
 
         // media_url = absolute URL zum finalen Schnitt. Hinweis für Stufe C:
         // dieser Download verlangt aktuell eine Staff-Session. Für n8n/Meta wird
@@ -186,8 +205,9 @@ switch ($method) {
     // ── PUT ?id= — geplanten Post ändern ─────────────────────────────────────
     case 'PUT': {
         if (!$id) json_err(400, 'id fehlt.');
-        $cq = db_one("SELECT id, status FROM content_queue WHERE id = ?", [(int)$id]);
+        $cq = db_one("SELECT id, status, customer_id FROM content_queue WHERE id = ?", [(int)$id]);
         if (!$cq) json_err(404, 'Geplanter Post nicht gefunden.');
+        $assertCustomerScope($cq['customer_id'] ?? null); // Manager: nur eigene Kunden
         if ($cq['status'] === 'published') json_err(409, 'Bereits veröffentlicht — nicht mehr änderbar.');
 
         $b = input_json();
@@ -216,8 +236,9 @@ switch ($method) {
     // ── DELETE ?id= — Planung entfernen ──────────────────────────────────────
     case 'DELETE': {
         if (!$id) json_err(400, 'id fehlt.');
-        $cq = db_one("SELECT id, status FROM content_queue WHERE id = ?", [(int)$id]);
+        $cq = db_one("SELECT id, status, customer_id FROM content_queue WHERE id = ?", [(int)$id]);
         if (!$cq) json_err(404, 'Geplanter Post nicht gefunden.');
+        $assertCustomerScope($cq['customer_id'] ?? null); // Manager: nur eigene Kunden
         if ($cq['status'] === 'published') json_err(409, 'Bereits veröffentlicht — kann nicht entfernt werden.');
         db_exec("DELETE FROM content_queue WHERE id = ?", [(int)$id]);
         log_activity('content_plan', (string)$id, 'unplanned');
