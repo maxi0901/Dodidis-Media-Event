@@ -686,31 +686,23 @@ main { padding-top: 2rem; }
     opacity: 0.6;
 }
 
-/* Ein Gründer-Bild als gerahmtes Foto (weißer Studio-Hintergrund → helle Karte).
-   Fixpunkt via object-position, damit die Gesichter gut im Ausschnitt sitzen. */
+/* Ein freigestelltes Gründer-Bild (transparenter Hintergrund), zentriert und
+   schwebend über dem dunklen Hero – kein weißer Kasten. */
 .hero-photo {
     position: relative;
     z-index: 2;
-    width: clamp(320px, 100%, 940px);
+    width: clamp(300px, 100%, 880px);
     margin: 0 auto;
-    aspect-ratio: 16 / 10;
-    border-radius: 24px;
-    overflow: hidden;
-    background: #ffffff;
-    box-shadow: 0 34px 70px -28px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06);
     transform: translate3d(var(--hero-parallax-x, 0), var(--hero-parallax-y, 0), 0) scale(var(--hero-scale, 1));
     transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
     animation: heroFloat 9s ease-in-out infinite;
 }
 .hero-photo img {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: 50% 26%;   /* Fixpunkt: mittig, leicht nach oben (Gesichter) */
+    height: auto;
     display: block;
-}
-@media (max-width: 540px) {
-    .hero-photo { aspect-ratio: 4 / 3; border-radius: 18px; }
+    margin: 0 auto;
+    filter: drop-shadow(0 30px 50px rgba(0,0,0,0.55));
 }
 
 @keyframes heroFloat {

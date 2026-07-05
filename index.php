@@ -46,10 +46,10 @@
             <div class="hero-founders-stage" data-hero-image>
                 <div class="hero-founders-glow" aria-hidden="true" data-hero-bg></div>
 
-                <!-- Ein Gründer-Bild als gerahmtes Foto. Fixpunkt (object-position)
-                     mittig-oben, damit die Gesichter gut im Ausschnitt sitzen. -->
+                <!-- Ein freigestelltes Gründer-Bild (transparenter Hintergrund),
+                     zentriert und schwebend über dem dunklen Hero. -->
                 <div class="hero-photo">
-                    <img src="assets/Webseite bild Final 4K.png" alt="Gründer von Dodidis.Media" width="1890" height="1417" loading="eager" decoding="async" fetchpriority="high" data-hero-fg>
+                    <img src="assets/hero-founders-final.png" alt="Gründer von Dodidis.Media" width="1202" height="1162" loading="eager" decoding="async" fetchpriority="high" data-hero-fg>
                 </div>
 
                 <div class="hero-founders-floor" aria-hidden="true"></div>
