@@ -6836,22 +6836,32 @@ function resetCustomerFilters() {
    Listen-/Phasen-Ansicht bleibt vollständig erhalten (Umschalter). */
 const PB_COLUMNS = [
   { key: 'idee',       title: 'Idee',            statuses: ['idee'],    entry: 'idee' },
-  { key: 'production', title: 'Produktion',      statuses: ['geplant'], entry: 'geplant' },
-  // Post Production fasst gedreht→schnitt→fertig zusammen; die Unter-Schritte
-  // werden über einen Slider (Gedreht / Schnitt / Freigabe) gefiltert.
+  // Produktion: Slider Alle / Geplant / Nicht gedreht (Nicht gedreht = geplante
+  // Projekte, deren Drehtag/-zeit ohne „abgedreht" verstrichen ist).
+  { key: 'production', title: 'Produktion',      statuses: ['geplant'], entry: 'geplant',
+    subTabs: [
+      { key: 'alle',         label: 'Alle',          match: () => true },
+      { key: 'geplant',      label: 'Geplant',       match: p => !isNichtGedreht(p) },
+      { key: 'nichtgedreht', label: 'Nicht gedreht', match: p => isNichtGedreht(p) },
+    ], subDefault: 'alle' },
+  // Post Production fasst gedreht→schnitt→fertig zusammen; Slider Alle / Gedreht /
+  // Schnitt / Freigabe.
   { key: 'post',       title: 'Post Production', statuses: ['gedreht', 'schnitt', 'korrektur', 'fertig'], entry: 'gedreht',
     subTabs: [
-      { key: 'gedreht',  label: 'Gedreht',  statuses: ['gedreht'],              entry: 'gedreht' },
-      { key: 'schnitt',  label: 'Schnitt',  statuses: ['schnitt', 'korrektur'], entry: 'schnitt' },
-      { key: 'freigabe', label: 'Freigabe', statuses: ['fertig'],               entry: 'fertig' },
-    ] },
+      { key: 'alle',     label: 'Alle',     match: () => true },
+      { key: 'gedreht',  label: 'Gedreht',  match: p => legacyStatus(p) === 'gedreht',                       entry: 'gedreht' },
+      { key: 'schnitt',  label: 'Schnitt',  match: p => ['schnitt', 'korrektur'].includes(legacyStatus(p)), entry: 'schnitt' },
+      { key: 'freigabe', label: 'Freigabe', match: p => legacyStatus(p) === 'fertig',                        entry: 'fertig' },
+    ], subDefault: 'gedreht' },
   { key: 'fertig',     title: 'Fertige Reels',   statuses: ['freigegeben'], entry: 'freigegeben' },
 ];
-function getPbPost() {
-  const v = localStorage.getItem('proj_board_post');
-  return ['gedreht', 'schnitt', 'freigabe'].includes(v) ? v : 'gedreht';
+// Aktiver Unter-Tab je Spalte (pro Nutzer gemerkt).
+function getPbSub(col) {
+  const v = localStorage.getItem('proj_board_sub_' + col.key);
+  if (v && col.subTabs.some(s => s.key === v)) return v;
+  return col.subDefault || col.subTabs[0].key;
 }
-function setPbPost(t) { localStorage.setItem('proj_board_post', t); renderPage(); }
+function setPbSub(colKey, val) { localStorage.setItem('proj_board_sub_' + colKey, val); renderPage(); }
 function getProjectBoardMode() { return localStorage.getItem('proj_board_mode') === '1'; }
 function setProjectBoardMode(on) { localStorage.setItem('proj_board_mode', on ? '1' : '0'); renderPage(); }
 
@@ -6896,8 +6906,8 @@ function pbDrop(ev, colKey) {
   // Freigabe), sonst der Spalten-Einstiegsstatus.
   let entry = target.entry;
   if (target.subTabs) {
-    const active = target.subTabs.find(s => s.key === getPbPost()) || target.subTabs[0];
-    entry = active.entry;
+    const active = target.subTabs.find(s => s.key === getPbSub(target)) || target.subTabs[0];
+    entry = active.entry || target.entry;
   }
   // Idee wird aus der Ideen-Spalte herausgezogen → erst Drehtag & Team im
   // kompakten Popup setzen, dann verschieben (statt direkt Status zu ändern).
@@ -6926,21 +6936,22 @@ function renderProductionBoard(projects, session) {
       ${canQuickIdea ? `<button class="btn btn-primary" onclick="openQuickIdeaModal()">+ Neue Idee</button>` : ''}
     </div>`;
 
-  const postSub = getPbPost();
   const cols = PB_COLUMNS.map(col => {
     let items = projects
       .filter(p => col.statuses.includes(legacyStatus(p)))
       .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
     const totalCount = items.length;
-    // Post Production: Slider (Gedreht / Schnitt / Freigabe) filtert die Karten.
+    // Spalten-Slider (z. B. Produktion: Alle/Geplant/Nicht gedreht,
+    // Post Production: Alle/Gedreht/Schnitt/Freigabe) filtert die Karten.
     let segHtml = '';
     if (col.subTabs) {
+      const activeKey = getPbSub(col);
       segHtml = `<div class="pb-seg">` + col.subTabs.map(s => {
-        const n = items.filter(p => s.statuses.includes(legacyStatus(p))).length;
-        return `<button type="button" class="${postSub === s.key ? 'on' : ''}" onclick="setPbPost('${s.key}')">${s.label}<span class="pb-seg-num">${n}</span></button>`;
+        const n = items.filter(p => s.match(p)).length;
+        return `<button type="button" class="${activeKey === s.key ? 'on' : ''}" onclick="setPbSub('${col.key}','${s.key}')">${s.label}<span class="pb-seg-num">${n}</span></button>`;
       }).join('') + `</div>`;
-      const active = col.subTabs.find(s => s.key === postSub) || col.subTabs[0];
-      items = items.filter(p => active.statuses.includes(legacyStatus(p)));
+      const active = col.subTabs.find(s => s.key === activeKey) || col.subTabs[0];
+      items = items.filter(p => active.match(p));
     }
     const cards = items.map(p => {
       const st = legacyStatus(p);
