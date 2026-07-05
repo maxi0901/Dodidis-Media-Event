@@ -166,6 +166,7 @@
     background: transparent;
     width: 100%;
     text-align: left;
+    position: relative;
   }
 
   .nav-item:hover {
@@ -174,31 +175,29 @@
   }
 
   .nav-item.active {
-    background: rgba(0, 200, 150, 0.12);
-    color: var(--accent);
+    background: transparent;
+    color: var(--text-1);
     font-weight: 600;
-    box-shadow: inset 3px 0 0 var(--accent);
   }
-  .nav-item .icon {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    opacity: 0.7;
-    transition: opacity 0.15s;
+  .nav-item.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 7px;
+    bottom: 7px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--marker);
   }
-  .nav-item.active .icon,
-  .nav-item:hover .icon { opacity: 1; }
 
   .nav-badge {
     margin-left: auto;
-    background: var(--accent);
-    color: #ffffff;
-    font-size: 10.5px;
+    font-family: "Doto", ui-monospace, monospace;
     font-weight: 700;
-    padding: 1px 7px;
-    border-radius: 999px;
-    min-width: 18px;
-    text-align: center;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+    color: var(--text-3);
+    font-size: 13px;
   }
 
   /* Todos */
@@ -4028,8 +4027,7 @@
 <div id="app" class="app hide">
   <aside class="sidebar">
     <div class="sidebar-header">
-      <div class="logo"><img src="DM_Logo_4K_ohneschrift_invert.png" alt="DM"></div>
-      <div class="logo-text">Dodidis Media</div>
+      <div class="logo-text">dodidis media</div>
     </div>
 
     <nav class="nav" id="nav"></nav>
@@ -4990,47 +4988,55 @@ function getNavItemsForUser(session) {
   if (!session) return [];
   if (session.type === 'customer') {
     return [
-      { id: 'customer-overview', label: 'Meine Videos', icon: 'video' }
+      { id: 'customer-overview', label: 'Meine Videos', icon: 'video', group: 'Studio' }
     ];
   }
   const user = session.user;
-  const items = [
-    { id: 'dashboard', label: 'Übersicht', icon: 'home' }
-  ];
+  // Gruppen + Reihenfolge nach Vorlage (Studio / Agentur / Team).
+  // icon bleibt erhalten für die mobile Bottom-Nav; die Desktop-Sidebar rendert
+  // rein textbasiert (siehe renderNav).
+  const items = [];
+
+  // ── Studio ────────────────────────────────────────────────────────────────
+  items.push({ id: 'dashboard', label: 'Übersicht', icon: 'home', group: 'Studio' });
   // Projekte nur, wenn die Rolle damit zu tun hat
   if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF, ROLES.CUTTER)) {
     const openProjects = countActionableProjects(user);
-    items.push({ id: 'projects', label: 'Projekte', icon: 'video', badge: openProjects > 0 ? openProjects : null });
+    items.push({ id: 'projects', label: 'Projekte', icon: 'video', group: 'Studio', badge: openProjects > 0 ? openProjects : null });
   }
   // Drehtage verwalten (nur Admin/Manager)
   if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER)) {
-    items.push({ id: 'shootdays', label: 'Drehtage', icon: 'camera' });
+    items.push({ id: 'shootdays', label: 'Drehtage', icon: 'camera', group: 'Studio' });
   }
-  // Meetings für alle Staff-Rollen sichtbar
-  items.push({ id: 'meetings', label: 'Meetings', icon: 'meeting' });
-  items.push({ id: 'calendar', label: 'Kalender', icon: 'calendar' });
+  items.push({ id: 'calendar', label: 'Kalender', icon: 'calendar', group: 'Studio' });
+  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF)) {
+    items.push({ id: 'archive', label: 'Archiv', icon: 'archive', group: 'Studio' });
+  }
+
+  // ── Agentur ───────────────────────────────────────────────────────────────
+  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER)) {
+    items.push({ id: 'customers', label: 'Kunden', icon: 'users', group: 'Agentur' });
+  }
   // Auswertungen (Admin + Manager)
   if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER)) {
-    items.push({ id: 'reports', label: 'Auswertungen', icon: 'chart' });
+    items.push({ id: 'reports', label: 'Auswertungen', icon: 'chart', group: 'Agentur' });
+  }
+  // Meetings für alle Staff-Rollen sichtbar
+  items.push({ id: 'meetings', label: 'Meetings', icon: 'meeting', group: 'Agentur' });
+  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER)) {
+    items.push({ id: 'contracts', label: 'Verträge', icon: 'file', group: 'Agentur' });
   }
   if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER)) {
-    items.push({ id: 'customers', label: 'Kunden', icon: 'users' });
+    items.push({ id: 'social-content', label: 'Social Content', icon: 'image', group: 'Agentur' });
   }
+
+  // ── Team ──────────────────────────────────────────────────────────────────
   // Offene Aufgaben für diesen User zählen
   const openTodos = store.todos.filter(t => (t.assigneeIds || []).includes(user.id) && t.status === 'open').length;
-  items.push({ id: 'todos', label: 'Aufgaben', icon: 'check', badge: openTodos > 0 ? openTodos : null });
-  items.push({ id: 'vacation', label: 'Urlaub', icon: 'sun' });
-  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF)) {
-    items.push({ id: 'archive', label: 'Archiv', icon: 'archive' });
-  }
-  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.CONTRACT_UPLOADER)) {
-    items.push({ id: 'contracts', label: 'Verträge', icon: 'file' });
-  }
-  if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER)) {
-    items.push({ id: 'social-content', label: 'Social Content', icon: 'image' });
-  }
+  items.push({ id: 'todos', label: 'Aufgaben', icon: 'check', group: 'Team', badge: openTodos > 0 ? openTodos : null });
+  items.push({ id: 'vacation', label: 'Urlaub', icon: 'sun', group: 'Team' });
   if (hasRole(user, ROLES.ADMIN)) {
-    items.push({ id: 'admin', label: 'Admin-Bereich', icon: 'shield' });
+    items.push({ id: 'admin', label: 'Admin', icon: 'shield', group: 'Team' });
   }
   const unseenNotifs = (store.notifications || []).filter(n => !n.seen_at).length;
   if (unseenNotifs > 0) {
@@ -5062,13 +5068,17 @@ function renderNav() {
   const session = getCurrentUser();
   const items = getNavItemsForUser(session);
   const nav = $('#nav');
-  nav.innerHTML = items.map(item => `
+  let lastGroup = null;
+  nav.innerHTML = items.map(item => {
+    const head = (item.group && item.group !== lastGroup)
+      ? `<div class="nav-section-title">${item.group}</div>` : '';
+    lastGroup = item.group;
+    return head + `
     <button class="nav-item ${item.id === currentPage ? 'active' : ''}" onclick="navigateTo('${item.id}')">
-      ${ICONS[item.icon] || ''}
       <span>${item.label}</span>
       ${item.badge ? `<span class="nav-badge">${item.badge}</span>` : ''}
-    </button>
-  `).join('');
+    </button>`;
+  }).join('');
 }
 
 function renderBottomNav() {
