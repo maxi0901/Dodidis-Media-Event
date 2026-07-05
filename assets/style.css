@@ -608,7 +608,7 @@ main { padding-top: 2rem; }
 .hero-founders-stage {
     position: relative;
     width: 100%;
-    max-width: 1060px;
+    max-width: 880px;
     margin: -0.5rem auto 0;
     aspect-ratio: auto;
     display: flex;
@@ -692,7 +692,7 @@ main { padding-top: 2rem; }
     position: relative;
     z-index: 2;
     width: 100%;
-    max-width: 1060px;
+    max-width: 880px;
     margin: 0 auto;
     transform: translate3d(var(--hero-parallax-x, 0), var(--hero-parallax-y, 0), 0) scale(var(--hero-scale, 1));
     transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
