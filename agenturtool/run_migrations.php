@@ -105,7 +105,7 @@ addCol($pdo, 'customer_files', 'uploaded_at',
 
 // ── 4. project_files: fehlende Spalten ───────────────────────────────────────
 addCol($pdo, 'project_files', 'kind',
-    "ALTER TABLE project_files ADD COLUMN kind ENUM('script','contract','correction','other','rohmaterial','fertigstellung') NOT NULL DEFAULT 'other'", $results);
+    "ALTER TABLE project_files ADD COLUMN kind ENUM('script','contract','correction','other','rohmaterial','fertigstellung','image') NOT NULL DEFAULT 'other'", $results);
 addCol($pdo, 'project_files', 'filename',
     "ALTER TABLE project_files ADD COLUMN filename VARCHAR(255) NOT NULL DEFAULT ''", $results);
 addCol($pdo, 'project_files', 'mime',
@@ -119,9 +119,10 @@ addCol($pdo, 'project_files', 'uploaded_by',
 addCol($pdo, 'project_files', 'uploaded_at',
     "ALTER TABLE project_files ADD COLUMN uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP", $results);
 
-// ENUM erweitern (falls kind schon existierte aber mit altem ENUM)
+// ENUM erweitern (falls kind schon existierte aber mit altem ENUM).
+// 'image' für Ideen-Bilder ergänzt – läuft auch auf Bestandsinstallationen.
 step($pdo, "project_files.kind ENUM aktualisieren",
-    "ALTER TABLE project_files MODIFY COLUMN kind ENUM('script','contract','correction','other','rohmaterial','fertigstellung') NOT NULL DEFAULT 'other'",
+    "ALTER TABLE project_files MODIFY COLUMN kind ENUM('script','contract','correction','other','rohmaterial','fertigstellung','image') NOT NULL DEFAULT 'other'",
     $results);
 
 // ── 4b. shoot_days: rescheduled_from Spalte ──────────────────────────────────

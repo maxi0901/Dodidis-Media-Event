@@ -165,7 +165,7 @@ CREATE TABLE projects (
 CREATE TABLE project_files (
   id          BIGINT       NOT NULL AUTO_INCREMENT,
   project_id  VARCHAR(64)  NOT NULL,
-  kind        ENUM('script','contract','correction','other','avatar') NOT NULL DEFAULT 'other',
+  kind        ENUM('script','contract','correction','other','rohmaterial','fertigstellung','image') NOT NULL DEFAULT 'other',
   filename    VARCHAR(255) NOT NULL,
   mime        VARCHAR(96)  NOT NULL,
   size        INT UNSIGNED NOT NULL,
