@@ -608,7 +608,7 @@ main { padding-top: 2rem; }
 .hero-founders-stage {
     position: relative;
     width: 100%;
-    max-width: 860px;
+    max-width: 1060px;
     margin: -0.5rem auto 0;
     aspect-ratio: auto;
     display: flex;
@@ -691,7 +691,8 @@ main { padding-top: 2rem; }
 .hero-photo {
     position: relative;
     z-index: 2;
-    width: clamp(300px, 100%, 880px);
+    width: 100%;
+    max-width: 1060px;
     margin: 0 auto;
     transform: translate3d(var(--hero-parallax-x, 0), var(--hero-parallax-y, 0), 0) scale(var(--hero-scale, 1));
     transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
@@ -819,7 +820,7 @@ main { padding-top: 2rem; }
 }
 
 @media (max-width: 960px) {
-    .hero-founders-stage { max-width: 720px; }
+    .hero-founders-stage { max-width: 860px; }
     .hero-tagline-pill { font-size: 0.76rem; padding: 0.6rem 1.1rem; letter-spacing: 0.1em; }
     .eyebrow-pill { font-size: 0.72rem; letter-spacing: 0.14em; padding: 0.4rem 0.95rem; }
 }
