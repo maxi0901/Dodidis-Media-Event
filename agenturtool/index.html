@@ -3002,13 +3002,13 @@
     border-radius: 7px; margin-bottom: 6px; cursor: pointer;
   }
   .dw-slot .dw-st { display: block; font-size: 10px; font-weight: 500; opacity: 0.75; margin-top: 2px; }
-  /* Kategorie-Farben (hell/pastell wie Vorlage) */
-  .dw-slot.cat-meet { background: #e7edf5; color: #33526e; }
-  .dw-slot.cat-post { background: var(--marker-soft); color: #4b5d16; }
-  .dw-slot.cat-prod { background: #f6e5cf; color: #8a5a1e; }
-  .dw-slot.cat-dreh { background: #e7e0f7; color: #5b4a8a; }
-  .dw-slot.cat-todo { background: #f0eafb; color: #6b4fa0; }
-  .dw-allday.cat-url { background: #e3e6ea; color: #4a4f57; }
+  /* Kategorie-Farben – exakt wie in der Vorlage (neues-ui-beispiel) */
+  .dw-slot.cat-dreh { background: #e6dff6; color: #4c3a85; }
+  .dw-slot.cat-prod { background: #fbe6b4; color: #6d4c05; }
+  .dw-slot.cat-post { background: #e8f6b3; color: #4a5510; }
+  .dw-slot.cat-meet { background: #ececea; color: #5c5e63; }
+  .dw-slot.cat-todo { background: #dcefe9; color: #2f6b57; }
+  .dw-allday.cat-url { background: #f0efec; color: #6f7278; }
   @media (max-width: 720px) {
     .dw-day { min-height: 96px; padding: 8px 5px; }
     .dw-wn { font-size: 16px; }
@@ -6414,13 +6414,13 @@ function dashDayIndex(dateStr, startStr) {
   const a = new Date(startStr + 'T00:00:00'), b = new Date(dateStr + 'T00:00:00');
   return Math.round((b - a) / 86400000);
 }
-function renderDashWeekMockup(elementId, session) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
+// Baut das Wochenraster (Ganztags-Balken + 7 Tagesspalten) aus den Kalender-Bars.
+// opts.visibility filtert Kategorien (shoot/vacation/videos/todos/meetings).
+function buildDwGridHtml(session, weekStart, opts = {}) {
+  const vis = opts.visibility || { shoot: true, vacation: true, videos: true, todos: true, meetings: true };
   const bars = buildCalendarBars(session);
-  const start = dashWeekStart();
   const days = [];
-  for (let i = 0; i < 7; i++) { const d = new Date(start); d.setDate(start.getDate() + i); days.push(d); }
+  for (let i = 0; i < 7; i++) { const d = new Date(weekStart); d.setDate(weekStart.getDate() + i); days.push(d); }
   const startStr = localDateStr(days[0]);
   const endStr   = localDateStr(days[6]);
   const todayStr = localDateStr(new Date());
@@ -6428,7 +6428,7 @@ function renderDashWeekMockup(elementId, session) {
   const hhmm = t => (t || '').slice(0, 5);
 
   // Ganztags-Balken (Urlaub) – spannen über mehrere Tage
-  const alldayHtml = bars
+  const alldayHtml = !vis.vacation ? '' : bars
     .filter(b => b.phase === 'vacation' && b.endDate >= startStr && b.startDate <= endStr)
     .map(b => {
       const s = Math.max(0, dashDayIndex(b.startDate, startStr));
@@ -6443,8 +6443,8 @@ function renderDashWeekMockup(elementId, session) {
   bars.forEach(b => {
     if (b.phase === 'vacation') return;
     if (b.phase === 'production') {
-      // Mehrtägige Produktionsspanne: auf JEDEM sichtbaren Tag zeigen (geclippt),
-      // auch wenn sie vor dem angezeigten Montag begonnen hat.
+      if (!vis.videos) return;
+      // Mehrtägige Produktionsspanne: auf JEDEM sichtbaren Tag zeigen (geclippt).
       const sIdx = dashDayIndex(b.startDate, startStr);
       const eIdx = dashDayIndex(b.endDate, startStr);
       if (sIdx > 6 || eIdx < 0) return;
@@ -6455,14 +6455,17 @@ function renderDashWeekMockup(elementId, session) {
     }
     let date, cat, sub, extra = {};
     if (b.phase === 'meeting') {
+      if (!vis.meetings) return;
       date = b.startDate; cat = 'cat-meet';
       const m = (store.meetings || []).find(x => x.id === b.meetingId);
       sub = (m && m.startTime ? hhmm(m.startTime) + ' · ' : '') + 'Meeting';
       extra.meetingId = b.meetingId;
     } else if (b.phase === 'posting') {
+      if (!vis.videos) return;
       date = b.postingDate || b.endDate; cat = 'cat-post'; sub = (b.time || '18:00') + ' · Posting';
       extra.projectId = b.projectId;
     } else if (b.phase === 'shoot') {
+      if (!vis.shoot) return;
       date = b.startDate; cat = 'cat-dreh';
       const sd = (store.shootDays || []).find(x => x.id === b.shootDayId);
       sub = sd ? `${hhmm(sd.startTime)}–${hhmm(sd.endTime)}` : 'Drehtag';
@@ -6471,12 +6474,13 @@ function renderDashWeekMockup(elementId, session) {
     pushDay(dashDayIndex(date, startStr), { cat, title: b.title, sub, ...extra });
   });
 
-  // Fällige Aufgaben (wie im bisherigen Wochen-Renderer): offene Todos mit dueDate,
-  // die dem Nutzer zugewiesen sind (Admin: alle) – sonst verschwänden sie hier.
-  const isAdmin = hasRole(session.user, ROLES.ADMIN);
-  (store.todos || [])
-    .filter(t => t.dueDate && t.status !== 'done' && (isAdmin || (t.assigneeIds || []).includes(session.user.id)))
-    .forEach(t => pushDay(dashDayIndex(t.dueDate, startStr), { cat: 'cat-todo', title: t.title, sub: 'Aufgabe', todoId: t.id }));
+  // Fällige Aufgaben: offene Todos mit dueDate (dem Nutzer zugewiesen; Admin: alle)
+  if (vis.todos) {
+    const isAdmin = hasRole(session.user, ROLES.ADMIN);
+    (store.todos || [])
+      .filter(t => t.dueDate && t.status !== 'done' && (isAdmin || (t.assigneeIds || []).includes(session.user.id)))
+      .forEach(t => pushDay(dashDayIndex(t.dueDate, startStr), { cat: 'cat-todo', title: t.title, sub: 'Aufgabe', todoId: t.id }));
+  }
 
   const cols = days.map((d, i) => {
     const isToday = localDateStr(d) === todayStr;
@@ -6490,9 +6494,70 @@ function renderDashWeekMockup(elementId, session) {
     return `<div class="dw-day${isToday ? ' today' : ''}"><div class="dw-wl">${WD[i]}</div><div class="dw-wn">${d.getDate()}</div>${slots}</div>`;
   }).join('');
 
-  el.innerHTML =
-    (alldayHtml ? `<div class="dw-allday-row">${alldayHtml}</div>` : '') +
-    `<div class="dw-week">${cols}</div>`;
+  return (alldayHtml ? `<div class="dw-allday-row">${alldayHtml}</div>` : '') + `<div class="dw-week">${cols}</div>`;
+}
+
+// Übersicht: kompaktes Wochenraster (aktuelle Woche, alle Kategorien).
+function renderDashWeekMockup(elementId, session) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  el.innerHTML = buildDwGridHtml(session, dashWeekStart());
+}
+
+// ── Kalender-Seite: volles Wochenraster im Vorlagen-Design ───────────────────
+let calWeekAnchor = null; // null = aktuelle Woche
+function calWeekStartDate() {
+  const d = calWeekAnchor ? new Date(calWeekAnchor) : new Date();
+  d.setHours(0, 0, 0, 0);
+  const dow = (d.getDay() + 6) % 7; // Mo=0 … So=6
+  d.setDate(d.getDate() - dow);
+  return d;
+}
+function calWeekNav(deltaWeeks) {
+  const base = calWeekStartDate();
+  base.setDate(base.getDate() + deltaWeeks * 7);
+  calWeekAnchor = base;
+  renderCalendar(getCurrentUser());
+}
+function calWeekToday() { calWeekAnchor = null; renderCalendar(getCurrentUser()); }
+
+const _CAL_MONTHS = ['Jan', 'Feb', 'März', 'Apr', 'Mai', 'Juni', 'Juli', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+function renderCalWeekGrid(elementId, session) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const start = calWeekStartDate();
+  const end = new Date(start); end.setDate(start.getDate() + 6);
+  const vis = getCalCatVisibility();
+  const available = getAvailableCalCats(session.user);
+  const labels = {
+    shoot:    { icon: '🎥', text: 'Drehtag' },
+    vacation: { icon: '🏖', text: 'Urlaub' },
+    videos:   { icon: '🎬', text: 'Videos' },
+    todos:    { icon: '✅', text: 'Aufgaben' },
+    meetings: { icon: '📅', text: 'Meetings' }
+  };
+  const filterBtns = available.map(k =>
+    `<button type="button" class="cal-filter-btn ${vis[k] ? 'active' : ''}" onclick="toggleCalCat('${k}')"><span>${labels[k].icon}</span><span>${labels[k].text}</span></button>`
+  ).join('');
+  const sameMonth = start.getMonth() === end.getMonth();
+  const rangeLabel = sameMonth
+    ? `${start.getDate()}. – ${end.getDate()}. ${_CAL_MONTHS[end.getMonth()]} ${end.getFullYear()}`
+    : `${start.getDate()}. ${_CAL_MONTHS[start.getMonth()]} – ${end.getDate()}. ${_CAL_MONTHS[end.getMonth()]} ${end.getFullYear()}`;
+
+  el.innerHTML = `
+    <div class="calendar-header">
+      <div class="calendar-title-block">
+        <div class="calendar-month">${rangeLabel}</div>
+        <div class="view-toggle cal-inline-toggle"><button class="${calendarView === 'week' ? 'active' : ''}" onclick="setCalendarView('week')">Woche</button><button class="${calendarView === 'month' ? 'active' : ''}" onclick="setCalendarView('month')">Monat</button></div>
+      </div>
+      <div class="calendar-nav">
+        <button class="cal-nav-btn" onclick="calWeekNav(-1)" title="Woche zurück">‹</button>
+        <button class="cal-today-btn" onclick="calWeekToday()">Heute</button>
+        <button class="cal-nav-btn" onclick="calWeekNav(1)" title="Woche vor">›</button>
+      </div>
+    </div>
+    <div class="cal-filter-bar"><span class="cal-filter-label">Anzeigen:</span>${filterBtns}</div>
+    ${buildDwGridHtml(session, start, { visibility: vis })}`;
 }
 
 /* Videograf-Drehtag-Checkliste fürs Dashboard */
@@ -12909,7 +12974,7 @@ function renderCalendar(session) {
     </button>
   `;
   $('#content').innerHTML = `<div class="calendar" id="main-calendar"></div>`;
-  if (calendarView === 'week') renderWeekViewInto('main-calendar', session);
+  if (calendarView === 'week') renderCalWeekGrid('main-calendar', session);
   else renderCalendarInto('main-calendar', session, false);
 }
 
