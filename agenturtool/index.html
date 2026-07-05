@@ -3970,6 +3970,7 @@
   .pb-seg button { font:inherit; font-size:12px; font-weight:600; padding:5px 11px; border-radius:999px; border:1px solid var(--border); background:var(--bg-1); color:var(--text-2); cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:var(--transition); }
   .pb-seg button:hover { color:var(--text-1); background:var(--bg-2); }
   .pb-seg button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .pb-seg button.drop-over { background:var(--accent-soft); border-color:var(--accent); border-style:dashed; color:var(--text-1); }
   .pb-seg .pb-seg-num { font-family:"Doto",ui-monospace,monospace; font-weight:700; font-size:11px; opacity:.7; }
   .pb-card { background:var(--bg-1); border:1px solid var(--border); border-radius:10px; padding:12px 13px; margin-bottom:9px; cursor:pointer; transition:var(--transition); }
   .pb-card:hover { border-color:var(--border-strong); box-shadow:var(--shadow-sm); }
@@ -6884,7 +6885,25 @@ function pbDragStart(ev, id) {
 }
 function pbDragEnd(ev) {
   ev.currentTarget.classList.remove('dragging');
-  document.querySelectorAll('.pb-col.drop-over').forEach(c => c.classList.remove('drop-over'));
+  document.querySelectorAll('.pb-col.drop-over, .pb-seg button.drop-over').forEach(c => c.classList.remove('drop-over'));
+}
+// Karte direkt auf einen Unter-Tab ziehen (z. B. Gedreht → Schnitt) setzt den
+// Status dieses Schritts – auch innerhalb derselben Spalte.
+function pbSubDrop(ev, colKey, subKey) {
+  ev.preventDefault();
+  ev.stopPropagation(); // nicht zusätzlich den Spalten-Drop auslösen
+  ev.currentTarget.classList.remove('drop-over');
+  const id = _pbDrag; _pbDrag = null;
+  if (!id) return;
+  const p = store.projects.find(x => x.id === id);
+  if (!p) return;
+  const col = PB_COLUMNS.find(c => c.key === colKey);
+  const sub = col && col.subTabs && col.subTabs.find(s => s.key === subKey);
+  if (!sub || !sub.entry) return;                 // „Alle" ist kein Ziel
+  if (legacyStatus(p) === sub.entry) return;       // schon in diesem Schritt
+  const src = pbColumnOf(legacyStatus(p));
+  if (src && src.key === 'idee') { openPromoteIdeaModal(id, sub.entry); return; }
+  setProjectStatus(id, sub.entry);
 }
 function pbDragOver(ev) { if (!_pbDrag) return; ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; ev.currentTarget.classList.add('drop-over'); }
 function pbDragLeave(ev) { if (!ev.currentTarget.contains(ev.relatedTarget)) ev.currentTarget.classList.remove('drop-over'); }
@@ -6948,7 +6967,10 @@ function renderProductionBoard(projects, session) {
       const activeKey = getPbSub(col);
       segHtml = `<div class="pb-seg">` + col.subTabs.map(s => {
         const n = items.filter(p => s.match(p)).length;
-        return `<button type="button" class="${activeKey === s.key ? 'on' : ''}" onclick="setPbSub('${col.key}','${s.key}')">${s.label}<span class="pb-seg-num">${n}</span></button>`;
+        // Unter-Tabs mit eigenem Zielstatus sind Drop-Zonen (Karte draufziehen =
+        // in diesen Schritt verschieben, z. B. Gedreht → Schnitt).
+        const dnd = (canDrag && s.entry) ? `ondragover="pbDragOver(event)" ondragleave="pbDragLeave(event)" ondrop="pbSubDrop(event,'${col.key}','${s.key}')"` : '';
+        return `<button type="button" class="${activeKey === s.key ? 'on' : ''}" ${dnd} onclick="setPbSub('${col.key}','${s.key}')">${s.label}<span class="pb-seg-num">${n}</span></button>`;
       }).join('') + `</div>`;
       const active = col.subTabs.find(s => s.key === activeKey) || col.subTabs[0];
       items = items.filter(p => active.match(p));
