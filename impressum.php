@@ -28,7 +28,8 @@
             <p>
                 Dodidis.Media<br>
                 Inhaber: Dodidis Media<br>
-                Nordhessen, Deutschland
+                Meysenbugstraße 6<br>
+                34119 Kassel, Deutschland
             </p>
 
             <h2>Kontakt</h2>
@@ -40,7 +41,8 @@
             <h2>Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
             <p>
                 Dodidis Media<br>
-                Nordhessen, Deutschland
+                Meysenbugstraße 6<br>
+                34119 Kassel, Deutschland
             </p>
 
             <h2>Haftungsausschluss</h2>
