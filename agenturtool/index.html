@@ -5344,12 +5344,16 @@ async function renderCrmRequests(session) {
   const card = (r) => {
     const st = CRM_STATUS[r.status] || CRM_STATUS.neu;
     const mailSubject = encodeURIComponent('Deine Anfrage bei Dodidis.Media');
+    // Adresse für den mailto-URI korrekt kodieren (nicht nur HTML-escapen), sonst
+    // könnten URI-reservierte Zeichen im Local-Part zusätzliche mailto-Header
+    // (cc/body/…) einschleusen.
+    const mailAddr = encodeURIComponent(r.email || '');
     return `
     <div class="crm-card">
       <div class="crm-card-head">
         <div>
           <div class="crm-name">${escape(r.name || '—')}${r.company ? ` · <span class="crm-company">${escape(r.company)}</span>` : ''}</div>
-          <div class="crm-meta"><a href="mailto:${escape(r.email || '')}">${escape(r.email || '')}</a> · ${escape(fmtDateTime(r.createdAt))}</div>
+          <div class="crm-meta"><a href="mailto:${mailAddr}">${escape(r.email || '')}</a> · ${escape(fmtDateTime(r.createdAt))}</div>
         </div>
         <span class="badge ${st.cls}">${st.label}</span>
       </div>
@@ -5358,7 +5362,7 @@ async function renderCrmRequests(session) {
         <select class="crm-status-select" onchange="setCrmStatus('${r.id}', this.value)">
           ${Object.keys(CRM_STATUS).map(k => `<option value="${k}" ${r.status === k ? 'selected' : ''}>${CRM_STATUS[k].label}</option>`).join('')}
         </select>
-        <a class="btn btn-secondary btn-sm" href="mailto:${escape(r.email || '')}?subject=${mailSubject}">Antworten</a>
+        <a class="btn btn-secondary btn-sm" href="mailto:${mailAddr}?subject=${mailSubject}">Antworten</a>
         <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteCrmRequest('${r.id}')">Löschen</button>
       </div>
     </div>`;
