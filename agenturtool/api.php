@@ -335,21 +335,17 @@ if ($action === 'pull') {
         error_log('[api.php pull] customer_files query failed: ' . $e->getMessage());
     }
 
-    // Meetings: Admin/Manager sehen alle; andere nur eigene (attendee_ids-Filter server-seitig)
+    // Meetings sind privat: sichtbar NUR für den Ersteller und die hinzugefügten
+    // Teilnehmer – für alle Rollen (auch Admin/Manager).
     $meetings = [];
     try {
         if ($type === 'staff') {
-            if (has_role('admin', 'manager')) {
-                $meetingRows = db_all("SELECT * FROM meetings ORDER BY date, start_time");
-            } else {
-                // Server-seitig auf eigene Meetings beschränken
-                $meetingRows = db_all(
-                    "SELECT * FROM meetings
-                      WHERE JSON_CONTAINS(attendee_ids, ?, '$')
-                      ORDER BY date, start_time",
-                    [json_encode($session['uid'])]
-                );
-            }
+            $meetingRows = db_all(
+                "SELECT * FROM meetings
+                  WHERE created_by = ? OR JSON_CONTAINS(attendee_ids, ?, '$')
+                  ORDER BY date, start_time",
+                [$session['uid'], json_encode($session['uid'])]
+            );
             $meetings = array_map(function($m) {
                 return [
                     'id'          => $m['id'],

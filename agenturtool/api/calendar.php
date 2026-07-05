@@ -460,21 +460,14 @@ foreach ($todos as $t) {
     $lines[] = 'END:VEVENT';
 }
 
-// ── Meetings ───────────────────────────────────────────────────────────────
+// ── Meetings (privat: nur Ersteller + hinzugefügte Teilnehmer, alle Rollen) ──
 $meetings = [];
 try {
-    if ($isAdmin || $isManager) {
-        $meetings = db_all(
-            "SELECT * FROM meetings ORDER BY date, start_time"
-        );
-    } else {
-        // Only meetings where user is an attendee
-        $allMeetings = db_all("SELECT * FROM meetings ORDER BY date, start_time");
-        foreach ($allMeetings as $m) {
-            $attendees = json_decode($m['attendee_ids'] ?? '[]', true) ?: [];
-            if (in_array($uid, $attendees, true)) {
-                $meetings[] = $m;
-            }
+    $allMeetings = db_all("SELECT * FROM meetings ORDER BY date, start_time");
+    foreach ($allMeetings as $m) {
+        $attendees = json_decode($m['attendee_ids'] ?? '[]', true) ?: [];
+        if (($m['created_by'] ?? null) === $uid || in_array($uid, $attendees, true)) {
+            $meetings[] = $m;
         }
     }
 } catch (\Throwable $e) {

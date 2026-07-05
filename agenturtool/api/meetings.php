@@ -48,22 +48,20 @@ switch ($method) {
         if ($id) {
             $m = db_one("SELECT * FROM meetings WHERE id = ?", [$id]);
             if (!$m) json_err(404, 'Meeting nicht gefunden.');
-            // Non-admin/manager: only attendees can read
-            if (!$canEdit) {
-                $ids = json_decode($m['attendee_ids'] ?? '[]', true) ?: [];
-                if (!in_array($uid, $ids, true)) json_err(403, 'Keine Berechtigung.');
+            // Meetings sind privat: nur Ersteller und hinzugefügte Teilnehmer (alle Rollen)
+            $ids = json_decode($m['attendee_ids'] ?? '[]', true) ?: [];
+            if (($m['created_by'] ?? null) !== $uid && !in_array($uid, $ids, true)) {
+                json_err(403, 'Keine Berechtigung.');
             }
             json_ok(meeting_to_doc($m));
         }
-        if ($canEdit) {
-            $rows = db_all("SELECT * FROM meetings ORDER BY date, start_time");
-        } else {
-            // Return only meetings where current user is an attendee
-            $rows = db_all(
-                "SELECT * FROM meetings WHERE JSON_CONTAINS(attendee_ids, ?, '$') ORDER BY date, start_time",
-                [json_encode($uid)]
-            );
-        }
+        // Sichtbar nur für Ersteller und hinzugefügte Teilnehmer (alle Rollen)
+        $rows = db_all(
+            "SELECT * FROM meetings
+              WHERE created_by = ? OR JSON_CONTAINS(attendee_ids, ?, '$')
+              ORDER BY date, start_time",
+            [$uid, json_encode($uid)]
+        );
         json_ok(array_map('meeting_to_doc', $rows));
     }
 
@@ -97,8 +95,13 @@ switch ($method) {
     case 'PUT': {
         if (!$id) json_err(400, 'id fehlt.');
         if (!$canEdit) json_err(403, 'Nur Admins und Manager dürfen Meetings bearbeiten.');
-        $cur = db_one("SELECT id FROM meetings WHERE id = ?", [$id]);
+        $cur = db_one("SELECT id, created_by, attendee_ids FROM meetings WHERE id = ?", [$id]);
         if (!$cur) json_err(404, 'Meeting nicht gefunden.');
+        // Privat: nur Ersteller/Teilnehmer dürfen bearbeiten
+        $curIds = json_decode($cur['attendee_ids'] ?? '[]', true) ?: [];
+        if (($cur['created_by'] ?? null) !== $uid && !in_array($uid, $curIds, true)) {
+            json_err(403, 'Keine Berechtigung.');
+        }
 
         $b   = input_json();
         $set = [];
@@ -126,8 +129,13 @@ switch ($method) {
     case 'DELETE': {
         if (!$id) json_err(400, 'id fehlt.');
         if (!$canEdit) json_err(403, 'Nur Admins und Manager dürfen Meetings löschen.');
-        $cur = db_one("SELECT id FROM meetings WHERE id = ?", [$id]);
+        $cur = db_one("SELECT id, created_by, attendee_ids FROM meetings WHERE id = ?", [$id]);
         if (!$cur) json_err(404, 'Meeting nicht gefunden.');
+        // Privat: nur Ersteller/Teilnehmer dürfen löschen
+        $curIds = json_decode($cur['attendee_ids'] ?? '[]', true) ?: [];
+        if (($cur['created_by'] ?? null) !== $uid && !in_array($uid, $curIds, true)) {
+            json_err(403, 'Keine Berechtigung.');
+        }
         db_exec("DELETE FROM meetings WHERE id = ?", [$id]);
         log_activity('meeting', $id, 'deleted');
         json_ok(['id' => $id]);

@@ -11340,12 +11340,11 @@ function buildCalendarBars(session) {
     });
   });
 
-  // Meetings: Admin/Manager sehen alle; andere nur eigene (attendeeIds)
+  // Meetings sind privat: nur Ersteller und hinzugefügte Teilnehmer (alle Rollen).
+  // store.meetings ist bereits serverseitig so gefiltert – dieser Guard hält den
+  // Kalender konsistent.
   (store.meetings || []).forEach(m => {
-    if (!isAdmin && !hasRole(user, ROLES.MANAGER)) {
-      const ids = m.attendeeIds || [];
-      if (!ids.includes(userId)) return;
-    }
+    if (m.createdBy !== userId && !(m.attendeeIds || []).includes(userId)) return;
     const timeLabel = m.startTime ? m.startTime.slice(0, 5) : '';
     const endLabel  = m.endTime   ? '–' + m.endTime.slice(0, 5) : '';
     bars.push({
@@ -14237,11 +14236,12 @@ function renderMeetings(session) {
   const isAdmin = hasRole(user, ROLES.ADMIN);
   const userId = user.id;
 
-  // Meetings sichtbar für: Admin/Manager = alle; andere = nur wo attendee
-  const visibleMeetings = (store.meetings || []).filter(m => {
-    if (canEdit) return true;
-    return (m.attendeeIds || []).includes(userId);
-  }).slice().sort((a, b) => a.date.localeCompare(b.date) || (a.startTime || '').localeCompare(b.startTime || ''));
+  // Meetings sind privat: sichtbar nur für Ersteller und hinzugefügte Teilnehmer
+  // (für alle Rollen). store.meetings ist bereits serverseitig so gefiltert – dieser
+  // Client-Filter hält die Ansicht konsistent.
+  const visibleMeetings = (store.meetings || []).filter(m =>
+    m.createdBy === userId || (m.attendeeIds || []).includes(userId)
+  ).slice().sort((a, b) => a.date.localeCompare(b.date) || (a.startTime || '').localeCompare(b.startTime || ''));
 
   $('#page-title').textContent = 'Meetings';
   $('#page-subtitle').textContent = canEdit ? 'Alle anstehenden Meetings' : 'Deine anstehenden Meetings';
