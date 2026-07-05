@@ -3965,6 +3965,13 @@
   .pb-col-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px; }
   .pb-col-title { font-size:15px; font-weight:600; color:var(--text-1); }
   .pb-col-count { font-size:15px; color:var(--text-3); font-weight:700; }
+  /* Post-Production-Slider (Gedreht / Schnitt / Freigabe) */
+  .pb-seg { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .pb-seg button { font:inherit; font-size:12px; font-weight:600; padding:5px 11px; border-radius:999px; border:1px solid var(--border); background:var(--bg-1); color:var(--text-2); cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:var(--transition); }
+  .pb-seg button:hover { color:var(--text-1); background:var(--bg-2); }
+  .pb-seg button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .pb-seg button.drop-over { background:var(--accent-soft); border-color:var(--accent); border-style:dashed; color:var(--text-1); }
+  .pb-seg .pb-seg-num { font-family:"Doto",ui-monospace,monospace; font-weight:700; font-size:11px; opacity:.7; }
   .pb-card { background:var(--bg-1); border:1px solid var(--border); border-radius:10px; padding:12px 13px; margin-bottom:9px; cursor:pointer; transition:var(--transition); }
   .pb-card:hover { border-color:var(--border-strong); box-shadow:var(--shadow-sm); }
   .pb-card[draggable=true] { cursor:grab; }
@@ -6829,11 +6836,33 @@ function resetCustomerFilters() {
    → alle Rechte/Workflow-Regeln greifen serverseitig unverändert. Die alte
    Listen-/Phasen-Ansicht bleibt vollständig erhalten (Umschalter). */
 const PB_COLUMNS = [
-  { key: 'idee',       title: 'Idee',            statuses: ['idee'],                        entry: 'idee' },
-  { key: 'production', title: 'Produktion',      statuses: ['geplant', 'gedreht'],          entry: 'geplant' },
-  { key: 'post',       title: 'Post Production', statuses: ['schnitt', 'korrektur', 'fertig'], entry: 'schnitt' },
-  { key: 'fertig',     title: 'Fertige Reels',   statuses: ['freigegeben'],                 entry: 'freigegeben' },
+  { key: 'idee',       title: 'Idee',            statuses: ['idee'],    entry: 'idee' },
+  // Produktion: Slider Alle / Geplant / Nicht gedreht (Nicht gedreht = geplante
+  // Projekte, deren Drehtag/-zeit ohne „abgedreht" verstrichen ist).
+  { key: 'production', title: 'Produktion',      statuses: ['geplant'], entry: 'geplant',
+    subTabs: [
+      { key: 'alle',         label: 'Alle',          match: () => true },
+      { key: 'geplant',      label: 'Geplant',       match: p => !isNichtGedreht(p) },
+      { key: 'nichtgedreht', label: 'Nicht gedreht', match: p => isNichtGedreht(p) },
+    ], subDefault: 'alle' },
+  // Post Production fasst gedreht→schnitt→fertig zusammen; Slider Alle / Gedreht /
+  // Schnitt / Freigabe.
+  { key: 'post',       title: 'Post Production', statuses: ['gedreht', 'schnitt', 'korrektur', 'fertig'], entry: 'gedreht',
+    subTabs: [
+      { key: 'alle',     label: 'Alle',     match: () => true },
+      { key: 'gedreht',  label: 'Gedreht',  match: p => legacyStatus(p) === 'gedreht',                       entry: 'gedreht' },
+      { key: 'schnitt',  label: 'Schnitt',  match: p => ['schnitt', 'korrektur'].includes(legacyStatus(p)), entry: 'schnitt' },
+      { key: 'freigabe', label: 'Freigabe', match: p => legacyStatus(p) === 'fertig',                        entry: 'fertig' },
+    ], subDefault: 'gedreht' },
+  { key: 'fertig',     title: 'Fertige Reels',   statuses: ['freigegeben'], entry: 'freigegeben' },
 ];
+// Aktiver Unter-Tab je Spalte (pro Nutzer gemerkt).
+function getPbSub(col) {
+  const v = localStorage.getItem('proj_board_sub_' + col.key);
+  if (v && col.subTabs.some(s => s.key === v)) return v;
+  return col.subDefault || col.subTabs[0].key;
+}
+function setPbSub(colKey, val) { localStorage.setItem('proj_board_sub_' + colKey, val); renderPage(); }
 function getProjectBoardMode() { return localStorage.getItem('proj_board_mode') === '1'; }
 function setProjectBoardMode(on) { localStorage.setItem('proj_board_mode', on ? '1' : '0'); renderPage(); }
 
@@ -6856,7 +6885,25 @@ function pbDragStart(ev, id) {
 }
 function pbDragEnd(ev) {
   ev.currentTarget.classList.remove('dragging');
-  document.querySelectorAll('.pb-col.drop-over').forEach(c => c.classList.remove('drop-over'));
+  document.querySelectorAll('.pb-col.drop-over, .pb-seg button.drop-over').forEach(c => c.classList.remove('drop-over'));
+}
+// Karte direkt auf einen Unter-Tab ziehen (z. B. Gedreht → Schnitt) setzt den
+// Status dieses Schritts – auch innerhalb derselben Spalte.
+function pbSubDrop(ev, colKey, subKey) {
+  ev.preventDefault();
+  ev.stopPropagation(); // nicht zusätzlich den Spalten-Drop auslösen
+  ev.currentTarget.classList.remove('drop-over');
+  const id = _pbDrag; _pbDrag = null;
+  if (!id) return;
+  const p = store.projects.find(x => x.id === id);
+  if (!p) return;
+  const col = PB_COLUMNS.find(c => c.key === colKey);
+  const sub = col && col.subTabs && col.subTabs.find(s => s.key === subKey);
+  if (!sub || !sub.entry) return;                 // „Alle" ist kein Ziel
+  if (legacyStatus(p) === sub.entry) return;       // schon in diesem Schritt
+  const src = pbColumnOf(legacyStatus(p));
+  if (src && src.key === 'idee') { openPromoteIdeaModal(id, sub.entry); return; }
+  setProjectStatus(id, sub.entry);
 }
 function pbDragOver(ev) { if (!_pbDrag) return; ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; ev.currentTarget.classList.add('drop-over'); }
 function pbDragLeave(ev) { if (!ev.currentTarget.contains(ev.relatedTarget)) ev.currentTarget.classList.remove('drop-over'); }
@@ -6874,10 +6921,17 @@ function pbDrop(ev, colKey) {
   // Drop in DIESELBE Spalte = No-op (Spalten fassen mehrere Status zusammen;
   // sonst würde z.B. 'gedreht' in „Produktion" fälschlich auf 'geplant' zurückgesetzt).
   if (src && src.key === target.key) return;
+  // Ziel-Status: bei Post Production der aktuell aktive Unter-Tab (Gedreht/Schnitt/
+  // Freigabe), sonst der Spalten-Einstiegsstatus.
+  let entry = target.entry;
+  if (target.subTabs) {
+    const active = target.subTabs.find(s => s.key === getPbSub(target)) || target.subTabs[0];
+    entry = active.entry || target.entry;
+  }
   // Idee wird aus der Ideen-Spalte herausgezogen → erst Drehtag & Team im
   // kompakten Popup setzen, dann verschieben (statt direkt Status zu ändern).
-  if (src && src.key === 'idee') { openPromoteIdeaModal(id, target.entry); return; }
-  setProjectStatus(id, target.entry); // bestehende Funktion: optimistisch + PUT + Server-Regeln
+  if (src && src.key === 'idee') { openPromoteIdeaModal(id, entry); return; }
+  setProjectStatus(id, entry); // bestehende Funktion: optimistisch + PUT + Server-Regeln
 }
 
 function renderProductionBoard(projects, session) {
@@ -6902,9 +6956,25 @@ function renderProductionBoard(projects, session) {
     </div>`;
 
   const cols = PB_COLUMNS.map(col => {
-    const items = projects
+    let items = projects
       .filter(p => col.statuses.includes(legacyStatus(p)))
       .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+    const totalCount = items.length;
+    // Spalten-Slider (z. B. Produktion: Alle/Geplant/Nicht gedreht,
+    // Post Production: Alle/Gedreht/Schnitt/Freigabe) filtert die Karten.
+    let segHtml = '';
+    if (col.subTabs) {
+      const activeKey = getPbSub(col);
+      segHtml = `<div class="pb-seg">` + col.subTabs.map(s => {
+        const n = items.filter(p => s.match(p)).length;
+        // Unter-Tabs mit eigenem Zielstatus sind Drop-Zonen (Karte draufziehen =
+        // in diesen Schritt verschieben, z. B. Gedreht → Schnitt).
+        const dnd = (canDrag && s.entry) ? `ondragover="pbDragOver(event)" ondragleave="pbDragLeave(event)" ondrop="pbSubDrop(event,'${col.key}','${s.key}')"` : '';
+        return `<button type="button" class="${activeKey === s.key ? 'on' : ''}" ${dnd} onclick="setPbSub('${col.key}','${s.key}')">${s.label}<span class="pb-seg-num">${n}</span></button>`;
+      }).join('') + `</div>`;
+      const active = col.subTabs.find(s => s.key === activeKey) || col.subTabs[0];
+      items = items.filter(p => active.match(p));
+    }
     const cards = items.map(p => {
       const st = legacyStatus(p);
       const featured = st === 'freigegeben';
@@ -6920,8 +6990,9 @@ function renderProductionBoard(projects, session) {
     }).join('');
     return `<section class="pb-col"
       ${canDrag ? `ondragover="pbDragOver(event)" ondragleave="pbDragLeave(event)" ondrop="pbDrop(event,'${col.key}')"` : ''}>
-      <div class="pb-col-head"><span class="pb-col-title">${col.title}</span><span class="pb-col-count">${items.length}</span></div>
-      ${cards || '<div class="pb-empty">—</div>'}
+      <div class="pb-col-head"><span class="pb-col-title">${col.title}</span><span class="pb-col-count">${totalCount}</span></div>
+      ${segHtml}
+      ${cards || `<div class="pb-empty">${col.subTabs ? 'Keine Videos in diesem Schritt.' : '—'}</div>`}
     </section>`;
   }).join('');
 
