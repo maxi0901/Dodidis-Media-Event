@@ -7471,7 +7471,14 @@ async function submitPromoteIdea(e, ideaId, targetStatus) {
 
   const form = e.target;
   const shootDayId = form.shootDayId.value || null;
-  const shootDate = form.shootDate.value || null;
+  let shootDate = form.shootDate.value || null;
+  // Bei gewähltem Drehtag das Datum immer mitspiegeln (wie im normalen Projekt-
+  // Speicherfluss), damit Ansichten/Exporte, die project.shootDate direkt lesen,
+  // das geplante Datum nicht verlieren (sonst shootDayId ohne shootDate nach Reload).
+  if (shootDayId && !shootDate) {
+    const sd = (store.shootDays || []).find(s => s.id === shootDayId);
+    if (sd) shootDate = sd.date;
+  }
   if (!shootDayId && !shootDate) { showToast('Bitte einen Drehtag angeben.', 'warn'); return; }
 
   const status = targetStatus || 'geplant';
@@ -7484,7 +7491,7 @@ async function submitPromoteIdea(e, ideaId, targetStatus) {
     postingDate: form.postingDate.value || null,
   };
   if (shootDayId) payload.shootDayId = shootDayId;
-  else payload.shootDate = shootDate;
+  if (shootDate)  payload.shootDate  = shootDate;
 
   const btn = document.getElementById('promote-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Wird verschoben…'; }
