@@ -6069,21 +6069,39 @@ function renderDashboard(session) {
   const isCutterOnly = hasRole(user, ROLES.CUTTER) &&
     !hasRole(user, ROLES.ADMIN, ROLES.MANAGER, ROLES.VIDEOGRAF);
 
-  // Hero „Nächstes Posting" — aus vorhandenen Projektdaten (kein Extra-Request)
+  // Hero — aus vorhandenen Projektdaten (kein Extra-Request).
+  // Datumsfelder sind YYYY-MM-DD → als LOKALES Datum interpretieren (sonst UTC-
+  // Mitternacht: westlich von UTC würde „heute" herausgefiltert bzw. „morgen"
+  // fälschlich als HEUTE gelabelt).
   const _today0 = new Date(); _today0.setHours(0, 0, 0, 0);
-  const nextPost = myProjects
-    .filter(p => p.status !== STATUS.ARCHIVIERT && p.postingDate && new Date(p.postingDate) >= _today0)
-    .sort((a, b) => new Date(a.postingDate) - new Date(b.postingDate))[0];
-  let heroSub = 'Kein Posting geplant', heroVal = '—';
-  if (nextPost) {
-    const cust = store.customers.find(c => c.id === nextPost.customerId);
-    heroSub = `${nextPost.isInternal ? 'Intern' : (cust?.name || '–')} · ${nextPost.title || ''}`;
-    const pd = new Date(nextPost.postingDate); pd.setHours(0, 0, 0, 0);
+  const asLocal = ds => new Date(ds + 'T00:00:00');
+  const relWhen = (ds, time) => {
+    const pd = asLocal(ds); pd.setHours(0, 0, 0, 0);
     const diff = Math.round((pd - _today0) / 86400000);
-    const when = diff === 0 ? 'HEUTE' : diff === 1 ? 'MORGEN' : fmtDate(nextPost.postingDate);
-    heroVal = `${when} · 18:00`;
+    return `${diff === 0 ? 'HEUTE' : diff === 1 ? 'MORGEN' : fmtDate(ds)} · ${time}`;
+  };
+  const heroLabel = (p) => {
+    const cust = store.customers.find(c => c.id === p.customerId);
+    return `${p.isInternal ? 'Intern' : (cust?.name || '–')} · ${p.title || ''}`;
+  };
+  let heroTitle = 'Nächstes Posting', heroSub, heroVal = '—';
+  if (isCutterOnly) {
+    // Reine Cutter sehen KEINE Posting-Termine (wie Kalender/Projekt-Modal) →
+    // stattdessen ihre nächste Cutter-Deadline anzeigen.
+    heroTitle = 'Nächste Deadline';
+    heroSub = 'Keine Deadline offen';
+    const nextDl = myProjects
+      .filter(p => p.status !== STATUS.ARCHIVIERT && p.deadline && asLocal(p.deadline) >= _today0)
+      .sort((a, b) => asLocal(a.deadline) - asLocal(b.deadline))[0];
+    if (nextDl) { heroSub = heroLabel(nextDl); heroVal = relWhen(nextDl.deadline, '17:00'); }
+  } else {
+    heroSub = 'Kein Posting geplant';
+    const nextPost = myProjects
+      .filter(p => p.status !== STATUS.ARCHIVIERT && p.postingDate && asLocal(p.postingDate) >= _today0)
+      .sort((a, b) => asLocal(a.postingDate) - asLocal(b.postingDate))[0];
+    if (nextPost) { heroSub = heroLabel(nextPost); heroVal = relWhen(nextPost.postingDate, '18:00'); }
   }
-  const heroHtml = `<div class="dash-hero"><div><div class="ht">Nächstes Posting</div><div class="hs">${escape(heroSub)}</div></div><div class="hv">${escape(heroVal)}</div></div>`;
+  const heroHtml = `<div class="dash-hero"><div><div class="ht">${heroTitle}</div><div class="hs">${escape(heroSub)}</div></div><div class="hv">${escape(heroVal)}</div></div>`;
 
   $('#content').innerHTML = heroHtml + `
     <div class="stat-grid">
