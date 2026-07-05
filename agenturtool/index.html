@@ -3009,6 +3009,7 @@
   .dw-slot.cat-meet { background: #ececea; color: #5c5e63; }
   .dw-slot.cat-todo { background: #dcefe9; color: #2f6b57; }
   .dw-allday.cat-url { background: #f0efec; color: #6f7278; }
+  .dw-scroll { }  /* Desktop: normal; Mobile: horizontal scrollbar (siehe unten) */
 
   /* Monatsraster (Kalender-Seite) im Vorlagen-Design */
   .cal-mwds { display: grid; grid-template-columns: repeat(7, 1fr); }
@@ -3031,6 +3032,11 @@
     .dw-day { min-height: 96px; padding: 8px 5px; }
     .dw-wn { font-size: 16px; }
     .dw-slot { font-size: 10.5px; padding: 5px 6px; }
+    /* Handy: ganze Woche horizontal scrollbar (Tage breiter, damit Projekte
+       lesbar bleiben). Ganztags-Balken + Wochenraster scrollen bündig zusammen. */
+    .dw-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .dw-scroll .dw-allday-row,
+    .dw-scroll .dw-week { grid-template-columns: repeat(7, min(46vw, 200px)); width: max-content; }
   }
   .dashboard-side {
     display: grid;
@@ -6512,14 +6518,37 @@ function buildDwGridHtml(session, weekStart, opts = {}) {
     return `<div class="dw-day${isToday ? ' today' : ''}"><div class="dw-wl">${WD[i]}</div><div class="dw-wn">${d.getDate()}</div>${slots}</div>`;
   }).join('');
 
-  return (alldayHtml ? `<div class="dw-allday-row">${alldayHtml}</div>` : '') + `<div class="dw-week">${cols}</div>`;
+  // In einen Scroll-Container packen → auf dem Handy horizontal scrollbar
+  // (Ganztags-Balken + Wochenraster scrollen dabei gemeinsam & bündig).
+  return `<div class="dw-scroll">` +
+    (alldayHtml ? `<div class="dw-allday-row">${alldayHtml}</div>` : '') +
+    `<div class="dw-week">${cols}</div>` +
+  `</div>`;
 }
 
-// Übersicht: kompaktes Wochenraster (aktuelle Woche, alle Kategorien).
+// Kategorie-Filterleiste („Anzeigen:") – zum Ein-/Ausblenden einzelner Kategorien.
+// Wird in der Übersicht UND auf der Kalender-Seite genutzt (gemeinsamer State).
+function calFilterBarHtml(session) {
+  const vis = getCalCatVisibility();
+  const available = getAvailableCalCats(session.user);
+  const labels = {
+    shoot:    { icon: '🎥', text: 'Drehtag' },
+    vacation: { icon: '🏖', text: 'Urlaub' },
+    videos:   { icon: '🎬', text: 'Videos' },
+    todos:    { icon: '✅', text: 'Aufgaben' },
+    meetings: { icon: '📅', text: 'Meetings' }
+  };
+  const btns = available.map(k =>
+    `<button type="button" class="cal-filter-btn ${vis[k] ? 'active' : ''}" onclick="toggleCalCat('${k}')"><span>${labels[k].icon}</span><span>${labels[k].text}</span></button>`
+  ).join('');
+  return `<div class="cal-filter-bar"><span class="cal-filter-label">Anzeigen:</span>${btns}</div>`;
+}
+
+// Übersicht: kompaktes Wochenraster (aktuelle Woche) inkl. Kategorie-Filter.
 function renderDashWeekMockup(elementId, session) {
   const el = document.getElementById(elementId);
   if (!el) return;
-  el.innerHTML = buildDwGridHtml(session, dashWeekStart());
+  el.innerHTML = calFilterBarHtml(session) + buildDwGridHtml(session, dashWeekStart(), { visibility: getCalCatVisibility() });
 }
 
 // ── Kalender-Seite: volles Wochenraster im Vorlagen-Design ───────────────────
