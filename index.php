@@ -46,24 +46,10 @@
             <div class="hero-founders-stage" data-hero-image>
                 <div class="hero-founders-glow" aria-hidden="true" data-hero-bg></div>
 
-                <!-- Fallback: aktuelles kombiniertes Gründer-Bild. Wird angezeigt,
-                     solange die beiden Einzel-Cutouts (hero-raphael.png /
-                     hero-timo.png) noch nicht hochgeladen sind. -->
-                <picture class="hero-founders-single" data-hero-fallback>
-                    <source srcset="assets/hero-founders.webp" type="image/webp">
-                    <img class="hero-founders-cutout" src="assets/hero-founders.png" alt="Gründer von Dodidis.Media" width="1100" height="1418" loading="eager" decoding="async" fetchpriority="high" data-hero-fg>
-                </picture>
-
-                <!-- Zwei getrennte Gründer. Bleiben ausgeblendet, bis BEIDE Bilder
-                     vorhanden sind (Prüfung in site.js). src erst per JS gesetzt,
-                     damit fehlende Dateien keine kaputten Bild-Icons erzeugen. -->
-                <div class="hero-founders-split" data-hero-split hidden aria-hidden="true">
-                    <div class="hero-founder" style="--rise-i:0">
-                        <img class="hero-founder-cutout" data-src="assets/hero-raphael.png" alt="Raphael – Gründer von Dodidis.Media" decoding="async" data-hero-fg>
-                    </div>
-                    <div class="hero-founder" style="--rise-i:1">
-                        <img class="hero-founder-cutout" data-src="assets/hero-timo.png" alt="Timo – Gründer von Dodidis.Media" decoding="async" data-hero-fg>
-                    </div>
+                <!-- Ein freigestelltes Gründer-Bild (transparenter Hintergrund),
+                     zentriert und schwebend über dem dunklen Hero. -->
+                <div class="hero-photo">
+                    <img src="assets/hero-founders-final.png" alt="Gründer von Dodidis.Media" width="1202" height="1162" loading="eager" decoding="async" fetchpriority="high" data-hero-fg>
                 </div>
 
                 <div class="hero-founders-floor" aria-hidden="true"></div>
