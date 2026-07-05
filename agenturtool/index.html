@@ -2976,6 +2976,43 @@
     max-width: 100%;
     min-width: 0;
   }
+
+  /* Wochen-Kalender im Vorlagen-Design */
+  .dw-allday-row { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 8px; }
+  .dw-allday {
+    font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .dw-week {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .dw-day { padding: 12px 8px; border-right: 1px solid var(--border); min-height: 130px; }
+  .dw-day:last-child { border-right: none; }
+  .dw-wl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-3); font-weight: 600; }
+  .dw-wn {
+    font-family: "Doto", ui-monospace, monospace; font-weight: 700; font-size: 20px;
+    color: var(--text-3); line-height: 1.1; margin-bottom: 10px;
+  }
+  .dw-day.today .dw-wn { color: var(--text-1); }
+  .dw-day.today { background: var(--bg-2); }
+  .dw-slot {
+    font-size: 11.5px; font-weight: 600; line-height: 1.25; padding: 6px 8px;
+    border-radius: 7px; margin-bottom: 6px; cursor: pointer;
+  }
+  .dw-slot .dw-st { display: block; font-size: 10px; font-weight: 500; opacity: 0.75; margin-top: 2px; }
+  /* Kategorie-Farben (hell/pastell wie Vorlage) */
+  .dw-slot.cat-meet { background: #e7edf5; color: #33526e; }
+  .dw-slot.cat-post { background: var(--marker-soft); color: #4b5d16; }
+  .dw-slot.cat-prod { background: #f6e5cf; color: #8a5a1e; }
+  .dw-slot.cat-dreh { background: #e7e0f7; color: #5b4a8a; }
+  .dw-allday.cat-url { background: #e3e6ea; color: #4a4f57; }
+  @media (max-width: 720px) {
+    .dw-day { min-height: 96px; padding: 8px 5px; }
+    .dw-wn { font-size: 16px; }
+    .dw-slot { font-size: 10.5px; padding: 5px 6px; }
+  }
   .dashboard-side {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -6345,14 +6382,89 @@ function renderDashboard(session) {
     </div>
   `;
 
-  // Render the dashboard calendar in selected view
-  if (dashboardView === 'week') renderWeekViewInto('dashboard-calendar', session, true);
+  // Render the dashboard calendar in selected view.
+  // Woche = Vorlagen-Look (Tagesspalten + farbige Event-Blöcke); Monat = bestehend.
+  if (dashboardView === 'week') renderDashWeekMockup('dashboard-calendar', session);
   else renderMonthViewInto('dashboard-calendar', session, true);
 }
 
 function setDashboardView(view) {
   dashboardView = view;
   renderPage();
+}
+
+// Wochen-Kalender im Vorlagen-Design (7 Tagesspalten, farbige Event-Blöcke, Doto-
+// Tageszahlen, Ganztags-Balken für Urlaub). Datenquelle: buildCalendarBars, damit
+// alle Sichtbarkeitsregeln (Meetings privat, Urlaubs-Hierarchie …) greifen.
+function dashWeekStart() {
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  const dow = (d.getDay() + 6) % 7; // Mo=0 … So=6
+  d.setDate(d.getDate() - dow);
+  return d;
+}
+function dashDayIndex(dateStr, startStr) {
+  const a = new Date(startStr + 'T00:00:00'), b = new Date(dateStr + 'T00:00:00');
+  return Math.round((b - a) / 86400000);
+}
+function renderDashWeekMockup(elementId, session) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const bars = buildCalendarBars(session);
+  const start = dashWeekStart();
+  const days = [];
+  for (let i = 0; i < 7; i++) { const d = new Date(start); d.setDate(start.getDate() + i); days.push(d); }
+  const startStr = localDateStr(days[0]);
+  const endStr   = localDateStr(days[6]);
+  const todayStr = localDateStr(new Date());
+  const WD = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  const hhmm = t => (t || '').slice(0, 5);
+
+  // Ganztags-Balken (Urlaub) – spannen über mehrere Tage
+  const alldayHtml = bars
+    .filter(b => b.phase === 'vacation' && b.endDate >= startStr && b.startDate <= endStr)
+    .map(b => {
+      const s = Math.max(0, dashDayIndex(b.startDate, startStr));
+      const e = Math.min(6, dashDayIndex(b.endDate, startStr));
+      if (e < 0 || s > 6) return '';
+      return `<div class="dw-allday cat-url" style="grid-column:${s + 1}/span ${e - s + 1}" title="${escape(b.fullTitle || '')}">${escape(b.customer || '')} · Urlaub</div>`;
+    }).join('');
+
+  // Punkt-Events je Tag
+  const byDay = days.map(() => []);
+  bars.forEach(b => {
+    if (b.phase === 'vacation') return;
+    let date, cat, sub;
+    if (b.phase === 'meeting') {
+      date = b.startDate; cat = 'cat-meet';
+      const m = (store.meetings || []).find(x => x.id === b.meetingId);
+      sub = (m && m.startTime ? hhmm(m.startTime) + ' · ' : '') + 'Meeting';
+    } else if (b.phase === 'posting') {
+      date = b.postingDate || b.endDate; cat = 'cat-post'; sub = (b.time || '18:00') + ' · Posting';
+    } else if (b.phase === 'shoot') {
+      date = b.startDate; cat = 'cat-dreh';
+      const sd = (store.shootDays || []).find(x => x.id === b.shootDayId);
+      sub = sd ? `${hhmm(sd.startTime)}–${hhmm(sd.endTime)}` : 'Drehtag';
+    } else if (b.phase === 'production') {
+      date = b.startDate; cat = 'cat-prod'; sub = 'Produktion';
+    } else { return; }
+    const idx = dashDayIndex(date, startStr);
+    if (idx < 0 || idx > 6) return;
+    byDay[idx].push({ cat, title: b.title, sub, projectId: b.projectId, meetingId: b.meetingId });
+  });
+
+  const cols = days.map((d, i) => {
+    const isToday = localDateStr(d) === todayStr;
+    const slots = byDay[i].map(ev => {
+      const oc = ev.projectId ? `onclick="openProjectModal('${ev.projectId}')"`
+               : ev.meetingId ? `onclick="openMeetingModal('${ev.meetingId}')"` : '';
+      return `<div class="dw-slot ${ev.cat}" ${oc}>${escape(ev.title || '—')}<span class="dw-st">${escape(ev.sub)}</span></div>`;
+    }).join('');
+    return `<div class="dw-day${isToday ? ' today' : ''}"><div class="dw-wl">${WD[i]}</div><div class="dw-wn">${d.getDate()}</div>${slots}</div>`;
+  }).join('');
+
+  el.innerHTML =
+    (alldayHtml ? `<div class="dw-allday-row">${alldayHtml}</div>` : '') +
+    `<div class="dw-week">${cols}</div>`;
 }
 
 /* Videograf-Drehtag-Checkliste fürs Dashboard */
