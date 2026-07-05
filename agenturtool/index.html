@@ -3965,6 +3965,12 @@
   .pb-col-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px; }
   .pb-col-title { font-size:15px; font-weight:600; color:var(--text-1); }
   .pb-col-count { font-size:15px; color:var(--text-3); font-weight:700; }
+  /* Post-Production-Slider (Gedreht / Schnitt / Freigabe) */
+  .pb-seg { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .pb-seg button { font:inherit; font-size:12px; font-weight:600; padding:5px 11px; border-radius:999px; border:1px solid var(--border); background:var(--bg-1); color:var(--text-2); cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:var(--transition); }
+  .pb-seg button:hover { color:var(--text-1); background:var(--bg-2); }
+  .pb-seg button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .pb-seg .pb-seg-num { font-family:"Doto",ui-monospace,monospace; font-weight:700; font-size:11px; opacity:.7; }
   .pb-card { background:var(--bg-1); border:1px solid var(--border); border-radius:10px; padding:12px 13px; margin-bottom:9px; cursor:pointer; transition:var(--transition); }
   .pb-card:hover { border-color:var(--border-strong); box-shadow:var(--shadow-sm); }
   .pb-card[draggable=true] { cursor:grab; }
@@ -6829,11 +6835,23 @@ function resetCustomerFilters() {
    → alle Rechte/Workflow-Regeln greifen serverseitig unverändert. Die alte
    Listen-/Phasen-Ansicht bleibt vollständig erhalten (Umschalter). */
 const PB_COLUMNS = [
-  { key: 'idee',       title: 'Idee',            statuses: ['idee'],                        entry: 'idee' },
-  { key: 'production', title: 'Produktion',      statuses: ['geplant', 'gedreht'],          entry: 'geplant' },
-  { key: 'post',       title: 'Post Production', statuses: ['schnitt', 'korrektur', 'fertig'], entry: 'schnitt' },
-  { key: 'fertig',     title: 'Fertige Reels',   statuses: ['freigegeben'],                 entry: 'freigegeben' },
+  { key: 'idee',       title: 'Idee',            statuses: ['idee'],    entry: 'idee' },
+  { key: 'production', title: 'Produktion',      statuses: ['geplant'], entry: 'geplant' },
+  // Post Production fasst gedreht→schnitt→fertig zusammen; die Unter-Schritte
+  // werden über einen Slider (Gedreht / Schnitt / Freigabe) gefiltert.
+  { key: 'post',       title: 'Post Production', statuses: ['gedreht', 'schnitt', 'korrektur', 'fertig'], entry: 'gedreht',
+    subTabs: [
+      { key: 'gedreht',  label: 'Gedreht',  statuses: ['gedreht'],              entry: 'gedreht' },
+      { key: 'schnitt',  label: 'Schnitt',  statuses: ['schnitt', 'korrektur'], entry: 'schnitt' },
+      { key: 'freigabe', label: 'Freigabe', statuses: ['fertig'],               entry: 'fertig' },
+    ] },
+  { key: 'fertig',     title: 'Fertige Reels',   statuses: ['freigegeben'], entry: 'freigegeben' },
 ];
+function getPbPost() {
+  const v = localStorage.getItem('proj_board_post');
+  return ['gedreht', 'schnitt', 'freigabe'].includes(v) ? v : 'gedreht';
+}
+function setPbPost(t) { localStorage.setItem('proj_board_post', t); renderPage(); }
 function getProjectBoardMode() { return localStorage.getItem('proj_board_mode') === '1'; }
 function setProjectBoardMode(on) { localStorage.setItem('proj_board_mode', on ? '1' : '0'); renderPage(); }
 
@@ -6874,10 +6892,17 @@ function pbDrop(ev, colKey) {
   // Drop in DIESELBE Spalte = No-op (Spalten fassen mehrere Status zusammen;
   // sonst würde z.B. 'gedreht' in „Produktion" fälschlich auf 'geplant' zurückgesetzt).
   if (src && src.key === target.key) return;
+  // Ziel-Status: bei Post Production der aktuell aktive Unter-Tab (Gedreht/Schnitt/
+  // Freigabe), sonst der Spalten-Einstiegsstatus.
+  let entry = target.entry;
+  if (target.subTabs) {
+    const active = target.subTabs.find(s => s.key === getPbPost()) || target.subTabs[0];
+    entry = active.entry;
+  }
   // Idee wird aus der Ideen-Spalte herausgezogen → erst Drehtag & Team im
   // kompakten Popup setzen, dann verschieben (statt direkt Status zu ändern).
-  if (src && src.key === 'idee') { openPromoteIdeaModal(id, target.entry); return; }
-  setProjectStatus(id, target.entry); // bestehende Funktion: optimistisch + PUT + Server-Regeln
+  if (src && src.key === 'idee') { openPromoteIdeaModal(id, entry); return; }
+  setProjectStatus(id, entry); // bestehende Funktion: optimistisch + PUT + Server-Regeln
 }
 
 function renderProductionBoard(projects, session) {
@@ -6901,10 +6926,22 @@ function renderProductionBoard(projects, session) {
       ${canQuickIdea ? `<button class="btn btn-primary" onclick="openQuickIdeaModal()">+ Neue Idee</button>` : ''}
     </div>`;
 
+  const postSub = getPbPost();
   const cols = PB_COLUMNS.map(col => {
-    const items = projects
+    let items = projects
       .filter(p => col.statuses.includes(legacyStatus(p)))
       .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+    const totalCount = items.length;
+    // Post Production: Slider (Gedreht / Schnitt / Freigabe) filtert die Karten.
+    let segHtml = '';
+    if (col.subTabs) {
+      segHtml = `<div class="pb-seg">` + col.subTabs.map(s => {
+        const n = items.filter(p => s.statuses.includes(legacyStatus(p))).length;
+        return `<button type="button" class="${postSub === s.key ? 'on' : ''}" onclick="setPbPost('${s.key}')">${s.label}<span class="pb-seg-num">${n}</span></button>`;
+      }).join('') + `</div>`;
+      const active = col.subTabs.find(s => s.key === postSub) || col.subTabs[0];
+      items = items.filter(p => active.statuses.includes(legacyStatus(p)));
+    }
     const cards = items.map(p => {
       const st = legacyStatus(p);
       const featured = st === 'freigegeben';
@@ -6920,8 +6957,9 @@ function renderProductionBoard(projects, session) {
     }).join('');
     return `<section class="pb-col"
       ${canDrag ? `ondragover="pbDragOver(event)" ondragleave="pbDragLeave(event)" ondrop="pbDrop(event,'${col.key}')"` : ''}>
-      <div class="pb-col-head"><span class="pb-col-title">${col.title}</span><span class="pb-col-count">${items.length}</span></div>
-      ${cards || '<div class="pb-empty">—</div>'}
+      <div class="pb-col-head"><span class="pb-col-title">${col.title}</span><span class="pb-col-count">${totalCount}</span></div>
+      ${segHtml}
+      ${cards || `<div class="pb-empty">${col.subTabs ? 'Keine Videos in diesem Schritt.' : '—'}</div>`}
     </section>`;
   }).join('');
 
