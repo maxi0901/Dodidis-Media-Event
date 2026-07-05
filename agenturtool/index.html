@@ -3009,6 +3009,24 @@
   .dw-slot.cat-meet { background: #ececea; color: #5c5e63; }
   .dw-slot.cat-todo { background: #dcefe9; color: #2f6b57; }
   .dw-allday.cat-url { background: #f0efec; color: #6f7278; }
+
+  /* Monatsraster (Kalender-Seite) im Vorlagen-Design */
+  .cal-mwds { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .cal-mwd { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-3); font-weight: 600; padding: 6px 8px; }
+  .cal-mgrid { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .cal-mday { min-height: 104px; padding: 6px 7px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .cal-mday:nth-child(7n) { border-right: none; }
+  .cal-mday.out { background: var(--bg-2); }
+  .cal-mday.out .cal-mdn { opacity: 0.45; }
+  .cal-mday.today { background: var(--bg-2); }
+  .cal-mdn { font-family: "Doto", ui-monospace, monospace; font-weight: 700; font-size: 14px; color: var(--text-3); margin-bottom: 5px; }
+  .cal-mday.today .cal-mdn { color: var(--text-1); }
+  .cal-mgrid .dw-slot { font-size: 10.5px; padding: 4px 6px; margin-bottom: 4px; }
+  .cal-mgrid .dw-slot .dw-st { font-size: 9px; }
+  @media (max-width: 720px) {
+    .cal-mday { min-height: 74px; padding: 4px; }
+    .cal-mgrid .dw-slot { font-size: 9px; padding: 3px 4px; }
+  }
   @media (max-width: 720px) {
     .dw-day { min-height: 96px; padding: 8px 5px; }
     .dw-wn { font-size: 16px; }
@@ -6558,6 +6576,104 @@ function renderCalWeekGrid(elementId, session) {
     </div>
     <div class="cal-filter-bar"><span class="cal-filter-label">Anzeigen:</span>${filterBtns}</div>
     ${buildDwGridHtml(session, start, { visibility: vis })}`;
+}
+
+// ── Kalender-Seite: Monatsraster im Vorlagen-Design ──────────────────────────
+let calMonthAnchor = null; // null = aktueller Monat
+function calMonthNav(delta) {
+  const d = calMonthAnchor ? new Date(calMonthAnchor) : new Date();
+  d.setDate(1); d.setMonth(d.getMonth() + delta);
+  calMonthAnchor = d;
+  renderCalendar(getCurrentUser());
+}
+function calMonthToday() { calMonthAnchor = null; renderCalendar(getCurrentUser()); }
+
+function renderCalMonthGrid(elementId, session) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const vis = getCalCatVisibility();
+  const anchor = calMonthAnchor ? new Date(calMonthAnchor) : new Date();
+  anchor.setDate(1); anchor.setHours(0, 0, 0, 0);
+  const monthIdx = anchor.getMonth(), year = anchor.getFullYear();
+  const todayStr = localDateStr(new Date());
+  const hhmm = t => (t || '').slice(0, 5);
+
+  // Rasterstart = Montag am/vor dem 1.; Zellenzahl auf volle Wochen aufrunden
+  const lead = (anchor.getDay() + 6) % 7;                 // Mo=0
+  const gridStart = new Date(anchor); gridStart.setDate(1 - lead);
+  const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+  const totalCells = Math.ceil((lead + daysInMonth) / 7) * 7;
+
+  // Ereignisse je Datum sammeln (Deadline-Punkt für Produktion – wie Vorlage)
+  const map = {};
+  const add = (ds, ev) => { (map[ds] = map[ds] || []).push(ev); };
+  buildCalendarBars(session).forEach(b => {
+    if (b.phase === 'vacation') {
+      if (!vis.vacation) return;
+      for (let d = new Date(b.startDate + 'T00:00:00'), end = new Date(b.endDate + 'T00:00:00'); d <= end; d.setDate(d.getDate() + 1)) {
+        add(localDateStr(d), { cat: 'cat-url', title: (b.customer || '') + ' · Urlaub' });
+      }
+    } else if (b.phase === 'production') {
+      if (vis.videos) add(b.endDate, { cat: 'cat-prod', title: b.title, sub: 'Deadline', projectId: b.projectId });
+    } else if (b.phase === 'posting') {
+      if (vis.videos) add(b.postingDate || b.endDate, { cat: 'cat-post', title: b.title, sub: b.time || '18:00', projectId: b.projectId });
+    } else if (b.phase === 'meeting') {
+      if (!vis.meetings) return;
+      const m = (store.meetings || []).find(x => x.id === b.meetingId);
+      add(b.startDate, { cat: 'cat-meet', title: b.title, sub: m && m.startTime ? hhmm(m.startTime) : 'Meeting', meetingId: b.meetingId });
+    } else if (b.phase === 'shoot') {
+      if (!vis.shoot) return;
+      const sd = (store.shootDays || []).find(x => x.id === b.shootDayId);
+      add(b.startDate, { cat: 'cat-dreh', title: b.title, sub: sd ? hhmm(sd.startTime) : 'Drehtag', shootDayId: b.shootDayId });
+    }
+  });
+  if (vis.todos) {
+    const isAdmin = hasRole(session.user, ROLES.ADMIN);
+    (store.todos || []).filter(t => t.dueDate && t.status !== 'done' && (isAdmin || (t.assigneeIds || []).includes(session.user.id)))
+      .forEach(t => add(t.dueDate, { cat: 'cat-todo', title: t.title, sub: 'Aufgabe', todoId: t.id }));
+  }
+
+  const WD = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  let cells = '';
+  for (let i = 0; i < totalCells; i++) {
+    const d = new Date(gridStart); d.setDate(gridStart.getDate() + i);
+    const ds = localDateStr(d);
+    const out = d.getMonth() !== monthIdx;
+    const isToday = ds === todayStr;
+    const slots = out ? '' : (map[ds] || []).map(ev => {
+      const oc = ev.projectId ? `onclick="openProjectModal('${ev.projectId}')"`
+               : ev.meetingId ? `onclick="openMeetingModal('${ev.meetingId}')"`
+               : ev.shootDayId ? `onclick="openShootDayModal('${ev.shootDayId}')"`
+               : ev.todoId ? `onclick="openTodoModal('${ev.todoId}')"` : '';
+      return `<div class="dw-slot ${ev.cat}" ${oc}>${escape(ev.title || '')}${ev.sub ? `<span class="dw-st">${escape(ev.sub)}</span>` : ''}</div>`;
+    }).join('');
+    cells += `<div class="cal-mday${out ? ' out' : ''}${isToday ? ' today' : ''}"><div class="cal-mdn">${d.getDate()}</div>${slots}</div>`;
+  }
+
+  const available = getAvailableCalCats(session.user);
+  const labels = {
+    shoot: { icon: '🎥', text: 'Drehtag' }, vacation: { icon: '🏖', text: 'Urlaub' },
+    videos: { icon: '🎬', text: 'Videos' }, todos: { icon: '✅', text: 'Aufgaben' }, meetings: { icon: '📅', text: 'Meetings' }
+  };
+  const filterBtns = available.map(k =>
+    `<button type="button" class="cal-filter-btn ${vis[k] ? 'active' : ''}" onclick="toggleCalCat('${k}')"><span>${labels[k].icon}</span><span>${labels[k].text}</span></button>`
+  ).join('');
+
+  el.innerHTML = `
+    <div class="calendar-header">
+      <div class="calendar-title-block">
+        <div class="calendar-month">${_CAL_MONTHS[monthIdx]} ${year}</div>
+        <div class="view-toggle cal-inline-toggle"><button class="${calendarView === 'week' ? 'active' : ''}" onclick="setCalendarView('week')">Woche</button><button class="${calendarView === 'month' ? 'active' : ''}" onclick="setCalendarView('month')">Monat</button></div>
+      </div>
+      <div class="calendar-nav">
+        <button class="cal-nav-btn" onclick="calMonthNav(-1)" title="Monat zurück">‹</button>
+        <button class="cal-today-btn" onclick="calMonthToday()">Heute</button>
+        <button class="cal-nav-btn" onclick="calMonthNav(1)" title="Monat vor">›</button>
+      </div>
+    </div>
+    <div class="cal-filter-bar"><span class="cal-filter-label">Anzeigen:</span>${filterBtns}</div>
+    <div class="cal-mwds">${WD.map(w => `<div class="cal-mwd">${w}</div>`).join('')}</div>
+    <div class="cal-mgrid">${cells}</div>`;
 }
 
 /* Videograf-Drehtag-Checkliste fürs Dashboard */
@@ -12975,7 +13091,7 @@ function renderCalendar(session) {
   `;
   $('#content').innerHTML = `<div class="calendar" id="main-calendar"></div>`;
   if (calendarView === 'week') renderCalWeekGrid('main-calendar', session);
-  else renderCalendarInto('main-calendar', session, false);
+  else renderCalMonthGrid('main-calendar', session);
 }
 
 function setCalendarView(view) {
