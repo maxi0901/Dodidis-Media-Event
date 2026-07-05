@@ -49,7 +49,7 @@ $kind  = $_GET['kind']  ?? 'other';
 $refId = $_GET['id']    ?? '';
 
 $customerKinds = ['vertrag','leistungsbeschreibung','avv','other'];
-$projectKinds  = ['script','contract','correction','other','rohmaterial','fertigstellung'];
+$projectKinds  = ['script','contract','correction','other','rohmaterial','fertigstellung','image'];
 if ($scope === 'customer' && !in_array($kind, $customerKinds, true)) {
     json_err(400, 'Ungültiger kind-Parameter für customer-Scope.');
 }
