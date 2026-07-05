@@ -533,6 +533,10 @@
                         Nachricht
                         <textarea name="message" rows="5" required></textarea>
                     </label>
+                    <!-- Honeypot: für Menschen unsichtbar, fängt Spam-Bots ab -->
+                    <div aria-hidden="true" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">
+                        <label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+                    </div>
                     <label class="checkbox-row">
                         <input type="checkbox" name="consent" required>
                         <span>Ich willige ein, dass meine Angaben zur Bearbeitung meiner Anfrage verwendet werden. Mehr in der <a href="datenschutz.php" style="color: var(--accent);">Datenschutzerklärung</a>.</span>

@@ -916,6 +916,21 @@
   .badge-korrektur { color: #ff453a; background: rgba(255,69,58,0.12); border-color: rgba(255,69,58,0.3); }
   .badge-freigegeben { color: #2dd4bf; background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.25); }
   .badge-archiviert { color: #6b7280; background: rgba(107,114,128,0.1); border-color: rgba(107,114,128,0.2); }
+
+  /* CRM › Anfragen */
+  .badge-neu        { color: #2563eb; background: rgba(37,99,235,0.10);  border-color: rgba(37,99,235,0.22); }
+  .badge-bearbeitet { color: #b8860b; background: rgba(184,134,11,0.12); border-color: rgba(184,134,11,0.25); }
+  .badge-erledigt   { color: #2fae60; background: rgba(47,174,96,0.12);  border-color: rgba(47,174,96,0.25); }
+  .crm-list { display: flex; flex-direction: column; gap: 12px; }
+  .crm-card { background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow-sm); }
+  .crm-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  .crm-name { font-weight: 600; font-size: 14.5px; color: var(--text-1); }
+  .crm-company { color: var(--text-2); font-weight: 500; }
+  .crm-meta { font-size: 12.5px; color: var(--text-3); margin-top: 3px; }
+  .crm-meta a { color: var(--text-2); }
+  .crm-message { font-size: 13.5px; color: var(--text-2); white-space: pre-wrap; line-height: 1.5; padding: 10px 12px; background: var(--bg-2); border-radius: var(--radius-sm); margin-bottom: 12px; }
+  .crm-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .crm-status-select { padding: 7px 10px; border-radius: 8px; background: var(--bg-2); border: 1px solid var(--border); color: inherit; font-size: 13px; }
   .badge-ueberfaellig { color: #ff453a; background: rgba(255,69,58,0.12); border-color: rgba(255,69,58,0.3); }
 
   /* Hinweis: aktives Projekt ohne Posting-Datum (dezent orange). */
@@ -4561,6 +4576,7 @@ let store = {
   meetings: [],
   customerFiles: [],
   notifications: [],
+  crmRequests: [],
   session: null,
   activity: []
 };
@@ -4809,6 +4825,13 @@ async function initCloudSync() {
   try {
     if (typeof renderPage === 'function') renderPage();
   } catch (e) { console.error('[cloud rerender]', e); }
+  // CRM-Anfragen für Admins vorab laden, damit der „Neu"-Badge im Menü stimmt.
+  try {
+    const cu = getCurrentUser();
+    if (cu && cu.type === 'staff' && hasRole(cu.user, ROLES.ADMIN)) {
+      refreshCrmRequests().then(() => { try { renderNav(); } catch {} });
+    }
+  } catch {}
 }
 
 function showDbError() {
@@ -5041,6 +5064,12 @@ function getNavItemsForUser(session) {
     items.push({ id: 'social-content', label: 'Social Content', icon: 'image', group: 'Agentur' });
   }
 
+  // ── CRM (nur Admin) ─────────────────────────────────────────────────────────
+  if (hasRole(user, ROLES.ADMIN)) {
+    const openReq = (store.crmRequests || []).filter(r => r.status === 'neu').length;
+    items.push({ id: 'crm-requests', label: 'Anfragen', icon: 'users', group: 'CRM', badge: openReq > 0 ? openReq : null });
+  }
+
   // ── Team ──────────────────────────────────────────────────────────────────
   // Offene Aufgaben für diesen User zählen
   const openTodos = store.todos.filter(t => (t.assigneeIds || []).includes(user.id) && t.status === 'open').length;
@@ -5250,6 +5279,7 @@ function renderPage() {
     archive: renderArchive,
     contracts: renderContracts,
     'social-content': renderSocialContent,
+    'crm-requests': renderCrmRequests,
     admin: renderAdmin,
     'customer-overview': renderCustomerOverview
   };
@@ -5268,9 +5298,102 @@ function renderPage() {
   if (currentPage === 'social-content' && (session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER))) {
     currentPage = 'dashboard';
   }
+  if (currentPage === 'crm-requests' && (session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN))) {
+    currentPage = 'dashboard';
+  }
 
   const render = pages[currentPage] || renderDashboard;
   render(session);
+}
+
+/* ----------- CRM › ANFRAGEN (nur Admin) ----------- */
+const CRM_STATUS = {
+  neu:        { label: 'Neu',            cls: 'badge-neu' },
+  bearbeitet: { label: 'In Bearbeitung', cls: 'badge-bearbeitet' },
+  erledigt:   { label: 'Erledigt',       cls: 'badge-erledigt' }
+};
+
+async function refreshCrmRequests(silent = true) {
+  try {
+    const rows = await apiGet('/crm_requests.php');
+    store.crmRequests = Array.isArray(rows) ? rows : [];
+  } catch (e) {
+    if (!silent) showToast('Anfragen konnten nicht geladen werden: ' + e.message, 'error');
+    store.crmRequests = store.crmRequests || [];
+  }
+  return store.crmRequests;
+}
+
+async function renderCrmRequests(session) {
+  $('#page-title').textContent = 'CRM';
+  $('#page-subtitle').textContent = 'Anfragen';
+  $('#topbar-actions').innerHTML =
+    `<button class="btn btn-secondary" onclick="renderCrmRequests(getCurrentUser())">Aktualisieren</button>`;
+  const content = $('#content');
+  content.innerHTML = `<div class="text-sm text-muted">Wird geladen…</div>`;
+
+  await refreshCrmRequests(false);
+  renderNav(); // Badge (Anzahl „Neu") aktualisieren
+  const rows = store.crmRequests || [];
+
+  if (!rows.length) {
+    content.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div>Noch keine Anfragen über das Kontaktformular.</div>`;
+    return;
+  }
+
+  const card = (r) => {
+    const st = CRM_STATUS[r.status] || CRM_STATUS.neu;
+    const mailSubject = encodeURIComponent('Deine Anfrage bei Dodidis.Media');
+    return `
+    <div class="crm-card">
+      <div class="crm-card-head">
+        <div>
+          <div class="crm-name">${escape(r.name || '—')}${r.company ? ` · <span class="crm-company">${escape(r.company)}</span>` : ''}</div>
+          <div class="crm-meta"><a href="mailto:${escape(r.email || '')}">${escape(r.email || '')}</a> · ${escape(fmtDateTime(r.createdAt))}</div>
+        </div>
+        <span class="badge ${st.cls}">${st.label}</span>
+      </div>
+      <div class="crm-message">${escape(r.message || '')}</div>
+      <div class="crm-actions">
+        <select class="crm-status-select" onchange="setCrmStatus('${r.id}', this.value)">
+          ${Object.keys(CRM_STATUS).map(k => `<option value="${k}" ${r.status === k ? 'selected' : ''}>${CRM_STATUS[k].label}</option>`).join('')}
+        </select>
+        <a class="btn btn-secondary btn-sm" href="mailto:${escape(r.email || '')}?subject=${mailSubject}">Antworten</a>
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteCrmRequest('${r.id}')">Löschen</button>
+      </div>
+    </div>`;
+  };
+
+  content.innerHTML = `<div class="crm-list">${rows.map(card).join('')}</div>`;
+}
+
+async function setCrmStatus(id, status) {
+  try {
+    const updated = await apiPut('/crm_requests.php?id=' + encodeURIComponent(id), { status });
+    const idx = (store.crmRequests || []).findIndex(r => r.id === id);
+    if (idx >= 0) store.crmRequests[idx] = { ...store.crmRequests[idx], ...(updated || {}), status };
+    renderNav();
+    showToast('Status aktualisiert', 'success');
+  } catch (e) {
+    showToast('Konnte Status nicht ändern: ' + e.message, 'error');
+    renderCrmRequests(getCurrentUser());
+  }
+}
+
+async function deleteCrmRequest(id) {
+  const ok = await appConfirm('Diese Anfrage wird dauerhaft gelöscht.', {
+    title: 'Anfrage löschen?', okLabel: 'Löschen', danger: true
+  });
+  if (!ok) return;
+  try {
+    await apiDel('/crm_requests.php?id=' + encodeURIComponent(id));
+    store.crmRequests = (store.crmRequests || []).filter(r => r.id !== id);
+    renderCrmRequests(getCurrentUser());
+    renderNav();
+    showToast('Anfrage gelöscht', 'success');
+  } catch (e) {
+    showToast('Löschen fehlgeschlagen: ' + e.message, 'error');
+  }
 }
 
 /* ----------- VERTRÄGE ----------- */

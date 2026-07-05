@@ -758,6 +758,30 @@ if (!tableExists($pdo, 'social_accounts')) {
     $results[] = ['ok' => true, 'label' => "social_accounts: Tabelle bereits vorhanden"];
 }
 
+// ── 32. CRM: Anfragen vom öffentlichen Kontaktformular ────────────────────────
+// Das Kontaktformular der Landingpage schreibt Anfragen hierher (statt in eine
+// Mail). Sichtbar nur für Admins im Tool (CRM › Anfragen).
+if (!tableExists($pdo, 'crm_requests')) {
+    step($pdo, "crm_requests: Tabelle anlegen",
+        "CREATE TABLE crm_requests (
+           id           VARCHAR(64)  NOT NULL PRIMARY KEY,
+           name         VARCHAR(190) NOT NULL,
+           email        VARCHAR(190) NOT NULL,
+           company      VARCHAR(190) NULL,
+           message      TEXT         NOT NULL,
+           status       VARCHAR(30)  NOT NULL DEFAULT 'neu',
+           source       VARCHAR(60)  NOT NULL DEFAULT 'kontaktformular',
+           ip           VARCHAR(45)  NULL,
+           created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           updated_at   DATETIME     NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+           KEY idx_crm_status (status),
+           KEY idx_crm_created (created_at)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "crm_requests: Tabelle bereits vorhanden"];
+}
+
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>

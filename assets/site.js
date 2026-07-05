@@ -568,27 +568,41 @@
 
             if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Wird gesendet …'; }
 
-            var subject = 'Neue Anfrage von ' + name;
-            var bodyLines = [
-                'Name: ' + name,
-                'E-Mail: ' + email,
-                company ? ('Unternehmen: ' + company) : null,
-                '',
-                'Nachricht:',
-                message
-            ].filter(Boolean);
-            var mailto = 'mailto:kontakt@dodidis-media.de?subject=' + encodeURIComponent(subject) +
-                         '&body=' + encodeURIComponent(bodyLines.join('\n'));
-
-            window.location.href = mailto;
-
-            if (status) {
-                status.textContent = 'Dein E-Mail-Programm öffnet sich – bitte sende die vorbereitete Nachricht ab.';
-                status.classList.add('is-success');
-            }
-            setTimeout(function () {
+            // Anfrage direkt ins CRM schreiben (statt mailto). Honeypot-Feld
+            // „website" wird mitgesendet; echte Nutzer lassen es leer.
+            fetch('agenturtool/api/contact_request.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name,
+                    email: email,
+                    company: company,
+                    message: message,
+                    consent: (consent && consent.checked) ? '1' : '',
+                    website: (data.get('website') || '').toString()
+                })
+            }).then(function (res) {
+                return res.json().catch(function () { return {}; }).then(function (j) {
+                    return { ok: res.ok, body: j };
+                });
+            }).then(function (r) {
+                if (!r.ok || !r.body || !r.body.ok) {
+                    throw new Error((r.body && r.body.error) || 'Senden fehlgeschlagen.');
+                }
+                form.reset();
+                if (status) {
+                    status.textContent = 'Danke! Deine Anfrage ist bei uns eingegangen – wir melden uns zeitnah.';
+                    status.classList.add('is-success');
+                }
+            }).catch(function (err) {
+                if (status) {
+                    status.textContent = 'Senden hat nicht geklappt: ' + err.message +
+                        ' Schreib uns gern direkt an kontakt@dodidis-media.de.';
+                    status.classList.add('is-error');
+                }
+            }).then(function () {
                 if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Kostenloses Erstgespräch anfragen'; }
-            }, 1500);
+            });
         });
     }
 })();
