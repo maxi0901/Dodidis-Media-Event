@@ -3168,6 +3168,25 @@
     font-size: 12.5px;
   }
 
+  /* Bild-Uploads bei Ideen (Thumbnail-Raster) */
+  .idea-img-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .idea-img-thumb {
+    position: relative; width: 74px; height: 74px; border-radius: 8px;
+    overflow: hidden; border: 1px solid var(--border); background: var(--bg-2);
+  }
+  .idea-img-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .idea-img-del {
+    position: absolute; top: 3px; right: 3px; width: 20px; height: 20px;
+    border-radius: 50%; border: none; background: rgba(23,24,26,0.65); color: #fff;
+    font-size: 14px; line-height: 1; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; padding: 0;
+  }
+  .idea-img-del:hover { background: var(--danger); }
+  .idea-img-badge {
+    position: absolute; bottom: 3px; left: 3px; font-size: 9px; font-weight: 700;
+    background: var(--marker); color: var(--accent); padding: 0 5px; border-radius: 4px;
+  }
+
   .section-title {
     font-size: 13px;
     font-weight: 600;
@@ -7404,6 +7423,7 @@ function openQuickIdeaModal(ideaId = null) {
     return;
   }
   pendingScriptFile = null;
+  pendingIdeaImages = [];
   const idea = ideaId ? store.projects.find(p => p.id === ideaId) : null;
   const isEdit = !!idea;
   const sf = idea ? scriptFileOf(idea) : null;
@@ -7421,6 +7441,19 @@ function openQuickIdeaModal(ideaId = null) {
         <div style="font-size:13px;font-weight:500;">${sf ? 'Skript-PDF ersetzen' : 'Skript-PDF hochladen'}</div>
       </label>
     </div>` : '';
+
+  // Bilder-Block (für neue UND bestehende Ideen): Thumbnails werden nach dem
+  // Einfügen per renderIdeaImagesGrid() befüllt.
+  const imagesBlock = `
+    <div class="form-group">
+      <label class="form-label">Bilder (optional)</label>
+      <div id="idea-images-grid" class="idea-img-grid"></div>
+      <label class="file-upload" for="idea-image-upload">
+        <input type="file" id="idea-image-upload" accept="image/png,image/jpeg,image/webp,image/gif" multiple style="display:none;" onchange="onIdeaImageSelect(event, '${idea?.id || ''}')" />
+        <div style="font-size:13px;font-weight:500;">Bilder hochladen</div>
+        <div class="text-sm text-muted mt-2">PNG, JPG, WebP, GIF · max. 50 MB · mehrere möglich</div>
+      </label>
+    </div>`;
 
   const convertBtn = isEdit ? `
     <button type="button" class="btn btn-secondary" onclick="convertIdeaToProject('${idea.id}')">In Projekt umwandeln</button>` : '';
@@ -7449,6 +7482,7 @@ function openQuickIdeaModal(ideaId = null) {
             <textarea name="script" class="autogrow" rows="6" placeholder="Hook, Ablauf, Ideen…">${isEdit ? escape(idea.script || '') : ''}</textarea>
           </div>
           ${scriptPdfBlock}
+          ${imagesBlock}
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
@@ -7461,6 +7495,7 @@ function openQuickIdeaModal(ideaId = null) {
   </div>`;
   $('#modal-container').innerHTML = html;
   initAutogrowTextareas();
+  renderIdeaImagesGrid(idea?.id || '');
 }
 
 async function submitQuickIdea(e, ideaId = '') {
@@ -7479,9 +7514,11 @@ async function submitQuickIdea(e, ideaId = '') {
   const btnLabel = btn.textContent;
   btn.disabled = true; btn.textContent = 'Wird gespeichert…';
 
-  // Pending Skript-PDF sichern, bevor closeModal() sie zurücksetzt.
+  // Pending Skript-PDF + Bilder sichern, bevor closeModal() sie zurücksetzt.
   const scriptToUpload = pendingScriptFile;
   pendingScriptFile = null;
+  const imagesToUpload = pendingIdeaImages.slice();
+  pendingIdeaImages = [];
 
   // ── Bestehende Idee bearbeiten ───────────────────────────────────────────
   if (ideaId) {
@@ -7504,6 +7541,7 @@ async function submitQuickIdea(e, ideaId = '') {
         if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
       }
       if (scriptToUpload) await uploadScriptForProject(ideaId, scriptToUpload);
+      for (const f of imagesToUpload) { try { await uploadIdeaImage(ideaId, f); } catch (imgErr) { showToast('Bild-Upload fehlgeschlagen', imgErr.message); } }
       showToast('Idee gespeichert', 'success');
     } catch (err) {
       const i = store.projects.findIndex(p => p.id === ideaId);
@@ -7537,6 +7575,7 @@ async function submitQuickIdea(e, ideaId = '') {
     showToast('Idee gespeichert', 'success');
     renderProjects(getCurrentUser());
     if (scriptToUpload) await uploadScriptForProject(newId, scriptToUpload);
+    for (const f of imagesToUpload) { try { await uploadIdeaImage(newId, f); } catch (imgErr) { showToast('Bild-Upload fehlgeschlagen', imgErr.message); } }
   } catch (err) {
     showToast('Fehler beim Speichern: ' + err.message, 'error');
     btn.disabled = false; btn.textContent = btnLabel;
@@ -10107,6 +10146,100 @@ function deleteProjectFileRequest(fileId) {
     `${API_BASE}/upload.php?scope=project&id=${encodeURIComponent(fileId)}`,
     { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } }
   ).then(r => r.json());
+}
+
+// ── Bilder bei Ideen ────────────────────────────────────────────────────────
+// Ideen können mehrere Bilder haben (project_files, kind='image'). Bei neuen
+// Ideen werden sie zwischengespeichert und nach dem Anlegen hochgeladen; bei
+// bestehenden Ideen sofort.
+let pendingIdeaImages = [];
+
+function ideaImagesOf(project) {
+  if (!project || !Array.isArray(project.files)) return [];
+  return project.files.filter(f => f && f.kind === 'image');
+}
+
+function renderIdeaImagesGrid(ideaId) {
+  const grid = document.getElementById('idea-images-grid');
+  if (!grid) return;
+  const idea = ideaId ? store.projects.find(p => p.id === ideaId) : null;
+  const existing = ideaImagesOf(idea).map(f => `
+    <div class="idea-img-thumb">
+      <img src="${API_BASE}/download.php?scope=project&id=${encodeURIComponent(f.id)}" alt="${escape(f.filename || '')}" loading="lazy" />
+      <button type="button" class="idea-img-del" title="Entfernen" onclick="removeIdeaImage('${ideaId}', '${f.id}')">×</button>
+    </div>`).join('');
+  const pending = pendingIdeaImages.map((f, i) => `
+    <div class="idea-img-thumb">
+      <img src="${URL.createObjectURL(f)}" alt="${escape(f.name || '')}" />
+      <span class="idea-img-badge">neu</span>
+      <button type="button" class="idea-img-del" title="Entfernen" onclick="removePendingIdeaImage(${i})">×</button>
+    </div>`).join('');
+  grid.innerHTML = existing + pending;
+}
+
+async function onIdeaImageSelect(e, ideaId) {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  const valid = [];
+  for (const f of files) {
+    if (!/^image\//.test(f.type)) { showToast('Nur Bilder erlaubt', f.name); continue; }
+    if (f.size > 50 * 1024 * 1024) { showToast('Bild zu groß (max. 50 MB)', f.name); continue; }
+    valid.push(f);
+  }
+  if (!valid.length) return;
+  if (ideaId) {
+    // Bestehende Idee → sofort hochladen
+    for (const f of valid) {
+      try { await uploadIdeaImage(ideaId, f); }
+      catch (err) { showToast('Bild-Upload fehlgeschlagen', err.message); }
+    }
+    renderIdeaImagesGrid(ideaId);
+  } else {
+    // Neue Idee → erst nach dem Anlegen hochladen
+    valid.forEach(f => pendingIdeaImages.push(f));
+    renderIdeaImagesGrid('');
+  }
+}
+
+function removePendingIdeaImage(index) {
+  pendingIdeaImages.splice(index, 1);
+  renderIdeaImagesGrid('');
+}
+
+async function uploadIdeaImage(projectId, file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch(
+    `${API_BASE}/upload.php?scope=project&kind=image&id=${encodeURIComponent(projectId)}`,
+    { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF }, body: fd }
+  );
+  const json = await res.json();
+  if (!res.ok || !json.ok) throw new Error(json.error || 'Bild-Upload fehlgeschlagen');
+  const p = store.projects.find(x => x.id === projectId);
+  if (p) {
+    const old = Array.isArray(p.files) ? p.files : [];
+    p.files = [{
+      id: json.data.id, kind: 'image', filename: json.data.filename,
+      mime: json.data.mime, size: json.data.size, path: json.data.path
+    }, ...old];
+  }
+  return json.data;
+}
+
+async function removeIdeaImage(projectId, fileId) {
+  const ok = await appConfirm('Dieses Bild wird entfernt.', {
+    title: 'Bild entfernen?', okLabel: 'Entfernen', danger: true
+  });
+  if (!ok) return;
+  try {
+    const json = await deleteProjectFileRequest(fileId);
+    if (!json.ok) throw new Error(json.error || 'Löschen fehlgeschlagen');
+    const p = store.projects.find(x => x.id === projectId);
+    if (p && Array.isArray(p.files)) p.files = p.files.filter(f => String(f.id) !== String(fileId));
+    renderIdeaImagesGrid(projectId);
+  } catch (err) {
+    showToast('Fehler beim Entfernen', err.message);
+  }
 }
 
 async function removeScriptFile(projectId, fileId) {
