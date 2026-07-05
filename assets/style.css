@@ -654,6 +654,9 @@ main { padding-top: 2rem; }
 /* <picture>-Wrapper aus dem Layout nehmen, damit das <img> direkter
    Flex-Child der Stage bleibt (Zentrierung/Breite wie zuvor). */
 .hero-founders-stage picture { display: contents; }
+/* Das [hidden]-Attribut muss die display:contents-Regel schlagen, sonst bleibt
+   das kombinierte Fallback-Bild sichtbar, obwohl der Split aktiv ist. */
+.hero-founders-stage picture[hidden] { display: none !important; }
 
 .hero-founders-cutout {
     position: relative;
@@ -693,18 +696,24 @@ main { padding-top: 2rem; }
     position: relative;
     z-index: 2;
     display: flex;
-    align-items: flex-end;
+    align-items: flex-end;      /* beide stehen auf einer Bodenlinie */
     justify-content: center;
-    gap: clamp(0.4rem, 2vw, 1.5rem);
+    gap: clamp(0.5rem, 3vw, 2.5rem);
     width: 100%;
+    /* Feste Stage-Höhe → beide Gründer werden HÖHENBASIERT skaliert und wirken
+       dadurch gleich groß, unabhängig von der Breite/Freistellung der Quelle. */
+    height: clamp(360px, 52vw, 620px);
 }
 /* Bei aktiver Split-Ansicht übernimmt die Einblendung pro Gründer die Rolle
    der Stage-Einblendung – doppelte Animation vermeiden. */
 .hero-founders-stage.is-split { animation: none; }
 
 .hero-founder {
-    flex: 1 1 0;
-    max-width: 50%;
+    height: 100%;
+    flex: 0 0 auto;            /* Breite = Bildbreite bei fixer Höhe (nicht schrumpfen) */
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
     transform-origin: bottom center;
     /* Steigt versetzt vom Boden hoch (wie die bisherige Stage-Einblendung). */
     animation: heroRiseIn 1.15s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -714,9 +723,11 @@ main { padding-top: 2rem; }
 
 .hero-founder-cutout {
     display: block;
-    width: 100%;
-    height: auto;
-    margin: 0 auto;
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    object-position: bottom center;
     /* Parallax-Variablen von der Stage erben + sanftes Schweben (wie Cutout). */
     transform: translate3d(var(--hero-parallax-x, 0), var(--hero-parallax-y, 0), 0) scale(var(--hero-scale, 1));
     transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
