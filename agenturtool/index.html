@@ -817,22 +817,6 @@
   }
   .row-trash:hover { opacity: 1; color: var(--danger, #ff5a5f); background: rgba(255,90,95,0.12); }
 
-  /* NAS-Freigabelinks im Projekt-Detail */
-  .nas-links { display: flex; flex-direction: column; gap: 12px; }
-  .nas-link-row { display: flex; flex-direction: column; gap: 5px; }
-  .nas-link-meta { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-  .nas-link-folder {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
-    font-weight: 700; color: var(--accent); background: var(--accent-soft);
-    padding: 1px 7px; border-radius: 5px;
-  }
-  .nas-link-hint { font-size: 11.5px; color: var(--text-3); }
-  .nas-link-input { display: flex; gap: 8px; align-items: center; }
-  .nas-link-input input {
-    flex: 1; min-width: 0; padding: 8px 12px; border-radius: 8px;
-    background: var(--bg-2); border: 1px solid var(--border); color: inherit; font-size: 13px;
-  }
-  .nas-link-input input[readonly] { opacity: 0.8; cursor: default; }
 
   /* =========================================
      STAT GRID
@@ -6744,6 +6728,9 @@ function pbDrop(ev, colKey) {
   // Drop in DIESELBE Spalte = No-op (Spalten fassen mehrere Status zusammen;
   // sonst würde z.B. 'gedreht' in „Produktion" fälschlich auf 'geplant' zurückgesetzt).
   if (src && src.key === target.key) return;
+  // Idee wird aus der Ideen-Spalte herausgezogen → erst Drehtag & Team im
+  // kompakten Popup setzen, dann verschieben (statt direkt Status zu ändern).
+  if (src && src.key === 'idee') { openPromoteIdeaModal(id, target.entry); return; }
   setProjectStatus(id, target.entry); // bestehende Funktion: optimistisch + PUT + Server-Regeln
 }
 
@@ -7437,6 +7424,176 @@ async function convertIdeaToProject(ideaId) {
   closeModal();
   showToast('Projektdetails ergänzen', 'Kunde/Deadline/Zuweisung ergänzen – mit Drehtag wird daraus automatisch „Geplant".');
   openProjectModal(ideaId, true); // forceFull: volles Projektformular statt schlankem Ideen-Editor
+}
+
+// Idee → Produktion: kompaktes Popup, um Drehtag & Team zu setzen, BEVOR die
+// Idee ins Board („Produktion") wandert (aus pbDrop bei Drag idee→production).
+// Erst mit gesetztem Drehtag wird aus der Idee ein geplantes Projekt.
+function openPromoteIdeaModal(ideaId, targetStatus = 'geplant') {
+  const session = getCurrentUser();
+  if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) {
+    appAlert('Nur Manager oder Admins dürfen Ideen in Produktion verschieben.', { title: 'Nicht erlaubt' });
+    return;
+  }
+  const idea = store.projects.find(p => p.id === ideaId);
+  if (!idea) { showToast('Idee nicht gefunden', 'error'); return; }
+  const isAdmin = hasRole(session.user, ROLES.ADMIN);
+
+  const customerOptions = '<option value="">– Kunde optional –</option>' + store.customers
+    .filter(c => isAdmin || !c.managerId || c.managerId === session.user.id)
+    .map(c => `<option value="${c.id}" ${idea.customerId === c.id ? 'selected' : ''}>${escape(c.name)} (${escape(c.customerNumber || '')})</option>`).join('');
+  const videografOptions = '<option value="">– Videograf optional –</option>' + store.users
+    .filter(u => hasRole(u, ROLES.VIDEOGRAF))
+    .map(u => `<option value="${u.id}" ${idea.videografId === u.id ? 'selected' : ''}>${escape(u.name)}</option>`).join('');
+  const cutterOptions = '<option value="">– Cutter optional –</option>' + store.users
+    .filter(u => hasRole(u, ROLES.CUTTER))
+    .map(u => `<option value="${u.id}" ${idea.cutterId === u.id ? 'selected' : ''}>${escape(u.name)}</option>`).join('');
+  const shootDayOptions = '<option value="">– kein Drehtag (manuell) –</option>' + (store.shootDays || [])
+    .slice().sort((a, b) => a.date.localeCompare(b.date)).map(sd => {
+      const vg = store.users.find(u => u.id === sd.videografId);
+      const cust = store.customers.find(c => c.id === sd.customerId);
+      const label = `${fmtDate(sd.date)} · ${vg?.name || '–'}${cust ? ' · ' + cust.name : ''} · ${sd.startTime}–${sd.endTime}`;
+      return `<option value="${sd.id}" data-date="${sd.date}" data-videograf="${sd.videografId || ''}" ${idea.shootDayId === sd.id ? 'selected' : ''}>${escape(label)}</option>`;
+    }).join('');
+
+  const html = `<div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+    <div class="modal" style="max-width:520px;">
+      <div class="modal-header">
+        <div class="modal-title">Idee → Produktion</div>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <form onsubmit="submitPromoteIdea(event, '${ideaId}', '${targetStatus}')">
+        <div class="modal-body">
+          <p class="text-sm text-muted" style="margin-bottom:14px;">
+            „${escape(idea.title || 'Idee')}" in Produktion übernehmen. Mit einem Drehtag wird daraus ein geplantes Projekt.
+          </p>
+          <div class="form-group">
+            <label class="form-label">Kunde</label>
+            <select name="customerId" id="promote-customer">${customerOptions}</select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Drehtag zuweisen</label>
+            <select name="shootDayId" id="promote-shootDay" onchange="onPromoteShootDayChange(this)">${shootDayOptions}</select>
+          </div>
+          <div class="form-row" id="promote-manual-date-row" style="${idea.shootDayId ? 'display:none;' : ''}">
+            <div class="form-group">
+              <label class="form-label">Drehtag (manuell) *</label>
+              <input type="date" name="shootDate" id="promote-shootDate" ${idea.shootDayId ? '' : 'required'} value="${idea.shootDate || ''}" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Videograf</label>
+              <select name="videografId" id="promote-videograf">${videografOptions}</select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Cutter</label>
+              <select name="cutterId" id="promote-cutter">${cutterOptions}</select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Posting-Datum</label>
+              <input type="date" name="postingDate" id="promote-postingDate" value="${idea.postingDate || ''}" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Cutter-Deadline</label>
+              <input type="date" name="deadline" id="promote-deadline" value="${idea.deadline || ''}" />
+            </div>
+          </div>
+          <p class="text-sm text-muted">Weitere Details kannst du danach jederzeit im Projekt ergänzen.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+          <button type="submit" class="btn btn-primary" id="promote-btn">In Produktion verschieben</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+  $('#modal-container').innerHTML = html;
+}
+
+// Drehtag gewählt → Datum/Videograf übernehmen, manuelles Datumsfeld ausblenden.
+function onPromoteShootDayChange(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const row = document.getElementById('promote-manual-date-row');
+  const dateInput = document.getElementById('promote-shootDate');
+  const vgSel = document.getElementById('promote-videograf');
+  if (sel.value) {
+    if (row) row.style.display = 'none';
+    if (dateInput) { dateInput.required = false; dateInput.value = opt?.dataset.date || ''; }
+    const vg = opt?.dataset.videograf;
+    if (vg && vgSel) vgSel.value = vg;
+  } else {
+    if (row) row.style.display = '';
+    if (dateInput) dateInput.required = true;
+  }
+}
+
+async function submitPromoteIdea(e, ideaId, targetStatus) {
+  e.preventDefault();
+  const session = getCurrentUser();
+  if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) {
+    appAlert('Nur Manager oder Admins dürfen Ideen in Produktion verschieben.', { title: 'Nicht erlaubt' });
+    return;
+  }
+  const idx = store.projects.findIndex(p => p.id === ideaId);
+  if (idx < 0) { showToast('Idee nicht gefunden', 'error'); return; }
+
+  const form = e.target;
+  const shootDayId = form.shootDayId.value || null;
+  let shootDate = form.shootDate.value || null;
+  // Bei gewähltem Drehtag das Datum immer mitspiegeln (wie im normalen Projekt-
+  // Speicherfluss), damit Ansichten/Exporte, die project.shootDate direkt lesen,
+  // das geplante Datum nicht verlieren (sonst shootDayId ohne shootDate nach Reload).
+  if (shootDayId && !shootDate) {
+    const sd = (store.shootDays || []).find(s => s.id === shootDayId);
+    if (sd) shootDate = sd.date;
+  }
+  if (!shootDayId && !shootDate) { showToast('Bitte einen Drehtag angeben.', 'warn'); return; }
+
+  const status = targetStatus || 'geplant';
+  const payload = {
+    status,
+    customerId: form.customerId.value || null,
+    videografId: form.videografId.value || null,
+    cutterId: form.cutterId.value || null,
+    deadline: form.deadline.value || null,
+    postingDate: form.postingDate.value || null,
+  };
+  if (shootDayId) payload.shootDayId = shootDayId;
+  if (shootDate)  payload.shootDate  = shootDate;
+
+  const btn = document.getElementById('promote-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird verschoben…'; }
+
+  const prev = { ...store.projects[idx] };
+  store.projects[idx] = { ...store.projects[idx], ...payload };
+  lockProjectStatus(ideaId, status);
+  closeModal();
+  renderPage();
+
+  try {
+    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(ideaId)}`, {
+      method: 'PUT', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || 'Verschieben fehlgeschlagen');
+    if (json.data) {
+      const i = store.projects.findIndex(p => p.id === ideaId);
+      if (i >= 0) store.projects[i] = { ...store.projects[i], ...json.data };
+    }
+    unlockProjectStatus(ideaId);
+    showToast('Idee ist jetzt in Produktion', 'success');
+    await pullAllFromCloud();
+  } catch (err) {
+    store.projects[idx] = prev;
+    unlockProjectStatus(ideaId);
+    renderPage();
+    showToast('Fehler beim Verschieben: ' + err.message, 'error');
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -8444,15 +8601,6 @@ function openProjectModal(projectId = null, forceFull = false) {
             </div>
 
             ${!isNew ? `
-            <div class="form-group">
-              <label class="form-label">NAS-Freigabelinks (Ugreen)</label>
-              <div class="nas-links">
-                ${nasLinkField('nasRohmaterialUrl', '01_Rohmaterial', 'Rohmaterial für Cutter (read-only)', project?.nasRohmaterialUrl, canEdit)}
-                ${nasLinkField('nasExportUrl', '03_Exporte_Cutter', 'Export-Upload des Cutters', project?.nasExportUrl, canEdit)}
-                ${nasLinkField('nasFreigabeUrl', '04_Freigaben_Manager', 'Finaler Manager-Review', project?.nasFreigabeUrl, canEdit)}
-              </div>
-            </div>
-
             <div id="nas-media-section"></div>
             ` : ''}
 
@@ -8831,8 +8979,6 @@ async function openProjectViewerModal(project) {
             </div>
           ` : ''; })()}
 
-          ${renderNasViewerSection(project, user)}
-
           <div id="nas-media-section"></div>
 
           ${renderProjectFilesSection(project, session)}
@@ -9138,11 +9284,6 @@ async function saveProject(e, projectId) {
     isInternal: data.isInternal ? 1 : 0,
     status: data.status || undefined
   };
-  // NAS-Freigabelinks nur mitschicken, wenn die Felder im Formular vorhanden waren
-  // (nur Bearbeiten-Ansicht, nicht bei Neuanlage).
-  if ('nasRohmaterialUrl' in data) apiPayload.nasRohmaterialUrl = data.nasRohmaterialUrl || null;
-  if ('nasExportUrl' in data)      apiPayload.nasExportUrl      = data.nasExportUrl || null;
-  if ('nasFreigabeUrl' in data)    apiPayload.nasFreigabeUrl    = data.nasFreigabeUrl || null;
   // Für neue Projekte: id mitschicken
   if (!projectId) apiPayload.id = insertedId;
 
@@ -9286,98 +9427,6 @@ function scriptFileOf(project) {
   if (!project || !Array.isArray(project.files)) return null;
   const scripts = project.files.filter(f => f && f.kind === 'script');
   return scripts.length ? scripts[0] : null; // list_files liefert neueste zuerst
-}
-
-// Ein NAS-Freigabelink-Feld (Ordner-Label + Hinweis + Eingabe + "Öffnen"-Shortcut).
-// editable=false → read-only (z. B. für Cutter/Videograf im Viewer).
-function nasLinkField(name, folderLabel, hint, value, editable) {
-  const v = value || '';
-  const safeV = escape(v);
-  const open = v
-    ? `<a class="btn btn-ghost btn-sm" href="${safeV}" target="_blank" rel="noopener noreferrer">Öffnen</a>`
-    : '';
-  return `
-    <div class="nas-link-row">
-      <div class="nas-link-meta">
-        <span class="nas-link-folder">${escape(folderLabel)}</span>
-        <span class="nas-link-hint">${escape(hint)}</span>
-      </div>
-      <div class="nas-link-input">
-        <input type="url" name="${name}" value="${safeV}" ${editable ? '' : 'readonly'}
-               placeholder="https://nas… Freigabelink einfügen" />
-        ${open}
-      </div>
-    </div>`;
-}
-
-// NAS-Sektion im Read-Only-Viewer (Cutter/Videograf):
-// Rohmaterial + Freigabe als reine Öffnen-Shortcuts; Export-Link für den zugewiesenen
-// Cutter editierbar (er trägt seinen Upload-/Export-Share-Link ein und speichert ihn).
-function renderNasViewerSection(project, user) {
-  const isAssignedCutter = project.cutterId && project.cutterId === user.id;
-  const shortcut = (folderLabel, hint, value) => {
-    if (!value) return '';
-    return `
-      <div class="nas-link-row">
-        <div class="nas-link-meta">
-          <span class="nas-link-folder">${escape(folderLabel)}</span>
-          <span class="nas-link-hint">${escape(hint)}</span>
-        </div>
-        <div class="nas-link-input">
-          <a class="btn btn-secondary btn-sm" href="${escape(value)}" target="_blank" rel="noopener noreferrer">Öffnen</a>
-        </div>
-      </div>`;
-  };
-  const rohmaterial = shortcut('01_Rohmaterial', 'Rohmaterial (read-only)', project.nasRohmaterialUrl);
-  const freigabe    = shortcut('04_Freigaben_Manager', 'Manager-Freigabe', project.nasFreigabeUrl);
-  // Export: Cutter editierbar, sonst Shortcut (falls gesetzt)
-  let exportBlock = '';
-  if (isAssignedCutter) {
-    const v = project.nasExportUrl || '';
-    exportBlock = `
-      <div class="nas-link-row">
-        <div class="nas-link-meta">
-          <span class="nas-link-folder">03_Exporte_Cutter</span>
-          <span class="nas-link-hint">Dein Export-Freigabelink</span>
-        </div>
-        <div class="nas-link-input">
-          <input type="url" id="nas-export-input" value="${escape(v)}" placeholder="https://nas… Export-Link einfügen" />
-          <button type="button" class="btn btn-primary btn-sm" onclick="saveCutterNasExport('${project.id}')">Speichern</button>
-        </div>
-      </div>`;
-  } else {
-    exportBlock = shortcut('03_Exporte_Cutter', 'Cutter-Export', project.nasExportUrl);
-  }
-  if (!rohmaterial && !exportBlock && !freigabe) return '';
-  return `
-    <div style="margin-top: 14px;">
-      <div class="cutter-detail-label" style="margin-bottom:6px;">NAS-Freigabelinks (Ugreen)</div>
-      <div class="nas-links">${rohmaterial}${exportBlock}${freigabe}</div>
-    </div>`;
-}
-
-// Cutter speichert seinen Export-Link (nur dieses Feld ist serverseitig für ihn erlaubt).
-async function saveCutterNasExport(projectId) {
-  const input = document.getElementById('nas-export-input');
-  if (!input) return;
-  const val = input.value.trim();
-  const idx = store.projects.findIndex(p => p.id === projectId);
-  const prev = idx >= 0 ? store.projects[idx].nasExportUrl : undefined;
-  if (idx >= 0) store.projects[idx].nasExportUrl = val || null;
-  try {
-    const res = await fetch(`${API_BASE}/projects.php?id=${encodeURIComponent(projectId)}`, {
-      method: 'PUT', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
-      body: JSON.stringify({ nasExportUrl: val })
-    });
-    const json = await res.json();
-    if (!res.ok || !json.ok) throw new Error(json.error || 'Speichern fehlgeschlagen');
-    if (json.data && idx >= 0) store.projects[idx] = { ...store.projects[idx], ...json.data };
-    showToast('Export-Link gespeichert', 'success');
-  } catch (err) {
-    if (idx >= 0) store.projects[idx].nasExportUrl = prev;
-    showToast('Fehler beim Speichern', err.message);
-  }
 }
 
 /* ---------------------------------------------------------------------------
