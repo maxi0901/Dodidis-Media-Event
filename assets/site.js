@@ -127,6 +127,45 @@
     })();
 
     /* ============================================================
+       Hero-Gründer: zwei getrennte Bilder statt des kombinierten.
+       Solange NICHT beide Einzelbilder (hero-raphael/-timo) existieren,
+       bleibt das kombinierte Fallback-Bild sichtbar. Erst wenn beide
+       erfolgreich laden, wird auf die Zwei-Bild-Ansicht umgeschaltet
+       (src wird erst dann gesetzt → keine kaputten Bild-Icons).
+       ============================================================ */
+    (function () {
+        var stage = document.querySelector('[data-hero-image]');
+        var split = stage && stage.querySelector('[data-hero-split]');
+        var fallback = stage && stage.querySelector('[data-hero-fallback]');
+        if (!stage || !split || !fallback) return;
+
+        var imgs = Array.prototype.slice.call(split.querySelectorAll('img[data-src]'));
+        if (!imgs.length) return;
+
+        var loaded = 0;
+        var failed = false;
+
+        function reveal() {
+            imgs.forEach(function (img) { img.src = img.getAttribute('data-src'); });
+            split.hidden = false;
+            split.setAttribute('aria-hidden', 'false');
+            fallback.hidden = true;
+            fallback.setAttribute('aria-hidden', 'true');
+            stage.classList.add('is-split');
+        }
+
+        imgs.forEach(function (img) {
+            var probe = new Image();
+            probe.onload = function () {
+                loaded++;
+                if (loaded === imgs.length && !failed) reveal();
+            };
+            probe.onerror = function () { failed = true; };
+            probe.src = img.getAttribute('data-src');
+        });
+    })();
+
+    /* ============================================================
        Mobile navigation — robust open/close
        ============================================================ */
     var toggle = document.getElementById('navToggle');

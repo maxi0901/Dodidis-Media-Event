@@ -688,6 +688,50 @@ main { padding-top: 2rem; }
     50%      { transform: translate3d(var(--hero-parallax-x, 0), calc(var(--hero-parallax-y, 0px) - 8px), 0) scale(var(--hero-scale, 1)); }
 }
 
+/* === Zwei getrennte Gründer (aktiv, sobald beide Einzelbilder da sind) === */
+.hero-founders-split {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: clamp(0.4rem, 2vw, 1.5rem);
+    width: 100%;
+}
+/* Bei aktiver Split-Ansicht übernimmt die Einblendung pro Gründer die Rolle
+   der Stage-Einblendung – doppelte Animation vermeiden. */
+.hero-founders-stage.is-split { animation: none; }
+
+.hero-founder {
+    flex: 1 1 0;
+    max-width: 50%;
+    transform-origin: bottom center;
+    /* Steigt versetzt vom Boden hoch (wie die bisherige Stage-Einblendung). */
+    animation: heroRiseIn 1.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(0.35s + var(--rise-i, 0) * 0.22s);
+    will-change: transform, opacity;
+}
+
+.hero-founder-cutout {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0 auto;
+    /* Parallax-Variablen von der Stage erben + sanftes Schweben (wie Cutout). */
+    transform: translate3d(var(--hero-parallax-x, 0), var(--hero-parallax-y, 0), 0) scale(var(--hero-scale, 1));
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    filter: drop-shadow(0 30px 50px rgba(0,0,0,0.55));
+    animation: heroFloat 9s ease-in-out infinite;
+}
+/* Zweiter Gründer leicht phasenversetzt schweben lassen. */
+.hero-founder:nth-child(2) .hero-founder-cutout { animation-delay: 1.4s; }
+
+@keyframes heroRiseIn {
+    0%   { opacity: 0; transform: translateY(70px) scale(0.82); }
+    55%  { opacity: 1; }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .hero-tagline-pill {
     display: inline-flex;
     align-items: center;
