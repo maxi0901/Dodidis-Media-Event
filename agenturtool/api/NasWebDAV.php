@@ -140,20 +140,56 @@ class NasWebDAV
      */
     public function passthru(string $key, string $filename, string $disposition = 'attachment'): void
     {
-        [$ctype, $size] = $this->head($key);
+        [$ctype, $size, $lastMod, $etag] = $this->head($key);
 
         header('Content-Type: ' . ($ctype ?: 'application/octet-stream'));
         header('Content-Disposition: ' . $disposition . '; filename="' . str_replace('"', '\\"', $filename) . '"');
-        if ($size > 0) {
-            header('Content-Length: ' . $size);
-        }
+        header('Accept-Ranges: bytes');   // ermöglicht Fortsetzen/Chunk-Download
         header('Cache-Control: private, no-store');
         header('X-Accel-Buffering: no');  // nginx hint: disable proxy buffering
+        // Validatoren → Browser kann einen abgebrochenen Download automatisch
+        // fortsetzen (Range + If-Range).
+        if ($lastMod !== '') header('Last-Modified: ' . $lastMod);
+        if ($etag !== '')    header('ETag: ' . $etag);
+
+        // Range-Anfrage des Browsers auswerten → Teilinhalt (206) + an NAS weitergeben.
+        $curlRange = null;
+        $range = $_SERVER['HTTP_RANGE'] ?? '';
+        if ($size > 0 && preg_match('/^bytes=(\d*)-(\d*)$/', trim($range), $m) && ($m[1] !== '' || $m[2] !== '')) {
+            if ($m[1] === '') {                       // Suffix: letzte N Bytes
+                $start = max(0, $size - (int)$m[2]);
+                $end   = $size - 1;
+            } else {
+                $start = (int)$m[1];
+                $end   = ($m[2] === '') ? $size - 1 : min((int)$m[2], $size - 1);
+            }
+            if ($start > $end || $start >= $size) {
+                http_response_code(416);
+                header("Content-Range: bytes */{$size}");
+                return;
+            }
+            $curlRange = $start . '-' . $end;
+            http_response_code(206);
+            header("Content-Range: bytes {$start}-{$end}/{$size}");
+            header('Content-Length: ' . ($end - $start + 1));
+        } elseif ($size > 0) {
+            header('Content-Length: ' . $size);
+        }
 
         $ch = $this->newCurl($this->url($key));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
-        // Write directly to output buffer in chunks
+        // Große Streams: KEIN hartes Gesamt-Timeout (sonst brechen Multi-GB-
+        // Downloads nach 1h bzw. bei langsamer Leitung ab). Stattdessen nur
+        // Abbruch bei echtem Stillstand (<1 Byte/s über 120s).
+        curl_setopt($ch, CURLOPT_TIMEOUT, 0);
+        curl_setopt($ch, CURLOPT_LOW_SPEED_LIMIT, 1);
+        curl_setopt($ch, CURLOPT_LOW_SPEED_TIME, 120);
+        if ($curlRange !== null) {
+            curl_setopt($ch, CURLOPT_RANGE, $curlRange);
+        }
+        // In den Ausgabepuffer streamen; bei Client-Abbruch sauber stoppen.
         curl_setopt($ch, CURLOPT_WRITEFUNCTION, static function ($ch, string $chunk): int {
+            if (connection_aborted()) return 0; // signalisiert cURL: abbrechen
             echo $chunk;
             if (ob_get_level() > 0) ob_flush();
             flush();
@@ -173,6 +209,17 @@ class NasWebDAV
         $ch = $this->newCurl($this->url($key));
         curl_setopt($ch, CURLOPT_NOBODY, true);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        // Last-Modified/ETag mitlesen → als Validatoren für Browser-Resume nutzbar
+        $lastMod = ''; $etag = '';
+        curl_setopt($ch, CURLOPT_HEADERFUNCTION, static function ($ch, string $h) use (&$lastMod, &$etag): int {
+            $p = explode(':', $h, 2);
+            if (count($p) === 2) {
+                $name = strtolower(trim($p[0]));
+                if ($name === 'last-modified')   $lastMod = trim($p[1]);
+                elseif ($name === 'etag')        $etag    = trim($p[1]);
+            }
+            return strlen($h);
+        });
 
         curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -185,12 +232,12 @@ class NasWebDAV
             throw new \RuntimeException("HEAD {$key} cURL error: {$err}");
         }
         if ($code === 404 || $code === 0) {
-            return ['', 0];
+            return ['', 0, '', ''];
         }
         if ($code !== 200) {
             throw new \RuntimeException("HEAD {$key} lieferte HTTP {$code}");
         }
-        return [$ct, max(0, $cl)];
+        return [$ct, max(0, $cl), $lastMod, $etag];
     }
 
     /**

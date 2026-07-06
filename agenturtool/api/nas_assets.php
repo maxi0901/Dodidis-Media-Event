@@ -268,6 +268,8 @@ if ($method === 'GET' && $id && str_starts_with((string)$id, 'nas:')) {
     if (!$projId) json_err(400, 'project_id fehlt für manuelle NAS-Datei.');
     [$key, $fname, ] = nas_resolve_manual((string)$id, (string)$projId, $session);
     log_activity('asset', 'manual', 'downloaded', ['project' => $projId, 'file' => $fname]);
+    @set_time_limit(0);          // große Downloads nicht nach max_execution_time killen
+    ignore_user_abort(false);    // bei Client-Abbruch Skript beenden (kein Weiterladen)
     try {
         $nas = new NasWebDAV();
         while (ob_get_level() > 0) ob_end_clean();
@@ -294,6 +296,8 @@ if ($method === 'GET' && $id) {
 
     log_activity('asset', $id, 'downloaded', ['by' => $session['uid']]);
 
+    @set_time_limit(0);          // große Downloads nicht nach max_execution_time killen
+    ignore_user_abort(false);    // bei Client-Abbruch Skript beenden
     try {
         $nas = new NasWebDAV();
         // Flush any output buffers so streaming works cleanly
