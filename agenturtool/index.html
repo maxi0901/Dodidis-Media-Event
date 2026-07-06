@@ -11982,9 +11982,10 @@ function buildCalendarBars(session) {
     // Video-Termin – plus die separaten Entitäten Drehtag, Meeting, Aufgabe, Urlaub.
     if (pd && showsPostings) {
       bars.push({ ...base, phase: 'posting', startDate: pd, endDate: pd, postingDate: pd, time: '18:00' });
-    } else if (dl && !showsPostings) {
-      // Cutter sehen kein Posting → ihre Cutter-Deadline als Einzeltermin behalten,
-      // damit die Video-/Deadline-Sichtbarkeit für Cutter erhalten bleibt.
+    }
+    // Cutter-Deadline als Einzeltermin: für Cutter (die kein Posting sehen) UND
+    // zusätzlich für Admins (die so Posting + Deadline im Kalender haben).
+    if (dl && (isAdmin || !showsPostings)) {
       bars.push({ ...base, phase: 'deadline', startDate: dl, endDate: dl, deadline: dl, time: '17:00' });
     }
 
