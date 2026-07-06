@@ -6466,17 +6466,6 @@ function buildDwGridHtml(session, weekStart, opts = {}) {
   const pushDay = (idx, ev) => { if (idx >= 0 && idx <= 6) byDay[idx].push(ev); };
   bars.forEach(b => {
     if (b.phase === 'vacation') return;
-    if (b.phase === 'production') {
-      if (!vis.videos) return;
-      // Mehrtägige Produktionsspanne: auf JEDEM sichtbaren Tag zeigen (geclippt).
-      const sIdx = dashDayIndex(b.startDate, startStr);
-      const eIdx = dashDayIndex(b.endDate, startStr);
-      if (sIdx > 6 || eIdx < 0) return;
-      for (let i = Math.max(0, sIdx); i <= Math.min(6, eIdx); i++) {
-        pushDay(i, { cat: 'cat-prod', title: b.title, sub: 'Produktion', projectId: b.projectId });
-      }
-      return;
-    }
     let date, cat, sub, extra = {};
     if (b.phase === 'meeting') {
       if (!vis.meetings) return;
@@ -6494,6 +6483,11 @@ function buildDwGridHtml(session, weekStart, opts = {}) {
       const sd = (store.shootDays || []).find(x => x.id === b.shootDayId);
       sub = sd ? `${hhmm(sd.startTime)}–${hhmm(sd.endTime)}` : 'Drehtag';
       extra.shootDayId = b.shootDayId;
+    } else if (b.phase === 'deadline') {
+      // Cutter: Deadline-Termin (fällt unter „Videos"-Filter)
+      if (!vis.videos) return;
+      date = b.deadline || b.endDate; cat = 'cat-prod'; sub = (b.time || '17:00') + ' · Deadline';
+      extra.projectId = b.projectId;
     } else { return; }
     pushDay(dashDayIndex(date, startStr), { cat, title: b.title, sub, ...extra });
   });
@@ -6642,8 +6636,8 @@ function renderCalMonthGrid(elementId, session) {
       for (let d = new Date(b.startDate + 'T00:00:00'), end = new Date(b.endDate + 'T00:00:00'); d <= end; d.setDate(d.getDate() + 1)) {
         add(localDateStr(d), { cat: 'cat-url', title: (b.customer || '') + ' · Urlaub' });
       }
-    } else if (b.phase === 'production') {
-      if (vis.videos) add(b.endDate, { cat: 'cat-prod', title: b.title, sub: 'Deadline', projectId: b.projectId });
+    } else if (b.phase === 'deadline') {
+      if (vis.videos) add(b.deadline || b.endDate, { cat: 'cat-prod', title: b.title, sub: 'Deadline', projectId: b.projectId });
     } else if (b.phase === 'posting') {
       if (vis.videos) add(b.postingDate || b.endDate, { cat: 'cat-post', title: b.title, sub: b.time || '18:00', projectId: b.projectId });
     } else if (b.phase === 'meeting') {
@@ -11988,6 +11982,10 @@ function buildCalendarBars(session) {
     // Video-Termin – plus die separaten Entitäten Drehtag, Meeting, Aufgabe, Urlaub.
     if (pd && showsPostings) {
       bars.push({ ...base, phase: 'posting', startDate: pd, endDate: pd, postingDate: pd, time: '18:00' });
+    } else if (dl && !showsPostings) {
+      // Cutter sehen kein Posting → ihre Cutter-Deadline als Einzeltermin behalten,
+      // damit die Video-/Deadline-Sichtbarkeit für Cutter erhalten bleibt.
+      bars.push({ ...base, phase: 'deadline', startDate: dl, endDate: dl, deadline: dl, time: '17:00' });
     }
 
     // Separater Deadline-Balken entfällt – Deadline ist der rechte Rand der Produktionslinie
