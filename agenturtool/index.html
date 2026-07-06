@@ -11983,22 +11983,11 @@ function buildCalendarBars(session) {
 
     // KEIN 'shoot' mehr pro Projekt – Drehtag ist nur die Drehtag-Entität oben
 
-    // FIX 2: Produktionslinie mit farbigen End-Markern.
-    // Gelbe Linie von Drehtag BIS Deadline (Deadline = rechter Endpunkt, roter Cap).
-    // Teal-Segment von Deadline+1 BIS Posting (Posting = rechter Endpunkt, blauer Cap).
-    // Kein separater Deadline-Balken mehr – er ist der Abschluss der gelben Linie.
-    if (sd && dl && sd < dl) {
-      // Gelbe Produktionslinie endet am Deadline-Tag (nicht mehr Deadline-1)
-      bars.push({ ...base, phase: 'production', startDate: sd, endDate: dl });
-    } else if (sd && !dl) {
-      bars.push({ ...base, phase: 'production', startDate: sd, endDate: sd });
-    }
-
-    // Teal-Posting-Segment: von Deadline+1 bis Posting-Datum
+    // Der Kalender zeigt bewusst KEINE Produktionsspanne mehr (kein „Bearbeitungs-
+    // prozess jeden Tag als Termin"). Es bleibt nur das echte Posting-Datum als
+    // Video-Termin – plus die separaten Entitäten Drehtag, Meeting, Aufgabe, Urlaub.
     if (pd && showsPostings) {
-      const postStart = (dl && dl < pd) ? addDays(dl, 1) : pd;
-      // postingDate = echtes Posting-Datum (endDate), nicht der visuelle Balken-Start (deadline+1)
-      bars.push({ ...base, phase: 'posting', startDate: postStart, endDate: pd, postingDate: pd, time: '18:00' });
+      bars.push({ ...base, phase: 'posting', startDate: pd, endDate: pd, postingDate: pd, time: '18:00' });
     }
 
     // Separater Deadline-Balken entfällt – Deadline ist der rechte Rand der Produktionslinie
