@@ -42,20 +42,22 @@ function fail(string $label, string $err): void {
 }
 
 if ($run):
-// ── 1. Env-Vars vorhanden? ────────────────────────────────────────────────────
-$base = (string)(getenv('NAS_DAV_BASE') ?: '');
-$user = (string)(getenv('NAS_DAV_USER') ?: '');
-$pass = (string)(getenv('NAS_DAV_PASS') ?: '');
+// ── 1. Zugangsdaten (Env → config.nas.php) ────────────────────────────────────
+require_once __DIR__ . '/api/nas_env.php';
+$creds = nas_credentials();
+$base = $creds['base'];
+$user = $creds['user'];
+$pass = $creds['pass'];
 
 if ($base && $user && $pass) {
-    ok('Umgebungsvariablen gesetzt', "BASE={$base}  USER={$user}  PASS=***");
+    ok('Zugangsdaten gesetzt', "BASE={$base}  USER={$user}  PASS=***");
 } else {
     $missing = implode(', ', array_filter([
         !$base ? 'NAS_DAV_BASE' : '',
         !$user ? 'NAS_DAV_USER' : '',
         !$pass ? 'NAS_DAV_PASS' : '',
     ]));
-    fail('Umgebungsvariablen fehlen', $missing);
+    fail('Zugangsdaten fehlen (weder Env noch config.nas.php)', $missing);
 }
 
 // ── 2. NasWebDAV instanziieren ────────────────────────────────────────────────
@@ -177,7 +179,7 @@ $fails = array_filter($steps, fn($s) => !$s['ok']);
 </head>
 <body>
 <h1>NAS Verbindungstest</h1>
-<div class="sub">Prüft MKCOL → PUT → HEAD → DELETE gegen <?= htmlspecialchars(getenv('NAS_DAV_BASE') ?: '(kein BASE gesetzt)') ?></div>
+<div class="sub">Prüft MKCOL → PUT → HEAD → DELETE gegen <?php require_once __DIR__ . '/api/nas_env.php'; $subBase = nas_credentials()['base']; echo htmlspecialchars($subBase !== '' ? $subBase : '(kein BASE gesetzt)'); ?></div>
 
 <?php if (!$run): ?>
 <div class="banner" style="background:rgba(255,165,0,.12);border:1px solid rgba(255,165,0,.3);color:#f90">

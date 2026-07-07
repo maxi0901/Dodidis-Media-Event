@@ -43,20 +43,22 @@ function info(string $label, string $detail = '', bool $pre = false): void {
 
 if ($run):
 
-// ── 1. Env-Vars ───────────────────────────────────────────────────────────────
-$base = (string)(getenv('NAS_DAV_BASE') ?: ($_SERVER['NAS_DAV_BASE'] ?? '') ?: '');
-$user = (string)(getenv('NAS_DAV_USER') ?: ($_SERVER['NAS_DAV_USER'] ?? '') ?: '');
-$pass = (string)(getenv('NAS_DAV_PASS') ?: ($_SERVER['NAS_DAV_PASS'] ?? '') ?: '');
+// ── 1. Zugangsdaten (Env → config.nas.php) ────────────────────────────────────
+require_once __DIR__ . '/nas_env.php';
+$creds = nas_credentials();
+$base = $creds['base'];
+$user = $creds['user'];
+$pass = $creds['pass'];
 
 if ($base && $user && $pass) {
-    ok('Env-Vars gesetzt', "BASE={$base}  USER={$user}  PASS=***");
+    ok('Zugangsdaten gesetzt', "BASE={$base}  USER={$user}  PASS=***");
 } else {
     $missing = implode(', ', array_filter([
         !$base ? 'NAS_DAV_BASE' : '',
         !$user ? 'NAS_DAV_USER' : '',
         !$pass ? 'NAS_DAV_PASS' : '',
     ]));
-    fail('Env-Vars fehlen', $missing);
+    fail('Zugangsdaten fehlen (weder Env noch config.nas.php)', $missing);
 }
 
 // ── 2. PHP / cURL Umgebung ────────────────────────────────────────────────────
@@ -300,7 +302,7 @@ $fails = array_filter($steps, fn($s) => $s['ok'] === false);
 </head>
 <body>
 <h1>NAS Diagnose</h1>
-<div class="sub">DNS → TCP → cURL Verbose → MKCOL/PUT/HEAD/DELETE gegen <?= htmlspecialchars($base ?? (getenv('NAS_DAV_BASE') ?: '(kein BASE gesetzt)')) ?></div>
+<div class="sub">DNS → TCP → cURL Verbose → MKCOL/PUT/HEAD/DELETE gegen <?= htmlspecialchars(($base ?? '') !== '' ? $base : '(kein BASE gesetzt)') ?></div>
 
 <?php if (!$run): ?>
 <div class="banner" style="background:rgba(255,165,0,.12);border:1px solid rgba(255,165,0,.3);color:#f90">

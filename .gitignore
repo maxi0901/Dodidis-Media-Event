@@ -23,3 +23,6 @@ Thumbs.db
 
 # PHP runtime log (environment-specific, never commit)
 agenturtool/Fehler.log
+
+# NAS-Zugangsdaten (Secret, nur auf dem Server) — Vorlage: config.nas.php.example
+agenturtool/config.nas.php
