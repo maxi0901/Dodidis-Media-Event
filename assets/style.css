@@ -1701,9 +1701,12 @@ main { padding-top: 2rem; }
 }
 
 .contact-form-card .checkbox-row input {
-    width: auto;
-    margin-top: 3px;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    margin-top: 1px;
     accent-color: var(--accent);
+    cursor: pointer;
 }
 
 .form-status {
