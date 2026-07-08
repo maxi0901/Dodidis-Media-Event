@@ -4,20 +4,23 @@
  *
  * SO NUTZEN:
  *   1. Diese Datei auf dem Server kopieren nach:  agenturtool/config.nas.php
- *   2. Werte unten eintragen.
+ *   2. Unten NUR das Passwort eintragen (base + user sind schon gesetzt).
  *   3. NICHT committen — config.nas.php steht in .gitignore (Passwort bleibt aus Git).
  *
- * Wird nur herangezogen, wenn die Env-Vars NAS_DAV_BASE/USER/PASS leer sind
- * (siehe api/nas_env.php). Praktisch bei PHP-FPM, wo .htaccess-"SetEnv" oft
- * nicht an PHP durchgereicht wird.
+ * Wird herangezogen, wenn die Env-Vars NAS_DAV_BASE/USER/PASS leer sind
+ * (siehe api/nas_env.php) — zuverlässig, unabhängig von Apache/PHP-FPM-Env.
  *
- * 'base' = kompletter WebDAV-Pfad inkl. Tunnel-Host und Zielordner, OHNE End-Slash.
- *   Bei einem Cloudflare Quick-Tunnel ändert sich der Host bei jedem Neustart —
- *   dann hier nur diese eine Zeile aktualisieren. Dauerhaft stabil wird es mit
- *   einem benannten Cloudflare-Tunnel (fester Hostname).
+ * Aufbau (permanenter Zugang über eigenen Netcup-vServer):
+ *   Tool  ->  https://nas.dodidis-media.de   (Caddy auf dem vServer, Let's-Encrypt-HTTPS)
+ *         ->  Tailscale (WireGuard, direkt)   ->  NAS-WebDAV :5005
+ *   Der Hostname nas.dodidis-media.de ist FEST. Uploads UND Downloads laufen
+ *   automatisch darüber (alles geht durch NasWebDAV) — kein Code-Change nötig.
+ *
+ * 'base' = kompletter WebDAV-Pfad inkl. Host und Zielordner, OHNE End-Slash.
+ *          '/Test' ist die WebDAV-Freigabe, in der die Projektordner liegen.
  */
 return [
-    'base' => 'https://DEIN-TUNNEL-HOST.trycloudflare.com/agentur-media',
+    'base' => 'https://nas.dodidis-media.de/Test',
     'user' => 'toolsvc',
-    'pass' => 'HIER-DAS-NAS-PASSWORT',
+    'pass' => 'HIER-DAS-NAS-WEBDAV-PASSWORT',
 ];
