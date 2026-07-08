@@ -4,20 +4,32 @@
  *
  * SO NUTZEN:
  *   1. Diese Datei auf dem Server kopieren nach:  agenturtool/config.nas.php
- *   2. Werte unten eintragen.
+ *   2. Unten das Passwort eintragen (base + user sind schon gesetzt).
  *   3. NICHT committen — config.nas.php steht in .gitignore (Passwort bleibt aus Git).
  *
- * Wird nur herangezogen, wenn die Env-Vars NAS_DAV_BASE/USER/PASS leer sind
- * (siehe api/nas_env.php). Praktisch bei PHP-FPM, wo .htaccess-"SetEnv" oft
- * nicht an PHP durchgereicht wird.
+ *   ⚠️ WICHTIG — Env-Vars haben VORRANG vor dieser Datei:
+ *   api/nas_env.php liest zuerst getenv()/$_SERVER (NAS_DAV_BASE/USER/PASS) und
+ *   greift auf config.nas.php nur für noch LEERE Felder zurück.
+ *   Wenn auf dem Server noch alte NAS_DAV_*-Env-Werte gesetzt sind (z. B. per
+ *   "SetEnv" in agenturtool/api/.htaccess aus dem alten Tunnel-Setup), werden
+ *   die Werte HIER ignoriert und der TOTE alte Host weiterverwendet.
+ *   -> Vorher die alten SetEnv-Zeilen (NAS_DAV_BASE/USER/PASS) ENTFERNEN
+ *      (oder alle drei Env-Werte konsistent auf die neuen Werte setzen).
  *
- * 'base' = kompletter WebDAV-Pfad inkl. Tunnel-Host und Zielordner, OHNE End-Slash.
- *   Bei einem Cloudflare Quick-Tunnel ändert sich der Host bei jedem Neustart —
- *   dann hier nur diese eine Zeile aktualisieren. Dauerhaft stabil wird es mit
- *   einem benannten Cloudflare-Tunnel (fester Hostname).
+ * Wird herangezogen, wenn die Env-Vars leer sind — zuverlässig, unabhängig
+ * von Apache/PHP-FPM-Env.
+ *
+ * Aufbau (permanenter Zugang über eigenen Netcup-vServer):
+ *   Tool  ->  https://nas.dodidis-media.de   (Caddy auf dem vServer, Let's-Encrypt-HTTPS)
+ *         ->  Tailscale (WireGuard, direkt)   ->  NAS-WebDAV :5005
+ *   Der Hostname nas.dodidis-media.de ist FEST. Uploads UND Downloads laufen
+ *   automatisch darüber (alles geht durch NasWebDAV) — kein Code-Change nötig.
+ *
+ * 'base' = kompletter WebDAV-Pfad inkl. Host und Zielordner, OHNE End-Slash.
+ *          '/Test' ist die WebDAV-Freigabe, in der die Projektordner liegen.
  */
 return [
-    'base' => 'https://DEIN-TUNNEL-HOST.trycloudflare.com/agentur-media',
+    'base' => 'https://nas.dodidis-media.de/Test',
     'user' => 'toolsvc',
-    'pass' => 'HIER-DAS-NAS-PASSWORT',
+    'pass' => 'HIER-DAS-NAS-WEBDAV-PASSWORT',
 ];
