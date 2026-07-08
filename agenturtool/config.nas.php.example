@@ -4,11 +4,20 @@
  *
  * SO NUTZEN:
  *   1. Diese Datei auf dem Server kopieren nach:  agenturtool/config.nas.php
- *   2. Unten NUR das Passwort eintragen (base + user sind schon gesetzt).
+ *   2. Unten das Passwort eintragen (base + user sind schon gesetzt).
  *   3. NICHT committen — config.nas.php steht in .gitignore (Passwort bleibt aus Git).
  *
- * Wird herangezogen, wenn die Env-Vars NAS_DAV_BASE/USER/PASS leer sind
- * (siehe api/nas_env.php) — zuverlässig, unabhängig von Apache/PHP-FPM-Env.
+ *   ⚠️ WICHTIG — Env-Vars haben VORRANG vor dieser Datei:
+ *   api/nas_env.php liest zuerst getenv()/$_SERVER (NAS_DAV_BASE/USER/PASS) und
+ *   greift auf config.nas.php nur für noch LEERE Felder zurück.
+ *   Wenn auf dem Server noch alte NAS_DAV_*-Env-Werte gesetzt sind (z. B. per
+ *   "SetEnv" in agenturtool/api/.htaccess aus dem alten Tunnel-Setup), werden
+ *   die Werte HIER ignoriert und der TOTE alte Host weiterverwendet.
+ *   -> Vorher die alten SetEnv-Zeilen (NAS_DAV_BASE/USER/PASS) ENTFERNEN
+ *      (oder alle drei Env-Werte konsistent auf die neuen Werte setzen).
+ *
+ * Wird herangezogen, wenn die Env-Vars leer sind — zuverlässig, unabhängig
+ * von Apache/PHP-FPM-Env.
  *
  * Aufbau (permanenter Zugang über eigenen Netcup-vServer):
  *   Tool  ->  https://nas.dodidis-media.de   (Caddy auf dem vServer, Let's-Encrypt-HTTPS)
