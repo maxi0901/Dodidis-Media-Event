@@ -1,0 +1,23 @@
+<?php
+/**
+ * NAS-WebDAV-Zugangsdaten — Fallback zu den Umgebungsvariablen.
+ *
+ * SO NUTZEN:
+ *   1. Diese Datei auf dem Server kopieren nach:  agenturtool/config.nas.php
+ *   2. Werte unten eintragen.
+ *   3. NICHT committen — config.nas.php steht in .gitignore (Passwort bleibt aus Git).
+ *
+ * Wird nur herangezogen, wenn die Env-Vars NAS_DAV_BASE/USER/PASS leer sind
+ * (siehe api/nas_env.php). Praktisch bei PHP-FPM, wo .htaccess-"SetEnv" oft
+ * nicht an PHP durchgereicht wird.
+ *
+ * 'base' = kompletter WebDAV-Pfad inkl. Tunnel-Host und Zielordner, OHNE End-Slash.
+ *   Bei einem Cloudflare Quick-Tunnel ändert sich der Host bei jedem Neustart —
+ *   dann hier nur diese eine Zeile aktualisieren. Dauerhaft stabil wird es mit
+ *   einem benannten Cloudflare-Tunnel (fester Hostname).
+ */
+return [
+    'base' => 'https://DEIN-TUNNEL-HOST.trycloudflare.com/agentur-media',
+    'user' => 'toolsvc',
+    'pass' => 'HIER-DAS-NAS-PASSWORT',
+];

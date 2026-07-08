@@ -1,15 +1,19 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/nas_env.php';
+
 /**
  * Thin WebDAV client — streams data through PHP without buffering to Netcup disk.
  *
- * Credentials via environment variables (set in PHP-FPM pool config or .htaccess):
- *   NAS_DAV_BASE  e.g. https://ug.link/dmxbfnas/agentur-media
- *   NAS_DAV_USER  e.g. toolsvc
- *   NAS_DAV_PASS  (secret)
+ * Zugangsdaten kommen aus nas_credentials() (siehe nas_env.php):
+ *   1. Umgebungsvariablen NAS_DAV_BASE / NAS_DAV_USER / NAS_DAV_PASS
+ *      (PHP-FPM-Pool "env[…]" oder .htaccess "SetEnv" — SetEnv wird unter FPM
+ *       aber oft NICHT durchgereicht, daher der Fallback)
+ *   2. Gitignorierte Datei agenturtool/config.nas.php
+ *        return ['base' => 'https://…/pfad', 'user' => 'toolsvc', 'pass' => '…'];
  *
- * Later switch to WireGuard tunnel: only change NAS_DAV_BASE — no code change needed.
+ * Tunnel-Wechsel: nur 'base' anpassen — kein Code-Change nötig.
  */
 class NasWebDAV
 {
@@ -19,14 +23,15 @@ class NasWebDAV
 
     public function __construct()
     {
-        // Apache SetEnv populates $_SERVER on some PHP-FPM setups but not getenv()
-        $base = (string)(getenv('NAS_DAV_BASE') ?: ($_SERVER['NAS_DAV_BASE'] ?? '') ?: '');
-        $user = (string)(getenv('NAS_DAV_USER') ?: ($_SERVER['NAS_DAV_USER'] ?? '') ?: '');
-        $pass = (string)(getenv('NAS_DAV_PASS') ?: ($_SERVER['NAS_DAV_PASS'] ?? '') ?: '');
+        $creds = nas_credentials();
+        $base = $creds['base'];
+        $user = $creds['user'];
+        $pass = $creds['pass'];
 
         if ($base === '' || $user === '' || $pass === '') {
             throw new \RuntimeException(
-                'Umgebungsvariablen NAS_DAV_BASE, NAS_DAV_USER, NAS_DAV_PASS müssen gesetzt sein.'
+                'NAS-Zugangsdaten fehlen: setze NAS_DAV_BASE/USER/PASS als PHP-FPM env[…] '
+                . 'oder lege agenturtool/config.nas.php an (siehe config.nas.php.example).'
             );
         }
 
