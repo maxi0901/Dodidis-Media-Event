@@ -26,3 +26,6 @@ agenturtool/Fehler.log
 
 # NAS-Zugangsdaten (Secret, nur auf dem Server) — Vorlage: config.nas.php.example
 agenturtool/config.nas.php
+
+# Meta-App-Secret (Secret, nur auf dem Server) — Vorlage: config.meta.php.example
+agenturtool/config.meta.php
