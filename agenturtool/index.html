@@ -11501,6 +11501,12 @@ function openCustomerModal(customerId = null) {
             </div>
 
           </div>
+          ${!isNew && hasRole(getCurrentUser()?.user, ROLES.ADMIN, ROLES.MANAGER) ? `
+          <div style="padding:0 24px 4px;">
+            <div id="customer-social-box" style="padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--bg-1);">
+              <div class="text-sm text-muted">Verbundene Konten werden geladen…</div>
+            </div>
+          </div>` : ''}
           <div class="modal-footer">
             <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
             <button type="submit" class="btn btn-primary">Speichern</button>
@@ -11512,6 +11518,7 @@ function openCustomerModal(customerId = null) {
     </div>
   `;
   $('#modal-container').innerHTML = html;
+  if (!isNew && hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) loadCustomerSocialAccounts(customer.id);
 }
 
 // Startet den Meta-OAuth-Flow für diesen Kunden (öffnet meta_connect.php in
@@ -11519,6 +11526,59 @@ function openCustomerModal(customerId = null) {
 function metaConnectCustomer(customerId) {
   if (!customerId) return;
   window.open(`${API_BASE}/meta_connect.php?customer_id=${encodeURIComponent(customerId)}`, '_blank', 'noopener');
+}
+
+// Lädt & zeigt die verbundenen Social-Konten eines Kunden (social_accounts.php).
+async function loadCustomerSocialAccounts(customerId) {
+  const box = document.getElementById('customer-social-box');
+  if (!box) return;
+  try {
+    const res = await fetch(`${API_BASE}/social_accounts.php?customer_id=${encodeURIComponent(customerId)}`,
+      { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (!data.metaConfigured) {
+      box.innerHTML = `<div style="font-weight:600;margin-bottom:4px;">Social-Konten</div>
+        <div class="text-sm text-muted">Meta-App ist noch nicht konfiguriert.</div>`;
+      return;
+    }
+    const connected = (data.accounts || []).filter(a => a.status === 'connected');
+    if (!connected.length) {
+      box.innerHTML = `<div style="font-weight:600;margin-bottom:4px;">Social-Konten</div>
+        <div class="text-sm text-muted">Noch kein Konto verbunden — unten „📷 Meta verbinden" nutzen.</div>`;
+      return;
+    }
+    const icon = p => p === 'instagram' ? '📸' : (p === 'facebook' ? '📘' : '🔗');
+    const fmt = d => { try { return new Date(String(d).replace(' ', 'T')).toLocaleDateString('de-DE'); } catch (e) { return ''; } };
+    const rows = connected.map(a => {
+      const exp = a.tokenExpiresAt ? ` · Token gültig bis ${fmt(a.tokenExpiresAt)}` : '';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--border);">
+        <div><span style="font-size:15px;">${icon(a.platform)}</span> <b>${escape(a.accountLabel || a.externalId || a.platform)}</b>
+          <div class="text-sm text-muted">${escape(a.platform)}${exp}</div></div>
+        <button type="button" class="btn btn-ghost" style="padding:5px 12px;" onclick="disconnectSocialAccount('${a.id}','${customerId}')">Trennen</button>
+      </div>`;
+    }).join('');
+    box.innerHTML = `<div style="font-weight:600;margin-bottom:2px;">✅ Verbundene Konten</div>${rows}
+      <div class="text-sm text-muted" style="margin-top:8px;">Zum Ändern erneut „📷 Meta verbinden" — die neue Auswahl überschreibt die alte.</div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="text-sm text-muted">Konten konnten nicht geladen werden (${escape(e.message || 'Fehler')}).</div>`;
+  }
+}
+
+// Trennt ein verbundenes Konto (löscht den Token serverseitig) und lädt neu.
+async function disconnectSocialAccount(accountId, customerId) {
+  const ok = await appConfirm('Verbindung wirklich trennen? Der gespeicherte Zugriffstoken wird gelöscht.',
+    { title: 'Konto trennen?', okLabel: 'Trennen', danger: true });
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API_BASE}/social_accounts.php?id=${encodeURIComponent(accountId)}`,
+      { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || ('HTTP ' + res.status)); }
+    showToast('Getrennt', 'Die Verbindung wurde entfernt.');
+    loadCustomerSocialAccounts(customerId);
+  } catch (e) {
+    appAlert('Trennen fehlgeschlagen: ' + (e.message || 'Fehler'), { title: 'Fehler' });
+  }
 }
 
 function switchTab(e, tabId) {
