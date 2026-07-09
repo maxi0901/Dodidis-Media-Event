@@ -46,7 +46,7 @@ return [
         'audio/ogg',
         'audio/wav',
     ],
-    'max_upload_bytes' => 50 * 1024 * 1024, // 50 MB
+    'max_upload_bytes' => 2 * 1024 * 1024 * 1024, // 2 GB — Grenze NUR fuer Kundendateien/Vertraege (lokale Webhosting-Platte). Projekt-Medien laufen ueber den NAS-Stream (nas_assets.php) OHNE dieses Limit. Nicht unbegrenzt setzen, sonst kann die Webhosting-Platte volllaufen.
 
     // --- Migration ---
     // Wenn nicht leer, kann migrate_legacy.php via ?token=… aus dem Browser gestartet werden
