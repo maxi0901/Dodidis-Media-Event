@@ -46,7 +46,14 @@ return [
         'audio/ogg',
         'audio/wav',
     ],
-    'max_upload_bytes' => 2 * 1024 * 1024 * 1024, // 2 GB — Grenze NUR fuer Kundendateien/Vertraege (lokale Webhosting-Platte). Projekt-Medien laufen ueber den NAS-Stream (nas_assets.php) OHNE dieses Limit. Nicht unbegrenzt setzen, sonst kann die Webhosting-Platte volllaufen.
+    // 2 GiB minus 1 Byte = 2147483647 = Max eines signed INT. Bewusst NICHT
+    // hoeher: einige lokale Upload-Pfade schreiben (int)$file['size'] in
+    // (signed) INT-Spalten (customer_files.size, contracts.size). Ein exakt
+    // 2-GiB-Upload wuerde sonst die Groessenpruefung passieren und erst beim
+    // DB-Write out-of-range crashen statt sauber mit 413 abzulehnen.
+    // Grenze NUR fuer Kundendateien/Vertraege (lokale Webhosting-Platte) —
+    // Projekt-Medien laufen ueber den NAS-Stream (nas_assets.php) OHNE dieses Limit.
+    'max_upload_bytes' => 2 * 1024 * 1024 * 1024 - 1, // 2 GiB - 1 (signed-INT-sicher)
 
     // --- Migration ---
     // Wenn nicht leer, kann migrate_legacy.php via ?token=… aus dem Browser gestartet werden
