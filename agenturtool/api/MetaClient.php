@@ -138,6 +138,55 @@ class MetaClient
         return $out;
     }
 
+    /**
+     * Instagram-Business: Reel (Video) oder Bild direkt veröffentlichen.
+     * Ablauf: Media-Container erstellen → auf Verarbeitung warten → media_publish.
+     * $mediaUrl MUSS eine öffentlich per HTTPS erreichbare URL sein (Meta lädt sie).
+     *
+     * @param bool $isVideo true = Reel (video_url), false = Bild (image_url)
+     * @return array{id:string, permalink:?string}
+     */
+    public function publishInstagram(
+        string $igUserId, string $pageToken, string $mediaUrl,
+        string $caption, bool $isVideo, int $maxWaitSec = 180
+    ): array {
+        // 1. Media-Container erstellen
+        $params = ['caption' => $caption, 'access_token' => $pageToken];
+        if ($isVideo) { $params['media_type'] = 'REELS'; $params['video_url'] = $mediaUrl; }
+        else          { $params['image_url'] = $mediaUrl; }
+
+        $c = $this->post("/{$igUserId}/media", $params);
+        $creationId = (string)($c['id'] ?? '');
+        if ($creationId === '') throw new \RuntimeException('Kein Media-Container von Instagram erhalten.');
+
+        // 2. Auf Verarbeitung warten (Reels/Videos brauchen einige Sekunden)
+        $deadline = time() + max(10, $maxWaitSec);
+        while (true) {
+            $st   = $this->get("/{$creationId}", ['fields' => 'status_code,status', 'access_token' => $pageToken]);
+            $code = (string)($st['status_code'] ?? '');
+            if ($code === 'FINISHED') break;
+            if ($code === 'ERROR' || $code === 'EXPIRED') {
+                throw new \RuntimeException('Media-Verarbeitung fehlgeschlagen: ' . (string)($st['status'] ?? $code));
+            }
+            if (time() >= $deadline) throw new \RuntimeException('Zeitüberschreitung bei der Media-Verarbeitung.');
+            sleep(3);
+        }
+
+        // 3. Veröffentlichen
+        $pub     = $this->post("/{$igUserId}/media_publish", ['creation_id' => $creationId, 'access_token' => $pageToken]);
+        $mediaId = (string)($pub['id'] ?? '');
+        if ($mediaId === '') throw new \RuntimeException('Veröffentlichen fehlgeschlagen (keine Media-ID).');
+
+        // 4. Permalink (optional, best effort)
+        $permalink = null;
+        try {
+            $pl = $this->get("/{$mediaId}", ['fields' => 'permalink', 'access_token' => $pageToken]);
+            if (!empty($pl['permalink'])) $permalink = (string)$pl['permalink'];
+        } catch (\Throwable $e) { /* Permalink ist optional */ }
+
+        return ['id' => $mediaId, 'permalink' => $permalink];
+    }
+
     // ── HTTP-Helfer ───────────────────────────────────────────────────────────
 
     /** @return array<string,mixed> */
