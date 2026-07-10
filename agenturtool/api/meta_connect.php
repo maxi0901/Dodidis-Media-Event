@@ -28,8 +28,10 @@ if (!$cust) json_err(404, 'Kunde nicht gefunden.');
 // Redirect-URI: muss EXAKT der in der Meta-App hinterlegten entsprechen.
 // Vorrang hat die explizit gesetzte META_REDIRECT_URI (wichtig hinter Reverse-
 // Proxies, wo PHP nur interne Scheme/Host/Pfad sieht → sonst redirect-uri-
-// mismatch). Nur ohne Env-Override wird sie aus dem Request abgeleitet.
-$envRedirect = (string)(getenv('META_REDIRECT_URI') ?: ($_SERVER['META_REDIRECT_URI'] ?? '') ?: '');
+// mismatch). Nur ohne Override wird sie aus dem Request abgeleitet.
+// Quelle: meta_config() (Env zuerst, dann config.meta.php — siehe meta_env.php).
+require_once __DIR__ . '/meta_env.php';
+$envRedirect = meta_config()['redirect_uri'];
 if ($envRedirect !== '') {
     $redirectUri = $envRedirect;
 } else {

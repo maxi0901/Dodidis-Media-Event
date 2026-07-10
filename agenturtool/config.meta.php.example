@@ -1,0 +1,27 @@
+<?php
+/**
+ * Meta-/Graph-API-Zugangsdaten — Fallback zu den Umgebungsvariablen.
+ *
+ * SO NUTZEN:
+ *   1. Diese Datei auf dem Server kopieren nach:  agenturtool/config.meta.php
+ *   2. app_secret eintragen (app_id + redirect_uri sind schon gesetzt).
+ *   3. NICHT committen — config.meta.php steht in .gitignore (Secret bleibt aus Git).
+ *
+ *   ⚠️ WICHTIG — Env-Vars haben VORRANG vor dieser Datei (siehe api/meta_env.php):
+ *   erst getenv()/$_SERVER (META_APP_ID/SECRET/REDIRECT_URI/GRAPH_VERSION), dann
+ *   config.meta.php nur für LEERE Felder. Wenn auf dem Server noch alte
+ *   SetEnv META_*-Zeilen (z. B. in agenturtool/api/.htaccess) stehen, gewinnen die.
+ *   -> Entweder die alten SetEnv-Zeilen entfernen, oder Werte konsistent halten.
+ *
+ * app_id / app_secret:  Meta-App -> App-Einstellungen -> Grundlegendes.
+ * redirect_uri:  muss ZEICHENGENAU der in der Meta-App unter
+ *   "Facebook Login for Business -> Einstellungen -> Gültige OAuth-Redirect-URIs"
+ *   hinterlegten URI entsprechen. Leer -> wird aus dem Request abgeleitet.
+ * graph_version:  optional, Default v21.0.
+ */
+return [
+    'app_id'        => '1009731845363205',
+    'app_secret'    => 'HIER-DAS-META-APP-SECRET',
+    'redirect_uri'  => 'https://dodidis-media.de/agenturtool/api/meta_callback.php',
+    'graph_version' => 'v21.0',
+];

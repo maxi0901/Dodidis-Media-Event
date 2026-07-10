@@ -6,7 +6,7 @@ DirectoryIndex index.php
 </Files>
 
 # Sensible Dateien schützen
-<FilesMatch "^(config\.php|config\.nas\.php|install\.sql|seed_users\.sql|migrate_legacy\.php|agentur-backup-.*\.json|Fehler\.log|schema\.sql)$">
+<FilesMatch "^(config\.php|config\.nas\.php|config\.meta\.php|install\.sql|seed_users\.sql|migrate_legacy\.php|agentur-backup-.*\.json|Fehler\.log|schema\.sql)$">
     Require all denied
 </FilesMatch>
 

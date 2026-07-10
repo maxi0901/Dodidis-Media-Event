@@ -1,17 +1,17 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/meta_env.php';
+
 /**
  * Dünner Meta-Graph-API-Client für den Posting-Planer (Stufe C).
  *
- * App-Zugangsdaten kommen aus Umgebungsvariablen (NIE in Git/config.php):
- *   META_APP_ID          Meta-App-ID
- *   META_APP_SECRET      Meta-App-Secret (geheim!)
- *   META_GRAPH_VERSION   z. B. "v21.0" (optional, Default unten)
- *   META_REDIRECT_URI    OAuth-Redirect (optional; sonst aus Request abgeleitet)
+ * App-Zugangsdaten kommen aus meta_config() (siehe meta_env.php):
+ *   1. Umgebungsvariablen META_APP_ID / META_APP_SECRET / META_REDIRECT_URI /
+ *      META_GRAPH_VERSION (SetEnv wird unter FPM aber oft NICHT durchgereicht)
+ *   2. Gitignorierte Datei agenturtool/config.meta.php (Fallback)
  *
- * Gesetzt werden diese wie die NAS-Credentials per Apache SetEnv in einer
- * server-only .htaccess (bleibt außerhalb von Git).
+ * So bleibt das App-Secret außerhalb von Git.
  */
 class MetaClient
 {
@@ -35,18 +35,18 @@ class MetaClient
 
     public function __construct(?string $redirectUri = null)
     {
-        $env = static fn(string $k): string =>
-            (string)(getenv($k) ?: ($_SERVER[$k] ?? '') ?: '');
+        $cfg = meta_config();
 
-        $this->appId     = $env('META_APP_ID');
-        $this->appSecret = $env('META_APP_SECRET');
-        $this->version   = $env('META_GRAPH_VERSION') ?: self::DEFAULT_GRAPH_VERSION;
+        $this->appId     = $cfg['app_id'];
+        $this->appSecret = $cfg['app_secret'];
+        $this->version   = $cfg['graph_version'] ?: self::DEFAULT_GRAPH_VERSION;
         $this->redirectUri = $redirectUri
-            ?: ($env('META_REDIRECT_URI') ?: '');
+            ?: ($cfg['redirect_uri'] ?: '');
 
         if ($this->appId === '' || $this->appSecret === '') {
             throw new \RuntimeException(
-                'Meta-App nicht konfiguriert: META_APP_ID und META_APP_SECRET müssen gesetzt sein.'
+                'Meta-App nicht konfiguriert: META_APP_ID/META_APP_SECRET als Env-Vars setzen '
+                . 'oder agenturtool/config.meta.php anlegen (siehe config.meta.php.example).'
             );
         }
     }
