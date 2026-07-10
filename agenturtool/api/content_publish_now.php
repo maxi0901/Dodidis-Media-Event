@@ -49,57 +49,36 @@ requireProjectAccess((string)$asset['project_id'], $session);
 $customerId = (string)($asset['customer_id'] ?? '');
 if ($customerId === '') json_err(400, 'Projekt hat keinen Kunden — kein Zielkonto.');
 
-// Verbundenes Instagram-Konto des Kunden
-$acc = db_one(
-    "SELECT external_id, access_token, account_label
-       FROM social_accounts
-      WHERE customer_id = ? AND platform = 'instagram' AND status = 'connected'
-      ORDER BY updated_at DESC LIMIT 1",
-    [$customerId]
-);
-if (!$acc || empty($acc['access_token']) || empty($acc['external_id'])) {
-    json_err(409, 'Für diesen Kunden ist kein Instagram-Konto verbunden.');
-}
-
-// Signierte, öffentliche Media-URL für den Meta-Fetcher
-$secret = meta_config()['app_secret'];
-if ($secret === '') json_err(503, 'Meta-App nicht konfiguriert.');
-
-$exp = time() + 1800; // 30 Min gültig
-$sig = hash_hmac('sha256', $assetId . '|' . $exp, $secret);
-
-$scheme  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-$host    = $_SERVER['HTTP_HOST'] ?? 'localhost';
-$apiBase = $scheme . '://' . $host . rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/api/x')), '/');
-$mediaUrl = $apiBase . '/media_public.php?a=' . urlencode($assetId) . '&exp=' . $exp . '&sig=' . $sig;
-
 $isVideo = stripos((string)$asset['content_type'], 'video') === 0;
 
+// Direkt veröffentlichen (gemeinsame Logik mit dem Cron in publish_due.php)
+require_once __DIR__ . '/meta_publish.php';
 try {
-    $meta = new MetaClient('x');
-    $res  = $meta->publishInstagram(
-        (string)$acc['external_id'], (string)$acc['access_token'], $mediaUrl, $caption, $isVideo
+    $res = ig_publish_asset(
+        ['id' => $assetId, 'customer_id' => $customerId, 'content_type' => $asset['content_type']],
+        $caption
     );
 } catch (\Throwable $e) {
-    // Fehlversuch protokollieren
+    // Fehlversuch protokollieren (heute datiert → im Kalender sichtbar)
     try {
         db_exec(
             "INSERT INTO content_queue
-               (customer_id, project_id, asset_id, platform, content_type, caption, media_url, status, error_message)
-             VALUES (?, ?, ?, 'instagram', ?, ?, ?, 'error', ?)",
+               (customer_id, project_id, asset_id, platform, content_type, caption, status, scheduled_at, error_message)
+             VALUES (?, ?, ?, 'instagram', ?, ?, 'error', NOW(), ?)",
             [$customerId, $asset['project_id'], $assetId, $isVideo ? 'reel' : 'post',
-             $caption, $mediaUrl, $e->getMessage()]
+             $caption, $e->getMessage()]
         );
     } catch (\Throwable $ignored) {}
     json_err(502, 'Instagram-Veröffentlichung fehlgeschlagen: ' . $e->getMessage());
 }
 
+// Erfolg: scheduled_at = NOW() → landet heute im Kalender; Pool blendet es aus.
 db_exec(
     "INSERT INTO content_queue
-       (customer_id, project_id, asset_id, platform, content_type, caption, media_url, status, published_at, platform_response)
-     VALUES (?, ?, ?, 'instagram', ?, ?, ?, 'published', NOW(), ?)",
+       (customer_id, project_id, asset_id, platform, content_type, caption, status, scheduled_at, published_at, platform_response)
+     VALUES (?, ?, ?, 'instagram', ?, ?, 'published', NOW(), NOW(), ?)",
     [$customerId, $asset['project_id'], $assetId, $isVideo ? 'reel' : 'post',
-     $caption, $mediaUrl, json_encode($res)]
+     $caption, json_encode($res)]
 );
 log_activity('content', $assetId, 'published', ['platform' => 'instagram', 'ig_media' => $res['id']]);
 
@@ -107,5 +86,4 @@ json_ok([
     'published' => true,
     'mediaId'   => $res['id'],
     'permalink' => $res['permalink'],
-    'account'   => $acc['account_label'],
 ]);
