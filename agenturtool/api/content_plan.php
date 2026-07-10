@@ -97,6 +97,8 @@ switch ($method) {
                    JOIN projects p  ON p.id = a.project_id
               LEFT JOIN customers c ON c.id = p.customer_id
                   WHERE a.kind = 'final' AND a.status = 'stored'
+                    AND NOT EXISTS (SELECT 1 FROM content_queue cqp
+                                     WHERE cqp.asset_id = a.id AND cqp.status = 'published')
                     AND {$statusCond}{$scopeCond}
                   ORDER BY p.status = 'freigegeben' DESC, a.created_at DESC",
                 $scopeParams
