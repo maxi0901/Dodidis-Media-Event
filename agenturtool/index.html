@@ -7370,6 +7370,70 @@ const POSTING_PLATFORMS = [
 ];
 let _ppDrag = null;
 
+// Direkt-Posten: Composer mit Instagram-Vorschau + Caption für ein Asset.
+function openPublishComposer(assetId) {
+  const a = (posting.pool || []).find(x => x.assetId === assetId);
+  if (!a) { appAlert('Video nicht gefunden — bitte Posting-Bereich neu laden.', { title: 'Fehler' }); return; }
+  const isVideo = /^video\//i.test(a.contentType || '') || /\.(mp4|mov|webm|m4v)$/i.test(a.filename || '');
+  const mediaUrl = `${API_BASE}/nas_media_view.php?id=${encodeURIComponent(assetId)}`;
+  const preview = isVideo
+    ? `<video src="${mediaUrl}" controls playsinline style="width:100%;height:100%;object-fit:cover;background:#000;"></video>`
+    : `<img src="${mediaUrl}" alt="" style="width:100%;height:100%;object-fit:cover;background:#000;" />`;
+  const html = `
+    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:820px;">
+        <div class="modal-header">
+          <div>
+            <div style="font-weight:700;font-size:18px;">🚀 Jetzt auf Instagram posten</div>
+            <div class="text-sm text-muted">${escape(a.projectTitle || a.filename)}${a.customerName ? ' · ' + escape(a.customerName) : ''}</div>
+          </div>
+          <button type="button" class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body" style="display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start;">
+          <div style="aspect-ratio:9/16;width:100%;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#000;">${preview}</div>
+          <div>
+            <label class="form-label">Caption</label>
+            <textarea id="pub-caption" rows="7" maxlength="2200" placeholder="Beschreibung, Hashtags, @mentions…" oninput="const c=document.getElementById('pub-cc'); if(c) c.textContent=this.value.length;" style="width:100%;"></textarea>
+            <div class="text-sm text-muted" style="text-align:right;"><span id="pub-cc">0</span>/2200</div>
+            <div class="text-sm text-muted" style="margin-top:10px;">Wird auf dem verbundenen <b>Instagram</b>-Konto des Kunden veröffentlicht.${isVideo ? ' Reels brauchen nach dem Klick ein paar Sekunden Verarbeitung.' : ''}</div>
+            <div id="pub-result" style="margin-top:12px;"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+          <button type="button" id="pub-go" class="btn btn-primary" onclick="doPublishNow('${a.assetId}')">🚀 Jetzt veröffentlichen</button>
+        </div>
+      </div>
+    </div>`;
+  $('#modal-container').innerHTML = html;
+}
+
+async function doPublishNow(assetId) {
+  const btn = document.getElementById('pub-go');
+  const out = document.getElementById('pub-result');
+  const caption = (document.getElementById('pub-caption')?.value || '').trim();
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ wird veröffentlicht…'; }
+  if (out) out.innerHTML = '<div class="text-sm text-muted">Media-Container wird erstellt und verarbeitet… (kann bei Reels etwas dauern)</div>';
+  try {
+    const res = await fetch(`${API_BASE}/content_publish_now.php`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ asset_id: assetId, caption, platform: 'instagram' }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error((data && data.error) || ('HTTP ' + res.status));
+    const link = data.data && data.data.permalink;
+    if (out) out.innerHTML = `<div style="color:#48c774;font-weight:700;">✅ Veröffentlicht!</div>` +
+      (link ? `<a href="${escape(link)}" target="_blank" rel="noopener" style="color:#0a84ff;">Beitrag ansehen →</a>` : '');
+    showToast('Veröffentlicht', 'Der Beitrag ist live auf Instagram.');
+    if (btn) { btn.textContent = '✅ Veröffentlicht'; }
+    loadPostingPane();
+  } catch (e) {
+    if (out) out.innerHTML = `<div style="color:#ff6b6b;font-weight:700;">❌ Fehlgeschlagen</div><div class="text-sm text-muted">${escape(e.message || 'Fehler')}</div>`;
+    if (btn) { btn.disabled = false; btn.textContent = '🚀 Erneut versuchen'; }
+  }
+}
+
 function pmStartOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
 function pmISO(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 
@@ -7406,9 +7470,10 @@ function renderPostingPane() {
       ? '<span class="badge badge-freigegeben" style="font-size:10px;">freigegeben</span>'
       : `<span class="badge badge-${statusCls(a.projectStatus)}" style="font-size:10px;">${escape(statusLabel(a.projectStatus))}</span>`;
     const cust = a.customerName ? `<span class="pb-chip">${escape(a.customerName)}</span>` : '';
-    return `<li class="pp-item" draggable="true" ondragstart="ppDragStart(event,'${a.assetId}')" ondragend="ppDragEnd(event)" title="Auf ein Datum ziehen">
+    return `<li class="pp-item" draggable="true" ondragstart="ppDragStart(event,'${a.assetId}')" ondragend="ppDragEnd(event)" title="Auf ein Datum ziehen oder direkt posten">
       <div style="min-width:0;"><div class="pp-item-t">${escape(a.projectTitle || a.filename)}</div><div class="pp-item-m">${cust}${a.plannedCount ? `<span class="pb-chip">📅 ${a.plannedCount}</span>` : ''}</div></div>
       ${badge}
+      <button class="btn btn-ghost" style="padding:4px 9px;font-size:13px;white-space:nowrap;" title="Direkt auf Instagram posten" onclick="event.stopPropagation();event.preventDefault();openPublishComposer('${a.assetId}')">🚀</button>
     </li>`;
   }).join('');
 
