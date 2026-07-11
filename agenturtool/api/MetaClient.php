@@ -211,16 +211,22 @@ class MetaClient
             'comments'  => isset($base['comments_count']) ? (int)$base['comments_count'] : null,
             'views'     => null, 'reach' => null, 'saved' => null, 'shares' => null,
         ];
-        // Insights best-effort — bei fehlendem Scope/Metrik einfach überspringen.
+        // Insights best-effort. 'views' gibt es auch für FEED-Media (nicht nur
+        // Reels) → für ALLE Typen anfragen; nur falls die API 'views' ablehnt,
+        // ohne 'views' erneut (damit reach/saved/shares nicht verloren gehen).
+        $ins = [];
         try {
-            $metrics = ($type === 'REELS') ? 'reach,saved,shares,views' : 'reach,saved,shares';
-            $ins = $this->get("/{$mediaId}/insights", ['metric' => $metrics, 'access_token' => $token]);
-            foreach (($ins['data'] ?? []) as $m) {
-                $name = (string)($m['name'] ?? '');
-                $val  = (int)($m['values'][0]['value'] ?? 0);
-                if (in_array($name, ['reach', 'saved', 'shares', 'views'], true)) $out[$name] = $val;
-            }
-        } catch (\Throwable $e) { /* Insights optional */ }
+            $ins = $this->get("/{$mediaId}/insights", ['metric' => 'reach,saved,shares,views', 'access_token' => $token]);
+        } catch (\Throwable $e) {
+            try {
+                $ins = $this->get("/{$mediaId}/insights", ['metric' => 'reach,saved,shares', 'access_token' => $token]);
+            } catch (\Throwable $e2) { $ins = []; }
+        }
+        foreach (($ins['data'] ?? []) as $m) {
+            $name = (string)($m['name'] ?? '');
+            $val  = (int)($m['values'][0]['value'] ?? 0);
+            if (in_array($name, ['reach', 'saved', 'shares', 'views'], true)) $out[$name] = $val;
+        }
         return $out;
     }
 
