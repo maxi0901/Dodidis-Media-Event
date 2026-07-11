@@ -24,6 +24,13 @@ if ($apiKey === '' || !hash_equals($apiKey, $given)) {
     json_err(401, 'Ungültiger API-Key.');
 }
 
+// Überlappungsschutz: nur EIN Lauf gleichzeitig — verhindert Doppel-Postings,
+// wenn ein Cron-Lauf länger als das Intervall dauert (Reels-Verarbeitung).
+$lock = fopen(sys_get_temp_dir() . '/publish_due.lock', 'c');
+if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
+    json_ok(['skipped' => 'bereits ein Lauf aktiv', 'processed' => 0]);
+}
+
 @set_time_limit(0);
 
 $due = db_all(
