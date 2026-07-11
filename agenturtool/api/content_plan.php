@@ -161,13 +161,19 @@ switch ($method) {
 
         // Asset muss ein gespeicherter finaler Schnitt sein
         $a = db_one(
-            "SELECT a.id, a.project_id, a.nas_key, p.customer_id
+            "SELECT a.id, a.project_id, a.nas_key, p.customer_id, p.status AS projectStatus
                FROM assets a JOIN projects p ON p.id = a.project_id
               WHERE a.id = ? AND a.kind = 'final' AND a.status = 'stored'",
             [$assetId]
         );
         if (!$a) json_err(404, 'Finaler Schnitt nicht gefunden.');
         $assertCustomerScope($a['customer_id'] ?? null); // Manager: nur eigene Kunden
+
+        // Auto-Freigabe NUR bei freigegebenen Projekten: nur dann geht der Post
+        // ohne separaten Content-Review automatisch raus (Planen = Posten).
+        // Reels aus fertig/korrektur (über „Alle" planbar) bleiben 'draft' und
+        // müssen erst im Content-Review freigegeben werden.
+        $queueStatus = (($a['projectStatus'] ?? '') === 'freigegeben') ? 'approved' : 'draft';
 
         // media_url = absolute URL zum finalen Schnitt. Hinweis für Stufe C:
         // dieser Download verlangt aktuell eine Staff-Session. Für n8n/Meta wird
@@ -180,17 +186,15 @@ switch ($method) {
         $pdo->beginTransaction();
         try {
             $stmt = $pdo->prepare(
-                // Direkt 'approved': geplante Posts sollen ohne separaten
-                // Freigabeschritt automatisch veröffentlicht werden (Planen = Posten).
                 "INSERT INTO content_queue
                    (customer_id, platform, content_type, caption, media_url, thumbnail_url,
                     asset_id, project_id, planned_by, status, scheduled_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?)"
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
             foreach ($platforms as $pf) {
                 $stmt->execute([
                     $a['customer_id'], $pf, $type, $caption, $mediaUrl, $thumb,
-                    $assetId, $a['project_id'], $session['uid'], $when,
+                    $assetId, $a['project_id'], $session['uid'], $queueStatus, $when,
                 ]);
                 $created[] = (int)$pdo->lastInsertId();
             }
