@@ -26,6 +26,8 @@ class MetaClient
         'business_management',
         'instagram_basic',
         'instagram_content_publish',
+        'instagram_manage_comments',   // Kommentare lesen & beantworten
+        'instagram_manage_insights',   // Views/Reichweite je Post
     ];
 
     private string $appId;
@@ -185,6 +187,67 @@ class MetaClient
         } catch (\Throwable $e) { /* Permalink ist optional */ }
 
         return ['id' => $mediaId, 'permalink' => $permalink];
+    }
+
+    /**
+     * Basiszahlen (likes/comments — immer verfügbar) + Insights (Reichweite/
+     * Views — best effort, braucht instagram_manage_insights) für einen IG-Media.
+     * @return array<string,mixed>
+     */
+    public function getMediaStats(string $mediaId, string $token): array
+    {
+        $base = $this->get("/{$mediaId}", [
+            'fields'       => 'id,caption,media_type,media_product_type,permalink,thumbnail_url,media_url,timestamp,like_count,comments_count',
+            'access_token' => $token,
+        ]);
+        $type = (string)($base['media_product_type'] ?? ($base['media_type'] ?? ''));
+        $out  = [
+            'id'        => (string)($base['id'] ?? $mediaId),
+            'permalink' => $base['permalink'] ?? null,
+            'thumbnail' => $base['thumbnail_url'] ?? ($base['media_url'] ?? null),
+            'mediaType' => $type,
+            'timestamp' => $base['timestamp'] ?? null,
+            'likes'     => isset($base['like_count'])     ? (int)$base['like_count']     : null,
+            'comments'  => isset($base['comments_count']) ? (int)$base['comments_count'] : null,
+            'views'     => null, 'reach' => null, 'saved' => null, 'shares' => null,
+        ];
+        // Insights best-effort. 'views' gibt es auch für FEED-Media (nicht nur
+        // Reels) → für ALLE Typen anfragen; nur falls die API 'views' ablehnt,
+        // ohne 'views' erneut (damit reach/saved/shares nicht verloren gehen).
+        $ins = [];
+        try {
+            $ins = $this->get("/{$mediaId}/insights", ['metric' => 'reach,saved,shares,views', 'access_token' => $token]);
+        } catch (\Throwable $e) {
+            try {
+                $ins = $this->get("/{$mediaId}/insights", ['metric' => 'reach,saved,shares', 'access_token' => $token]);
+            } catch (\Throwable $e2) { $ins = []; }
+        }
+        foreach (($ins['data'] ?? []) as $m) {
+            $name = (string)($m['name'] ?? '');
+            $val  = (int)($m['values'][0]['value'] ?? 0);
+            if (in_array($name, ['reach', 'saved', 'shares', 'views'], true)) $out[$name] = $val;
+        }
+        return $out;
+    }
+
+    /**
+     * Kommentare eines IG-Media inkl. Antworten (neueste zuerst).
+     * @return array<int,array<string,mixed>>
+     */
+    public function listComments(string $mediaId, string $token): array
+    {
+        $res = $this->get("/{$mediaId}/comments", [
+            'fields'       => 'id,text,username,timestamp,like_count,replies{id,text,username,timestamp,like_count}',
+            'access_token' => $token,
+            'limit'        => 50,
+        ]);
+        return $res['data'] ?? [];
+    }
+
+    /** Auf einen Kommentar antworten. @return array<string,mixed> */
+    public function replyToComment(string $commentId, string $token, string $message): array
+    {
+        return $this->post("/{$commentId}/replies", ['message' => $message, 'access_token' => $token]);
     }
 
     // ── HTTP-Helfer ───────────────────────────────────────────────────────────

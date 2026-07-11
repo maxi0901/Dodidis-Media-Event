@@ -7348,8 +7348,11 @@ function renderProductionBoard(projects, session) {
   </div>`;
 
   if (tab === 'posting') {
-    $('#content').innerHTML = tabs + `<div id="posting-pane"><div class="pb-empty">Lade Posting-Planer…</div></div>`;
-    loadPostingPane();
+    const sub = getSocialSub();
+    const swBtn = (k, label) => `<button type="button" style="padding:6px 14px;border:none;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;background:${sub === k ? 'var(--bg-0)' : 'transparent'};box-shadow:${sub === k ? 'var(--shadow-sm)' : 'none'};color:var(--text-1);" onclick="setSocialSub('${k}')">${label}</button>`;
+    const switchBar = `<div style="display:inline-flex;gap:4px;background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:3px;margin:0 0 16px;">${swBtn('plan', '📅 Planen')}${swBtn('engagement', '📊 Engagement')}</div>`;
+    $('#content').innerHTML = tabs + switchBar + `<div id="posting-pane"><div class="pb-empty">Lädt…</div></div>`;
+    if (sub === 'engagement') loadEngagementPane(); else loadPostingPane();
     return;
   }
 
@@ -7358,6 +7361,115 @@ function renderProductionBoard(projects, session) {
 
 function getPbTab() { return localStorage.getItem('proj_board_tab') === 'posting' ? 'posting' : 'produktion'; }
 function setPbTab(t) { localStorage.setItem('proj_board_tab', t); renderPage(); }
+function getSocialSub() { return localStorage.getItem('social_sub') === 'engagement' ? 'engagement' : 'plan'; }
+function setSocialSub(s) { localStorage.setItem('social_sub', s === 'engagement' ? 'engagement' : 'plan'); renderPage(); }
+
+// ===== IG-Engagement (Phase 1): Insights + Kommentare =========================
+const engagement = { posts: [], error: null };
+
+async function loadEngagementPane() {
+  const pane = document.getElementById('posting-pane');
+  if (pane) pane.innerHTML = '<div class="pb-empty">Lade Engagement…</div>';
+  try {
+    const res = await fetch(`${API_BASE}/ig_engagement.php?action=posts`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error((data && data.error) || ('HTTP ' + res.status));
+    engagement.posts = data.data || [];
+    engagement.error = null;
+  } catch (e) { engagement.error = e.message; }
+  renderEngagementPane();
+}
+
+function renderEngagementPane() {
+  const pane = document.getElementById('posting-pane');
+  if (!pane) return;
+  if (engagement.error) { pane.innerHTML = `<div class="card"><div class="empty-state">Engagement nicht verfügbar: ${escape(engagement.error)}</div></div>`; return; }
+  if (!engagement.posts.length) { pane.innerHTML = `<div class="card"><div class="empty-state">Noch keine veröffentlichten Instagram-Posts. Sobald etwas gepostet ist, erscheinen hier Views, Likes und Kommentare.</div></div>`; return; }
+  const cards = engagement.posts.map(p => {
+    const when = p.publishedAt ? new Date(String(p.publishedAt).replace(' ', 'T')).toLocaleString('de-DE') : '';
+    return `<div class="card mb-4" id="eng-${p.id}">
+      <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <div style="font-weight:600;min-width:0;">${escape(p.projectTitle || 'Post')}${p.customerName ? ` <span class="text-sm text-muted">· ${escape(p.customerName)}</span>` : ''}</div>
+          ${p.permalink ? `<a href="${escape(p.permalink)}" target="_blank" rel="noopener" class="text-sm" style="color:#0a84ff;white-space:nowrap;">Auf Instagram →</a>` : ''}
+        </div>
+        ${p.caption ? `<div class="text-sm" style="white-space:pre-wrap;max-height:60px;overflow:hidden;">${escape(p.caption)}</div>` : ''}
+        <div class="text-sm text-muted">${escape(when)}</div>
+        <div id="eng-stats-${p.id}" class="text-sm text-muted">Lade Zahlen…</div>
+        <div style="border-top:1px solid var(--border);padding-top:8px;">
+          <button type="button" class="btn btn-ghost" style="padding:5px 12px;" onclick="toggleComments(${p.id})">💬 Kommentare</button>
+          <div id="eng-comments-${p.id}" style="display:none;margin-top:10px;"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  pane.innerHTML = `<div>${cards}</div>`;
+  engagement.posts.forEach(p => loadPostStats(p.id));
+}
+
+async function loadPostStats(id) {
+  const el = document.getElementById(`eng-stats-${id}`);
+  if (!el) return;
+  try {
+    const res = await fetch(`${API_BASE}/ig_engagement.php?action=stats&id=${id}`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error((data && data.error) || ('HTTP ' + res.status));
+    const s = data.data || {};
+    const chip = (label, val) => (val === null || val === undefined) ? '' : `<span style="display:inline-block;margin-right:14px;"><b style="color:var(--text-1);">${Number(val).toLocaleString('de-DE')}</b> ${label}</span>`;
+    el.innerHTML = [chip('Views', s.views), chip('Reichweite', s.reach), chip('Likes', s.likes), chip('Kommentare', s.comments), chip('Gespeichert', s.saved), chip('Geteilt', s.shares)].join('') || '<span>Keine Zahlen verfügbar.</span>';
+  } catch (e) { el.innerHTML = `<span>Zahlen nicht verfügbar (${escape(e.message || 'Fehler')}).</span>`; }
+}
+
+async function toggleComments(id) {
+  const box = document.getElementById(`eng-comments-${id}`);
+  if (!box) return;
+  if (box.style.display === 'block') { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  loadCommentsFor(id);
+}
+
+async function loadCommentsFor(id) {
+  const box = document.getElementById(`eng-comments-${id}`);
+  if (!box) return;
+  box.innerHTML = '<div class="text-sm text-muted">Lade Kommentare…</div>';
+  try {
+    const res = await fetch(`${API_BASE}/ig_engagement.php?action=comments&id=${id}`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error((data && data.error) || ('HTTP ' + res.status));
+    box.innerHTML = renderComments(id, (data.data && data.data.comments) || []);
+  } catch (e) { box.innerHTML = `<div class="text-sm text-muted">Kommentare nicht verfügbar (${escape(e.message || 'Fehler')}).</div>`; }
+}
+
+function renderComments(postId, comments) {
+  if (!comments.length) return '<div class="text-sm text-muted">Noch keine Kommentare.</div>';
+  const one = (c, isReply) => {
+    const when = c.timestamp ? new Date(c.timestamp).toLocaleString('de-DE') : '';
+    const replies = (c.replies && c.replies.data) ? c.replies.data.map(r => one(r, true)).join('') : '';
+    return `<div style="padding:8px 0;${isReply ? 'margin-left:20px;' : 'border-top:1px solid var(--border);'}">
+      <div><b>@${escape(c.username || '')}</b> <span class="text-sm text-muted">${escape(when)}${c.like_count ? ` · ❤ ${c.like_count}` : ''}</span></div>
+      <div class="text-sm" style="white-space:pre-wrap;">${escape(c.text || '')}</div>
+      ${!isReply ? `<button type="button" class="btn btn-ghost" style="padding:2px 8px;font-size:12px;margin-top:3px;" onclick="replyToIgComment(${postId},'${escape(c.id)}')">Antworten</button>` : ''}
+      ${replies}
+    </div>`;
+  };
+  return comments.map(c => one(c, false)).join('');
+}
+
+async function replyToIgComment(postId, commentId) {
+  const text = window.prompt('Antwort schreiben:');
+  if (!text || !text.trim()) return;
+  try {
+    const res = await fetch(`${API_BASE}/ig_engagement.php?action=reply`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ id: postId, comment_id: commentId, message: text.trim() }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error((data && data.error) || ('HTTP ' + res.status));
+    showToast('Geantwortet', 'Deine Antwort wurde gepostet.');
+    loadCommentsFor(postId);
+  } catch (e) { appAlert('Antwort fehlgeschlagen: ' + (e.message || 'Fehler'), { title: 'Fehler' }); }
+}
 
 /* ===== Posting-Planer (Redesign Part 3) — an content_plan.php ===============
    Links Videoliste (Fertige/Alle), rechts Monats-Kalender. Video per Drag auf
