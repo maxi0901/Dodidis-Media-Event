@@ -11602,12 +11602,13 @@ async function loadCustomerSocialAccounts(customerId) {
       { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-    if (!data.metaConfigured) {
+    const d = data.data || {}; // json_ok verpackt die Nutzdaten unter .data
+    if (!d.metaConfigured) {
       box.innerHTML = `<div style="font-weight:600;margin-bottom:4px;">Social-Konten</div>
         <div class="text-sm text-muted">Meta-App ist noch nicht konfiguriert.</div>`;
       return;
     }
-    const connected = (data.accounts || []).filter(a => a.status === 'connected');
+    const connected = (d.accounts || []).filter(a => a.status === 'connected');
     if (!connected.length) {
       box.innerHTML = `<div style="font-weight:600;margin-bottom:4px;">Social-Konten</div>
         <div class="text-sm text-muted">Noch kein Konto verbunden — unten „📷 Meta verbinden" nutzen.</div>`;
