@@ -11562,13 +11562,14 @@ function openCustomerModal(customerId = null) {
               </div>
             </div>
 
+            ${!isNew && hasRole(getCurrentUser()?.user, ROLES.ADMIN, ROLES.MANAGER) ? `
+            <div style="margin-top:18px;">
+              <div id="customer-social-box" style="padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--bg-1);">
+                <div class="text-sm text-muted">Verbundene Konten werden geladen…</div>
+              </div>
+            </div>` : ''}
+
           </div>
-          ${!isNew && hasRole(getCurrentUser()?.user, ROLES.ADMIN, ROLES.MANAGER) ? `
-          <div style="padding:0 24px 4px;">
-            <div id="customer-social-box" style="padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--bg-1);">
-              <div class="text-sm text-muted">Verbundene Konten werden geladen…</div>
-            </div>
-          </div>` : ''}
           <div class="modal-footer">
             <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
             <button type="submit" class="btn btn-primary">Speichern</button>
