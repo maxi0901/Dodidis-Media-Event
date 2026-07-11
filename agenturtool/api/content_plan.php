@@ -180,10 +180,12 @@ switch ($method) {
         $pdo->beginTransaction();
         try {
             $stmt = $pdo->prepare(
+                // Direkt 'approved': geplante Posts sollen ohne separaten
+                // Freigabeschritt automatisch veröffentlicht werden (Planen = Posten).
                 "INSERT INTO content_queue
                    (customer_id, platform, content_type, caption, media_url, thumbnail_url,
                     asset_id, project_id, planned_by, status, scheduled_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?)"
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?)"
             );
             foreach ($platforms as $pf) {
                 $stmt->execute([
