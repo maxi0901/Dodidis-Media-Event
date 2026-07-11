@@ -72,13 +72,15 @@ try {
     json_err(502, 'Instagram-Veröffentlichung fehlgeschlagen: ' . $e->getMessage());
 }
 
-// Erfolg: scheduled_at = NOW() → landet heute im Kalender; Pool blendet es aus.
+// Erfolg: scheduled_at = jetzt (Europe/Berlin, wie im Planer) → landet mit
+// korrekter Uhrzeit heute im Kalender; Pool blendet veröffentlichte Reels aus.
+$nowBerlin = (new DateTime('now', new DateTimeZone('Europe/Berlin')))->format('Y-m-d H:i:s');
 db_exec(
     "INSERT INTO content_queue
        (customer_id, project_id, asset_id, platform, content_type, caption, status, scheduled_at, published_at, platform_response)
-     VALUES (?, ?, ?, 'instagram', ?, ?, 'published', NOW(), NOW(), ?)",
+     VALUES (?, ?, ?, 'instagram', ?, ?, 'published', ?, NOW(), ?)",
     [$customerId, $asset['project_id'], $assetId, $isVideo ? 'reel' : 'post',
-     $caption, json_encode($res)]
+     $caption, $nowBerlin, json_encode($res)]
 );
 log_activity('content', $assetId, 'published', ['platform' => 'instagram', 'ig_media' => $res['id']]);
 

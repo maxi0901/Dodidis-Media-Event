@@ -33,6 +33,11 @@ if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
 
 @set_time_limit(0);
 
+// scheduled_at wird als lokale Wandzeit (Europe/Berlin) gespeichert, der
+// Server-PHP läuft aber auf UTC → Fälligkeit gegen die BERLINER Uhrzeit
+// vergleichen, nicht gegen MySQL-NOW() (das wäre UTC → 1-2 h zu spät).
+$nowBerlin = (new DateTime('now', new DateTimeZone('Europe/Berlin')))->format('Y-m-d H:i:s');
+
 $due = db_all(
     "SELECT cq.id, cq.caption, cq.asset_id, a.content_type, p.customer_id
        FROM content_queue cq
@@ -42,9 +47,10 @@ $due = db_all(
         AND cq.status = 'approved'
         AND cq.published_at IS NULL
         AND cq.scheduled_at IS NOT NULL
-        AND cq.scheduled_at <= NOW()
+        AND cq.scheduled_at <= ?
       ORDER BY cq.scheduled_at ASC
-      LIMIT 10"
+      LIMIT 10",
+    [$nowBerlin]
 );
 
 $results = [];
