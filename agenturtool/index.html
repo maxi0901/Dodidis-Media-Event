@@ -7918,8 +7918,8 @@ function openQuickIdeaModal(ideaId = null) {
           <button type="button" class="btn btn-ghost btn-sm" onclick="removeScriptFile('${idea.id}', '${sf.id}')">Entfernen</button>
         </div>` : ''}
       <label class="file-upload" for="idea-script-upload">
-        <input type="file" id="idea-script-upload" accept="application/pdf" style="display:none;" onchange="uploadScriptFile(event, '${idea.id}')" />
-        <div style="font-size:13px;font-weight:500;">${sf ? 'Skript-PDF ersetzen' : 'Skript-PDF hochladen'}</div>
+        <input type="file" id="idea-script-upload" accept="image/*,application/pdf,.doc,.docx,.odt,.txt,.rtf,.heic,.heif" style="display:none;" onchange="uploadScriptFile(event, '${idea.id}')" />
+        <div style="font-size:13px;font-weight:500;">${sf ? 'Skript ersetzen' : 'Skript hochladen'}</div>
       </label>
     </div>` : '';
 
@@ -9240,9 +9240,9 @@ function openProjectModal(projectId = null, forceFull = false) {
               ${canEdit ? `
                 <label class="file-upload" for="script-upload" style="margin-top:${scriptFileOf(project) ? '10px' : '0'};">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.5" style="margin-bottom:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  <div style="font-size:13px;font-weight:500;">${scriptFileOf(project) ? 'Skript-PDF ersetzen' : 'Skript-PDF hochladen'}</div>
-                  <div class="text-sm text-muted mt-2">PDF, max. 50 MB</div>
-                  <input type="file" id="script-upload" accept=".pdf,application/pdf" style="display:none;" onchange="uploadScriptFile(event, '${project?.id || ''}')" />
+                  <div style="font-size:13px;font-weight:500;">${scriptFileOf(project) ? 'Skript ersetzen' : 'Skript hochladen'}</div>
+                  <div class="text-sm text-muted mt-2">PDF, Bild (inkl. HEIC), Doc, Text … · max. 50 MB</div>
+                  <input type="file" id="script-upload" accept="image/*,application/pdf,.doc,.docx,.odt,.txt,.rtf,.heic,.heif" style="display:none;" onchange="uploadScriptFile(event, '${project?.id || ''}')" />
                 </label>
               ` : ''}
             </div>
@@ -10570,11 +10570,8 @@ let pendingScriptFile = null;
 function uploadScriptFile(e, projectId) {
   const file = e.target.files[0];
   if (!file) return;
-  if (file.type !== 'application/pdf') {
-    showToast('Nur PDF erlaubt', 'Bitte eine PDF-Datei auswählen.');
-    e.target.value = '';
-    return;
-  }
+  // Alle Formate erlaubt (PDF, Bilder inkl. HEIC, Doc, Text …) — der Server
+  // validiert final gegen die erlaubten MIME-Typen.
   if (file.size > 50 * 1024 * 1024) {
     showToast('Datei zu groß', 'Maximal 50 MB erlaubt.');
     e.target.value = '';
