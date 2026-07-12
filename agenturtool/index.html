@@ -10348,9 +10348,10 @@ function renderNasMedia() {
       ${group('raw', 'Rohmaterial', canUpRaw, true)}
       ${group('final', 'Finale Schnitte', canUpFinal, false)}
       <div style="font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.5;">
-        💡 Große Dateien (mehrere GB) am besten <b>direkt auf dem NAS</b> im passenden
-        <code>raw</code>- bzw. <code>final</code>-Ordner ablegen — dann hier auf „↻ Aktualisieren".
-        Der Upload über das Tool eignet sich für kleinere Dateien.
+        💡 Große Rohdateien (auch 100 GB) können hier direkt hochgeladen werden —
+        sie laufen wiederaufnehmbar am Umweg vorbei direkt zum NAS. Bricht die
+        Leitung ab, macht der Upload an der Stelle weiter. Alternativ im lokalen
+        Netz per SMB in den <code>raw</code>/<code>final</code>-Ordner legen und „↻ Aktualisieren".
       </div>
     </div>`;
 }
@@ -10374,33 +10375,144 @@ function nasMediaPickVersion(parentAssetId, projectId) {
   nasMediaPick('final', projectId, parentAssetId);
 }
 
+// Ab dieser Größe gehen Rohdateien den resumable Weg (direkt zum vServer/NAS,
+// am PHP-Shared-Host vorbei) statt durch den klassischen Durchlauf-Upload.
+const NAS_RESUMABLE_THRESHOLD = 1024 * 1024 * 1024; // 1 GiB
+
 async function nasMediaStartUploads(kind, projectId, files, parentId = null) {
   // Sequentiell hochladen — schont Netcup-Limits und den Tunnel
   for (const file of files) {
     const u = { key: 'u' + (++nasUploadSeq), name: file.name, kind, pct: 0, error: null };
     nasMedia.uploads.push(u);
     renderNasMedia();
+    const onProgress = (pct) => {
+      u.pct = pct;
+      const bar = document.getElementById('nas-up-bar-' + u.key);
+      const lbl = document.getElementById('nas-up-pct-' + u.key);
+      if (bar) bar.style.width = pct + '%';
+      if (lbl) lbl.textContent = pct + ' %';
+    };
     try {
-      const asset = await uploadAsset(file, projectId, {
-        kind,
-        parentId,
-        onProgress: (pct) => {
-          u.pct = pct;
-          const bar = document.getElementById('nas-up-bar-' + u.key);
-          const lbl = document.getElementById('nas-up-pct-' + u.key);
-          if (bar) bar.style.width = pct + '%';
-          if (lbl) lbl.textContent = pct + ' %';
-        },
-      });
-      nasMedia.uploads = nasMedia.uploads.filter(x => x !== u);
-      nasMedia.assets.unshift(asset);
-      showToast('Upload abgeschlossen', file.name);
+      if (kind === 'raw' && !parentId && file.size > NAS_RESUMABLE_THRESHOLD) {
+        // Große Rohdatei → resumable direkt zum vServer/NAS (chunked, wiederaufnehmbar)
+        await nasResumableUpload(file, projectId, kind, onProgress);
+        nasMedia.uploads = nasMedia.uploads.filter(x => x !== u);
+        showToast('Upload abgeschlossen', file.name);
+        await loadAndRenderNasMedia(projectId); // erscheint via PROPFIND-Erkennung
+      } else {
+        const asset = await uploadAsset(file, projectId, { kind, parentId, onProgress });
+        nasMedia.uploads = nasMedia.uploads.filter(x => x !== u);
+        nasMedia.assets.unshift(asset);
+        showToast('Upload abgeschlossen', file.name);
+      }
     } catch (err) {
       u.error = err.message || 'Unbekannter Fehler';
       showToast('Upload fehlgeschlagen', file.name + ' — ' + u.error);
     }
     renderNasMedia();
   }
+}
+
+/* Resumable Upload (tus 1.0.0) für große Rohdateien. Der Datenstrom läuft
+   Browser → vServer (Caddy /files/) → NAS-tusd — NICHT durch den PHP-Shared-
+   Host. Chunked + wiederaufnehmbar (Upload-URL in localStorage): bricht die
+   Leitung bei 80 GB ab, macht der Upload dort weiter statt neu.
+   Kein externes JS — minimaler Client direkt hier. */
+async function nasResumableUpload(file, projectId, kind, onProgress) {
+  const t = await fetch(`${API_BASE}/tus_ticket.php?project_id=${encodeURIComponent(projectId)}&kind=${encodeURIComponent(kind)}`,
+    { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+  const tj = await t.json().catch(() => ({}));
+  if (!t.ok || !tj.ok) throw new Error((tj && tj.error) || ('Ticket HTTP ' + t.status));
+  const endpoint = tj.data.endpoint;
+
+  const { id } = await nasTusUpload(endpoint, file, { onProgress, kind, projectId });
+
+  const f = await fetch(`${API_BASE}/tus_finalize.php`, {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+    body: JSON.stringify({ upload_id: id, project_id: projectId, kind, filename: file.name }),
+  });
+  const fj = await f.json().catch(() => ({}));
+  if (!f.ok || !fj.ok) throw new Error((fj && fj.error) || ('Ablegen HTTP ' + f.status));
+}
+
+async function nasTusUpload(endpoint, file, { onProgress, kind, projectId } = {}) {
+  const CHUNK = 32 * 1024 * 1024; // 32 MiB pro PATCH
+  const fp = `tus:${endpoint}:${projectId}:${kind}:${file.name}:${file.size}:${file.lastModified}`;
+  let uploadUrl = null;
+  try { uploadUrl = localStorage.getItem(fp); } catch (_) {}
+  let offset = 0;
+
+  const head = async (url) => {
+    const r = await fetch(url, { method: 'HEAD', headers: { 'Tus-Resumable': '1.0.0' }, cache: 'no-store' });
+    if (!r.ok) return null;
+    return parseInt(r.headers.get('Upload-Offset') || '0', 10) || 0;
+  };
+
+  // Bestehenden Upload fortsetzen?
+  if (uploadUrl) {
+    const o = await head(uploadUrl).catch(() => null);
+    if (o === null) { uploadUrl = null; try { localStorage.removeItem(fp); } catch (_) {} }
+    else offset = o;
+  }
+
+  // Neu anlegen (tus creation)
+  if (!uploadUrl) {
+    const c = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Tus-Resumable': '1.0.0',
+        'Upload-Length': String(file.size),
+        'Upload-Metadata': 'filename ' + btoa(unescape(encodeURIComponent(file.name))),
+      },
+    });
+    if (c.status !== 201) throw new Error('Upload-Start fehlgeschlagen (HTTP ' + c.status + ').');
+    const loc = c.headers.get('Location');
+    if (!loc) throw new Error('Keine Upload-Adresse vom Server erhalten.');
+    uploadUrl = new URL(loc, endpoint).href;
+    offset = 0;
+    try { localStorage.setItem(fp, uploadUrl); } catch (_) {}
+  }
+
+  // Chunks per PATCH senden, mit Retry + Offset-Resync bei Netzfehlern.
+  const MAX_RETRY = 6;
+  while (offset < file.size) {
+    const end = Math.min(offset + CHUNK, file.size);
+    const chunk = file.slice(offset, end);
+    let attempt = 0, done = false;
+    while (!done) {
+      try {
+        const r = await fetch(uploadUrl, {
+          method: 'PATCH',
+          headers: {
+            'Tus-Resumable': '1.0.0',
+            'Upload-Offset': String(offset),
+            'Content-Type': 'application/offset+octet-stream',
+          },
+          body: chunk,
+        });
+        if (r.status === 204 || r.status === 200) {
+          const n = parseInt(r.headers.get('Upload-Offset') || String(end), 10);
+          offset = Number.isFinite(n) ? n : end;
+          done = true;
+        } else if (r.status === 409 || r.status === 460) {
+          const o = await head(uploadUrl); if (o !== null) offset = o; done = true; // Offset resync
+        } else {
+          throw new Error('HTTP ' + r.status);
+        }
+      } catch (err) {
+        if (++attempt > MAX_RETRY) throw new Error('Upload abgebrochen: ' + (err.message || 'Netzfehler'));
+        await new Promise(res => setTimeout(res, Math.min(1000 * 2 ** attempt, 15000)));
+        const o = await head(uploadUrl).catch(() => null);
+        if (o !== null) offset = o;
+      }
+    }
+    if (onProgress) onProgress(Math.floor(offset / file.size * 100));
+  }
+
+  try { localStorage.removeItem(fp); } catch (_) {}
+  const id = uploadUrl.split('?')[0].split('/').filter(Boolean).pop();
+  return { id };
 }
 
 function nasMediaDismissUpload(key) {
