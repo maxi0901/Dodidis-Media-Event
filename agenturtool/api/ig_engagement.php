@@ -8,6 +8,8 @@ declare(strict_types=1);
  *   GET  ?action=stats&id=<cq_id>      — Live-Zahlen (Views/Reach/Likes/Kommentare)
  *   GET  ?action=comments&id=<cq_id>   — Kommentare inkl. Antworten
  *   POST ?action=reply {id, comment_id, message} — auf Kommentar antworten
+ *   POST ?action=delete_comment {id, comment_id} — Kommentar löschen
+ *   POST ?action=hide_comment {id, comment_id, hide} — Kommentar aus-/einblenden
  *
  * Nur Admin/Manager (Manager nur eigene Kunden). Token je Kunde aus social_accounts.
  */
@@ -128,6 +130,43 @@ if ($method === 'POST' && $action === 'reply') {
         json_ok(['replyId' => $res['id'] ?? null]);
     } catch (\Throwable $e) {
         json_err(502, 'Antwort fehlgeschlagen: ' . $e->getMessage());
+    }
+}
+
+// ── POST ?action=delete_comment ──────────────────────────────────────────────
+if ($method === 'POST' && $action === 'delete_comment') {
+    $body      = json_decode((string)file_get_contents('php://input'), true);
+    if (!is_array($body)) $body = [];
+    $cqId      = (string)($body['id'] ?? '');
+    $commentId = trim((string)($body['comment_id'] ?? ''));
+    if ($commentId === '') json_err(400, 'comment_id ist Pflicht.');
+
+    $r = resolve_ig($cqId, $mgrScope);
+    try {
+        (new MetaClient('x'))->deleteComment($commentId, $r['token']);
+        log_activity('ig_comment', $commentId, 'deleted', []);
+        json_ok(['deleted' => true]);
+    } catch (\Throwable $e) {
+        json_err(502, 'Löschen fehlgeschlagen: ' . $e->getMessage());
+    }
+}
+
+// ── POST ?action=hide_comment ────────────────────────────────────────────────
+if ($method === 'POST' && $action === 'hide_comment') {
+    $body      = json_decode((string)file_get_contents('php://input'), true);
+    if (!is_array($body)) $body = [];
+    $cqId      = (string)($body['id'] ?? '');
+    $commentId = trim((string)($body['comment_id'] ?? ''));
+    $hide      = !empty($body['hide']);
+    if ($commentId === '') json_err(400, 'comment_id ist Pflicht.');
+
+    $r = resolve_ig($cqId, $mgrScope);
+    try {
+        (new MetaClient('x'))->hideComment($commentId, $r['token'], $hide);
+        log_activity('ig_comment', $commentId, $hide ? 'hidden' : 'unhidden', []);
+        json_ok(['hidden' => $hide]);
+    } catch (\Throwable $e) {
+        json_err(502, ($hide ? 'Ausblenden' : 'Einblenden') . ' fehlgeschlagen: ' . $e->getMessage());
     }
 }
 

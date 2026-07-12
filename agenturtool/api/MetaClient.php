@@ -237,7 +237,7 @@ class MetaClient
     public function listComments(string $mediaId, string $token): array
     {
         $res = $this->get("/{$mediaId}/comments", [
-            'fields'       => 'id,text,username,timestamp,like_count,replies{id,text,username,timestamp,like_count}',
+            'fields'       => 'id,text,username,timestamp,like_count,hidden,replies{id,text,username,timestamp,like_count,hidden}',
             'access_token' => $token,
             'limit'        => 50,
         ]);
@@ -248,6 +248,25 @@ class MetaClient
     public function replyToComment(string $commentId, string $token, string $message): array
     {
         return $this->post("/{$commentId}/replies", ['message' => $message, 'access_token' => $token]);
+    }
+
+    /**
+     * Kommentar löschen. Erlaubt für eigene Antworten UND fremde Kommentare auf
+     * dem eigenen Media (braucht instagram_manage_comments).
+     * @return array<string,mixed>
+     */
+    public function deleteComment(string $commentId, string $token): array
+    {
+        return $this->delete("/{$commentId}", ['access_token' => $token]);
+    }
+
+    /**
+     * Kommentar aus- bzw. wieder einblenden (Moderation statt „liken", das die
+     * IG-API nicht anbietet). @return array<string,mixed>
+     */
+    public function hideComment(string $commentId, string $token, bool $hide): array
+    {
+        return $this->post("/{$commentId}", ['hide' => $hide ? 'true' : 'false', 'access_token' => $token]);
     }
 
     // ── HTTP-Helfer ───────────────────────────────────────────────────────────
@@ -268,6 +287,14 @@ class MetaClient
     }
 
     /** @return array<string,mixed> */
+    public function delete(string $path, array $params = []): array
+    {
+        $url = "https://graph.facebook.com/{$this->version}" . $path;
+        if ($params) $url .= '?' . http_build_query($params);
+        return $this->exec($url, 'DELETE', null);
+    }
+
+    /** @return array<string,mixed> */
     private function exec(string $url, string $method, ?array $body): array
     {
         $ch = curl_init($url);
@@ -277,6 +304,8 @@ class MetaClient
         if ($method === 'POST') {
             curl_setopt($ch, CURLOPT_POST, true);
             if ($body !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($body));
+        } elseif ($method !== 'GET') {
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method); // z. B. DELETE
         }
         // Systemzertifikate — TLS-Verifikation nie deaktivieren
         $raw  = curl_exec($ch);

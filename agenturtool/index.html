@@ -7445,14 +7445,52 @@ function renderComments(postId, comments) {
   const one = (c, isReply) => {
     const when = c.timestamp ? new Date(c.timestamp).toLocaleString('de-DE') : '';
     const replies = (c.replies && c.replies.data) ? c.replies.data.map(r => one(r, true)).join('') : '';
-    return `<div style="padding:8px 0;${isReply ? 'margin-left:20px;' : 'border-top:1px solid var(--border);'}">
-      <div><b>@${escape(c.username || '')}</b> <span class="text-sm text-muted">${escape(when)}${c.like_count ? ` · ❤ ${c.like_count}` : ''}</span></div>
+    const cid = escape(c.id);
+    const hidden = !!c.hidden;
+    const btn = 'padding:2px 8px;font-size:12px;margin-top:3px;';
+    const actions = [
+      !isReply ? `<button type="button" class="btn btn-ghost" style="${btn}" onclick="replyToIgComment(${postId},'${cid}')">Antworten</button>` : '',
+      `<button type="button" class="btn btn-ghost" style="${btn}" onclick="hideIgComment(${postId},'${cid}',${hidden ? 'false' : 'true'})">${hidden ? '👁 Einblenden' : '🙈 Ausblenden'}</button>`,
+      `<button type="button" class="btn btn-ghost" style="${btn}color:#e5484d;" onclick="deleteIgComment(${postId},'${cid}')">🗑 Löschen</button>`,
+    ].join(' ');
+    return `<div style="padding:8px 0;${isReply ? 'margin-left:20px;' : 'border-top:1px solid var(--border);'}${hidden ? 'opacity:.5;' : ''}">
+      <div><b>@${escape(c.username || '')}</b> <span class="text-sm text-muted">${escape(when)}${c.like_count ? ` · ❤ ${c.like_count}` : ''}${hidden ? ' · ausgeblendet' : ''}</span></div>
       <div class="text-sm" style="white-space:pre-wrap;">${escape(c.text || '')}</div>
-      ${!isReply ? `<button type="button" class="btn btn-ghost" style="padding:2px 8px;font-size:12px;margin-top:3px;" onclick="replyToIgComment(${postId},'${escape(c.id)}')">Antworten</button>` : ''}
+      <div>${actions}</div>
       ${replies}
     </div>`;
   };
   return comments.map(c => one(c, false)).join('');
+}
+
+async function deleteIgComment(postId, commentId) {
+  const ok = await appConfirm('Diesen Kommentar wirklich löschen? Das kann nicht rückgängig gemacht werden.', { title: 'Kommentar löschen', okLabel: 'Löschen', danger: true });
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API_BASE}/ig_engagement.php?action=delete_comment`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ id: postId, comment_id: commentId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error((data && data.error) || ('HTTP ' + res.status));
+    showToast('Gelöscht', 'Der Kommentar wurde entfernt.');
+    loadCommentsFor(postId);
+  } catch (e) { appAlert('Löschen fehlgeschlagen: ' + (e.message || 'Fehler'), { title: 'Fehler' }); }
+}
+
+async function hideIgComment(postId, commentId, hide) {
+  try {
+    const res = await fetch(`${API_BASE}/ig_engagement.php?action=hide_comment`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ id: postId, comment_id: commentId, hide: !!hide }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error((data && data.error) || ('HTTP ' + res.status));
+    showToast(hide ? 'Ausgeblendet' : 'Eingeblendet', hide ? 'Der Kommentar ist jetzt verborgen.' : 'Der Kommentar ist wieder sichtbar.');
+    loadCommentsFor(postId);
+  } catch (e) { appAlert((hide ? 'Ausblenden' : 'Einblenden') + ' fehlgeschlagen: ' + (e.message || 'Fehler'), { title: 'Fehler' }); }
 }
 
 async function replyToIgComment(postId, commentId) {
