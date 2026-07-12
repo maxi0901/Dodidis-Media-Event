@@ -29,3 +29,6 @@ agenturtool/config.nas.php
 
 # Meta-App-Secret (Secret, nur auf dem Server) — Vorlage: config.meta.php.example
 agenturtool/config.meta.php
+
+# Anthropic-/Claude-API-Key (Secret, nur auf dem Server) — Vorlage: config.claude.php.example
+agenturtool/config.claude.php

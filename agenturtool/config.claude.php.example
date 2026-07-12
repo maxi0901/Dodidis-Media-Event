@@ -1,0 +1,30 @@
+<?php
+/**
+ * Anthropic-/Claude-API-Zugangsdaten — Fallback zu den Umgebungsvariablen.
+ *
+ * SO NUTZEN:
+ *   1. Diese Datei auf dem Server kopieren nach:  agenturtool/config.claude.php
+ *   2. api_key eintragen.
+ *   3. NICHT committen — config.claude.php steht in .gitignore (Key bleibt aus Git).
+ *
+ *   ⚠️ WICHTIG — Env-Vars haben VORRANG vor dieser Datei (siehe api/claude_env.php):
+ *   erst getenv()/$_SERVER (ANTHROPIC_API_KEY/CLAUDE_MODEL/CLAUDE_MAX_TOKENS),
+ *   dann config.claude.php nur für LEERE Felder.
+ *
+ * api_key:
+ *   ⚠️ Das ist NICHT das Claude-Max-Abo (Claude.ai/Desktop/Claude Code)!
+ *   Der API-Key kommt aus der Anthropic Console:
+ *     console.anthropic.com  ->  Settings  ->  API Keys  ->  "Create Key"
+ *   Abgerechnet wird pro Token über die Organisation, in der der Key liegt —
+ *   dort ein Spend-Limit setzen (Settings -> Limits), damit die Kosten gedeckelt
+ *   und der richtigen Firma zugeordnet sind. Beginnt mit "sk-ant-...".
+ *
+ * model:       optional, Default 'claude-opus-4-8' (bestes Modell).
+ *              Günstiger/schneller für Routine: 'claude-haiku-4-5'.
+ * max_tokens:  optional, Default 2048 (max. Länge der Antwort).
+ */
+return [
+    'api_key'    => 'sk-ant-HIER-DEN-CONSOLE-API-KEY',
+    'model'      => 'claude-opus-4-8',
+    'max_tokens' => 2048,
+];
