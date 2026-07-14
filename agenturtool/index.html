@@ -10394,11 +10394,12 @@ async function nasMediaStartUploads(kind, projectId, files, parentId = null) {
     };
     try {
       if (kind === 'raw' && !parentId && file.size > NAS_RESUMABLE_THRESHOLD) {
-        // Große Rohdatei → resumable direkt zum vServer/NAS (chunked, wiederaufnehmbar)
-        await nasResumableUpload(file, projectId, kind, onProgress);
+        // Große Rohdatei → resumable zum vServer (chunked, wiederaufnehmbar).
+        // Gilt als fertig, sobald am vServer; NAS-Sicherung läuft im Hintergrund.
+        const nasName = await nasResumableUpload(file, projectId, kind, onProgress);
         nasMedia.uploads = nasMedia.uploads.filter(x => x !== u);
-        showToast('Upload abgeschlossen', file.name);
-        await loadAndRenderNasMedia(projectId); // erscheint via PROPFIND-Erkennung
+        showToast('Upload abgeschlossen', file.name + ' — wird auf dem NAS gesichert…');
+        nasRevealAfterTransfer(projectId, kind, nasName); // nicht awaiten
       } else {
         const asset = await uploadAsset(file, projectId, { kind, parentId, onProgress });
         nasMedia.uploads = nasMedia.uploads.filter(x => x !== u);
@@ -10414,29 +10415,49 @@ async function nasMediaStartUploads(kind, projectId, files, parentId = null) {
 }
 
 /* Resumable Upload (tus 1.0.0) für große Rohdateien. Der Datenstrom läuft
-   Browser → vServer (Caddy /files/) → NAS-tusd — NICHT durch den PHP-Shared-
-   Host. Chunked + wiederaufnehmbar (Upload-URL in localStorage): bricht die
-   Leitung bei 80 GB ab, macht der Upload dort weiter statt neu.
-   Kein externes JS — minimaler Client direkt hier. */
+   Browser → vServer (Caddy /files/) → tusd puffert auf dem vServer — NICHT
+   durch den PHP-Shared-Host. Chunked + wiederaufnehmbar (Upload-URL in
+   localStorage): bricht die Leitung bei 80 GB ab, macht der Upload dort weiter.
+   Nach dem Upload schiebt ein Post-Finish-Hook auf dem vServer die Datei per
+   WebDAV in den NAS-Projektordner und löscht den Puffer. Für den Nutzer gilt
+   der Upload als fertig, sobald er am vServer ist (schnellster gefühlter
+   Upload) — die NAS-Sicherung läuft danach unsichtbar im Hintergrund.
+   Kein externes JS — minimaler Client direkt hier.
+   @returns {string} der auf dem NAS erwartete Dateiname (für die Hintergrund-Anzeige) */
 async function nasResumableUpload(file, projectId, kind, onProgress) {
-  const t = await fetch(`${API_BASE}/tus_ticket.php?project_id=${encodeURIComponent(projectId)}&kind=${encodeURIComponent(kind)}`,
+  const t = await fetch(`${API_BASE}/tus_ticket.php?project_id=${encodeURIComponent(projectId)}&kind=${encodeURIComponent(kind)}&filename=${encodeURIComponent(file.name)}`,
     { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
   const tj = await t.json().catch(() => ({}));
   if (!t.ok || !tj.ok) throw new Error((tj && tj.error) || ('Ticket HTTP ' + t.status));
-  const endpoint = tj.data.endpoint;
+  const { endpoint, token, filename } = tj.data;
 
-  const { id } = await nasTusUpload(endpoint, file, { onProgress, kind, projectId });
-
-  const f = await fetch(`${API_BASE}/tus_finalize.php`, {
-    method: 'POST', credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
-    body: JSON.stringify({ upload_id: id, project_id: projectId, kind, filename: file.name }),
-  });
-  const fj = await f.json().catch(() => ({}));
-  if (!f.ok || !fj.ok) throw new Error((fj && fj.error) || ('Ablegen HTTP ' + f.status));
+  await nasTusUpload(endpoint, file, { onProgress, kind, projectId, token });
+  return filename || file.name;
 }
 
-async function nasTusUpload(endpoint, file, { onProgress, kind, projectId } = {}) {
+/* Nach dem (schnellen) Upload zum vServer im Hintergrund beobachten, bis die
+   Datei tatsächlich auf dem NAS liegt — dann Liste aktualisieren. Blockiert die
+   UI NICHT; bei Timeout einfach später „↻ Aktualisieren". */
+async function nasRevealAfterTransfer(projectId, kind, filename) {
+  const deadline = Date.now() + 20 * 60 * 1000; // bis 20 Min (100-GB-Ausnahmefälle)
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 6000));
+    let list = [];
+    try {
+      const res = await fetch(`${API_BASE}/nas_assets.php?project_id=${encodeURIComponent(projectId)}`,
+        { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+      const dj = await res.json().catch(() => ({}));
+      list = (dj && dj.ok && dj.data) ? dj.data : [];
+    } catch (_) { continue; }
+    if (list.some(a => a.filename === filename && a.kind === kind)) {
+      if (nasMedia.projectId === projectId) await loadAndRenderNasMedia(projectId);
+      showToast('Auf NAS gesichert', filename);
+      return;
+    }
+  }
+}
+
+async function nasTusUpload(endpoint, file, { onProgress, kind, projectId, token } = {}) {
   const CHUNK = 32 * 1024 * 1024; // 32 MiB pro PATCH
   const fp = `tus:${endpoint}:${projectId}:${kind}:${file.name}:${file.size}:${file.lastModified}`;
   let uploadUrl = null;
@@ -10463,7 +10484,10 @@ async function nasTusUpload(endpoint, file, { onProgress, kind, projectId } = {}
       headers: {
         'Tus-Resumable': '1.0.0',
         'Upload-Length': String(file.size),
-        'Upload-Metadata': 'filename ' + btoa(unescape(encodeURIComponent(file.name))),
+        'Upload-Metadata': [
+          'filename ' + btoa(unescape(encodeURIComponent(file.name))),
+          'token ' + btoa(token || ''),
+        ].join(','),
       },
     });
     if (c.status !== 201) throw new Error('Upload-Start fehlgeschlagen (HTTP ' + c.status + ').');
