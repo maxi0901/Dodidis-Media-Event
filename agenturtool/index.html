@@ -9171,7 +9171,8 @@ const PM2_STYLE = `<style id="pm2-styles">
 .pm2 .pm2-chip.pm2-phase { background:var(--pm-lime); color:var(--pm-lime-ink); }
 .pm2 .pm2-x { background:none; border:none; font-size:22px; line-height:1; color:var(--pm-g2); cursor:pointer; padding:0 2px; flex-shrink:0; }
 .pm2 .pm2-x:hover { color:var(--pm-ink); }
-.pm2 .pm2-grid { display:grid; grid-template-columns:200px 1fr; gap:24px; padding:22px 24px; overflow-y:auto; }
+.pm2 .pm2-modal > form { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; overflow:hidden; }
+.pm2 .pm2-grid { display:grid; grid-template-columns:200px 1fr; gap:24px; padding:22px 24px; flex:1 1 auto; min-height:0; overflow-y:auto; }
 .pm2 .pm2-left { display:flex; flex-direction:column; }
 .pm2 .pm2-preview { aspect-ratio:9/16; border-radius:12px; background:radial-gradient(130% 130% at 20% 10%, rgba(94,197,110,.55), transparent 60%), radial-gradient(140% 140% at 85% 85%, rgba(240,150,80,.48), transparent 60%), #f2f1ec; display:flex; align-items:center; justify-content:center; margin-bottom:14px; }
 .pm2 .pm2-play { width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,.85); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px -6px rgba(23,24,26,.3); }
@@ -9197,7 +9198,12 @@ const PM2_STYLE = `<style id="pm2-styles">
 .pm2 .modal-footer .btn-ghost { background:none; border:none; color:var(--pm-g1); font-size:13.5px; }
 .pm2 .modal-footer .btn-ghost:hover { color:var(--pm-ink); }
 .pm2 .modal-footer .btn-danger { background:none; border:none; color:#b3261e; font-size:13px; }
-@media (max-width:720px){ .pm2 .pm2-grid { grid-template-columns:1fr; } }
+@media (max-width:768px){
+  .pm2.modal-backdrop { align-items:flex-start; overflow-y:auto; }
+  .pm2 .pm2-modal { max-height:none; overflow:visible; }
+  .pm2 .pm2-modal > form { flex:none; overflow:visible; }
+  .pm2 .pm2-grid { grid-template-columns:1fr; overflow:visible; }
+}
 </style>`;
 
 function openProjectModal(projectId = null, forceFull = false) {
