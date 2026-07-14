@@ -10313,11 +10313,13 @@ function renderNasMedia() {
         <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(u.name)}</div>
         ${u.error
           ? `<div style="font-size:11px;color:#ff453a;">${escape(u.error)}</div>`
-          : `<div class="nas-up-bar-wrap"><div class="nas-up-bar" id="nas-up-bar-${u.key}" style="width:${u.pct}%;"></div></div>`}
+          : `<div class="nas-up-bar-wrap"><div class="nas-up-bar" id="nas-up-bar-${u.key}" style="width:${u.pct}%;"></div></div>
+             <div id="nas-up-info-${u.key}" style="font-size:11px;color:var(--text-3);margin-top:2px;">${escape(nasUpStatusText(u))}</div>`}
       </div>
       ${u.error
         ? `<button type="button" class="btn btn-ghost btn-sm" onclick="nasMediaDismissUpload('${u.key}')">Entfernen</button>`
-        : `<span id="nas-up-pct-${u.key}" style="font-size:11px;color:var(--text-3);flex-shrink:0;">${u.pct} %</span>`}
+        : `<span id="nas-up-pct-${u.key}" style="font-size:12px;font-weight:600;color:var(--text-2);flex-shrink:0;">${u.pct} %</span>
+           ${u.resumable ? `<button type="button" class="btn btn-ghost btn-sm" title="Upload abbrechen" onclick="nasCancelUpload('${u.key}')">✕</button>` : ''}`}
     </div>`;
 
   const group = (kind, label, canUpload, multiple) => {
@@ -10397,21 +10399,26 @@ const NAS_RESUMABLE_THRESHOLD = 1024 * 1024 * 1024; // 1 GiB
 async function nasMediaStartUploads(kind, projectId, files, parentId = null) {
   // Sequentiell hochladen — schont Netcup-Limits und den Tunnel
   for (const file of files) {
-    const u = { key: 'u' + (++nasUploadSeq), name: file.name, kind, pct: 0, error: null };
+    const isResumable = kind === 'raw' && !parentId && file.size > NAS_RESUMABLE_THRESHOLD;
+    const u = { key: 'u' + (++nasUploadSeq), name: file.name, kind, pct: 0, error: null,
+                size: file.size, resumable: isResumable, paused: false };
+    if (isResumable) u.controller = new AbortController();
     nasMedia.uploads.push(u);
     renderNasMedia();
     const onProgress = (pct) => {
       u.pct = pct;
       const bar = document.getElementById('nas-up-bar-' + u.key);
       const lbl = document.getElementById('nas-up-pct-' + u.key);
+      const inf = document.getElementById('nas-up-info-' + u.key);
       if (bar) bar.style.width = pct + '%';
       if (lbl) lbl.textContent = pct + ' %';
+      if (inf) inf.textContent = nasUpStatusText(u);
     };
     try {
-      if (kind === 'raw' && !parentId && file.size > NAS_RESUMABLE_THRESHOLD) {
+      if (isResumable) {
         // Große Rohdatei → resumable zum vServer (chunked, wiederaufnehmbar).
         // Gilt als fertig, sobald am vServer; NAS-Sicherung läuft im Hintergrund.
-        const nasName = await nasResumableUpload(file, projectId, kind, onProgress);
+        const nasName = await nasResumableUpload(file, projectId, kind, onProgress, u);
         nasMedia.uploads = nasMedia.uploads.filter(x => x !== u);
         showToast('Upload abgeschlossen', file.name + ' — wird auf dem NAS gesichert…');
         await loadAndRenderNasMedia(projectId);          // zeigt Pending (vom vServer ladbar)
@@ -10423,8 +10430,12 @@ async function nasMediaStartUploads(kind, projectId, files, parentId = null) {
         showToast('Upload abgeschlossen', file.name);
       }
     } catch (err) {
-      u.error = err.message || 'Unbekannter Fehler';
-      showToast('Upload fehlgeschlagen', file.name + ' — ' + u.error);
+      if (u.canceled) {
+        nasMedia.uploads = nasMedia.uploads.filter(x => x !== u); // Abbruch: kein Fehler-Zustand
+      } else {
+        u.error = err.message || 'Unbekannter Fehler';
+        showToast('Upload fehlgeschlagen', file.name + ' — ' + u.error);
+      }
     }
     renderNasMedia();
   }
@@ -10440,14 +10451,15 @@ async function nasMediaStartUploads(kind, projectId, files, parentId = null) {
    Upload) — die NAS-Sicherung läuft danach unsichtbar im Hintergrund.
    Kein externes JS — minimaler Client direkt hier.
    @returns {string} der auf dem NAS erwartete Dateiname (für die Hintergrund-Anzeige) */
-async function nasResumableUpload(file, projectId, kind, onProgress) {
+async function nasResumableUpload(file, projectId, kind, onProgress, u) {
+  const signal = u && u.controller ? u.controller.signal : undefined;
   const t = await fetch(`${API_BASE}/tus_ticket.php?project_id=${encodeURIComponent(projectId)}&kind=${encodeURIComponent(kind)}&filename=${encodeURIComponent(file.name)}`,
-    { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+    { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF }, signal });
   const tj = await t.json().catch(() => ({}));
   if (!t.ok || !tj.ok) throw new Error((tj && tj.error) || ('Ticket HTTP ' + t.status));
   const { endpoint, token, filename } = tj.data;
 
-  const up = await nasTusUpload(endpoint, file, { onProgress, kind, projectId, token });
+  const up = await nasTusUpload(endpoint, file, { onProgress, kind, projectId, token, u });
 
   // Pending registrieren → Datei erscheint sofort in der Liste (vom vServer
   // ladbar), bis der Hook sie auf den NAS gesichert hat.
@@ -10485,21 +10497,31 @@ async function nasRevealAfterTransfer(projectId, kind, filename) {
   }
 }
 
-async function nasTusUpload(endpoint, file, { onProgress, kind, projectId, token } = {}) {
+async function nasTusUpload(endpoint, file, { onProgress, kind, projectId, token, u } = {}) {
   const CHUNK = 32 * 1024 * 1024; // 32 MiB pro PATCH
+  const signal = u && u.controller ? u.controller.signal : undefined;
   const fp = `tus:${endpoint}:${projectId}:${kind}:${file.name}:${file.size}:${file.lastModified}`;
+  if (u) u.fp = fp;
+  const abortErr = () => new DOMException('Abgebrochen', 'AbortError');
+  const rememberUrl = (url) => { if (u) u.uploadUrl = url; };
+  const setPaused = (p) => {
+    if (u) u.paused = p;
+    const inf = u && document.getElementById('nas-up-info-' + u.key);
+    if (inf) inf.textContent = nasUpStatusText(u);
+  };
   let uploadUrl = null;
   try { uploadUrl = localStorage.getItem(fp); } catch (_) {}
   let offset = 0;
 
   const head = async (url) => {
-    const r = await fetch(url, { method: 'HEAD', headers: { 'Tus-Resumable': '1.0.0' }, cache: 'no-store' });
+    const r = await fetch(url, { method: 'HEAD', headers: { 'Tus-Resumable': '1.0.0' }, cache: 'no-store', signal });
     if (!r.ok) return null;
     return parseInt(r.headers.get('Upload-Offset') || '0', 10) || 0;
   };
 
   // Bestehenden Upload fortsetzen?
   if (uploadUrl) {
+    rememberUrl(uploadUrl);
     const o = await head(uploadUrl).catch(() => null);
     if (o === null) { uploadUrl = null; try { localStorage.removeItem(fp); } catch (_) {} }
     else offset = o;
@@ -10508,7 +10530,7 @@ async function nasTusUpload(endpoint, file, { onProgress, kind, projectId, token
   // Neu anlegen (tus creation)
   if (!uploadUrl) {
     const c = await fetch(endpoint, {
-      method: 'POST',
+      method: 'POST', signal,
       headers: {
         'Tus-Resumable': '1.0.0',
         'Upload-Length': String(file.size),
@@ -10522,20 +10544,23 @@ async function nasTusUpload(endpoint, file, { onProgress, kind, projectId, token
     const loc = c.headers.get('Location');
     if (!loc) throw new Error('Keine Upload-Adresse vom Server erhalten.');
     uploadUrl = new URL(loc, endpoint).href;
+    rememberUrl(uploadUrl);
     offset = 0;
     try { localStorage.setItem(fp, uploadUrl); } catch (_) {}
   }
 
-  // Chunks per PATCH senden, mit Retry + Offset-Resync bei Netzfehlern.
-  const MAX_RETRY = 6;
+  // Chunks per PATCH senden, mit Retry + Offset-Resync. Bei Offline/Standby wird
+  // NICHT abgebrochen, sondern auf „wieder online" gewartet und fortgesetzt.
+  const MAX_RETRY = 8;
   while (offset < file.size) {
+    if (signal && signal.aborted) throw abortErr();
     const end = Math.min(offset + CHUNK, file.size);
     const chunk = file.slice(offset, end);
     let attempt = 0, done = false;
     while (!done) {
       try {
         const r = await fetch(uploadUrl, {
-          method: 'PATCH',
+          method: 'PATCH', signal,
           headers: {
             'Tus-Resumable': '1.0.0',
             'Upload-Offset': String(offset),
@@ -10553,6 +10578,17 @@ async function nasTusUpload(endpoint, file, { onProgress, kind, projectId, token
           throw new Error('HTTP ' + r.status);
         }
       } catch (err) {
+        if (signal && signal.aborted) throw abortErr();
+        // Offline (z. B. Rechner im Standby) → warten statt scheitern, dann weiter.
+        if (!navigator.onLine) {
+          setPaused(true);
+          await nasWaitOnline(signal);
+          setPaused(false);
+          const o = await head(uploadUrl).catch(() => null);
+          if (o !== null) offset = o;
+          attempt = 0;
+          continue; // ohne Retry-Zähler
+        }
         if (++attempt > MAX_RETRY) throw new Error('Upload abgebrochen: ' + (err.message || 'Netzfehler'));
         await new Promise(res => setTimeout(res, Math.min(1000 * 2 ** attempt, 15000)));
         const o = await head(uploadUrl).catch(() => null);
@@ -10570,6 +10606,47 @@ async function nasTusUpload(endpoint, file, { onProgress, kind, projectId, token
 function nasMediaDismissUpload(key) {
   nasMedia.uploads = nasMedia.uploads.filter(x => x.key !== key);
   renderNasMedia();
+}
+
+// Statuszeile unter dem Fortschrittsbalken: Fortschritt in MB (feiner ablesbar
+// als GB) bzw. Pause-Hinweis.
+function nasUpStatusText(u) {
+  if (!u) return '';
+  if (u.paused) return '⏸ pausiert (offline) — wird automatisch fortgesetzt…';
+  const mb = (b) => Math.round((b || 0) / 1048576).toLocaleString('de-DE') + ' MB';
+  return (u.size ? `${mb(u.size * (u.pct || 0) / 100)} / ${mb(u.size)}` : 'lädt…') + ' · zum vServer';
+}
+
+// Wartet, bis der Browser wieder online ist (Standby/Netzverlust) — oder bricht
+// ab, wenn der Nutzer den Upload abbricht (signal).
+function nasWaitOnline(signal) {
+  if (navigator.onLine) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      window.removeEventListener('online', onOnline);
+      if (signal) signal.removeEventListener('abort', onAbort);
+    };
+    const onOnline = () => { cleanup(); resolve(); };
+    const onAbort  = () => { cleanup(); reject(new DOMException('Abgebrochen', 'AbortError')); };
+    window.addEventListener('online', onOnline);
+    if (signal) signal.addEventListener('abort', onAbort);
+  });
+}
+
+// Laufenden resumable Upload abbrechen: Client stoppen, Puffer am vServer
+// verwerfen (tus termination) und Resume-Merker löschen.
+async function nasCancelUpload(key) {
+  const u = nasMedia.uploads.find(x => x.key === key);
+  if (!u) return;
+  u.canceled = true;
+  try { if (u.controller) u.controller.abort(); } catch (_) {}
+  if (u.uploadUrl) {
+    try { await fetch(u.uploadUrl, { method: 'DELETE', headers: { 'Tus-Resumable': '1.0.0' } }); } catch (_) {}
+  }
+  try { if (u.fp) localStorage.removeItem(u.fp); } catch (_) {}
+  nasMedia.uploads = nasMedia.uploads.filter(x => x !== u);
+  renderNasMedia();
+  showToast('Abgebrochen', u.name);
 }
 
 /* Review-Player: eigenes Overlay ÜBER dem Projekt-Modal (das bleibt offen).
