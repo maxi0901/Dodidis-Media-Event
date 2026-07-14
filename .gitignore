@@ -32,3 +32,9 @@ agenturtool/config.meta.php
 
 # Anthropic-/Claude-API-Key (Secret, nur auf dem Server) — Vorlage: config.claude.php.example
 agenturtool/config.claude.php
+
+# Lokale Agent-/Skill-Tooling-Artefakte (npx skills add) — Drittanbieter-Skills,
+# laufen mit vollen Agent-Rechten, gehören NICHT in dieses App-Repo.
+.claude/
+.agents/
+skills-lock.json

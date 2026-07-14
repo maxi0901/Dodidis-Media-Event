@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+#
+# tusd Post-Finish-Hook. Läuft, sobald ein Upload am vServer vollständig ist.
+# Startet die NAS-Übertragung im HINTERGRUND und kehrt sofort zurück — so wird
+# weder tusd noch der Browser durch die (ggf. lange) vServer→NAS-Übertragung
+# blockiert. Der eigentliche Push passiert in nas-push.sh.
+#
+# tusd liefert das Event als JSON auf stdin. Benötigt: jq.
+set -euo pipefail
+
+event="$(cat)"
+path="$(printf '%s' "$event" | jq -r '.Event.Upload.Storage.Path // empty')"
+token="$(printf '%s' "$event" | jq -r '.Event.Upload.MetaData.token // empty')"
+
+if [ -z "$path" ] || [ -z "$token" ]; then
+    echo "[post-finish] Pfad oder Token fehlt — übersprungen" >&2
+    exit 0
+fi
+
+mkdir -p /var/log/tusd
+# Detached im Hintergrund: NAS-Push blockiert den Client-Upload NICHT.
+nohup "$(dirname "$0")/nas-push.sh" "$path" "$token" >>/var/log/tusd/push.log 2>&1 &
+
+exit 0

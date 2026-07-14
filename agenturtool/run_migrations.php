@@ -783,6 +783,29 @@ if (!tableExists($pdo, 'crm_requests')) {
     $results[] = ['ok' => true, 'label' => "crm_requests: Tabelle bereits vorhanden"];
 }
 
+// ── 33. Resumable Upload: pending_uploads (am vServer gepuffert, noch nicht NAS)
+// Kurzlebige Einträge für Dateien, die per tus zum vServer geladen wurden und
+// im Hintergrund auf den NAS gesichert werden. In der Medienliste als „am
+// vServer, wird gesichert" sichtbar + direkt vom vServer ladbar; verschwindet,
+// sobald die Datei auf dem NAS liegt.
+if (!tableExists($pdo, 'pending_uploads')) {
+    step($pdo, "pending_uploads: Tabelle anlegen",
+        "CREATE TABLE pending_uploads (
+           id           VARCHAR(128) NOT NULL PRIMARY KEY,
+           project_id   VARCHAR(64)  NOT NULL,
+           kind         VARCHAR(16)  NOT NULL,
+           filename     VARCHAR(255) NOT NULL,
+           size_bytes   BIGINT UNSIGNED NULL,
+           uploaded_by  VARCHAR(64)  NULL,
+           created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           KEY idx_pu_project (project_id),
+           KEY idx_pu_created (created_at)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "pending_uploads: Tabelle bereits vorhanden"];
+}
+
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>

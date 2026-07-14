@@ -261,6 +261,29 @@ class NasWebDAV
     }
 
     /**
+     * WebDAV MOVE — server-seitiges Umbenennen/Verschieben. Auf demselben Volume
+     * ist das ein sofortiger Rename (kein Kopieren), auch bei 100-GB-Dateien.
+     * Genutzt vom resumable Upload: fertige Datei aus dem tus-Staging in den
+     * Projektordner (raw/final) schieben.
+     *
+     * @param bool $overwrite true → vorhandenes Ziel ersetzen (Re-Upload)
+     */
+    public function move(string $fromKey, string $toKey, bool $overwrite = true): void
+    {
+        $ch = $this->newCurl($this->url($fromKey));
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'MOVE');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Destination: ' . $this->url($toKey),
+            'Overwrite: ' . ($overwrite ? 'T' : 'F'),
+        ]);
+        $code = $this->exec($ch);
+        if ($code !== 201 && $code !== 204) {
+            throw new \RuntimeException("MOVE {$fromKey} → {$toKey} lieferte HTTP {$code}");
+        }
+    }
+
+    /**
      * List files directly in a NAS directory (PROPFIND Depth: 1).
      * Nur Dateien (keine Unterordner), relativ zum Verzeichnis.
      *
