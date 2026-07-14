@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#
+# tusd Pre-Create-Hook. Läuft, BEVOR tusd einen Upload anlegt/speichert.
+# Lehnt jeden Upload ab, dessen signiertes Token fehlt oder ungültig ist
+# (Prüfung via tus_verify.php). So kann NICHT jeder, der /files/ erreicht, den
+# vServer mit unautorisierten Uploads volllaufen lassen.
+#
+# tusd liefert das Event als JSON auf stdin. Exit != 0 → Upload wird abgelehnt.
+# Benötigt: jq, curl. Env aus /etc/tusd/tusd.env.
+set -euo pipefail
+
+event="$(cat)"
+token="$(printf '%s' "$event" | jq -r '.Event.Upload.MetaData.token // empty')"
+
+if [ -z "$token" ]; then
+    echo "[pre-create] Kein Token — abgelehnt" >&2
+    exit 1
+fi
+
+target="$(curl -fsS -X POST \
+    -H "X-API-KEY: ${APP_API_KEY}" -H "Content-Type: application/json" \
+    --data "$(jq -nc --arg t "$token" '{token:$t}')" \
+    "${APP_BASE%/}/api/tus_verify.php" | jq -r '.data.target // empty')"
+
+if [ -z "$target" ]; then
+    echo "[pre-create] Token ungültig/abgelaufen — abgelehnt" >&2
+    exit 1
+fi
+
+exit 0

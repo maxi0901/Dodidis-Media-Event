@@ -77,8 +77,12 @@ $cfg    = require __DIR__ . '/../config.php';
 $apiKey = (string)($cfg['api_key'] ?? '');
 if ($apiKey === '') json_err(500, 'api_key nicht konfiguriert.');
 
+// Lebensdauer großzügig (30 Tage): ein langsamer/pausierter 100-GB-Upload kann
+// Tage dauern und wird per Resume mit demselben Token abgeschlossen — der Hook
+// prüft das Token erst beim (ggf. viel späteren) post-finish. Kürzer würde
+// solche Uploads am vServer stranden lassen.
 $b64url  = static fn(string $s): string => rtrim(strtr(base64_encode($s), '+/', '-_'), '=');
-$payload = $b64url(json_encode(['t' => $target, 'e' => time() + 12 * 3600], JSON_UNESCAPED_UNICODE));
+$payload = $b64url(json_encode(['t' => $target, 'e' => time() + 30 * 24 * 3600], JSON_UNESCAPED_UNICODE));
 $sig     = hash_hmac('sha256', $payload, $apiKey);
 $token   = $payload . '.' . $sig;
 

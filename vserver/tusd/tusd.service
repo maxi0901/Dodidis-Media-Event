@@ -15,7 +15,7 @@ ExecStart=/usr/local/bin/tusd \
   -base-path /files/ \
   -upload-dir /var/lib/tusd-data \
   -hooks-dir /etc/tusd/hooks \
-  -hooks-enabled-events post-finish \
+  -hooks-enabled-events pre-create,post-finish \
   -behind-proxy
 Restart=always
 RestartSec=3

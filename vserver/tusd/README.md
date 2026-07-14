@@ -35,10 +35,16 @@ tusd --version
 ### 2. Verzeichnisse + Hooks
 ```bash
 sudo mkdir -p /var/lib/tusd-data /etc/tusd/hooks /var/log/tusd
-# post-finish + nas-push.sh aus diesem Ordner nach /etc/tusd/hooks kopieren:
-sudo cp hooks/post-finish hooks/nas-push.sh /etc/tusd/hooks/
-sudo chmod +x /etc/tusd/hooks/post-finish /etc/tusd/hooks/nas-push.sh
+# alle Hooks aus diesem Ordner nach /etc/tusd/hooks kopieren:
+sudo cp hooks/pre-create hooks/post-finish hooks/nas-push.sh hooks/nas-retry.sh /etc/tusd/hooks/
+sudo chmod +x /etc/tusd/hooks/pre-create /etc/tusd/hooks/post-finish \
+              /etc/tusd/hooks/nas-push.sh /etc/tusd/hooks/nas-retry.sh
 ```
+- `pre-create` — lehnt Uploads ohne gültiges Token VOR dem Speichern ab
+  (verhindert, dass Fremde den vServer volllaufen lassen).
+- `post-finish` → `nas-push.sh` — schiebt fertige Datei auf den NAS (mit Retry
+  + Größenabgleich), löscht dann den Puffer.
+- `nas-retry.sh` — vom Timer (Schritt 6) genutzt.
 
 ### 3. Secrets
 ```bash
@@ -73,6 +79,16 @@ nas.dodidis-media.de {
 Neu laden:
 ```bash
 docker exec caddy caddy reload --config /etc/caddy/Caddyfile   # oder: docker restart caddy
+```
+
+### 6. Retry-Timer (fängt fehlgeschlagene NAS-Pushs auf)
+Falls der NAS-Push transient fehlschlägt, bleibt der Puffer liegen; dieser Timer
+versucht ihn alle 10 Min erneut zu sichern, bis er auf dem NAS ist.
+```bash
+sudo cp nas-retry.service nas-retry.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now nas-retry.timer
+systemctl list-timers nas-retry.timer      # nächste Ausführung sehen
 ```
 
 ## Test
