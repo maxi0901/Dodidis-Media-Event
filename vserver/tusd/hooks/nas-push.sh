@@ -32,21 +32,32 @@ enc="$(printf '%s' "$target" | jq -sRr @uri | sed 's/%2F/\//g')"
 url="${NAS_BASE%/}/${enc}"
 localsize="$(stat -c%s "$path")"
 
-# 3) Auf den NAS streamen (kein Zwischenpuffer)
-log "PUT → ${target} (${localsize} B)"
-code="$(curl -s -o /dev/null -w '%{http_code}' -T "$path" -u "${NAS_USER}:${NAS_PASS}" "$url")"
-if [ "$code" != "201" ] && [ "$code" != "204" ]; then
-    log "WebDAV-PUT fehlgeschlagen (HTTP ${code}) — Puffer bleibt für Retry"
-    exit 1
-fi
+# 3) Auf den NAS streamen + Vollständigkeit prüfen, mit In-Skript-Retry gegen
+#    transiente NAS-Fehler. Bleibt es nach den Versuchen erfolglos, bleibt der
+#    Puffer liegen — der systemd-Timer (nas-retry) versucht es später erneut.
+attempt=0
+maxtries=3
+while :; do
+    attempt=$((attempt + 1))
+    log "PUT → ${target} (${localsize} B, Versuch ${attempt}/${maxtries})"
+    code="$(curl -s -o /dev/null -w '%{http_code}' -T "$path" -u "${NAS_USER}:${NAS_PASS}" "$url")"
 
-# 4) Vollständigkeit prüfen: NAS-Dateigröße muss exakt passen, SONST NICHT löschen
-nassize="$(curl -sI -u "${NAS_USER}:${NAS_PASS}" "$url" \
-    | awk 'BEGIN{IGNORECASE=1} /^content-length:/{gsub(/\r/,""); print $2}' | tail -1)"
-if [ "$nassize" = "$localsize" ]; then
-    rm -f "$path" "${path}.info"
-    log "OK — komplett auf NAS (${nassize} B), Puffer gelöscht"
-else
-    log "Größenabgleich fehlgeschlagen (NAS=${nassize:-?} lokal=${localsize}) — Puffer bleibt"
-    exit 1
-fi
+    if [ "$code" = "201" ] || [ "$code" = "204" ]; then
+        nassize="$(curl -sI -u "${NAS_USER}:${NAS_PASS}" "$url" \
+            | awk 'BEGIN{IGNORECASE=1} /^content-length:/{gsub(/\r/,""); print $2}' | tail -1)"
+        if [ "$nassize" = "$localsize" ]; then
+            rm -f "$path" "${path}.info"
+            log "OK — komplett auf NAS (${nassize} B), Puffer gelöscht"
+            exit 0
+        fi
+        log "Größenabgleich fehlgeschlagen (NAS=${nassize:-?} lokal=${localsize})"
+    else
+        log "WebDAV-PUT HTTP ${code}"
+    fi
+
+    if [ "$attempt" -ge "$maxtries" ]; then
+        log "nach ${attempt} Versuchen erfolglos — Puffer bleibt, Retry-Timer übernimmt"
+        exit 1
+    fi
+    sleep "$((attempt * 10))"
+done

@@ -116,8 +116,11 @@ if ($method === 'GET' && $projId && !$id) {
 
             foreach ($pend as $row) {
                 $key = $row['kind'] . '/' . $row['filename'];
-                // schon auf dem NAS, oder abgebrochener Puffer (>24h) → aufräumen
-                if (!empty($onNas[$key]) || strtotime((string)$row['created_at']) < time() - 86400) {
+                // schon auf dem NAS, oder verwaister Puffer (>7 Tage) → aufräumen.
+                // 7 Tage (nicht 24h): ein am vServer gestrandeter Upload (NAS-Push
+                // schlug transient fehl) bleibt sichtbar, bis der Retry-Timer ihn
+                // gesichert hat — sonst verschwände er, obwohl noch ladbar.
+                if (!empty($onNas[$key]) || strtotime((string)$row['created_at']) < time() - 7 * 86400) {
                     try { db_exec("DELETE FROM pending_uploads WHERE id = ?", [$row['id']]); } catch (\Throwable $_) {}
                     continue;
                 }

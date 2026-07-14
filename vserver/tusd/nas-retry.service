@@ -1,0 +1,9 @@
+[Unit]
+Description=Retry NAS-Push für am vServer verbliebene Uploads (Agenturtool)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/tusd/tusd.env
+ExecStart=/etc/tusd/hooks/nas-retry.sh
