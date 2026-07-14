@@ -10608,13 +10608,13 @@ function nasMediaDismissUpload(key) {
   renderNasMedia();
 }
 
-// Statuszeile unter dem Fortschrittsbalken (MB/GB + Ziel bzw. Pause-Hinweis).
+// Statuszeile unter dem Fortschrittsbalken: Fortschritt in MB (feiner ablesbar
+// als GB) bzw. Pause-Hinweis.
 function nasUpStatusText(u) {
   if (!u) return '';
   if (u.paused) return '⏸ pausiert (offline) — wird automatisch fortgesetzt…';
-  const total = u.size ? nasFmtBytes(u.size) : '';
-  const done  = u.size ? nasFmtBytes(Math.round(u.size * (u.pct || 0) / 100)) : '';
-  return (u.size ? `${done} / ${total}` : 'lädt…') + ' · zum vServer';
+  const mb = (b) => Math.round((b || 0) / 1048576).toLocaleString('de-DE') + ' MB';
+  return (u.size ? `${mb(u.size * (u.pct || 0) / 100)} / ${mb(u.size)}` : 'lädt…') + ' · zum vServer';
 }
 
 // Wartet, bis der Browser wieder online ist (Standby/Netzverlust) — oder bricht
