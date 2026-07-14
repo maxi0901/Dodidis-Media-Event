@@ -10257,6 +10257,21 @@ function renderNasMedia() {
   const locked = !!proj && ['freigegeben', 'archiviert'].includes(proj.status);
 
   const assetRow = (a, opts = {}) => {
+    // Am vServer gepuffert, noch nicht auf dem NAS → direkt vom vServer ladbar.
+    if (a.pending) {
+      return `
+        <div class="file-uploaded">
+          <span class="nas-media-dot" style="background:#f5a623;" title="Am vServer — wird auf den NAS gesichert"></span>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:7px;min-width:0;">
+              <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(a.filename)}</div>
+              <span class="nas-version-chip" title="Liegt am vServer, wird auf den NAS gesichert">⏳ vServer</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-3);">${escape(nasFmtBytes(a.sizeBytes))} · wird auf den NAS gesichert…</div>
+          </div>
+          ${a.vserverUrl ? `<a class="btn btn-secondary btn-sm" href="${escape(a.vserverUrl)}" target="_blank" rel="noopener" download>⬇ Laden</a>` : ''}
+        </div>`;
+    }
     const uploader = store.users.find(u => u.id === a.uploadedBy);
     const meta = [
       nasFmtBytes(a.sizeBytes),
@@ -10399,7 +10414,8 @@ async function nasMediaStartUploads(kind, projectId, files, parentId = null) {
         const nasName = await nasResumableUpload(file, projectId, kind, onProgress);
         nasMedia.uploads = nasMedia.uploads.filter(x => x !== u);
         showToast('Upload abgeschlossen', file.name + ' — wird auf dem NAS gesichert…');
-        nasRevealAfterTransfer(projectId, kind, nasName); // nicht awaiten
+        await loadAndRenderNasMedia(projectId);          // zeigt Pending (vom vServer ladbar)
+        nasRevealAfterTransfer(projectId, kind, nasName); // Hintergrund: auf NAS-Ankunft warten
       } else {
         const asset = await uploadAsset(file, projectId, { kind, parentId, onProgress });
         nasMedia.uploads = nasMedia.uploads.filter(x => x !== u);
@@ -10431,7 +10447,18 @@ async function nasResumableUpload(file, projectId, kind, onProgress) {
   if (!t.ok || !tj.ok) throw new Error((tj && tj.error) || ('Ticket HTTP ' + t.status));
   const { endpoint, token, filename } = tj.data;
 
-  await nasTusUpload(endpoint, file, { onProgress, kind, projectId, token });
+  const up = await nasTusUpload(endpoint, file, { onProgress, kind, projectId, token });
+
+  // Pending registrieren → Datei erscheint sofort in der Liste (vom vServer
+  // ladbar), bis der Hook sie auf den NAS gesichert hat.
+  try {
+    await fetch(`${API_BASE}/nas_assets.php?action=pending`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ upload_id: up.id, project_id: projectId, kind, filename: file.name, size: file.size }),
+    });
+  } catch (_) { /* Upload läuft trotzdem; erscheint spätestens nach NAS-Ankunft */ }
+
   return filename || file.name;
 }
 
@@ -10449,7 +10476,8 @@ async function nasRevealAfterTransfer(projectId, kind, filename) {
       const dj = await res.json().catch(() => ({}));
       list = (dj && dj.ok && dj.data) ? dj.data : [];
     } catch (_) { continue; }
-    if (list.some(a => a.filename === filename && a.kind === kind)) {
+    // Nur die echte NAS-Datei zählt (nicht der eigene Pending-Eintrag)
+    if (list.some(a => a.filename === filename && a.kind === kind && !a.pending)) {
       if (nasMedia.projectId === projectId) await loadAndRenderNasMedia(projectId);
       showToast('Auf NAS gesichert', filename);
       return;

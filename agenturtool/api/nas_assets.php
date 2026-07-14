@@ -96,7 +96,86 @@ if ($method === 'GET' && $projId && !$id) {
         }
     }
 
+    // Am vServer gepufferte, noch nicht auf dem NAS liegende Uploads mit anzeigen
+    // (resumable Upload). Erscheinen als „pending", direkt vom vServer ladbar,
+    // bis die Datei auf dem NAS liegt — dann Eintrag aufräumen.
+    try {
+        $pend = db_all(
+            "SELECT id, kind, filename, size_bytes AS sizeBytes, uploaded_by AS uploadedBy, created_at
+               FROM pending_uploads WHERE project_id = ?",
+            [$projId]
+        );
+        if ($pend) {
+            $onNas = [];
+            foreach ($rows as $r) $onNas[$r['kind'] . '/' . $r['filename']] = true;
+
+            $creds = nas_credentials();
+            $pu    = parse_url($creds['base']);
+            $vhost = ($pu['scheme'] ?? 'https') . '://' . ($pu['host'] ?? '')
+                   . (isset($pu['port']) ? ':' . $pu['port'] : '');
+
+            foreach ($pend as $row) {
+                $key = $row['kind'] . '/' . $row['filename'];
+                // schon auf dem NAS, oder abgebrochener Puffer (>24h) → aufräumen
+                if (!empty($onNas[$key]) || strtotime((string)$row['created_at']) < time() - 86400) {
+                    try { db_exec("DELETE FROM pending_uploads WHERE id = ?", [$row['id']]); } catch (\Throwable $_) {}
+                    continue;
+                }
+                $rows[] = [
+                    'id'          => 'pending:' . $row['id'],
+                    'projectId'   => $projId,
+                    'kind'        => $row['kind'],
+                    'parentId'    => null,
+                    'filename'    => $row['filename'],
+                    'contentType' => nas_guess_ctype($row['filename']),
+                    'sizeBytes'   => $row['sizeBytes'] !== null ? (int)$row['sizeBytes'] : null,
+                    'status'      => 'buffering',
+                    'uploadedBy'  => $row['uploadedBy'],
+                    'createdAt'   => $row['created_at'],
+                    'confirmedAt' => null,
+                    'openComments'=> 0,
+                    'manual'      => false,
+                    'pending'     => true,
+                    'vserverUrl'  => $vhost . '/files/' . rawurlencode($row['id']),
+                ];
+            }
+        }
+    } catch (\Throwable $e) {
+        // pending_uploads evtl. noch nicht migriert — ignorieren
+    }
+
     json_ok($rows);
+}
+
+// ── Route: POST ?action=pending — resumable Upload am vServer registrieren ────
+if ($method === 'POST' && $action === 'pending') {
+    $b         = input_json();
+    $uploadId  = trim((string)($b['upload_id'] ?? ''));
+    $projectId = trim((string)($b['project_id'] ?? ''));
+    $kind      = trim((string)($b['kind'] ?? 'raw'));
+    $filename  = trim((string)($b['filename'] ?? ''));
+    $size      = (int)($b['size'] ?? 0);
+
+    if ($uploadId === '' || !preg_match('/^[A-Za-z0-9._-]{8,128}$/', $uploadId)) json_err(400, 'upload_id ungültig.');
+    if ($projectId === '') json_err(400, 'project_id ist Pflicht.');
+    if (!in_array($kind, ['raw', 'final'], true)) json_err(400, "kind muss 'raw' oder 'final' sein.");
+    if ($filename === '') json_err(400, 'filename ist Pflicht.');
+
+    requireProjectAccess($projectId, $session);
+    if ($kind === 'raw'   && !has_role('admin', 'manager', 'videograf')) json_err(403, 'Keine Berechtigung (Rohmaterial).');
+    if ($kind === 'final' && !has_role('admin', 'manager', 'cutter'))    json_err(403, 'Keine Berechtigung (finale Schnitte).');
+
+    $safe = ltrim(substr(preg_replace('/[\/\\\\]/', '_', $filename), 0, 200), '.');
+    try {
+        db_exec(
+            "REPLACE INTO pending_uploads (id, project_id, kind, filename, size_bytes, uploaded_by)
+             VALUES (?, ?, ?, ?, ?, ?)",
+            [$uploadId, $projectId, $kind, $safe, $size ?: null, $session['uid']]
+        );
+    } catch (\Throwable $e) {
+        error_log('[nas_assets pending] ' . $e->getMessage()); // nicht hart failen
+    }
+    json_ok(['pending' => true]);
 }
 
 // ── Route: POST ?action=prepare — create pending asset record ─────────────────
