@@ -9491,7 +9491,10 @@ async function playProjectVideo(projectId) {
     if (!finals.length) return null;
     // Aktuellste Version: die, auf die keine neuere per parent_id zeigt
     const superseded = new Set(finals.map(a => a.parentId).filter(Boolean));
-    return finals.find(a => !superseded.has(a.id)) || finals[0];
+    const current = finals.filter(a => !superseded.has(a.id));
+    const pool = current.length ? current : finals;
+    // Nicht-manuell abgelegte bevorzugen — nur die haben den Review-Kommentar-Thread
+    return pool.find(a => !a.manual) || pool[0];
   };
   let asset = pickFinal();
   // Falls die Medienliste noch nicht geladen ist (früher Klick) → nachladen
