@@ -150,12 +150,19 @@ class MetaClient
      */
     public function publishInstagram(
         string $igUserId, string $pageToken, string $mediaUrl,
-        string $caption, bool $isVideo, int $maxWaitSec = 180
+        string $caption, bool $isVideo, int $maxWaitSec = 180, ?string $coverUrl = null
     ): array {
         // 1. Media-Container erstellen
         $params = ['caption' => $caption, 'access_token' => $pageToken];
-        if ($isVideo) { $params['media_type'] = 'REELS'; $params['video_url'] = $mediaUrl; }
-        else          { $params['image_url'] = $mediaUrl; }
+        if ($isVideo) {
+            $params['media_type'] = 'REELS';
+            $params['video_url']  = $mediaUrl;
+            // Optionales Vorschaubild (Reel-Cover). Muss öffentlich per HTTPS
+            // erreichbar sein (media_public.php, signiert).
+            if ($coverUrl !== null && $coverUrl !== '') $params['cover_url'] = $coverUrl;
+        } else {
+            $params['image_url'] = $mediaUrl;
+        }
 
         $c = $this->post("/{$igUserId}/media", $params);
         $creationId = (string)($c['id'] ?? '');

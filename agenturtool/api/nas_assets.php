@@ -35,7 +35,7 @@ if ($method === 'GET' && $projId && !$id) {
                 uploaded_by AS uploadedBy,
                 created_at AS createdAt, confirmed_at AS confirmedAt
            FROM assets
-          WHERE project_id = ? AND status = 'stored'
+          WHERE project_id = ? AND status = 'stored' AND kind <> 'cover'
           ORDER BY created_at DESC",
         [$projId]
     );

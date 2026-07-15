@@ -9174,8 +9174,11 @@ const PM2_STYLE = `<style id="pm2-styles">
 .pm2 .pm2-modal > form { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; overflow:hidden; }
 .pm2 .pm2-grid { display:grid; grid-template-columns:200px 1fr; gap:24px; padding:22px 24px; flex:1 1 auto; min-height:0; overflow-y:auto; }
 .pm2 .pm2-left { display:flex; flex-direction:column; }
-.pm2 .pm2-preview { aspect-ratio:9/16; border-radius:12px; background:radial-gradient(130% 130% at 20% 10%, rgba(94,197,110,.55), transparent 60%), radial-gradient(140% 140% at 85% 85%, rgba(240,150,80,.48), transparent 60%), #f2f1ec; display:flex; align-items:center; justify-content:center; margin-bottom:14px; }
-.pm2 .pm2-play { width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,.85); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px -6px rgba(23,24,26,.3); }
+.pm2 .pm2-preview { position:relative; overflow:hidden; aspect-ratio:9/16; border-radius:12px; background:radial-gradient(130% 130% at 20% 10%, rgba(94,197,110,.55), transparent 60%), radial-gradient(140% 140% at 85% 85%, rgba(240,150,80,.48), transparent 60%), #f2f1ec; display:flex; align-items:center; justify-content:center; margin-bottom:14px; }
+.pm2 .pm2-cover-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; }
+.pm2 .pm2-play { position:relative; z-index:1; width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,.85); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px -6px rgba(23,24,26,.3); }
+.pm2 .pm2-cover-btn { position:absolute; right:8px; bottom:8px; z-index:2; background:rgba(255,255,255,.92); border:none; border-radius:8px; padding:5px 10px; font-size:11.5px; font-weight:600; color:#17181a; cursor:pointer; box-shadow:0 2px 8px -3px rgba(0,0,0,.35); }
+.pm2 .pm2-cover-btn:hover { background:#fff; }
 .pm2 .pm2-meta { display:flex; justify-content:space-between; gap:10px; border-top:1px solid var(--pm-line); padding:9px 2px; font-size:13px; color:var(--pm-ink); }
 .pm2 .pm2-meta .l { font-size:10.5px; font-weight:600; letter-spacing:.8px; color:var(--pm-g2); text-transform:uppercase; padding-top:2px; }
 .pm2 .pm2-right { padding:0 !important; overflow:visible; color:var(--pm-ink); min-width:0; }
@@ -9301,7 +9304,11 @@ function openProjectModal(projectId = null, forceFull = false) {
         <form id="project-form" onsubmit="saveProject(event, '${project?.id || ''}')">
           <div class="pm2-grid">
             <aside class="pm2-left">
-              <div class="pm2-preview"><span class="pm2-play"><svg width="16" height="16" viewBox="0 0 24 24" fill="#17181a"><path d="M8 5v14l11-7z"/></svg></span></div>
+              <div class="pm2-preview">
+                ${!isNew ? `<img class="pm2-cover-img" src="${API_BASE}/project_cover.php?project_id=${encodeURIComponent(project.id)}&t=${Date.now()}" alt="" onerror="this.style.display='none'">` : ''}
+                <span class="pm2-play"><svg width="16" height="16" viewBox="0 0 24 24" fill="#17181a"><path d="M8 5v14l11-7z"/></svg></span>
+                ${!isNew && canEdit ? `<button type="button" class="pm2-cover-btn" onclick="pickProjectCover('${project.id}')" title="Vorschaubild setzen — wird bei Instagram als Reel-Cover genutzt">🖼 Cover</button>` : ''}
+              </div>
               ${!isNew ? `<div class="pm2-meta"><span class="l">Status</span><span>${escape(statusLabel(project.status))}</span></div>` : ''}
               ${project?.shootDate ? `<div class="pm2-meta"><span class="l">Drehtag</span><span>${escape(fmtDate(project.shootDate))}</span></div>` : ''}
               ${project?.postingDate ? `<div class="pm2-meta"><span class="l">Posting</span><span>${escape(fmtDate(project.postingDate))}</span></div>` : ''}
@@ -9468,6 +9475,33 @@ function openProjectModal(projectId = null, forceFull = false) {
       form.addEventListener('change', saveProjectDraft);
     }
   }
+}
+
+// Projekt-Vorschaubild (Cover) setzen → auf dem NAS gespeichert und beim
+// Instagram-Reel-Posting als cover_url übergeben.
+async function pickProjectCover(projectId) {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*'; input.style.display = 'none';
+  document.body.appendChild(input);
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    document.body.removeChild(input);
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { appAlert('Bitte ein Bild als Cover wählen.', { title: 'Cover' }); return; }
+    try {
+      const res = await fetch(`${API_BASE}/project_cover.php?project_id=${encodeURIComponent(projectId)}&filename=${encodeURIComponent(file.name)}`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'X-CSRF-Token': CSRF, 'Content-Type': file.type || 'application/octet-stream' },
+        body: file,
+      });
+      const dj = await res.json().catch(() => ({}));
+      if (!res.ok || !dj.ok) throw new Error((dj && dj.error) || ('HTTP ' + res.status));
+      const img = document.querySelector('.pm2-cover-img');
+      if (img) { img.style.display = ''; img.src = `${API_BASE}/project_cover.php?project_id=${encodeURIComponent(projectId)}&t=${Date.now()}`; }
+      showToast('Vorschaubild gesetzt', 'Wird beim Instagram-Reel als Cover verwendet.');
+    } catch (e) { appAlert('Cover-Upload fehlgeschlagen: ' + (e.message || 'Fehler'), { title: 'Fehler' }); }
+  };
+  input.click();
 }
 
 const PROJECT_DRAFT_KEY = 'project_form_draft';
