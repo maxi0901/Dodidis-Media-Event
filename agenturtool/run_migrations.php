@@ -631,7 +631,7 @@ if (!tableExists($pdo, 'assets')) {
            id           VARCHAR(64)   NOT NULL,
            project_id   VARCHAR(64)   NOT NULL,
            customer_id  VARCHAR(64)   NULL,
-           kind         ENUM('raw','final') NOT NULL DEFAULT 'raw',
+           kind         ENUM('raw','final','cover') NOT NULL DEFAULT 'raw',
            parent_id    VARCHAR(64)   NULL,
            nas_key      VARCHAR(500)  NOT NULL,
            nas_key_hash CHAR(64)      AS (SHA2(nas_key,256)) STORED,
@@ -814,6 +814,13 @@ if (!colExists($pdo, 'projects', 'cover_asset_id')) {
         "ALTER TABLE projects ADD COLUMN cover_asset_id VARCHAR(64) NULL", $results);
 } else {
     $results[] = ['ok' => true, 'label' => "projects.cover_asset_id bereits vorhanden"];
+}
+
+// assets.kind um 'cover' erweitern (Cover-Assets). MODIFY ist idempotent.
+if (tableExists($pdo, 'assets')) {
+    step($pdo, "assets.kind ENUM um 'cover' erweitern",
+        "ALTER TABLE assets MODIFY COLUMN kind ENUM('raw','final','cover') NOT NULL DEFAULT 'raw'",
+        $results);
 }
 
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));

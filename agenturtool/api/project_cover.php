@@ -71,7 +71,9 @@ if ($method === 'POST') {
     $len     = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
 
     try {
-        (new NasWebDAV())->putStream($nasKey, $len, $ctype);
+        $nas = new NasWebDAV();
+        $nas->ensureDir($p['nas_folder'] . '/_cover'); // Parent anlegen (sonst 409/404 beim PUT)
+        $nas->putStream($nasKey, $len, $ctype);
     } catch (\Throwable $e) {
         json_err(502, 'Cover-Upload fehlgeschlagen: ' . $e->getMessage());
     }
