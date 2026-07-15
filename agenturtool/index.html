@@ -9152,6 +9152,60 @@ async function deleteShootDay(shootDayId) {
   }
 }
 
+// Neues Projekt-Modal-Design (rondesignlab-Look). Bewusst unter .pm2 gescopet,
+// damit der Rest der App unverändert bleibt. Einmalig in <head> injiziert.
+const PM2_STYLE = `<style id="pm2-styles">
+.pm2 .pm2-modal {
+  --pm-ink:#17181a; --pm-g1:#6f7278; --pm-g2:#a3a5aa; --pm-line:#e7e6e2; --pm-line2:#d9d8d3;
+  --pm-stone:#ececea; --pm-stone-ink:#5c5e63; --pm-lime:#e8f6b3; --pm-lime-ink:#4a5510;
+  background:#fff; color:var(--pm-ink); max-width:760px; width:100%; border-radius:16px;
+  padding:0; box-shadow:0 30px 80px -30px rgba(23,24,26,.45);
+  font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;
+  max-height:calc(100vh - 48px); overflow:hidden; display:flex; flex-direction:column;
+}
+.pm2 .pm2-top { display:flex; align-items:center; gap:12px; padding:20px 24px; border-bottom:1px solid var(--pm-line); flex-shrink:0; }
+.pm2 .pm2-orb { width:26px; height:26px; border-radius:50%; background:radial-gradient(circle at 30% 30%, #7ecb6f, #f0a050); flex-shrink:0; }
+.pm2 .pm2-title { font-size:16px; font-weight:600; color:var(--pm-ink); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pm2 .pm2-chips { display:flex; gap:8px; flex-shrink:0; }
+.pm2 .pm2-chip { display:inline-block; padding:3px 10px; border-radius:6px; background:var(--pm-stone); color:var(--pm-stone-ink); font-size:10.5px; font-weight:600; letter-spacing:.3px; text-transform:uppercase; white-space:nowrap; }
+.pm2 .pm2-chip.pm2-phase { background:var(--pm-lime); color:var(--pm-lime-ink); }
+.pm2 .pm2-x { background:none; border:none; font-size:22px; line-height:1; color:var(--pm-g2); cursor:pointer; padding:0 2px; flex-shrink:0; }
+.pm2 .pm2-x:hover { color:var(--pm-ink); }
+.pm2 .pm2-modal > form { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; overflow:hidden; }
+.pm2 .pm2-grid { display:grid; grid-template-columns:200px 1fr; gap:24px; padding:22px 24px; flex:1 1 auto; min-height:0; overflow-y:auto; }
+.pm2 .pm2-left { display:flex; flex-direction:column; }
+.pm2 .pm2-preview { aspect-ratio:9/16; border-radius:12px; background:radial-gradient(130% 130% at 20% 10%, rgba(94,197,110,.55), transparent 60%), radial-gradient(140% 140% at 85% 85%, rgba(240,150,80,.48), transparent 60%), #f2f1ec; display:flex; align-items:center; justify-content:center; margin-bottom:14px; }
+.pm2 .pm2-play { width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,.85); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px -6px rgba(23,24,26,.3); }
+.pm2 .pm2-meta { display:flex; justify-content:space-between; gap:10px; border-top:1px solid var(--pm-line); padding:9px 2px; font-size:13px; color:var(--pm-ink); }
+.pm2 .pm2-meta .l { font-size:10.5px; font-weight:600; letter-spacing:.8px; color:var(--pm-g2); text-transform:uppercase; padding-top:2px; }
+.pm2 .pm2-right { padding:0 !important; overflow:visible; color:var(--pm-ink); min-width:0; }
+.pm2 .pm2-right .form-label { text-transform:uppercase; letter-spacing:.8px; color:var(--pm-g2); font-weight:600; font-size:10.5px; margin-bottom:7px; display:block; }
+.pm2 .pm2-right .form-section { text-transform:uppercase; letter-spacing:.8px; color:var(--pm-g2); font-weight:600; font-size:11px; margin:22px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--pm-line); }
+.pm2 .pm2-right input[type=text], .pm2 .pm2-right input[type=date], .pm2 .pm2-right select, .pm2 .pm2-right textarea {
+  width:100%; border:1px solid var(--pm-line2); border-radius:9px; padding:10px 13px; font-size:13.5px; background:#fff; color:var(--pm-ink); font-family:inherit;
+}
+.pm2 .pm2-right input:focus, .pm2 .pm2-right select:focus, .pm2 .pm2-right textarea:focus { outline:none; border-color:var(--pm-ink); }
+.pm2 .pm2-right .form-group { margin-bottom:14px; }
+.pm2 .pm2-right .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.pm2 .pm2-right .text-muted, .pm2 .pm2-right .text-sm { color:var(--pm-g1); }
+.pm2 .pm2-right .folder-name-display { background:var(--pm-stone); border:1px solid var(--pm-line); border-radius:9px; padding:10px 13px; font-size:13px; color:var(--pm-g1); }
+.pm2 .modal-footer { padding:16px 24px; border-top:1px solid var(--pm-line); display:flex; align-items:center; gap:14px; flex-shrink:0; background:#fff; }
+.pm2 .modal-footer .pm2-state { flex:1; font-size:12.5px; color:var(--pm-g1); display:inline-flex; align-items:center; gap:8px; }
+.pm2 .modal-footer .pm2-state::before { content:""; width:7px; height:7px; border-radius:50%; background:#2fae60; }
+.pm2 .modal-footer .pm2-spacer { flex:1; }
+.pm2 .modal-footer .btn-primary { background:var(--pm-ink); color:#fff; border:none; border-radius:999px; padding:9px 22px; font-weight:600; font-size:13px; }
+.pm2 .modal-footer .btn-primary:hover { background:#000; }
+.pm2 .modal-footer .btn-ghost { background:none; border:none; color:var(--pm-g1); font-size:13.5px; }
+.pm2 .modal-footer .btn-ghost:hover { color:var(--pm-ink); }
+.pm2 .modal-footer .btn-danger { background:none; border:none; color:#b3261e; font-size:13px; }
+@media (max-width:768px){
+  .pm2.modal-backdrop { align-items:flex-start; overflow-y:auto; }
+  .pm2 .pm2-modal { max-height:none; overflow:visible; }
+  .pm2 .pm2-modal > form { flex:none; overflow:visible; }
+  .pm2 .pm2-grid { grid-template-columns:1fr; overflow:visible; }
+}
+</style>`;
+
 function openProjectModal(projectId = null, forceFull = false) {
   const session = getCurrentUser();
   const isStaff = session.type === 'staff';
@@ -9231,15 +9285,28 @@ function openProjectModal(projectId = null, forceFull = false) {
 
   const isInternal = !!project?.isInternal;
 
+  const pm2Kunde = customer ? escape(customer.name) : (isInternal ? 'INTERN' : '');
   const html = `
-    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
-      <div class="modal">
-        <div class="modal-header">
-          <div class="modal-title">${isNew ? 'Neues Projekt' : escape(project.title)}</div>
-          <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-backdrop pm2" onclick="if(event.target===this)closeModal()">
+      <div class="modal pm2-modal">
+        <div class="pm2-top">
+          <span class="pm2-orb"></span>
+          <div class="pm2-title">${isNew ? 'Neues Projekt' : escape(project.title)}</div>
+          <div class="pm2-chips">
+            ${pm2Kunde ? `<span class="pm2-chip">${pm2Kunde}</span>` : ''}
+            ${!isNew ? `<span class="pm2-chip pm2-phase">${escape(statusLabel(project.status))}</span>` : ''}
+          </div>
+          <button class="pm2-x" onclick="closeModal()" aria-label="Schließen">×</button>
         </div>
         <form id="project-form" onsubmit="saveProject(event, '${project?.id || ''}')">
-          <div class="modal-body">
+          <div class="pm2-grid">
+            <aside class="pm2-left">
+              <div class="pm2-preview"><span class="pm2-play"><svg width="16" height="16" viewBox="0 0 24 24" fill="#17181a"><path d="M8 5v14l11-7z"/></svg></span></div>
+              ${!isNew ? `<div class="pm2-meta"><span class="l">Status</span><span>${escape(statusLabel(project.status))}</span></div>` : ''}
+              ${project?.shootDate ? `<div class="pm2-meta"><span class="l">Drehtag</span><span>${escape(fmtDate(project.shootDate))}</span></div>` : ''}
+              ${project?.postingDate ? `<div class="pm2-meta"><span class="l">Posting</span><span>${escape(fmtDate(project.postingDate))}</span></div>` : ''}
+            </aside>
+            <div class="modal-body pm2-right">
             ${!isNew ? `
               <div class="proj-status-row">
                 ${isAdmin ? `
@@ -9373,15 +9440,18 @@ function openProjectModal(projectId = null, forceFull = false) {
 
             ${!isNew && isManagerOrAdmin ? renderActivityTimeline('project', project.id) : ''}
           </div>
+          </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
-            ${canEdit ? '<button type="submit" class="btn btn-primary">Speichern</button>' : ''}
+            ${!isNew && project?.postingDate ? `<span class="pm2-state">Posting geplant · ${escape(fmtDate(project.postingDate))}</span>` : '<span class="pm2-spacer"></span>'}
             ${!isNew && isManagerOrAdmin ? `<button type="button" class="btn btn-danger" onclick="deleteProject('${project.id}')">Löschen</button>` : ''}
+            <button type="button" class="btn btn-ghost" onclick="closeModal()">Schließen</button>
+            ${canEdit ? '<button type="submit" class="btn btn-primary">Speichern</button>' : ''}
           </div>
         </form>
       </div>
     </div>
   `;
+  if (!document.getElementById('pm2-styles')) document.head.insertAdjacentHTML('beforeend', PM2_STYLE);
   $('#modal-container').innerHTML = html;
   initAutogrowTextareas();
   if (projectId) loadAndRenderProjectComments(projectId, isManagerOrAdmin, 'proj-comments-box');
