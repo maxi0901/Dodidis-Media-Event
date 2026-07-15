@@ -42,6 +42,11 @@ function meta_config(): array
         'app_secret'    => $pick('META_APP_SECRET', 'app_secret'),
         'redirect_uri'  => $pick('META_REDIRECT_URI', 'redirect_uri'),
         'graph_version' => $pick('META_GRAPH_VERSION', 'graph_version'),
+        // WhatsApp Cloud API (Kommunikation): Business-Nummer + Token + Webhook-
+        // Verify-Token. Webhook-Signatur nutzt app_secret (oben).
+        'wa_phone_number_id' => $pick('WA_PHONE_NUMBER_ID', 'wa_phone_number_id'),
+        'wa_token'           => $pick('WA_TOKEN', 'wa_token'),
+        'wa_verify_token'    => $pick('WA_VERIFY_TOKEN', 'wa_verify_token'),
     ];
     return $cache;
 }

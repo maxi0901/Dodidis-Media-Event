@@ -257,6 +257,57 @@ class MetaClient
         return $this->post("/{$commentId}/replies", ['message' => $message, 'access_token' => $token]);
     }
 
+    /**
+     * WhatsApp Cloud API: 1:1-Textnachricht senden.
+     * Nur innerhalb des 24-h-Kundenservice-Fensters frei formulierbar; außerhalb
+     * verlangt Meta genehmigte Vorlagen (dann liefert die API einen Fehler).
+     *
+     * @param string $phoneNumberId ID der Business-Nummer (nicht die Nummer)
+     * @param string $token         WhatsApp-Dauer-Token
+     * @param string $to            Ziel-WhatsApp-ID (Telefonnummer, intl. ohne +)
+     * @return array<string,mixed>  Antwort mit messages[0].id
+     */
+    public function sendWhatsAppText(string $phoneNumberId, string $token, string $to, string $text): array
+    {
+        $url = "https://graph.facebook.com/{$this->version}/{$phoneNumberId}/messages";
+        $payload = json_encode([
+            'messaging_product' => 'whatsapp',
+            'recipient_type'    => 'individual',
+            'to'                => $to,
+            'type'              => 'text',
+            'text'              => ['preview_url' => false, 'body' => $text],
+        ], JSON_UNESCAPED_UNICODE);
+        return $this->execJson($url, $token, (string)$payload);
+    }
+
+    /** JSON-POST mit Bearer-Token (für WhatsApp). @return array<string,mixed> */
+    private function execJson(string $url, string $token, string $json): array
+    {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $token,
+            'Content-Type: application/json',
+        ]);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
+        $raw  = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+
+        if ($err) throw new \RuntimeException("Graph-API cURL: {$err}");
+        $j = json_decode((string)$raw, true);
+        if (!is_array($j)) throw new \RuntimeException("Graph-API: ungültige Antwort (HTTP {$code}).");
+        if (isset($j['error'])) {
+            throw new \RuntimeException("Graph-API-Fehler: " . (string)($j['error']['message'] ?? 'Unbekannt'));
+        }
+        if ($code >= 400) throw new \RuntimeException("Graph-API lieferte HTTP {$code}.");
+        return $j;
+    }
+
     // ── HTTP-Helfer ───────────────────────────────────────────────────────────
 
     /** @return array<string,mixed> */
