@@ -806,6 +806,16 @@ if (!tableExists($pdo, 'pending_uploads')) {
     $results[] = ['ok' => true, 'label' => "pending_uploads: Tabelle bereits vorhanden"];
 }
 
+// ── 34. Projekt-Vorschaubild: projects.cover_asset_id ─────────────────────────
+// Zeigt auf das Cover-Asset (kind='cover') des Projekts. Wird im neuen Modal
+// gesetzt und beim Instagram-Reel-Posting als cover_url übergeben.
+if (!colExists($pdo, 'projects', 'cover_asset_id')) {
+    step($pdo, "projects: Spalte cover_asset_id ergänzen",
+        "ALTER TABLE projects ADD COLUMN cover_asset_id VARCHAR(64) NULL", $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "projects.cover_asset_id bereits vorhanden"];
+}
+
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>

@@ -48,8 +48,24 @@ function ig_publish_asset(array $asset, string $caption): array
 
     $isVideo = stripos((string)($asset['content_type'] ?? ''), 'video') === 0;
 
+    // Vorschaubild (Cover pro Projekt) → als Reel-Cover an Instagram übergeben.
+    // Nur für Videos/Reels relevant; wie die Media-URL signiert & öffentlich.
+    $coverUrl = null;
+    if ($isVideo) {
+        $prow = db_one(
+            "SELECT p.cover_asset_id FROM assets a JOIN projects p ON p.id = a.project_id WHERE a.id = ?",
+            [$assetId]
+        );
+        $coverId = (string)($prow['cover_asset_id'] ?? '');
+        if ($coverId !== '') {
+            $cexp = time() + 1800;
+            $csig = hash_hmac('sha256', $coverId . '|' . $cexp, $secret);
+            $coverUrl = $apiBase . '/media_public.php?a=' . urlencode($coverId) . '&exp=' . $cexp . '&sig=' . $csig;
+        }
+    }
+
     $meta = new MetaClient('x');
     return $meta->publishInstagram(
-        (string)$acc['external_id'], (string)$acc['access_token'], $mediaUrl, $caption, $isVideo
+        (string)$acc['external_id'], (string)$acc['access_token'], $mediaUrl, $caption, $isVideo, 180, $coverUrl
     );
 }
