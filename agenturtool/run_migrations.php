@@ -540,6 +540,7 @@ if (!tableExists($pdo, 'content_queue')) {
            published_at      DATETIME     NULL,
            platform_response TEXT         NULL,
            error_message     TEXT         NULL,
+           is_test           TINYINT(1)   NOT NULL DEFAULT 0,
            created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
            updated_at        DATETIME     NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
            PRIMARY KEY (id),
@@ -863,6 +864,14 @@ if (!tableExists($pdo, 'wa_messages')) {
 } else {
     $results[] = ['ok' => true, 'label' => "wa_messages: bereits vorhanden"];
 }
+
+// ── 36. Test-Reel: content_queue.is_test ──────────────────────────────────────
+// Markiert einen geplanten Post als „Test-Reel". Test-Reels werden per
+// Schnell-Aktion mit scheduled_at = jetzt + 24/48 h eingeplant und laufen über
+// dieselbe Publish-Kette (publish_due.php). Das Flag dient der optischen
+// Kennzeichnung im Planer und späteren Auswertungen.
+addCol($pdo, 'content_queue', 'is_test',
+    "ALTER TABLE content_queue ADD COLUMN is_test TINYINT(1) NOT NULL DEFAULT 0", $results);
 
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
