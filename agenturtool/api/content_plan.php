@@ -124,6 +124,7 @@ switch ($method) {
                         cq.platform, cq.content_type AS contentType,
                         cq.caption, cq.media_url AS mediaUrl, cq.thumbnail_url AS thumbnailUrl,
                         cq.status, cq.scheduled_at AS scheduledAt, cq.published_at AS publishedAt,
+                        cq.is_test AS isTest,
                         p.title AS projectTitle
                    FROM content_queue cq
               LEFT JOIN customers c ON c.id = cq.customer_id
@@ -132,7 +133,7 @@ switch ($method) {
                   ORDER BY cq.scheduled_at ASC",
                 $params
             );
-            foreach ($rows as &$r) { $r['id'] = (int)$r['id']; }
+            foreach ($rows as &$r) { $r['id'] = (int)$r['id']; $r['isTest'] = (int)($r['isTest'] ?? 0); }
             json_ok($rows);
         }
 
@@ -150,6 +151,21 @@ switch ($method) {
         $caption   = isset($b['caption']) ? (string)$b['caption'] : null;
         $thumb     = isset($b['thumbnail_url']) ? (string)$b['thumbnail_url'] : null;
         $when      = $parseWhen($b['scheduled_at'] ?? null);
+        $isTest    = !empty($b['is_test']);
+        $delayH    = isset($b['delay_hours']) ? (int)$b['delay_hours'] : 0;
+
+        // Test-Reel: Auto-Posting nach 24/48 h. scheduled_at wird aus „jetzt + N h"
+        // berechnet (Europe/Berlin, exakt wie publish_due.php die Fälligkeit prüft)
+        // und ersetzt eine manuell gewählte Zeit.
+        if ($delayH > 0) {
+            if (!in_array($delayH, [24, 48], true)) json_err(400, 'delay_hours muss 24 oder 48 sein.');
+            try {
+                $when = (new DateTime('now', new DateTimeZone('Europe/Berlin')))
+                            ->modify("+{$delayH} hours")->format('Y-m-d H:i:s');
+            } catch (\Throwable $e) {
+                json_err(500, 'Zeitberechnung fehlgeschlagen.');
+            }
+        }
 
         if ($assetId === '')  json_err(400, 'asset_id ist Pflicht.');
         if (!$platforms)      json_err(400, 'Mindestens eine Plattform wählen.');
@@ -188,13 +204,13 @@ switch ($method) {
             $stmt = $pdo->prepare(
                 "INSERT INTO content_queue
                    (customer_id, platform, content_type, caption, media_url, thumbnail_url,
-                    asset_id, project_id, planned_by, status, scheduled_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                    asset_id, project_id, planned_by, status, scheduled_at, is_test)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
             foreach ($platforms as $pf) {
                 $stmt->execute([
                     $a['customer_id'], $pf, $type, $caption, $mediaUrl, $thumb,
-                    $assetId, $a['project_id'], $session['uid'], $queueStatus, $when,
+                    $assetId, $a['project_id'], $session['uid'], $queueStatus, $when, $isTest ? 1 : 0,
                 ]);
                 $created[] = (int)$pdo->lastInsertId();
             }

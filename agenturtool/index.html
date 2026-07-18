@@ -13,6 +13,20 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Dodidis Media" />
 <title>Dodidis Media – Management</title>
+<script>
+  /* Theme so früh wie möglich setzen (kein Aufblitzen beim Laden). */
+  (function () {
+    try {
+      var t = localStorage.getItem('agentur_theme');
+      if (t !== 'dark' && t !== 'light') {
+        t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', t);
+      var mc = document.querySelector('meta[name="theme-color"]');
+      if (mc) mc.setAttribute('content', t === 'dark' ? '#0f1013' : '#f2f1ee');
+    } catch (e) {}
+  })();
+</script>
 <style>
   /* =========================================
      DESIGN TOKENS – Modern Dark Theme
@@ -4092,6 +4106,82 @@
   .pchip .pf { margin-left:auto; font-size:9px; opacity:.7; text-transform:uppercase; }
   @media (max-width:860px) { .posting { grid-template-columns:1fr; } .pp-items { max-height:40vh; } }
 
+  /* ── Globaler Kundenfilter (Topbar-Dropdown, seitenübergreifend) ─────────── */
+  .gcf-select {
+    width:auto; min-width:150px; max-width:220px; padding:7px 30px 7px 12px;
+    font-size:12.5px; font-weight:600; color:var(--text-1);
+    background:var(--bg-2); border:1px solid var(--border); border-radius:980px;
+    cursor:pointer; flex-shrink:0; transition:var(--transition);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239a9ca1' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 11px center;
+    -webkit-appearance:none; appearance:none;
+  }
+  .gcf-select:hover { border-color:var(--border-strong); }
+  .gcf-select.gcf-active { border-color:var(--accent); color:var(--accent); background-color:var(--accent-soft); }
+  @media (max-width:768px) { .gcf-select { min-width:0; flex:1 1 auto; max-width:none; } }
+
+  /* ── Theme-Umschalter (Sidebar) ──────────────────────────────────────────── */
+  .theme-toggle {
+    background:none; border:none; padding:6px; margin-right:2px; border-radius:8px;
+    color:var(--text-2); cursor:pointer; display:inline-flex; align-items:center;
+    justify-content:center; transition:var(--transition); flex-shrink:0;
+  }
+  .theme-toggle:hover { background:var(--bg-hover); color:var(--text-1); }
+  .theme-toggle .ic-sun { display:none; }
+  .theme-toggle .ic-moon { display:inline-flex; }
+  :root[data-theme="dark"] .theme-toggle .ic-sun { display:inline-flex; }
+  :root[data-theme="dark"] .theme-toggle .ic-moon { display:none; }
+
+  /* ===========================================================================
+     DARK THEME — aktiv via <html data-theme="dark">. Akzent = kräftiges Teal
+     (liest als Text auf Dunkel UND als Füllung mit dunklem Text gut).
+     =========================================================================== */
+  :root[data-theme="dark"] {
+    --bg-0:#0f1013; --bg-1:#17181c; --bg-2:#1e2024; --bg-3:#26282e;
+    --bg-hover:#23252b;
+    --border:rgba(255,255,255,0.10); --border-strong:rgba(255,255,255,0.20);
+    --text-1:#f3f4f6; --text-2:#a6abb3; --text-3:#71757e;
+    --accent:#2dd4bf; --accent-hover:#5eead4;
+    --accent-soft:rgba(45,212,191,0.16); --accent-glow:rgba(45,212,191,0.32);
+    --marker:#d9ef63; --marker-soft:rgba(217,239,99,0.16);
+    --success:#30d158; --warning:#f0b429; --danger:#ff5247; --info:#4c9aff;
+    --apple-blue:#0a84ff; --apple-red:#ff5247;
+    --shadow:0 30px 80px -30px rgba(0,0,0,0.75);
+    --shadow-sm:0 2px 12px -6px rgba(0,0,0,0.6);
+  }
+  /* Wenige Stellen setzen weißen Text auf --accent (im Hellmodus dunkles Ink).
+     Im Dunkelmodus ist --accent hell → Text muss dunkel werden. */
+  :root[data-theme="dark"] .btn-primary,
+  :root[data-theme="dark"] .cal-cat-chip input:checked ~ .cal-cat-box,
+  :root[data-theme="dark"] .phase-tab.active .phase-count,
+  :root[data-theme="dark"] .checklist-item.done .checklist-check { color:#0f1013 !important; }
+  :root[data-theme="dark"] .idea-img-badge { color:#0f1013; }
+  /* Monats-Kalenderbalken: hart kodierte dunkle Textfarben → helle Varianten. */
+  :root[data-theme="dark"] .month-bar.phase-shoot      { color:#c4b5fd; }
+  :root[data-theme="dark"] .month-bar.phase-production,
+  :root[data-theme="dark"] .month-bar.phase-cutter     { color:#fcd34d; }
+  :root[data-theme="dark"] .month-bar.phase-editing    { color:#6ee7b7; }
+  :root[data-theme="dark"] .month-bar.phase-posting    { color:#5eead4; }
+  :root[data-theme="dark"] .month-bar.phase-vacation   { color:#cbd5e1; }
+  :root[data-theme="dark"] .month-bar.phase-deadline   { color:#fca5a5; }
+  :root[data-theme="dark"] .month-bar.phase-todo       { color:#93c5fd; }
+  /* Posting-Chips: hart kodierte helle Hintergründe → dunkle Tönungen. */
+  :root[data-theme="dark"] .pchip.pub { background:rgba(48,209,88,0.16); color:#5be49b; }
+  :root[data-theme="dark"] .pchip.err { background:rgba(255,82,71,0.16); color:#ff9d94; }
+  /* Projekt-Modal (.pm2) ist hart auf Hell gestylt → Dunkel-Overrides. */
+  :root[data-theme="dark"] .pm2 .pm2-modal {
+    --pm-ink:#f3f4f6; --pm-g1:#a6abb3; --pm-g2:#8a8f98;
+    --pm-line:rgba(255,255,255,0.10); --pm-line2:rgba(255,255,255,0.18);
+    --pm-stone:#26282e; --pm-stone-ink:#c4c8cf; background:#17181c;
+  }
+  :root[data-theme="dark"] .pm2 .pm2-right input[type=text],
+  :root[data-theme="dark"] .pm2 .pm2-right input[type=date],
+  :root[data-theme="dark"] .pm2 .pm2-right select,
+  :root[data-theme="dark"] .pm2 .pm2-right textarea { background:#1e2024; color:#f3f4f6; }
+  :root[data-theme="dark"] .pm2 .modal-footer { background:#17181c; }
+  :root[data-theme="dark"] .pm2 .modal-footer .btn-primary { background:var(--accent); color:#0f1013; }
+  :root[data-theme="dark"] .pm2 .modal-footer .btn-primary:hover { background:var(--accent-hover); }
+
 </style>
 </head>
 <body>
@@ -4154,6 +4244,10 @@
         <div class="user-name" id="user-name"></div>
         <div class="user-role" id="user-role"></div>
       </div>
+      <button class="theme-toggle" onclick="event.stopPropagation(); toggleTheme();" title="Hell/Dunkel umschalten" aria-label="Hell/Dunkel umschalten">
+        <span class="ic-moon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+        <span class="ic-sun"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></span>
+      </button>
       <button class="logout-btn" onclick="event.stopPropagation(); logout();" title="Abmelden">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
@@ -4169,6 +4263,9 @@
         <div class="page-title" id="page-title">Dashboard</div>
         <div class="page-subtitle" id="page-subtitle"></div>
       </div>
+      <select id="global-customer-filter" class="gcf-select" style="display:none;"
+              onchange="setCustomerFilter(this.value)" title="Nach Kunde filtern"
+              aria-label="Nach Kunde filtern"></select>
       <div id="topbar-actions"></div>
     </div>
     <div class="content" id="content"></div>
@@ -4592,9 +4689,12 @@ function vacationSuffixForCutter(userId, shootDate, deadline) {
   return '';
 }
 
-function getRelevantProjects(user, source = null) {
+// respectCustomerFilter=false umgeht den globalen Kundenfilter (z. B. wenn das
+// Filter-Dropdown selbst die Liste sichtbarer Kunden aufbaut → sonst Henne-Ei).
+function getRelevantProjects(user, source = null, respectCustomerFilter = true) {
   const all = source || store.projects;
-  if (hasRole(user, ROLES.ADMIN)) return all;
+  const apply = list => respectCustomerFilter ? applyCustomerFilter(list) : list;
+  if (hasRole(user, ROLES.ADMIN)) return apply(all);
   const result = new Map();
   if (hasRole(user, ROLES.MANAGER)) {
     const myCustomerIds = new Set(store.customers.filter(c => c.managerId === user.id).map(c => c.id));
@@ -4609,7 +4709,7 @@ function getRelevantProjects(user, source = null) {
       .filter(p => p.cutterId === user.id && cutterCanSeeStatus(p.status))
       .forEach(p => result.set(p.id, p));
   }
-  return Array.from(result.values());
+  return apply(Array.from(result.values()));
 }
 
 /* Zählt Projekte, die aktuell auf eine Aktion dieser Person warten */
@@ -5108,6 +5208,9 @@ async function logout() {
 /* ----------- NAV / ROUTING ----------- */
 let currentPage = 'dashboard';
 
+/* Globaler Kundenfilter (seitenübergreifend, in localStorage gemerkt). */
+let customerFilter = (() => { try { return localStorage.getItem('global_customer_filter') || 'all'; } catch (e) { return 'all'; } })();
+
 function getNavItemsForUser(session) {
   if (!session) return [];
   if (session.type === 'customer') {
@@ -5402,8 +5505,70 @@ function renderPage() {
     currentPage = 'dashboard';
   }
 
+  refreshCustomerFilterBar(session);
+
   const render = pages[currentPage] || renderDashboard;
   render(session);
+}
+
+/* ===================== THEME (Hell/Dunkel) ===================== */
+function applyTheme(t) {
+  const theme = (t === 'dark') ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  try { localStorage.setItem('agentur_theme', theme); } catch (e) {}
+  const mc = document.querySelector('meta[name="theme-color"]');
+  if (mc) mc.setAttribute('content', theme === 'dark' ? '#0f1013' : '#f2f1ee');
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+}
+
+/* ===================== GLOBALER KUNDENFILTER ===================== */
+function getCustomerFilter() { return customerFilter || 'all'; }
+// Filtert eine Liste anhand des gewählten Kunden. key = Feld mit der customerId.
+function applyCustomerFilter(list, key = 'customerId') {
+  const f = getCustomerFilter();
+  if (!f || f === 'all') return list;
+  return (list || []).filter(x => x && x[key] === f);
+}
+function setCustomerFilter(v) {
+  customerFilter = v || 'all';
+  try { localStorage.setItem('global_customer_filter', customerFilter); } catch (e) {}
+  renderPage();
+}
+// Baut das Topbar-Dropdown auf und blendet es nur auf relevanten Seiten für Staff ein.
+const GCF_PAGES = ['dashboard', 'projects', 'calendar', 'shootdays'];
+function refreshCustomerFilterBar(session) {
+  const el = document.getElementById('global-customer-filter');
+  if (!el) return;
+  const isStaff = (session?.type === 'staff');
+  const show = isStaff && GCF_PAGES.includes(currentPage) && (store.customers || []).length > 0;
+  if (!show) { el.style.display = 'none'; return; }
+
+  // Sichtbare Kunden = die, deren Projekte der User ohnehin sehen darf.
+  const visibleIds = new Set(getRelevantProjects(session.user, store.projects, false).map(p => p.customerId));
+  let custs = (store.customers || []).filter(c => hasRole(session.user, ROLES.ADMIN) || visibleIds.has(c.id));
+  custs = custs.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  // Gewählter Kunde nicht mehr sichtbar → zurücksetzen.
+  if (customerFilter !== 'all' && !custs.some(c => c.id === customerFilter)) {
+    customerFilter = 'all';
+    try { localStorage.setItem('global_customer_filter', 'all'); } catch (e) {}
+  }
+  el.innerHTML = `<option value="all">Alle Kunden</option>` +
+    custs.map(c => `<option value="${c.id}"${c.id === customerFilter ? ' selected' : ''}>${escape(c.name || '—')}</option>`).join('');
+  el.value = customerFilter;
+  el.classList.toggle('gcf-active', customerFilter !== 'all');
+  el.style.display = '';
+}
+
+/* ===================== KALENDER: Deadlines/Postings-Umschalter ===================== */
+let calEventMode = (() => { try { return localStorage.getItem('cal_event_mode') || 'all'; } catch (e) { return 'all'; } })();
+function setCalEventMode(m) {
+  calEventMode = (['all', 'deadline', 'posting'].includes(m)) ? m : 'all';
+  try { localStorage.setItem('cal_event_mode', calEventMode); } catch (e) {}
+  renderCalendar(getCurrentUser());
 }
 
 /* ----------- CRM › ANFRAGEN (nur Admin) ----------- */
@@ -7586,8 +7751,8 @@ function renderPostingPane() {
     return;
   }
 
-  // Linke Videoliste
-  const items = posting.pool.map(a => {
+  // Linke Videoliste (globaler Kundenfilter berücksichtigt)
+  const items = applyCustomerFilter(posting.pool).map(a => {
     const badge = a.projectStatus === 'freigegeben'
       ? '<span class="badge badge-freigegeben" style="font-size:10px;">freigegeben</span>'
       : `<span class="badge badge-${statusCls(a.projectStatus)}" style="font-size:10px;">${escape(statusLabel(a.projectStatus))}</span>`;
@@ -7608,7 +7773,7 @@ function renderPostingPane() {
   const todayISO = pmISO(new Date());
   // scheduled nach Tag gruppieren
   const byDay = {};
-  posting.scheduled.forEach(s => {
+  applyCustomerFilter(posting.scheduled).forEach(s => {
     if (!s.scheduledAt) return;
     const day = String(s.scheduledAt).slice(0, 10);
     (byDay[day] = byDay[day] || []).push(s);
@@ -7621,8 +7786,9 @@ function renderPostingPane() {
     const chips = (byDay[iso] || []).map(s => {
       const cls = s.status === 'published' ? 'pub' : (s.status === 'error' ? 'err' : '');
       const time = s.scheduledAt ? String(s.scheduledAt).slice(11, 16) : '';
-      return `<div class="pchip ${cls}" onclick="ppChipClick(${s.id})" title="${escape(s.projectTitle || '')} — ${escape(s.platform)}">
-        ${time} <span class="pf">${escape((s.platform || '').slice(0,2))}</span></div>`;
+      const testMark = s.isTest ? '🧪 ' : '';
+      return `<div class="pchip ${cls}" onclick="ppChipClick(${s.id})" title="${s.isTest ? 'Test-Reel · ' : ''}${escape(s.projectTitle || '')} — ${escape(s.platform)}">
+        ${testMark}${time} <span class="pf">${escape((s.platform || '').slice(0,2))}</span></div>`;
     }).join('');
     cells += `<div class="pcal-day ${iso === todayISO ? 'today' : ''}" data-iso="${iso}"
       ondragover="ppDayOver(event)" ondragleave="ppDayLeave(event)" ondrop="ppDayDrop(event,'${iso}')">
@@ -7688,6 +7854,19 @@ function openPlanDialog(assetId, iso) {
             <div style="flex:1;"><label class="form-label">Datum</label><input type="date" id="plan-date" value="${iso}" style="width:100%;padding:9px 11px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border);color:inherit;"/></div>
             <div style="flex:1;"><label class="form-label">Uhrzeit</label><input type="time" id="plan-time" value="18:00" style="width:100%;padding:9px 11px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border);color:inherit;"/></div>
           </div>
+          <div class="form-group" style="border-top:1px solid var(--border);padding-top:12px;margin-top:2px;">
+            <label class="checkbox-row" style="padding:0;margin:0;">
+              <input type="checkbox" id="plan-test" onchange="ppToggleTest(this.checked)"/>
+              <span>🧪 Test-Reel — automatisch nach 24 / 48 h posten</span>
+            </label>
+            <div id="plan-test-opts" style="display:none;margin-top:10px;">
+              <span class="pp-seg">
+                <button type="button" id="plan-delay-24" class="on" onclick="ppSetDelay(24)">in 24 h</button>
+                <button type="button" id="plan-delay-48" onclick="ppSetDelay(48)">in 48 h</button>
+              </span>
+              <div class="text-sm text-muted" style="margin-top:8px;">Datum &amp; Uhrzeit werden automatisch gesetzt (Feld oben wird ignoriert).${(asset && asset.projectStatus !== 'freigegeben') ? ' <strong>Hinweis:</strong> Projekt ist noch nicht freigegeben — der Test-Reel landet erst im Content-Review und geht nicht automatisch raus.' : ''}</div>
+            </div>
+          </div>
           <div class="form-group"><label class="form-label">Caption (optional)</label><textarea id="plan-caption" placeholder="Text zum Post…" style="width:100%;min-height:70px;padding:9px 11px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border);color:inherit;"></textarea></div>
         </div>
         <div class="modal-footer">
@@ -7699,23 +7878,41 @@ function openPlanDialog(assetId, iso) {
   $('#modal-container').innerHTML = html;
 }
 
+// Test-Reel-Umschalter im Plan-Dialog: blendet die 24/48-h-Auswahl ein und
+// deaktiviert die manuelle Datum-/Uhrzeitwahl (die Zeit wird serverseitig gesetzt).
+function ppToggleTest(on) {
+  const opts = document.getElementById('plan-test-opts');
+  if (opts) opts.style.display = on ? 'block' : 'none';
+  ['plan-date', 'plan-time'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = on; });
+}
+function ppSetDelay(h) {
+  document.getElementById('plan-delay-24')?.classList.toggle('on', h === 24);
+  document.getElementById('plan-delay-48')?.classList.toggle('on', h === 48);
+}
+
 async function submitPlan(assetId) {
   const platforms = [...document.querySelectorAll('input[name=pf]:checked')].map(c => c.value);
   const date = document.getElementById('plan-date')?.value;
   const time = document.getElementById('plan-time')?.value || '00:00';
   const caption = document.getElementById('plan-caption')?.value || '';
+  const isTest = !!document.getElementById('plan-test')?.checked;
+  const delay = document.getElementById('plan-delay-48')?.classList.contains('on') ? 48 : 24;
   if (!platforms.length) { appAlert('Mindestens eine Plattform wählen.'); return; }
-  if (!date) { appAlert('Datum fehlt.'); return; }
+  if (!isTest && !date) { appAlert('Datum fehlt.'); return; }
+  const payload = { asset_id: assetId, platforms, content_type: 'reel', caption };
+  if (isTest) { payload.is_test = true; payload.delay_hours = delay; }
+  else { payload.scheduled_at = `${date} ${time}`; }
   try {
     const res = await fetch(`${API_BASE}/content_plan.php?action=plan`, {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
-      body: JSON.stringify({ asset_id: assetId, platforms, content_type: 'reel', caption, scheduled_at: `${date} ${time}` }),
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
     closeModal();
-    showToast('Eingeplant', `${platforms.length} Plattform(en) · ${date} ${time}`);
+    showToast(isTest ? 'Test-Reel eingeplant' : 'Eingeplant',
+      isTest ? `${platforms.length} Plattform(en) · automatisch in ${delay} h` : `${platforms.length} Plattform(en) · ${date} ${time}`);
     loadPostingPane();
   } catch (e) {
     appAlert('Planung fehlgeschlagen: ' + e.message);
@@ -8858,7 +9055,7 @@ function renderShootDays(session) {
   `;
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const all = (store.shootDays || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+  const all = applyCustomerFilter((store.shootDays || []).slice()).sort((a, b) => a.date.localeCompare(b.date));
   const upcoming = all.filter(s => s.date >= todayStr);
   const past = all.filter(s => s.date < todayStr).reverse();
 
@@ -12461,7 +12658,7 @@ function buildCalendarBars(session) {
   const bars = [];
 
   // Drehtage als eigene Entitäten – EINE Bar pro Drehtag, unabhängig wie viele Projekte zugewiesen sind
-  const visibleShootDays = (store.shootDays || []).filter(sd => {
+  const visibleShootDays = applyCustomerFilter((store.shootDays || [])).filter(sd => {
     // Videograf sieht nur seine eigenen Drehtage, Cutter nur die zu deren Projekten;
     // Admin/Manager sehen alles
     if (hasRole(user, ROLES.ADMIN, ROLES.MANAGER)) return true;
@@ -12512,12 +12709,13 @@ function buildCalendarBars(session) {
     // Der Kalender zeigt bewusst KEINE Produktionsspanne mehr (kein „Bearbeitungs-
     // prozess jeden Tag als Termin"). Es bleibt nur das echte Posting-Datum als
     // Video-Termin – plus die separaten Entitäten Drehtag, Meeting, Aufgabe, Urlaub.
-    if (pd && showsPostings) {
+    // Umschalter „Alle / Deadlines / Postings" (nur für Rollen, die beides sehen).
+    if (pd && showsPostings && calEventMode !== 'deadline') {
       bars.push({ ...base, phase: 'posting', startDate: pd, endDate: pd, postingDate: pd, time: '18:00' });
     }
     // Cutter-Deadline als Einzeltermin: für Cutter (die kein Posting sehen) UND
     // zusätzlich für Admins (die so Posting + Deadline im Kalender haben).
-    if (dl && (isAdmin || !showsPostings)) {
+    if (dl && (isAdmin || !showsPostings) && calEventMode !== 'posting') {
       bars.push({ ...base, phase: 'deadline', startDate: dl, endDate: dl, deadline: dl, time: '17:00' });
     }
 
@@ -13638,11 +13836,23 @@ function renderCalendarBar(ev) {
 function renderCalendar(session) {
   $('#page-title').textContent = 'Kalender';
   $('#page-subtitle').textContent = 'Alle Projekte, Drehtage und Deadlines';
+  // Umschalter „Alle / Deadlines / Postings" nur für Rollen, die beide Termin-
+  // arten sehen (Admin: Posting + Deadline). Andere Rollen sehen ohnehin nur eine.
+  const showsBoth = hasRole(session.user, ROLES.ADMIN);
+  const modeSeg = showsBoth ? `
+    <span class="pp-seg" style="margin-right:8px;" title="Kalender-Termine filtern">
+      <button class="${calEventMode === 'all' ? 'on' : ''}" onclick="setCalEventMode('all')">Alle</button>
+      <button class="${calEventMode === 'deadline' ? 'on' : ''}" onclick="setCalEventMode('deadline')">Deadlines</button>
+      <button class="${calEventMode === 'posting' ? 'on' : ''}" onclick="setCalEventMode('posting')">Postings</button>
+    </span>` : '';
   $('#topbar-actions').innerHTML = `
-    <button class="btn btn-secondary" onclick="openMyProfile()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Kalender-Abo
-    </button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      ${modeSeg}
+      <button class="btn btn-secondary" onclick="openMyProfile()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Kalender-Abo
+      </button>
+    </div>
   `;
   $('#content').innerHTML = `<div class="calendar" id="main-calendar"></div>`;
   if (calendarView === 'week') renderCalWeekGrid('main-calendar', session);
