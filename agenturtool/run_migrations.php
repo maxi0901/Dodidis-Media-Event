@@ -823,6 +823,47 @@ if (tableExists($pdo, 'assets')) {
         $results);
 }
 
+// ── 35. Kommunikation: WhatsApp-Team-Posteingang (Cloud API) ──────────────────
+// 1:1-Chats (Kontakt ↔ Agentur-Business-Nummer). Eingehende Nachrichten kommen
+// per Webhook (wa_webhook.php), Antworten gehen über die Graph-API (wa_inbox.php).
+if (!tableExists($pdo, 'wa_conversations')) {
+    step($pdo, "wa_conversations: Tabelle anlegen",
+        "CREATE TABLE wa_conversations (
+           id              VARCHAR(64)  NOT NULL PRIMARY KEY,
+           wa_id           VARCHAR(32)  NOT NULL,
+           name            VARCHAR(190) NULL,
+           last_message_at DATETIME     NULL,
+           last_preview    VARCHAR(255) NULL,
+           last_direction  ENUM('in','out') NULL,
+           unread          INT NOT NULL DEFAULT 0,
+           created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           updated_at      DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+           UNIQUE KEY uq_wa_id (wa_id),
+           KEY idx_wa_last (last_message_at)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "wa_conversations: bereits vorhanden"];
+}
+if (!tableExists($pdo, 'wa_messages')) {
+    step($pdo, "wa_messages: Tabelle anlegen",
+        "CREATE TABLE wa_messages (
+           id              VARCHAR(64)  NOT NULL PRIMARY KEY,
+           conversation_id VARCHAR(64)  NOT NULL,
+           wa_message_id   VARCHAR(128) NULL,
+           direction       ENUM('in','out') NOT NULL,
+           type            VARCHAR(24)  NOT NULL DEFAULT 'text',
+           body            TEXT NULL,
+           status          VARCHAR(24)  NULL,
+           wa_timestamp    DATETIME NULL,
+           sent_by         VARCHAR(64)  NULL,
+           created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           UNIQUE KEY uq_wamid (wa_message_id),
+           KEY idx_wam_conv (conversation_id, created_at)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "wa_messages: bereits vorhanden"];
+}
+
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>

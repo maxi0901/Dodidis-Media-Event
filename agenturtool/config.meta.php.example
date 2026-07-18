@@ -24,4 +24,14 @@ return [
     'app_secret'    => 'HIER-DAS-META-APP-SECRET',
     'redirect_uri'  => 'https://dodidis-media.de/agenturtool/api/meta_callback.php',
     'graph_version' => 'v21.0',
+
+    // ── WhatsApp Cloud API (Kommunikation / Team-Posteingang) ──────────────
+    // Aus der Meta-App -> WhatsApp -> API-Setup:
+    //   wa_phone_number_id : ID der Business-Telefonnummer (NICHT die Nummer selbst)
+    //   wa_token           : Dauer-Token (System-User, Scope whatsapp_business_messaging)
+    //   wa_verify_token    : frei wählbares Passwort — MUSS mit dem im Webhook
+    //                        (Meta-App -> WhatsApp -> Konfiguration) übereinstimmen
+    'wa_phone_number_id' => 'HIER-DIE-PHONE-NUMBER-ID',
+    'wa_token'           => 'HIER-DER-WHATSAPP-DAUER-TOKEN',
+    'wa_verify_token'    => 'FREI-WAEHLBARES-VERIFY-PASSWORT',
 ];

@@ -5160,6 +5160,11 @@ function getNavItemsForUser(session) {
     items.push({ id: 'crm-requests', label: 'Anfragen', icon: 'users', group: 'CRM', badge: openReq > 0 ? openReq : null });
   }
 
+  // ── Kommunikation (nur Admin) — WhatsApp-Team-Posteingang ────────────────────
+  if (hasRole(user, ROLES.ADMIN)) {
+    items.push({ id: 'kommunikation', label: 'Kommunikation', icon: 'chat', group: 'Kommunikation' });
+  }
+
   // ── Team ──────────────────────────────────────────────────────────────────
   // Offene Aufgaben für diesen User zählen
   const openTodos = store.todos.filter(t => (t.assigneeIds || []).includes(user.id) && t.status === 'open').length;
@@ -5191,7 +5196,8 @@ const ICONS = {
   document: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
   meeting: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><line x1="12" y1="22" x2="12" y2="18"/><line x1="10" y1="20" x2="14" y2="20"/></svg>',
   bell: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
-  image: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
+  image: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+  chat: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>'
 };
 
 function renderNav() {
@@ -5370,6 +5376,7 @@ function renderPage() {
     contracts: renderContracts,
     'social-content': renderSocialContent,
     'crm-requests': renderCrmRequests,
+    kommunikation: renderKommunikation,
     admin: renderAdmin,
     'customer-overview': renderCustomerOverview
   };
@@ -5386,6 +5393,9 @@ function renderPage() {
     currentPage = 'dashboard';
   }
   if (currentPage === 'social-content' && (session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER))) {
+    currentPage = 'dashboard';
+  }
+  if (currentPage === 'kommunikation' && (session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN))) {
     currentPage = 'dashboard';
   }
   if (currentPage === 'crm-requests' && (session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN))) {
@@ -14759,6 +14769,173 @@ function renderCustomerOverview(session) {
 
 /* ----------- TODOS PAGE ----------- */
 let todoFilter = 'mine'; // 'mine' | 'created' | 'all'
+
+/* ===== Kommunikation: WhatsApp-Team-Posteingang (nur Admin) ================= */
+const wa = { conversations: [], activeId: null, activeConv: null, messages: [], poll: null };
+
+function renderKommunikation(session) {
+  $('#page-title').textContent = 'Kommunikation';
+  $('#page-subtitle').textContent = 'WhatsApp — 1:1-Chats lesen & beantworten';
+  $('#topbar-actions').innerHTML = `<button class="btn btn-ghost" onclick="loadWaConversations(true)">↻ Aktualisieren</button>`;
+  $('#content').innerHTML = `
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="wa-wrap">
+        <div class="wa-list" id="wa-list"><div class="text-muted" style="padding:20px;">Lade Chats…</div></div>
+        <div class="wa-thread" id="wa-thread"><div class="wa-empty">Wähle links einen Chat, um ihn zu lesen und zu beantworten.</div></div>
+      </div>
+    </div>
+    <style>
+      .wa-wrap { display:grid; grid-template-columns:320px 1fr; min-height:560px; }
+      .wa-list { border-right:1px solid var(--border); overflow-y:auto; max-height:72vh; }
+      .wa-conv { display:flex; gap:10px; align-items:center; padding:12px 14px; border-bottom:1px solid var(--border); cursor:pointer; }
+      .wa-conv:hover { background:rgba(255,255,255,0.03); }
+      .wa-conv.active { background:rgba(10,132,255,0.12); }
+      .wa-av { width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:600;flex-shrink:0; }
+      .wa-conv-main { flex:1;min-width:0; }
+      .wa-conv-name { font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+      .wa-conv-prev { font-size:12px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+      .wa-conv-meta { text-align:right;flex-shrink:0; }
+      .wa-unread { display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;border-radius:9px;background:#30d158;color:#04210f;font-size:11px;font-weight:700;padding:0 5px;margin-top:3px; }
+      .wa-thread { display:flex;flex-direction:column;max-height:72vh; }
+      .wa-thread-head { padding:12px 16px;border-bottom:1px solid var(--border);font-weight:600; }
+      .wa-msgs { flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px; }
+      .wa-bubble { max-width:72%;padding:8px 12px;border-radius:12px;font-size:13.5px;white-space:pre-wrap;word-break:break-word; }
+      .wa-in { align-self:flex-start;background:rgba(255,255,255,0.07); }
+      .wa-out { align-self:flex-end;background:#0a84ff;color:#fff; }
+      .wa-b-meta { font-size:10.5px;opacity:.65;margin-top:3px;text-align:right; }
+      .wa-form { display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--border); }
+      .wa-form input { flex:1; }
+      .wa-empty { flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-3);padding:40px;text-align:center; }
+      @media (max-width:800px){ .wa-wrap { grid-template-columns:1fr; } .wa-list { max-height:220px; } }
+    </style>`;
+  loadWaConversations();
+  clearInterval(wa.poll);
+  wa.poll = setInterval(() => { if (currentPage === 'kommunikation') waPollTick(); else clearInterval(wa.poll); }, 8000);
+}
+
+async function loadWaConversations(toast) {
+  try {
+    const res = await fetch(`${API_BASE}/wa_inbox.php?action=conversations`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+    const dj = await res.json().catch(() => ({}));
+    if (!res.ok || !dj.ok) throw new Error((dj && dj.error) || ('HTTP ' + res.status));
+    wa.conversations = dj.data || [];
+    renderWaList();
+    if (toast) showToast('Aktualisiert', wa.conversations.length + ' Chat(s)');
+  } catch (e) {
+    const l = document.getElementById('wa-list');
+    if (l) l.innerHTML = `<div class="text-muted" style="padding:20px;">Chats nicht verfügbar: ${escape(e.message || 'Fehler')}</div>`;
+  }
+}
+
+function renderWaList() {
+  const l = document.getElementById('wa-list'); if (!l) return;
+  if (!wa.conversations.length) {
+    l.innerHTML = `<div class="text-muted" style="padding:22px;line-height:1.6;">Noch keine WhatsApp-Chats.<br><span style="font-size:12px;">Sobald jemand eure Business-Nummer anschreibt, erscheint der Chat hier.</span></div>`;
+    return;
+  }
+  l.innerHTML = wa.conversations.map(c => {
+    const name = c.name || c.waId;
+    const when = c.lastMessageAt ? new Date(String(c.lastMessageAt).replace(' ', 'T')).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+    return `<div class="wa-conv ${c.id === wa.activeId ? 'active' : ''}" onclick="openWaConversation('${c.id}')">
+      <span class="wa-av" style="background:${nasAvatarColor(name)}">${escape(nasInitials(name))}</span>
+      <div class="wa-conv-main">
+        <div class="wa-conv-name">${escape(name)}</div>
+        <div class="wa-conv-prev">${c.lastDirection === 'out' ? 'Du: ' : ''}${escape(c.lastPreview || '')}</div>
+      </div>
+      <div class="wa-conv-meta">
+        <div style="font-size:10.5px;color:var(--text-3);">${escape(when)}</div>
+        ${c.unread > 0 ? `<span class="wa-unread">${c.unread}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openWaConversation(convId) {
+  wa.activeId = convId;
+  renderWaList();
+  const t = document.getElementById('wa-thread');
+  if (t) t.innerHTML = `<div class="wa-empty">Lade…</div>`;
+  try {
+    const res = await fetch(`${API_BASE}/wa_inbox.php?action=messages&id=${encodeURIComponent(convId)}`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+    const dj = await res.json().catch(() => ({}));
+    if (!res.ok || !dj.ok) throw new Error((dj && dj.error) || ('HTTP ' + res.status));
+    wa.activeConv = dj.data.conversation;
+    wa.messages = dj.data.messages || [];
+    renderWaThread();
+    const c = wa.conversations.find(x => x.id === convId); if (c) { c.unread = 0; renderWaList(); }
+  } catch (e) {
+    if (t) t.innerHTML = `<div class="wa-empty">Fehler: ${escape(e.message || '')}</div>`;
+  }
+}
+
+function waBubble(msg) {
+  const out = msg.direction === 'out';
+  const raw = msg.waTimestamp || msg.createdAt;
+  const when = raw ? new Date(String(raw).replace(' ', 'T')).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+  const st = out ? ({ sent: '✓', delivered: '✓✓', read: '✓✓ gelesen', failed: '⚠ fehlgeschlagen' }[msg.status] || '') : '';
+  return `<div class="wa-bubble ${out ? 'wa-out' : 'wa-in'}">${escape(msg.body || '')}<div class="wa-b-meta">${escape(when)}${st ? ' · ' + st : ''}</div></div>`;
+}
+
+function renderWaThread() {
+  const t = document.getElementById('wa-thread'); if (!t || !wa.activeConv) return;
+  const conv = wa.activeConv;
+  const name = conv.name || conv.waId;
+  t.innerHTML = `
+    <div class="wa-thread-head">${escape(name)} <span style="font-weight:400;color:var(--text-3);font-size:12px;">· +${escape(conv.waId)}</span></div>
+    <div class="wa-msgs" id="wa-msgs">${wa.messages.map(waBubble).join('')}</div>
+    <div class="wa-form">
+      <input type="text" id="wa-input" maxlength="4000" placeholder="Nachricht schreiben…" onkeydown="if(event.key==='Enter')sendWaReply()">
+      <button type="button" class="btn btn-primary" onclick="sendWaReply()">Senden</button>
+    </div>`;
+  const m = document.getElementById('wa-msgs'); if (m) m.scrollTop = m.scrollHeight;
+}
+
+async function sendWaReply() {
+  const input = document.getElementById('wa-input'); if (!input) return;
+  const text = input.value.trim();
+  if (!text || !wa.activeId) return;
+  input.value = ''; input.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/wa_inbox.php?action=send`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ id: wa.activeId, text }),
+    });
+    const dj = await res.json().catch(() => ({}));
+    if (!res.ok || !dj.ok) throw new Error((dj && dj.error) || ('HTTP ' + res.status));
+    wa.messages.push({ direction: 'out', type: 'text', body: text, status: 'sent', createdAt: new Date().toISOString() });
+    renderWaThread();
+    loadWaConversations();
+  } catch (e) {
+    appAlert('Senden fehlgeschlagen: ' + (e.message || 'Fehler') + '\n(Außerhalb des 24-Stunden-Fensters sind nur genehmigte Vorlagen erlaubt.)', { title: 'WhatsApp' });
+    input.value = text;
+  } finally {
+    input.disabled = false;
+    input.focus && input.focus();
+  }
+}
+
+// Leises Nachladen im Hintergrund (stört Tipp-Fokus nicht).
+function waPollTick() {
+  loadWaConversations();
+  if (!wa.activeId) return;
+  fetch(`${API_BASE}/wa_inbox.php?action=messages&id=${encodeURIComponent(wa.activeId)}`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } })
+    .then(r => r.json()).then(dj => {
+      if (!dj || !dj.ok) return;
+      const next = dj.data.messages || [];
+      // Fingerabdruck aus ID+Status, damit auch reine Statuswechsel
+      // (gesendet → zugestellt → gelesen) neu gerendert werden, nicht nur
+      // neue Nachrichten (die die Länge ändern).
+      const waSig = arr => arr.map(m => (m.id || '') + ':' + (m.status || '')).join('|');
+      if (waSig(next) === waSig(wa.messages)) return;
+      wa.messages = next;
+      const msEl = document.getElementById('wa-msgs');
+      if (!msEl) return;
+      const atBottom = msEl.scrollHeight - msEl.scrollTop - msEl.clientHeight < 40;
+      msEl.innerHTML = wa.messages.map(waBubble).join('');
+      if (atBottom) msEl.scrollTop = msEl.scrollHeight;
+    }).catch(() => {});
+}
 
 function renderTodos(session) {
   const user = session.user;
