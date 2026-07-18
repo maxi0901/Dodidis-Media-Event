@@ -35,9 +35,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
 $raw    = (string)file_get_contents('php://input');
 $secret = (string)$cfg['app_secret'];
 
-// Signatur prüfen (wenn App-Secret gesetzt). Header: sha256=<hmac>
+// Signatur prüfen. Wenn ein App-Secret konfiguriert ist, ist die Signatur
+// PFLICHT — sonst könnte jeder ohne Header gefälschte Inbox-Daten einschleusen
+// (der Endpunkt hat kein Login). Header: sha256=<hmac>
 $sigHeader = (string)($_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '');
-if ($secret !== '' && $sigHeader !== '') {
+if ($secret !== '') {
+    if ($sigHeader === '') {
+        http_response_code(403);
+        exit('Missing signature');
+    }
     $expected = 'sha256=' . hash_hmac('sha256', $raw, $secret);
     if (!hash_equals($expected, $sigHeader)) {
         http_response_code(403);
@@ -82,10 +88,34 @@ foreach (($data['entry'] ?? []) as $entry) {
             $ts = isset($m['timestamp']) ? date('Y-m-d H:i:s', (int)$m['timestamp']) : date('Y-m-d H:i:s');
 
             try {
-                // Konversation anlegen/aktualisieren
+                // Konversation sicherstellen — aber noch OHNE unread/Vorschau zu
+                // verändern. Das passiert erst, wenn die Nachricht wirklich neu ist.
                 $conv = db_one("SELECT id FROM wa_conversations WHERE wa_id = ?", [$waId]);
                 if ($conv) {
                     $convId = (string)$conv['id'];
+                } else {
+                    $convId = uid('wac');
+                    db_exec(
+                        "INSERT INTO wa_conversations (id, wa_id, name, last_direction, unread)
+                         VALUES (?, ?, ?, 'in', 0)",
+                        [$convId, $waId, $names[$waId] ?? null]
+                    );
+                }
+
+                // Nachricht speichern (dedupe über wa_message_id). rowCount()>0
+                // heißt: es wurde tatsächlich eine neue Zeile angelegt.
+                $created = db_exec(
+                    "INSERT IGNORE INTO wa_messages
+                       (id, conversation_id, wa_message_id, direction, type, body, status, wa_timestamp)
+                     VALUES (?, ?, ?, 'in', ?, ?, 'received', ?)",
+                    [uid('wam'), $convId, $wamid ?: null, (string)($m['type'] ?? 'text'), $preview, $ts]
+                );
+
+                // Konversation NUR bei echter neuer Nachricht aktualisieren —
+                // sonst blähen Meta-Retries (gleiche wa_message_id) den unread-
+                // Zähler auf und eine alte Wiederholung sähe aus wie die neueste
+                // Aktivität.
+                if ($created > 0) {
                     db_exec(
                         "UPDATE wa_conversations
                             SET name = COALESCE(NULLIF(?, ''), name),
@@ -94,22 +124,7 @@ foreach (($data['entry'] ?? []) as $entry) {
                           WHERE id = ?",
                         [$names[$waId] ?? '', $ts, mb_substr($preview, 0, 255), $convId]
                     );
-                } else {
-                    $convId = uid('wac');
-                    db_exec(
-                        "INSERT INTO wa_conversations (id, wa_id, name, last_message_at, last_preview, last_direction, unread)
-                         VALUES (?, ?, ?, ?, ?, 'in', 1)",
-                        [$convId, $waId, $names[$waId] ?? null, $ts, mb_substr($preview, 0, 255)]
-                    );
                 }
-
-                // Nachricht speichern (dedupe über wa_message_id)
-                db_exec(
-                    "INSERT IGNORE INTO wa_messages
-                       (id, conversation_id, wa_message_id, direction, type, body, status, wa_timestamp)
-                     VALUES (?, ?, ?, 'in', ?, ?, 'received', ?)",
-                    [uid('wam'), $convId, $wamid ?: null, (string)($m['type'] ?? 'text'), $preview, $ts]
-                );
             } catch (\Throwable $e) {
                 error_log('[wa_webhook] message: ' . $e->getMessage());
             }

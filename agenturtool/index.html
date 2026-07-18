@@ -14891,7 +14891,11 @@ function waPollTick() {
     .then(r => r.json()).then(dj => {
       if (!dj || !dj.ok) return;
       const next = dj.data.messages || [];
-      if (next.length === wa.messages.length) return;
+      // Fingerabdruck aus ID+Status, damit auch reine Statuswechsel
+      // (gesendet → zugestellt → gelesen) neu gerendert werden, nicht nur
+      // neue Nachrichten (die die Länge ändern).
+      const waSig = arr => arr.map(m => (m.id || '') + ':' + (m.status || '')).join('|');
+      if (waSig(next) === waSig(wa.messages)) return;
       wa.messages = next;
       const msEl = document.getElementById('wa-msgs');
       if (!msEl) return;
