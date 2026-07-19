@@ -4231,6 +4231,9 @@
     padding:6px 10px; text-align:center;
   }
   .nas-drop.drop-over .nas-drop-hint { color:var(--accent); border-color:var(--accent); }
+  .nas-file[draggable="true"] { cursor:grab; }
+  .nas-file[draggable="true"]:active { cursor:grabbing; }
+  .nas-file .btn { cursor:pointer; }
 
 </style>
 </head>
@@ -10775,6 +10778,21 @@ document.addEventListener('click', (e) => {
 (function initDropUpload() {
   const zone = (t) => (t && t.closest) ? t.closest('[data-drop]') : null;
   const isFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+
+  // Drag-OUT-Download: eine NAS-Datei in den Finder ziehen. Funktioniert nur in
+  // Chromium (Chrome/Edge) über den DownloadURL-Mechanismus; in Safari passiert
+  // nichts (dort bleibt der „⬇ Laden"-Button). Fällt nie auf Fehler.
+  document.addEventListener('dragstart', (e) => {
+    const row = e.target && e.target.closest ? e.target.closest('[data-dl-url]') : null;
+    if (!row || !e.dataTransfer) return;
+    const name = row.getAttribute('data-dl-name') || 'download';
+    const mime = row.getAttribute('data-dl-mime') || 'application/octet-stream';
+    try {
+      const abs = new URL(row.getAttribute('data-dl-url'), location.href).href;
+      e.dataTransfer.setData('DownloadURL', `${mime}:${name}:${abs}`);
+      e.dataTransfer.effectAllowed = 'copy';
+    } catch (_) { /* Browser ohne DownloadURL (Safari) → Button nutzen */ }
+  });
   document.addEventListener('dragover', (e) => {
     if (!isFiles(e)) return;
     const dz = zone(e.target); if (!dz) return;
@@ -10876,8 +10894,12 @@ function renderNasMedia() {
     // bestimmten NAS-Dateinamen. NIE in Inline-Handler einbetten — stattdessen
     // per escape() ins data-Attribut (nie als Code ausgewertet) + Delegation.
     const idAttr = escape(String(a.id));
+    // Drag-out-Download (Chrome/Edge): relative Download-URL fürs data-Attribut.
+    const dlUrl = API_BASE + '/nas_assets.php?id=' + encodeURIComponent(a.id) + (manual ? '&project_id=' + encodeURIComponent(pid) : '');
     return `
-      <div class="file-uploaded" style="${opts.old ? 'opacity:0.55;' : ''}">
+      <div class="file-uploaded nas-file" draggable="true"
+           data-dl-url="${escape(dlUrl)}" data-dl-name="${escape(a.filename)}" data-dl-mime="${escape(a.contentType || 'application/octet-stream')}"
+           title="Zum Herunterladen in den Finder ziehen (Chrome/Edge)" style="${opts.old ? 'opacity:0.55;' : ''}">
         <span class="nas-media-dot stored" title="Auf dem NAS gespeichert"></span>
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:7px;min-width:0;">
