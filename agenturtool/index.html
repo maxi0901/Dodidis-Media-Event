@@ -4219,6 +4219,19 @@
     .upl-x { font-size:13px; }
   }
 
+  /* ── Datei-Drag&Drop-Upload (Finder → Upload-Bereich) ────────────────────── */
+  .nas-drop { border-radius:10px; transition:background .12s ease, box-shadow .12s ease; }
+  .nas-drop.drop-over {
+    background:var(--accent-soft);
+    box-shadow:0 0 0 2px var(--accent) inset;
+  }
+  .nas-drop-hint {
+    margin-top:8px; font-size:11px; color:var(--text-3);
+    border:1px dashed var(--border-strong); border-radius:8px;
+    padding:6px 10px; text-align:center;
+  }
+  .nas-drop.drop-over .nas-drop-hint { color:var(--accent); border-color:var(--accent); }
+
 </style>
 </head>
 <body>
@@ -10755,6 +10768,40 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Drag & Drop: Dateien aus dem Finder direkt in einen Upload-Bereich ziehen.
+// Wirkt auf jedes Element mit data-drop (raw/final/sd/material) — nutzt dieselbe
+// Upload-Pipeline wie der „+ Hochladen"-Button. Nur echte Datei-Drags, damit die
+// bestehende Kalender-DnD (Element-Verschieben) unberührt bleibt.
+(function initDropUpload() {
+  const zone = (t) => (t && t.closest) ? t.closest('[data-drop]') : null;
+  const isFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+  document.addEventListener('dragover', (e) => {
+    if (!isFiles(e)) return;
+    const dz = zone(e.target); if (!dz) return;
+    e.preventDefault();
+    dz.classList.add('drop-over');
+  });
+  document.addEventListener('dragleave', (e) => {
+    const dz = zone(e.target);
+    if (dz && !dz.contains(e.relatedTarget)) dz.classList.remove('drop-over');
+  });
+  document.addEventListener('drop', (e) => {
+    const dz = zone(e.target); if (!dz || !e.dataTransfer) return;
+    e.preventDefault();
+    dz.classList.remove('drop-over');
+    const files = Array.from(e.dataTransfer.files || []);
+    if (!files.length) return;
+    const kind = dz.getAttribute('data-drop');
+    if (kind === 'raw' || kind === 'final') {
+      nasMediaStartUploads(kind, dz.getAttribute('data-pid'), files);
+    } else if (kind === 'sd' && typeof sdMediaStartUploads === 'function') {
+      sdMediaStartUploads(dz.getAttribute('data-sd'), files);
+    } else if (kind === 'material' && typeof custMaterialStartUploads === 'function') {
+      custMaterialStartUploads(dz.getAttribute('data-cust'), files);
+    }
+  });
+})();
+
 async function loadAndRenderNasMedia(projectId) {
   const container = document.getElementById('nas-media-section');
   if (!container) return;
@@ -10880,8 +10927,9 @@ function renderNasMedia() {
       ? assets.map(a => assetRow(a, { old: superseded.has(a.id), latestFinal: !superseded.has(a.id) })).join('')
       : assets.map(a => assetRow(a)).join('');
 
+    const dropAttrs = uploadAllowed ? ` class="nas-drop" data-drop="${kind}" data-pid="${escape(pid)}"` : '';
     return `
-      <div style="margin-top:14px;">
+      <div style="margin-top:14px;"${dropAttrs}>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <div class="cutter-detail-label">${label}</div>
           ${uploadAllowed
@@ -10890,6 +10938,7 @@ function renderNasMedia() {
         </div>
         ${uploads.map(uploadRow).join('')}
         ${rows || (uploads.length ? '' : `<div class="text-sm text-muted">Noch keine Dateien.</div>`)}
+        ${uploadAllowed ? `<div class="nas-drop-hint">⤓ Dateien aus dem Finder hierher ziehen</div>` : ''}
       </div>`;
   };
 
