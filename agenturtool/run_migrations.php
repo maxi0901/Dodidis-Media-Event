@@ -885,6 +885,8 @@ if (!tableExists($pdo, 'ig_rules')) {
            enabled       TINYINT(1)   NOT NULL DEFAULT 1,
            match_type    ENUM('contains','exact','any') NOT NULL DEFAULT 'contains',
            keywords      TEXT         NULL,
+           media_id      VARCHAR(190) NULL,
+           media_label   VARCHAR(255) NULL,
            reply_public  TEXT         NULL,
            reply_dm      TEXT         NULL,
            priority      INT          NOT NULL DEFAULT 0,
@@ -897,6 +899,9 @@ if (!tableExists($pdo, 'ig_rules')) {
 } else {
     $results[] = ['ok' => true, 'label' => "ig_rules: bereits vorhanden"];
 }
+// Beitrags-Targeting: Regel optional auf einen einzelnen IG-Beitrag begrenzen.
+addCol($pdo, 'ig_rules', 'media_id',    "ALTER TABLE ig_rules ADD COLUMN media_id VARCHAR(190) NULL", $results);
+addCol($pdo, 'ig_rules', 'media_label', "ALTER TABLE ig_rules ADD COLUMN media_label VARCHAR(255) NULL", $results);
 if (!tableExists($pdo, 'ig_events')) {
     step($pdo, "ig_events: Tabelle anlegen",
         "CREATE TABLE ig_events (

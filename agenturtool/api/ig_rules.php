@@ -34,6 +34,7 @@ if ($method === 'GET' && $action === 'rules') {
     $rows = db_all(
         "SELECT r.id, r.customer_id AS customerId, c.name AS customerName,
                 r.name, r.enabled, r.match_type AS matchType, r.keywords,
+                r.media_id AS mediaId, r.media_label AS mediaLabel,
                 r.reply_public AS replyPublic, r.reply_dm AS replyDm,
                 r.priority, r.created_at AS createdAt
            FROM ig_rules r
@@ -71,6 +72,8 @@ if ($method === 'POST' && $action === 'save') {
     $name       = trim((string)($b['name'] ?? ''));
     $matchType  = trim((string)($b['match_type'] ?? 'contains'));
     $keywords   = trim((string)($b['keywords'] ?? ''));
+    $mediaId    = trim((string)($b['media_id'] ?? ''));
+    $mediaLabel = trim((string)($b['media_label'] ?? ''));
     $replyPub   = trim((string)($b['reply_public'] ?? ''));
     $replyDm    = trim((string)($b['reply_dm'] ?? ''));
     $priority   = (int)($b['priority'] ?? 0);
@@ -91,9 +94,11 @@ if ($method === 'POST' && $action === 'save') {
         $id = uid('igr');
         db_exec(
             "INSERT INTO ig_rules
-               (id, customer_id, name, enabled, match_type, keywords, reply_public, reply_dm, priority, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+               (id, customer_id, name, enabled, match_type, keywords, media_id, media_label,
+                reply_public, reply_dm, priority, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [$id, $customerId ?: null, $name, $enabled, $matchType, $keywords ?: null,
+             $mediaId ?: null, $mediaLabel ?: null,
              $replyPub ?: null, $replyDm ?: null, $priority, $session['uid']]
         );
         log_activity('ig_rule', $id, 'created', ['name' => $name]);
@@ -103,10 +108,10 @@ if ($method === 'POST' && $action === 'save') {
         db_exec(
             "UPDATE ig_rules
                 SET customer_id=?, name=?, enabled=?, match_type=?, keywords=?,
-                    reply_public=?, reply_dm=?, priority=?
+                    media_id=?, media_label=?, reply_public=?, reply_dm=?, priority=?
               WHERE id=?",
             [$customerId ?: null, $name, $enabled, $matchType, $keywords ?: null,
-             $replyPub ?: null, $replyDm ?: null, $priority, $id]
+             $mediaId ?: null, $mediaLabel ?: null, $replyPub ?: null, $replyDm ?: null, $priority, $id]
         );
         log_activity('ig_rule', $id, 'updated', ['name' => $name]);
     }

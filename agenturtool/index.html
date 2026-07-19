@@ -15018,7 +15018,7 @@ let todoFilter = 'mine'; // 'mine' | 'created' | 'all'
 /* ===== Kommunikation: WhatsApp-Team-Posteingang (nur Admin) ================= */
 const wa = { conversations: [], activeId: null, activeConv: null, messages: [], poll: null };
 let komTab = 'whatsapp'; // 'whatsapp' | 'automation'
-const igauto = { rules: [], events: [] };
+const igauto = { rules: [], events: [], posts: [] };
 function setKomTab(t) { komTab = t; renderKommunikation(getCurrentUser()); }
 
 function renderKommunikation(session) {
@@ -15067,6 +15067,7 @@ function renderKommunikation(session) {
       </style>`;
     loadIgRules();
     loadIgEvents();
+    loadIgPosts();
     return;
   }
 
@@ -15135,6 +15136,7 @@ function renderIgRules() {
     const kws = r.matchType === 'any' ? 'jeder Kommentar'
       : (r.keywords || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean).map(k => `<span class="ig-chip">${escape(k)}</span>`).join('') || '—';
     const acts = [r.replyPublic ? '💬 Antwort' : '', r.replyDm ? '✉️ DM' : ''].filter(Boolean).join(' · ') || '—';
+    const postChip = r.mediaId ? ` <span class="ig-chip" title="Nur dieser Beitrag">📷 ${escape(r.mediaLabel || 'Beitrag')}</span>` : '';
     return `<div class="ig-rule">
       <label class="toggle" style="margin-top:2px;flex-shrink:0;" title="Aktiv/inaktiv">
         <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleIgRule('${r.id}', this.checked)">
@@ -15142,7 +15144,7 @@ function renderIgRules() {
       </label>
       <div class="ig-rule-main" style="${r.enabled ? '' : 'opacity:.55;'}">
         <div class="ig-rule-name">${escape(r.name)}</div>
-        <div class="ig-rule-sub"><span class="ig-chip">${scope}</span> <span class="ig-chip">${igMatchLabel(r.matchType)}</span> ${kws}</div>
+        <div class="ig-rule-sub"><span class="ig-chip">${scope}</span>${postChip} <span class="ig-chip">${igMatchLabel(r.matchType)}</span> ${kws}</div>
         <div class="ig-rule-sub">Aktion: ${acts}</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -15188,11 +15190,35 @@ function renderIgEvents() {
   }).join('');
 }
 
+// Veröffentlichte IG-Beiträge für das Beitrags-Dropdown (aus dem Engagement-API).
+async function loadIgPosts() {
+  try {
+    const res = await fetch(`${API_BASE}/ig_engagement.php?action=posts`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+    const dj = await res.json().catch(() => ({}));
+    if (res.ok && dj.ok) igauto.posts = (dj.data || []).filter(p => p.mediaId);
+  } catch (_) { /* Picker bleibt dann bei „Alle Beiträge" */ }
+}
+function igPostLabel(p) {
+  const t = p.projectTitle || (p.caption ? String(p.caption).slice(0, 40) : 'Beitrag');
+  return (p.customerName ? p.customerName + ' · ' : '') + t;
+}
+
 function openIgRuleModal(id) {
   const r = id ? igauto.rules.find(x => x.id === id) : null;
   const custOpts = ['<option value="">🌐 Alle verbundenen Konten</option>']
     .concat((store.customers || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''))
       .map(c => `<option value="${c.id}" ${r && r.customerId === c.id ? 'selected' : ''}>${escape(c.name || '—')}</option>`)).join('');
+  // Beitrags-Dropdown: „Alle Beiträge" + veröffentlichte Posts (Media-ID).
+  const mediaOpts = ['<option value="">Alle Beiträge des Kontos</option>'];
+  let mediaFound = false;
+  (igauto.posts || []).forEach(p => {
+    const sel = !!(r && r.mediaId && r.mediaId === p.mediaId);
+    if (sel) mediaFound = true;
+    mediaOpts.push(`<option value="${escape(p.mediaId)}" data-label="${escape(igPostLabel(p))}" ${sel ? 'selected' : ''}>${escape(igPostLabel(p))}</option>`);
+  });
+  if (r && r.mediaId && !mediaFound) {
+    mediaOpts.push(`<option value="${escape(r.mediaId)}" data-label="${escape(r.mediaLabel || 'Beitrag')}" selected>${escape(r.mediaLabel || ('Beitrag ' + r.mediaId))}</option>`);
+  }
   const mt = r ? r.matchType : 'contains';
   const html = `
     <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
@@ -15203,6 +15229,9 @@ function openIgRuleModal(id) {
             <input type="text" id="igr-name" placeholder="z. B. Preis-Anfrage → DM" value="${r ? escape(r.name) : ''}"/></div>
           <div class="form-group"><label class="form-label">Gilt für</label>
             <select id="igr-cust">${custOpts}</select></div>
+          <div class="form-group"><label class="form-label">Beitrag</label>
+            <select id="igr-media">${mediaOpts.join('')}</select>
+            <div class="text-sm text-muted" style="margin-top:4px;">Optional — nur auf einen bestimmten veröffentlichten Beitrag. „Alle Beiträge" = gilt kontoweit.</div></div>
           <div class="form-group"><label class="form-label">Auslöser</label>
             <select id="igr-match" onchange="igrToggleKw()">
               <option value="contains" ${mt === 'contains' ? 'selected' : ''}>Kommentar enthält Schlagwort</option>
@@ -15239,10 +15268,15 @@ function igrToggleKw() {
 }
 
 async function saveIgRule(id) {
+  const mediaSel = document.getElementById('igr-media');
+  const mediaId  = mediaSel?.value || '';
+  const mediaLabel = mediaId ? (mediaSel.selectedOptions[0]?.getAttribute('data-label') || '') : '';
   const payload = {
     id: id || '',
     name: document.getElementById('igr-name')?.value.trim() || '',
     customer_id: document.getElementById('igr-cust')?.value || '',
+    media_id: mediaId,
+    media_label: mediaLabel,
     match_type: document.getElementById('igr-match')?.value || 'contains',
     keywords: document.getElementById('igr-keywords')?.value || '',
     reply_public: document.getElementById('igr-public')?.value || '',
