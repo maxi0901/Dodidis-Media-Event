@@ -30,39 +30,59 @@ if (($session['type'] ?? '') !== 'staff') {
     json_err(403, 'Nur Mitarbeiter dürfen hochladen.');
 }
 
-$projectId = trim((string)($_GET['project_id'] ?? ''));
-$kind      = trim((string)($_GET['kind'] ?? 'raw'));
-$filename  = trim((string)($_GET['filename'] ?? ''));
+$projectId  = trim((string)($_GET['project_id'] ?? ''));
+$shootDayId = trim((string)($_GET['shoot_day_id'] ?? ''));
+$kind       = trim((string)($_GET['kind'] ?? 'raw'));
+$filename   = trim((string)($_GET['filename'] ?? ''));
 
-if ($projectId === '') json_err(400, 'project_id ist Pflicht.');
-if ($filename === '')  json_err(400, 'filename ist Pflicht.');
-if (!in_array($kind, ['raw', 'final'], true)) json_err(400, "kind muss 'raw' oder 'final' sein.");
-
-requireProjectAccess($projectId, $session);
-
-if ($kind === 'raw'   && !has_role('admin', 'manager', 'videograf')) {
-    json_err(403, 'Rohmaterial dürfen nur Videografen, Manager oder Admins hochladen.');
-}
-if ($kind === 'final' && !has_role('admin', 'manager', 'cutter')) {
-    json_err(403, 'Finale Schnitte dürfen nur Cutter, Manager oder Admins hochladen.');
-}
-if ($kind === 'final' && !has_role('admin', 'manager')) {
-    $ps = db_one("SELECT status FROM projects WHERE id = ?", [$projectId]);
-    if ($ps && in_array((string)($ps['status'] ?? ''), ['freigegeben', 'archiviert'], true)) {
-        json_err(409, 'Projekt ist bereits abgenommen — finale Schnitte können nicht mehr hochgeladen werden.');
-    }
-}
-
-// Projektordner sicherstellen und Zielpfad bauen (echter Dateiname bleibt).
-$p = db_one("SELECT nas_folder FROM projects WHERE id = ?", [$projectId]);
-if (!$p) json_err(404, 'Projekt nicht gefunden.');
-if (empty($p['nas_folder'])) {
-    try { $p['nas_folder'] = nas_provision_project($projectId); }
-    catch (\Throwable $e) { json_err(502, 'NAS-Ordner konnten nicht angelegt werden: ' . $e->getMessage()); }
-}
+if ($filename === '') json_err(400, 'filename ist Pflicht.');
 $safe = ltrim(substr(preg_replace('/[\/\\\\]/', '_', $filename), 0, 200), '.');
 if ($safe === '') json_err(400, 'Ungültiger Dateiname.');
-$target = $p['nas_folder'] . '/' . $kind . '/' . $safe;
+
+if ($shootDayId !== '') {
+    // ── Drehtag-Rohmaterial (kein Projekt) → {kunde}/{Kürzel} - Dreh {Datum}/ ──
+    if (!has_role('admin', 'manager', 'videograf')) {
+        json_err(403, 'Rohmaterial dürfen nur Videografen, Manager oder Admins hochladen.');
+    }
+    $sd = db_one("SELECT id, videograf_id, nas_folder FROM shoot_days WHERE id = ?", [$shootDayId]);
+    if (!$sd) json_err(404, 'Drehtag nicht gefunden.');
+    if (!has_role('admin', 'manager') && (string)($sd['videograf_id'] ?? '') !== (string)$session['uid']) {
+        json_err(403, 'Nur eigene Drehtage.');
+    }
+    if (empty($sd['nas_folder'])) {
+        try { $sd['nas_folder'] = nas_provision_shootday($shootDayId); }
+        catch (\Throwable $e) { json_err(502, 'Drehtag-Ordner konnte nicht angelegt werden: ' . $e->getMessage()); }
+    }
+    $target = $sd['nas_folder'] . '/' . $safe;
+} else {
+    // ── Projekt-Upload (raw/final) ───────────────────────────────────────────
+    if ($projectId === '') json_err(400, 'project_id oder shoot_day_id ist Pflicht.');
+    if (!in_array($kind, ['raw', 'final'], true)) json_err(400, "kind muss 'raw' oder 'final' sein.");
+
+    requireProjectAccess($projectId, $session);
+
+    if ($kind === 'raw'   && !has_role('admin', 'manager', 'videograf')) {
+        json_err(403, 'Rohmaterial dürfen nur Videografen, Manager oder Admins hochladen.');
+    }
+    if ($kind === 'final' && !has_role('admin', 'manager', 'cutter')) {
+        json_err(403, 'Finale Schnitte dürfen nur Cutter, Manager oder Admins hochladen.');
+    }
+    if ($kind === 'final' && !has_role('admin', 'manager')) {
+        $ps = db_one("SELECT status FROM projects WHERE id = ?", [$projectId]);
+        if ($ps && in_array((string)($ps['status'] ?? ''), ['freigegeben', 'archiviert'], true)) {
+            json_err(409, 'Projekt ist bereits abgenommen — finale Schnitte können nicht mehr hochgeladen werden.');
+        }
+    }
+
+    // Projektordner sicherstellen und Zielpfad bauen (echter Dateiname bleibt).
+    $p = db_one("SELECT nas_folder FROM projects WHERE id = ?", [$projectId]);
+    if (!$p) json_err(404, 'Projekt nicht gefunden.');
+    if (empty($p['nas_folder'])) {
+        try { $p['nas_folder'] = nas_provision_project($projectId); }
+        catch (\Throwable $e) { json_err(502, 'NAS-Ordner konnten nicht angelegt werden: ' . $e->getMessage()); }
+    }
+    $target = $p['nas_folder'] . '/' . $kind . '/' . $safe;
+}
 
 // tus-Endpoint = gleicher Host wie NAS_DAV_BASE + /files/ (Caddy → tusd).
 $base = nas_credentials()['base'];
