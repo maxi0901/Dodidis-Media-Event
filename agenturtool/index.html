@@ -10645,13 +10645,18 @@ function nasMediaPickVersion(parentAssetId, projectId) {
   nasMediaPick('final', projectId, parentAssetId);
 }
 
-// Ab dieser Größe gehen Rohdateien den resumable Weg (direkt zum vServer/NAS,
-// am PHP-Shared-Host vorbei) statt durch den klassischen Durchlauf-Upload.
-const NAS_RESUMABLE_THRESHOLD = 1024 * 1024 * 1024; // 1 GiB
+// Ab dieser Größe gehen Uploads den resumable Weg (direkt zum vServer/NAS, am
+// PHP-Shared-Host vorbei) statt durch den klassischen Durchlauf-Upload. Bewusst
+// niedrig, damit auch mittelgroße Roh-/Final-Dateien den schnellen Pfad nehmen.
+const NAS_RESUMABLE_THRESHOLD = 100 * 1024 * 1024; // 100 MiB
 
 async function nasMediaStartUploads(kind, projectId, files, parentId = null) {
   // Sequentiell hochladen — schont Netcup-Limits und den Tunnel
   for (const file of files) {
+    // Nur Rohmaterial über den vServer (schnell, am Shared-Host vorbei). Finale
+    // Schnitte bleiben bewusst auf dem klassischen Weg: dort entsteht ein echter
+    // Asset-DB-Eintrag, den der Posting-Planer/die Freigabe/Kommentare brauchen —
+    // der vServer-Weg legt für angekommene Dateien (noch) keinen solchen an.
     const isResumable = kind === 'raw' && !parentId && file.size > NAS_RESUMABLE_THRESHOLD;
     const u = { key: 'u' + (++nasUploadSeq), name: file.name, kind, pct: 0, error: null,
                 size: file.size, resumable: isResumable, paused: false };
@@ -10751,7 +10756,10 @@ async function nasRevealAfterTransfer(projectId, kind, filename) {
 }
 
 async function nasTusUpload(endpoint, file, { onProgress, kind, projectId, token, u } = {}) {
-  const CHUNK = 32 * 1024 * 1024; // 32 MiB pro PATCH
+  // Größere Chunks = weniger Round-Trip-Pausen zwischen den PATCHes (höherer
+  // Durchsatz auf latenzbehafteten Leitungen). Der Balken bleibt trotzdem
+  // flüssig, weil der Fortschritt jetzt byteweise via XHR-Upload-Events kommt.
+  const CHUNK = 64 * 1024 * 1024; // 64 MiB pro PATCH
   const signal = u && u.controller ? u.controller.signal : undefined;
   const fp = `tus:${endpoint}:${projectId}:${kind}:${file.name}:${file.size}:${file.lastModified}`;
   if (u) u.fp = fp;
@@ -10762,6 +10770,45 @@ async function nasTusUpload(endpoint, file, { onProgress, kind, projectId, token
     const inf = u && document.getElementById('nas-up-info-' + u.key);
     if (inf) inf.textContent = nasUpStatusText(u);
   };
+
+  // Gedrosselte Fortschrittsmeldung (max. ~alle 150 ms), damit der Balken sich
+  // flüssig bewegt, ohne bei jedem XHR-Progress-Event das DOM zu belasten.
+  let lastRepaint = 0;
+  const reportProgress = (absOffset) => {
+    const pct = Math.min(100, Math.floor(absOffset / (file.size || 1) * 100));
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if (pct < 100 && now - lastRepaint < 150) return;
+    lastRepaint = now;
+    if (u) u.pct = pct;
+    if (onProgress) onProgress(pct);
+  };
+
+  // Einen Chunk per XMLHttpRequest senden — liefert byteweisen Upload-Fortschritt
+  // (fetch() kann das nicht) und behält die tus-Semantik exakt bei.
+  const sendChunkXHR = (url, chunk, offsetStart) => new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PATCH', url, true);
+    xhr.setRequestHeader('Tus-Resumable', '1.0.0');
+    xhr.setRequestHeader('Upload-Offset', String(offsetStart));
+    xhr.setRequestHeader('Content-Type', 'application/offset+octet-stream');
+    let onAbort = null;
+    const cleanup = () => { if (signal && onAbort) signal.removeEventListener('abort', onAbort); };
+    if (signal) {
+      if (signal.aborted) { try { xhr.abort(); } catch (_) {} return reject(abortErr()); }
+      onAbort = () => { try { xhr.abort(); } catch (_) {} };
+      signal.addEventListener('abort', onAbort);
+    }
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) reportProgress(offsetStart + e.loaded); };
+    xhr.onload = () => {
+      cleanup();
+      const hdr = parseInt(xhr.getResponseHeader('Upload-Offset') || '', 10);
+      resolve({ status: xhr.status, uploadOffset: Number.isFinite(hdr) ? hdr : null });
+    };
+    xhr.onerror = () => { cleanup(); reject(new Error('Netzwerkfehler')); };
+    xhr.onabort = () => { cleanup(); reject(abortErr()); };
+    xhr.send(chunk);
+  });
+
   let uploadUrl = null;
   try { uploadUrl = localStorage.getItem(fp); } catch (_) {}
   let offset = 0;
@@ -10812,18 +10859,9 @@ async function nasTusUpload(endpoint, file, { onProgress, kind, projectId, token
     let attempt = 0, done = false;
     while (!done) {
       try {
-        const r = await fetch(uploadUrl, {
-          method: 'PATCH', signal,
-          headers: {
-            'Tus-Resumable': '1.0.0',
-            'Upload-Offset': String(offset),
-            'Content-Type': 'application/offset+octet-stream',
-          },
-          body: chunk,
-        });
+        const r = await sendChunkXHR(uploadUrl, chunk, offset);
         if (r.status === 204 || r.status === 200) {
-          const n = parseInt(r.headers.get('Upload-Offset') || String(end), 10);
-          offset = Number.isFinite(n) ? n : end;
+          offset = (r.uploadOffset !== null) ? r.uploadOffset : end;
           done = true;
         } else if (r.status === 409 || r.status === 460) {
           const o = await head(uploadUrl); if (o !== null) offset = o; done = true; // Offset resync
