@@ -116,13 +116,17 @@ foreach (($data['entry'] ?? []) as $entry) {
             $token      = (string)$acc['token'];
             db_exec("UPDATE ig_events SET customer_id=? WHERE comment_id=?", [$customerId ?: null, $commentId]);
 
-            // 3) Erste passende, aktive Regel (Kunde ODER global). Priorität aufsteigend.
+            // 3) Erste passende, aktive Regel. Gilt für den Kunden ODER global UND
+            //    entweder für alle Beiträge (media_id NULL) oder genau diesen Beitrag.
+            //    Beitrags-spezifische Regeln ranken vor kontoweiten.
             $rules = db_all(
                 "SELECT id, match_type, keywords, reply_public, reply_dm
                    FROM ig_rules
-                  WHERE enabled = 1 AND (customer_id = ? OR customer_id IS NULL)
-                  ORDER BY priority ASC, created_at ASC",
-                [$customerId]
+                  WHERE enabled = 1
+                    AND (customer_id = ? OR customer_id IS NULL)
+                    AND (media_id IS NULL OR media_id = ?)
+                  ORDER BY (media_id IS NULL) ASC, priority ASC, created_at ASC",
+                [$customerId, $mediaId]
             );
             $hit = null;
             foreach ($rules as $r) { if ($ruleMatches($r, $text)) { $hit = $r; break; } }
