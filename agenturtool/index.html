@@ -15017,12 +15017,62 @@ let todoFilter = 'mine'; // 'mine' | 'created' | 'all'
 
 /* ===== Kommunikation: WhatsApp-Team-Posteingang (nur Admin) ================= */
 const wa = { conversations: [], activeId: null, activeConv: null, messages: [], poll: null };
+let komTab = 'whatsapp'; // 'whatsapp' | 'automation'
+const igauto = { rules: [], events: [] };
+function setKomTab(t) { komTab = t; renderKommunikation(getCurrentUser()); }
 
 function renderKommunikation(session) {
   $('#page-title').textContent = 'Kommunikation';
+  const tabs = `<div class="kom-tabs">
+      <button class="${komTab === 'whatsapp' ? 'on' : ''}" onclick="setKomTab('whatsapp')">💬 WhatsApp</button>
+      <button class="${komTab === 'automation' ? 'on' : ''}" onclick="setKomTab('automation')">🤖 Automatisierung</button>
+    </div>
+    <style>
+      .kom-tabs { display:inline-flex; gap:4px; background:var(--bg-2); border:1px solid var(--border); border-radius:10px; padding:3px; margin-bottom:16px; }
+      .kom-tabs button { padding:7px 16px; border:none; border-radius:8px; font-weight:600; font-size:13px; cursor:pointer; background:transparent; color:var(--text-2); }
+      .kom-tabs button.on { background:var(--bg-0); color:var(--text-1); box-shadow:var(--shadow-sm); }
+    </style>`;
+
+  if (komTab === 'automation') {
+    clearInterval(wa.poll);
+    $('#page-subtitle').textContent = 'Instagram-Automatisierung — Auto-Antworten & DMs auf Kommentare';
+    $('#topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="openIgRuleModal()">+ Neue Regel</button>`;
+    $('#content').innerHTML = tabs + `
+      <div class="card" style="margin-bottom:14px;">
+        <div style="font-weight:600;margin-bottom:4px;">So funktioniert's</div>
+        <div class="text-sm text-muted">Kommentiert jemand einen Instagram-Beitrag, prüft das Tool die Regeln von oben nach unten. Die <strong>erste passende</strong> Regel antwortet automatisch — öffentlich und/oder per DM. Ersetzt ManyChat für Schlagwort-Antworten.</div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:14px 16px;font-weight:600;border-bottom:1px solid var(--border);">Regeln</div>
+        <div id="ig-rules"><div class="text-muted" style="padding:18px;">Lade…</div></div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;margin-top:14px;">
+        <div style="padding:14px 16px;font-weight:600;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+          <span>Letzte Aktionen</span>
+          <button class="btn btn-ghost btn-sm" onclick="loadIgEvents()">↻</button>
+        </div>
+        <div id="ig-events"><div class="text-muted" style="padding:18px;">Lade…</div></div>
+      </div>
+      <style>
+        .ig-rule { display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-bottom:1px solid var(--border); }
+        .ig-rule:last-child { border-bottom:none; }
+        .ig-rule-main { flex:1; min-width:0; }
+        .ig-rule-name { font-size:14px; font-weight:600; }
+        .ig-rule-sub { font-size:12px; color:var(--text-3); margin-top:3px; line-height:1.5; }
+        .ig-chip { display:inline-block; padding:2px 8px; border-radius:6px; background:var(--bg-3); color:var(--text-2); font-size:11px; font-weight:600; margin-right:5px; }
+        .ig-ev { display:flex; gap:10px; padding:11px 16px; border-bottom:1px solid var(--border); font-size:12.5px; }
+        .ig-ev:last-child { border-bottom:none; }
+        .ig-ev-dot { width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+        .ig-ev-ok { background:var(--success); } .ig-ev-err { background:var(--danger); } .ig-ev-skip { background:var(--text-3); }
+      </style>`;
+    loadIgRules();
+    loadIgEvents();
+    return;
+  }
+
   $('#page-subtitle').textContent = 'WhatsApp — 1:1-Chats lesen & beantworten';
   $('#topbar-actions').innerHTML = `<button class="btn btn-ghost" onclick="loadWaConversations(true)">↻ Aktualisieren</button>`;
-  $('#content').innerHTML = `
+  $('#content').innerHTML = tabs + `
     <div class="card" style="padding:0;overflow:hidden;">
       <div class="wa-wrap">
         <div class="wa-list" id="wa-list"><div class="text-muted" style="padding:20px;">Lade Chats…</div></div>
@@ -15056,6 +15106,196 @@ function renderKommunikation(session) {
   loadWaConversations();
   clearInterval(wa.poll);
   wa.poll = setInterval(() => { if (currentPage === 'kommunikation') waPollTick(); else clearInterval(wa.poll); }, 8000);
+}
+
+/* ===================== Instagram-Automatisierung (Regeln) ===================== */
+async function loadIgRules() {
+  try {
+    const res = await fetch(`${API_BASE}/ig_rules.php?action=rules`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+    const dj = await res.json().catch(() => ({}));
+    if (!res.ok || !dj.ok) throw new Error((dj && dj.error) || ('HTTP ' + res.status));
+    igauto.rules = dj.data || [];
+    renderIgRules();
+  } catch (e) {
+    const el = document.getElementById('ig-rules');
+    if (el) el.innerHTML = `<div class="text-muted" style="padding:18px;">Nicht verfügbar: ${escape(e.message || 'Fehler')}</div>`;
+  }
+}
+
+function igMatchLabel(t) { return t === 'any' ? 'jeder Kommentar' : (t === 'exact' ? 'exakt' : 'enthält'); }
+
+function renderIgRules() {
+  const el = document.getElementById('ig-rules'); if (!el) return;
+  if (!igauto.rules.length) {
+    el.innerHTML = `<div class="text-muted" style="padding:18px;line-height:1.6;">Noch keine Regeln.<br><span style="font-size:12px;">Lege eine an (z. B. „Preis" → DM mit Link), dann antwortet Instagram automatisch.</span></div>`;
+    return;
+  }
+  el.innerHTML = igauto.rules.map(r => {
+    const scope = r.customerId ? `👤 ${escape(r.customerName || 'Kunde')}` : '🌐 Alle Konten';
+    const kws = r.matchType === 'any' ? 'jeder Kommentar'
+      : (r.keywords || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean).map(k => `<span class="ig-chip">${escape(k)}</span>`).join('') || '—';
+    const acts = [r.replyPublic ? '💬 Antwort' : '', r.replyDm ? '✉️ DM' : ''].filter(Boolean).join(' · ') || '—';
+    return `<div class="ig-rule">
+      <label class="toggle" style="margin-top:2px;flex-shrink:0;" title="Aktiv/inaktiv">
+        <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleIgRule('${r.id}', this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="ig-rule-main" style="${r.enabled ? '' : 'opacity:.55;'}">
+        <div class="ig-rule-name">${escape(r.name)}</div>
+        <div class="ig-rule-sub"><span class="ig-chip">${scope}</span> <span class="ig-chip">${igMatchLabel(r.matchType)}</span> ${kws}</div>
+        <div class="ig-rule-sub">Aktion: ${acts}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn btn-secondary btn-sm" onclick="openIgRuleModal('${r.id}')">Bearbeiten</button>
+        <button class="btn btn-ghost btn-sm" title="Löschen" onclick="deleteIgRule('${r.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadIgEvents() {
+  try {
+    const res = await fetch(`${API_BASE}/ig_rules.php?action=events`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+    const dj = await res.json().catch(() => ({}));
+    if (!res.ok || !dj.ok) throw new Error((dj && dj.error) || ('HTTP ' + res.status));
+    igauto.events = dj.data || [];
+    renderIgEvents();
+  } catch (e) {
+    const el = document.getElementById('ig-events');
+    if (el) el.innerHTML = `<div class="text-muted" style="padding:18px;">Nicht verfügbar: ${escape(e.message || 'Fehler')}</div>`;
+  }
+}
+
+function renderIgEvents() {
+  const el = document.getElementById('ig-events'); if (!el) return;
+  if (!igauto.events.length) {
+    el.innerHTML = `<div class="text-muted" style="padding:18px;">Noch keine ausgelösten Aktionen.</div>`;
+    return;
+  }
+  el.innerHTML = igauto.events.map(e => {
+    const dot = e.status === 'ok' ? 'ig-ev-ok' : (e.status === 'error' ? 'ig-ev-err' : 'ig-ev-skip');
+    const when = e.createdAt ? new Date(String(e.createdAt).replace(' ', 'T')).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+    const did = [e.didPublic ? 'Antwort' : '', e.didDm ? 'DM' : ''].filter(Boolean).join(' + ');
+    const what = e.status === 'ok' ? `✓ ${did || 'ausgeführt'}${e.ruleName ? ' · ' + escape(e.ruleName) : ''}`
+      : (e.status === 'error' ? `⚠ Fehler: ${escape(e.detail || '')}` : `— ${escape(e.detail || 'übersprungen')}`);
+    return `<div class="ig-ev">
+      <div class="ig-ev-dot ${dot}"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.fromUsername ? '@' + escape(e.fromUsername) + ': ' : ''}${escape(e.text || '')}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px;">${when}${e.customerName ? ' · ' + escape(e.customerName) : ''} · ${what}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openIgRuleModal(id) {
+  const r = id ? igauto.rules.find(x => x.id === id) : null;
+  const custOpts = ['<option value="">🌐 Alle verbundenen Konten</option>']
+    .concat((store.customers || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+      .map(c => `<option value="${c.id}" ${r && r.customerId === c.id ? 'selected' : ''}>${escape(c.name || '—')}</option>`)).join('');
+  const mt = r ? r.matchType : 'contains';
+  const html = `
+    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:520px;">
+        <div class="modal-header"><div class="modal-title">${id ? 'Regel bearbeiten' : 'Neue Regel'}</div><button class="modal-close" onclick="closeModal()">×</button></div>
+        <div class="modal-body">
+          <div class="form-group"><label class="form-label">Name</label>
+            <input type="text" id="igr-name" placeholder="z. B. Preis-Anfrage → DM" value="${r ? escape(r.name) : ''}"/></div>
+          <div class="form-group"><label class="form-label">Gilt für</label>
+            <select id="igr-cust">${custOpts}</select></div>
+          <div class="form-group"><label class="form-label">Auslöser</label>
+            <select id="igr-match" onchange="igrToggleKw()">
+              <option value="contains" ${mt === 'contains' ? 'selected' : ''}>Kommentar enthält Schlagwort</option>
+              <option value="exact" ${mt === 'exact' ? 'selected' : ''}>Kommentar ist exakt gleich</option>
+              <option value="any" ${mt === 'any' ? 'selected' : ''}>Jeder Kommentar</option>
+            </select></div>
+          <div class="form-group" id="igr-kw-group" style="${mt === 'any' ? 'display:none;' : ''}">
+            <label class="form-label">Schlagwörter (durch Komma oder Zeilen getrennt)</label>
+            <textarea id="igr-keywords" style="min-height:56px;" placeholder="Preis, Kosten, wie teuer">${r ? escape(r.keywords || '') : ''}</textarea></div>
+          <div class="form-group"><label class="form-label">Öffentliche Antwort (optional)</label>
+            <textarea id="igr-public" style="min-height:56px;" placeholder="Danke dir! Wir melden uns per DN 💬">${r ? escape(r.replyPublic || '') : ''}</textarea></div>
+          <div class="form-group"><label class="form-label">Private DM (optional)</label>
+            <textarea id="igr-dm" style="min-height:56px;" placeholder="Hey! Hier alle Infos: …">${r ? escape(r.replyDm || '') : ''}</textarea></div>
+          <div class="form-group" style="display:flex;gap:16px;align-items:center;">
+            <label class="checkbox-row" style="margin:0;"><input type="checkbox" id="igr-enabled" ${(!r || r.enabled) ? 'checked' : ''}> <span>Aktiv</span></label>
+            <div style="flex:1;"><label class="form-label" style="margin-bottom:4px;">Priorität (kleiner = zuerst)</label>
+              <input type="number" id="igr-prio" value="${r ? (r.priority || 0) : 0}" style="width:90px;"/></div>
+          </div>
+          <div class="text-sm text-muted">Für die DM braucht die Meta-App die Berechtigung <code>instagram_manage_messages</code>.</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+          <button class="btn btn-primary" onclick="saveIgRule('${id || ''}')">Speichern</button>
+        </div>
+      </div>
+    </div>`;
+  $('#modal-container').innerHTML = html;
+}
+
+function igrToggleKw() {
+  const t = document.getElementById('igr-match')?.value;
+  const g = document.getElementById('igr-kw-group');
+  if (g) g.style.display = (t === 'any') ? 'none' : '';
+}
+
+async function saveIgRule(id) {
+  const payload = {
+    id: id || '',
+    name: document.getElementById('igr-name')?.value.trim() || '',
+    customer_id: document.getElementById('igr-cust')?.value || '',
+    match_type: document.getElementById('igr-match')?.value || 'contains',
+    keywords: document.getElementById('igr-keywords')?.value || '',
+    reply_public: document.getElementById('igr-public')?.value || '',
+    reply_dm: document.getElementById('igr-dm')?.value || '',
+    priority: parseInt(document.getElementById('igr-prio')?.value || '0', 10) || 0,
+    enabled: !!document.getElementById('igr-enabled')?.checked,
+  };
+  if (!payload.name) { appAlert('Name ist Pflicht.'); return; }
+  if (payload.match_type !== 'any' && !payload.keywords.trim()) { appAlert('Bitte mindestens ein Schlagwort angeben.'); return; }
+  if (!payload.reply_public.trim() && !payload.reply_dm.trim()) { appAlert('Mindestens eine Aktion (Antwort oder DM) festlegen.'); return; }
+  try {
+    const res = await fetch(`${API_BASE}/ig_rules.php?action=save`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify(payload),
+    });
+    const dj = await res.json();
+    if (!res.ok || !dj.ok) throw new Error(dj.error || `HTTP ${res.status}`);
+    closeModal();
+    showToast('Gespeichert', payload.name);
+    loadIgRules();
+  } catch (e) { appAlert('Speichern fehlgeschlagen: ' + e.message); }
+}
+
+async function toggleIgRule(id, enabled) {
+  try {
+    const res = await fetch(`${API_BASE}/ig_rules.php?action=toggle`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ id, enabled }),
+    });
+    const dj = await res.json();
+    if (!res.ok || !dj.ok) throw new Error(dj.error || `HTTP ${res.status}`);
+    const r = igauto.rules.find(x => x.id === id); if (r) r.enabled = enabled ? 1 : 0;
+    renderIgRules();
+  } catch (e) { appAlert('Umschalten fehlgeschlagen: ' + e.message); loadIgRules(); }
+}
+
+async function deleteIgRule(id) {
+  const r = igauto.rules.find(x => x.id === id);
+  const ok = await appConfirm(`Regel „${r ? r.name : ''}" löschen?`, { title: 'Regel löschen?', okLabel: 'Löschen', danger: true });
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API_BASE}/ig_rules.php?action=delete`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ id }),
+    });
+    const dj = await res.json();
+    if (!res.ok || !dj.ok) throw new Error(dj.error || `HTTP ${res.status}`);
+    showToast('Gelöscht', '');
+    loadIgRules();
+  } catch (e) { appAlert('Löschen fehlgeschlagen: ' + e.message); }
 }
 
 async function loadWaConversations(toast) {

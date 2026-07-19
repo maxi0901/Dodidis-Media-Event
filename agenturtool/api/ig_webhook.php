@@ -1,0 +1,162 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * Instagram-Webhook (Meta Graph API) — Auto-Antworten/DMs auf Kommentare.
+ * Kein Login — Meta ruft das auf. Ersetzt ManyChat für einfache Regeln.
+ *
+ *   GET  : Verifizierung (hub.challenge zurückgeben, wenn Verify-Token stimmt)
+ *   POST : eingehende Kommentar-Ereignisse (field="comments") → Regel-Engine
+ *
+ * Ablauf pro Kommentar:
+ *   1. Dedupe über comment_id (ein Event pro Kommentar; Meta-Retries ignoriert).
+ *   2. Eigene Kommentare (vom Konto selbst) werden übersprungen (keine Schleife).
+ *   3. Konto → Kunde + Token aus social_accounts (external_id = IG-Konto-ID).
+ *   4. Erste passende, aktive Regel (Kunde ODER global) wird angewandt:
+ *      öffentliche Antwort und/oder private DM.
+ *   5. Ergebnis wird in ig_events protokolliert.
+ *
+ * Signaturprüfung via X-Hub-Signature-256 (HMAC-SHA256 mit Meta-App-Secret).
+ * Antwortet Meta immer schnell mit 200, damit nicht erneut zugestellt wird.
+ */
+
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/meta_env.php';
+require_once __DIR__ . '/MetaClient.php';
+
+$cfg = meta_config();
+
+// ── GET — Webhook-Verifizierung ──────────────────────────────────────────────
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+    $mode      = (string)($_GET['hub_mode'] ?? '');
+    $token     = (string)($_GET['hub_verify_token'] ?? '');
+    $challenge = (string)($_GET['hub_challenge'] ?? '');
+    if ($mode === 'subscribe' && $token !== '' && hash_equals((string)$cfg['ig_verify_token'], $token)) {
+        header('Content-Type: text/plain');
+        echo $challenge;
+        exit;
+    }
+    http_response_code(403);
+    exit('Forbidden');
+}
+
+// ── POST — Ereignisse ────────────────────────────────────────────────────────
+$raw    = (string)file_get_contents('php://input');
+$secret = (string)$cfg['app_secret'];
+
+// Signatur PFLICHT, sobald ein App-Secret gesetzt ist (Endpunkt hat kein Login).
+$sigHeader = (string)($_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '');
+if ($secret !== '') {
+    if ($sigHeader === '') { http_response_code(403); exit('Missing signature'); }
+    $expected = 'sha256=' . hash_hmac('sha256', $raw, $secret);
+    if (!hash_equals($expected, $sigHeader)) { http_response_code(403); exit('Bad signature'); }
+}
+
+$data = json_decode($raw, true);
+if (!is_array($data)) { http_response_code(200); exit('ok'); }
+
+/** Prüft, ob ein Kommentartext auf eine Regel passt. */
+$ruleMatches = static function (array $rule, string $text): bool {
+    $type = (string)($rule['match_type'] ?? 'contains');
+    if ($type === 'any') return true;
+    $hay = mb_strtolower(trim($text));
+    $kws = preg_split('/[\r\n,]+/', (string)($rule['keywords'] ?? '')) ?: [];
+    foreach ($kws as $kw) {
+        $kw = mb_strtolower(trim($kw));
+        if ($kw === '') continue;
+        if ($type === 'exact'   && $hay === $kw)                 return true;
+        if ($type === 'contains' && mb_strpos($hay, $kw) !== false) return true;
+    }
+    return false;
+};
+
+foreach (($data['entry'] ?? []) as $entry) {
+    $igAccountId = (string)($entry['id'] ?? '');
+
+    foreach (($entry['changes'] ?? []) as $change) {
+        if (($change['field'] ?? '') !== 'comments') continue;
+        $v = $change['value'] ?? [];
+        if (!is_array($v)) continue;
+
+        $commentId = (string)($v['id'] ?? '');
+        if ($commentId === '') continue;
+        $text     = (string)($v['text'] ?? '');
+        $fromId   = (string)($v['from']['id'] ?? '');
+        $fromUser = (string)($v['from']['username'] ?? '');
+        $mediaId  = (string)($v['media']['id'] ?? '');
+
+        // Eigene Kommentare (Konto antwortet sich sonst selbst) überspringen.
+        if ($fromId !== '' && $fromId === $igAccountId) continue;
+
+        try {
+            // 1) Dedupe: nur wenn wirklich neu eingefügt, weitermachen.
+            $created = db_exec(
+                "INSERT IGNORE INTO ig_events
+                   (id, comment_id, media_id, from_username, text, status)
+                 VALUES (?, ?, ?, ?, ?, 'pending')",
+                [uid('ige'), $commentId, $mediaId ?: null, $fromUser ?: null, $text]
+            );
+            if ($created < 1) continue; // Meta-Retry / Duplikat
+
+            // 2) Konto → Kunde + Token
+            $acc = db_one(
+                "SELECT customer_id AS customerId, access_token AS token
+                   FROM social_accounts
+                  WHERE external_id = ? AND platform = 'instagram' AND status = 'connected'
+                  LIMIT 1",
+                [$igAccountId]
+            );
+            if (!$acc || empty($acc['token'])) {
+                db_exec("UPDATE ig_events SET status='skipped', detail=? WHERE comment_id=?",
+                    ['Kein verbundenes Instagram-Konto zu ' . $igAccountId, $commentId]);
+                continue;
+            }
+            $customerId = (string)($acc['customerId'] ?? '');
+            $token      = (string)$acc['token'];
+            db_exec("UPDATE ig_events SET customer_id=? WHERE comment_id=?", [$customerId ?: null, $commentId]);
+
+            // 3) Erste passende, aktive Regel (Kunde ODER global). Priorität aufsteigend.
+            $rules = db_all(
+                "SELECT id, match_type, keywords, reply_public, reply_dm
+                   FROM ig_rules
+                  WHERE enabled = 1 AND (customer_id = ? OR customer_id IS NULL)
+                  ORDER BY priority ASC, created_at ASC",
+                [$customerId]
+            );
+            $hit = null;
+            foreach ($rules as $r) { if ($ruleMatches($r, $text)) { $hit = $r; break; } }
+
+            if (!$hit) {
+                db_exec("UPDATE ig_events SET status='skipped', detail='Keine passende Regel' WHERE comment_id=?", [$commentId]);
+                continue;
+            }
+
+            // 4) Aktionen ausführen
+            $client   = new MetaClient('x');
+            $didPub   = 0; $didDm = 0; $errs = [];
+            $pub      = trim((string)($hit['reply_public'] ?? ''));
+            $dm       = trim((string)($hit['reply_dm'] ?? ''));
+
+            if ($pub !== '') {
+                try { $client->replyToComment($commentId, $token, $pub); $didPub = 1; }
+                catch (\Throwable $e) { $errs[] = 'Antwort: ' . $e->getMessage(); }
+            }
+            if ($dm !== '') {
+                try { $client->sendInstagramPrivateReply($igAccountId, $token, $commentId, $dm); $didDm = 1; }
+                catch (\Throwable $e) { $errs[] = 'DM: ' . $e->getMessage(); }
+            }
+
+            $status = $errs ? 'error' : 'ok';
+            db_exec(
+                "UPDATE ig_events SET rule_id=?, did_public=?, did_dm=?, status=?, detail=? WHERE comment_id=?",
+                [(string)$hit['id'], $didPub, $didDm, $status, $errs ? implode(' | ', $errs) : null, $commentId]
+            );
+        } catch (\Throwable $e) {
+            error_log('[ig_webhook] ' . $e->getMessage());
+        }
+    }
+}
+
+http_response_code(200);
+echo 'ok';

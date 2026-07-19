@@ -47,6 +47,9 @@ function meta_config(): array
         'wa_phone_number_id' => $pick('WA_PHONE_NUMBER_ID', 'wa_phone_number_id'),
         'wa_token'           => $pick('WA_TOKEN', 'wa_token'),
         'wa_verify_token'    => $pick('WA_VERIFY_TOKEN', 'wa_verify_token'),
+        // Instagram-Automatisierung (Auto-Antworten/DMs auf Kommentare):
+        // eigener Webhook-Verify-Token. Signatur nutzt app_secret (oben).
+        'ig_verify_token'    => $pick('IG_VERIFY_TOKEN', 'ig_verify_token'),
     ];
     return $cache;
 }

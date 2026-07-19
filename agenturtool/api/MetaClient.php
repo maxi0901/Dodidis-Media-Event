@@ -280,6 +280,27 @@ class MetaClient
         return $this->execJson($url, $token, (string)$payload);
     }
 
+    /**
+     * Instagram „Private Reply": als Reaktion auf einen Kommentar eine DM an den
+     * Kommentierenden senden. Nutzt die Messaging-API des IG-Business-Kontos.
+     * Voraussetzung: Berechtigung instagram_manage_messages + verbundene Seite;
+     * nur innerhalb des von Meta erlaubten Fensters nach dem Kommentar.
+     *
+     * @param string $igUserId  ID des IG-Business-Kontos (Empfänger-/Absenderkonto)
+     * @param string $token     Seiten-/Zugriffstoken des Kontos
+     * @param string $commentId ID des auslösenden Kommentars
+     * @return array<string,mixed>
+     */
+    public function sendInstagramPrivateReply(string $igUserId, string $token, string $commentId, string $text): array
+    {
+        $url = "https://graph.facebook.com/{$this->version}/{$igUserId}/messages";
+        $payload = json_encode([
+            'recipient' => ['comment_id' => $commentId],
+            'message'   => ['text' => $text],
+        ], JSON_UNESCAPED_UNICODE);
+        return $this->execJson($url, $token, (string)$payload);
+    }
+
     /** JSON-POST mit Bearer-Token (für WhatsApp). @return array<string,mixed> */
     private function execJson(string $url, string $token, string $json): array
     {

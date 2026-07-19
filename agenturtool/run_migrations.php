@@ -873,6 +873,52 @@ if (!tableExists($pdo, 'wa_messages')) {
 addCol($pdo, 'content_queue', 'is_test',
     "ALTER TABLE content_queue ADD COLUMN is_test TINYINT(1) NOT NULL DEFAULT 0", $results);
 
+// ── 37. Instagram-Automatisierung: Regeln + Ereignis-Log (ManyChat-Ablösung) ──
+// Auto-Antworten/DMs auf IG-Kommentare. ig_rules = Regeln (Schlagwort → Aktion),
+// ig_events = Log + Dedupe (eine Reaktion pro Kommentar, über comment_id unique).
+if (!tableExists($pdo, 'ig_rules')) {
+    step($pdo, "ig_rules: Tabelle anlegen",
+        "CREATE TABLE ig_rules (
+           id            VARCHAR(64)  NOT NULL PRIMARY KEY,
+           customer_id   VARCHAR(64)  NULL,
+           name          VARCHAR(190) NOT NULL,
+           enabled       TINYINT(1)   NOT NULL DEFAULT 1,
+           match_type    ENUM('contains','exact','any') NOT NULL DEFAULT 'contains',
+           keywords      TEXT         NULL,
+           reply_public  TEXT         NULL,
+           reply_dm      TEXT         NULL,
+           priority      INT          NOT NULL DEFAULT 0,
+           created_by    VARCHAR(64)  NULL,
+           created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           updated_at    DATETIME     NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+           KEY idx_ig_rules_customer (customer_id, enabled),
+           CONSTRAINT fk_ig_rules_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "ig_rules: bereits vorhanden"];
+}
+if (!tableExists($pdo, 'ig_events')) {
+    step($pdo, "ig_events: Tabelle anlegen",
+        "CREATE TABLE ig_events (
+           id            VARCHAR(64)  NOT NULL PRIMARY KEY,
+           comment_id    VARCHAR(190) NOT NULL,
+           media_id      VARCHAR(190) NULL,
+           customer_id   VARCHAR(64)  NULL,
+           rule_id       VARCHAR(64)  NULL,
+           from_username VARCHAR(190) NULL,
+           text          TEXT         NULL,
+           did_public    TINYINT(1)   NOT NULL DEFAULT 0,
+           did_dm        TINYINT(1)   NOT NULL DEFAULT 0,
+           status        VARCHAR(24)  NOT NULL DEFAULT 'pending',
+           detail        TEXT         NULL,
+           created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           UNIQUE KEY uq_ig_ev_comment (comment_id),
+           KEY idx_ig_ev_created (created_at)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", $results);
+} else {
+    $results[] = ['ok' => true, 'label' => "ig_events: bereits vorhanden"];
+}
+
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>

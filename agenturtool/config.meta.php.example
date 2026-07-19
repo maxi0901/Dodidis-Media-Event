@@ -34,4 +34,13 @@ return [
     'wa_phone_number_id' => 'HIER-DIE-PHONE-NUMBER-ID',
     'wa_token'           => 'HIER-DER-WHATSAPP-DAUER-TOKEN',
     'wa_verify_token'    => 'FREI-WAEHLBARES-VERIFY-PASSWORT',
+
+    // ── Instagram-Automatisierung (Auto-Antworten/DMs auf Kommentare) ──────
+    // Ersetzt ManyChat: Meta ruft bei neuen Kommentaren den Webhook auf
+    //   agenturtool/api/ig_webhook.php  (Meta-App -> Webhooks -> Instagram,
+    //   Feld „comments"). Der Verify-Token ist frei wählbar und MUSS mit dem in
+    //   der Webhook-Konfiguration hinterlegten übereinstimmen.
+    //   Nötige Berechtigungen: instagram_manage_comments (öffentliche Antwort)
+    //   und instagram_manage_messages (private DM als Antwort auf Kommentar).
+    'ig_verify_token'    => 'FREI-WAEHLBARES-IG-VERIFY-PASSWORT',
 ];
