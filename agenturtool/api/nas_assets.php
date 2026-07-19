@@ -127,9 +127,12 @@ function nas_customer_material_access(string $customerId, array $session): bool
         $c = db_one("SELECT manager_id FROM customers WHERE id = ?", [$customerId]);
         if ($c && (string)($c['manager_id'] ?? '') === $uid) return true;
     }
+    if (db_one("SELECT 1 FROM projects WHERE customer_id = ? AND (videograf_id = ? OR cutter_id = ?) LIMIT 1", [$customerId, $uid, $uid])) return true;
+    // M:N-Zuweisung (project_cutters) berücksichtigen — analog requireProjectAccess().
     return (bool)db_one(
-        "SELECT 1 FROM projects WHERE customer_id = ? AND (videograf_id = ? OR cutter_id = ?) LIMIT 1",
-        [$customerId, $uid, $uid]
+        "SELECT 1 FROM project_cutters pc JOIN projects p ON p.id = pc.project_id
+          WHERE p.customer_id = ? AND pc.user_id = ? LIMIT 1",
+        [$customerId, $uid]
     );
 }
 
@@ -342,6 +345,14 @@ if ($method === 'GET' && $projId && !$id) {
 
             foreach ($pend as $row) {
                 $key = $row['kind'] . '/' . $row['filename'];
+                // Namensreservierungen (id „resv_…") NICHT anzeigen — nur aufräumen,
+                // sobald die echte Datei da ist oder die Reservierung alt (>6 h) ist.
+                if (strpos((string)$row['id'], 'resv_') === 0) {
+                    if (!empty($onNas[$key]) || strtotime((string)$row['created_at']) < time() - 6 * 3600) {
+                        try { db_exec("DELETE FROM pending_uploads WHERE id = ?", [$row['id']]); } catch (\Throwable $_) {}
+                    }
+                    continue;
+                }
                 // schon auf dem NAS, oder verwaister Puffer (>7 Tage) → aufräumen.
                 // 7 Tage (nicht 24h): ein am vServer gestrandeter Upload (NAS-Push
                 // schlug transient fehl) bleibt sichtbar, bis der Retry-Timer ihn
@@ -415,9 +426,14 @@ if ($method === 'POST' && $action === 'pending') {
         if (!has_role('admin', 'manager', 'videograf')) json_err(403, 'Keine Berechtigung (Kundenmaterial).');
         $cRow = db_one("SELECT id, manager_id FROM customers WHERE id = ?", [$custId]);
         if (!$cRow) json_err(404, 'Kunde nicht gefunden.');
-        // Wie tus_ticket.php: Manager nur eigene Kunden (Endpoint direkt aufrufbar).
-        if (!has_role('admin') && has_role('manager') && (string)($cRow['manager_id'] ?? '') !== (string)$session['uid']) {
-            json_err(403, 'Nur eigene Kunden.');
+        // Wie tus_ticket.php (Endpoint direkt aufrufbar): Manager nur eigene Kunden;
+        // Videograf nur Kunden mit zugewiesenem Projekt.
+        if (!has_role('admin')) {
+            if (has_role('manager')) {
+                if ((string)($cRow['manager_id'] ?? '') !== (string)$session['uid']) json_err(403, 'Nur eigene Kunden.');
+            } elseif (!db_one("SELECT 1 FROM projects WHERE customer_id = ? AND videograf_id = ? LIMIT 1", [$custId, $session['uid']])) {
+                json_err(403, 'Nur Kunden mit dir zugewiesenem Projekt.');
+            }
         }
         try {
             db_exec(

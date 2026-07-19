@@ -62,8 +62,16 @@ if ($shootDayId !== '') {
     }
     $c = db_one("SELECT id, manager_id, material_folder FROM customers WHERE id = ?", [$customerId]);
     if (!$c) json_err(404, 'Kunde nicht gefunden.');
-    if (!has_role('admin') && has_role('manager') && (string)($c['manager_id'] ?? '') !== (string)$session['uid']) {
-        json_err(403, 'Nur eigene Kunden.');
+    // Kunden-Scoping: Admin überall; Manager nur eigene Kunden; Videograf nur
+    // Kunden, für die ihm ein Projekt zugewiesen ist.
+    if (has_role('admin')) {
+        // uneingeschränkt
+    } elseif (has_role('manager')) {
+        if ((string)($c['manager_id'] ?? '') !== (string)$session['uid']) json_err(403, 'Nur eigene Kunden.');
+    } else {
+        if (!db_one("SELECT 1 FROM projects WHERE customer_id = ? AND videograf_id = ? LIMIT 1", [$customerId, $session['uid']])) {
+            json_err(403, 'Nur Kunden mit dir zugewiesenem Projekt.');
+        }
     }
     if (empty($c['material_folder'])) {
         try { $c['material_folder'] = nas_provision_customer_material($customerId); }
@@ -110,19 +118,31 @@ if ($shootDayId !== '') {
         $ext = (preg_match('/(\.[A-Za-z0-9]{1,8})$/', $safe, $mm)) ? $mm[1] : '';
         $kuerzel   = nas_kuerzel((string)($p['customerName'] ?? 'Intern'));
         $titleSafe = trim(preg_replace('/[\/\\\\]/', '_', (string)($p['title'] ?? 'Video')));
-        $base      = "{$kuerzel} - {$titleSafe} - Final";
-        try {
-            $nas  = new NasWebDAV();
-            $safe = $base . $ext;
-            for ($i = 2; $i <= 50; $i++) {
-                $h = $nas->head($p['nas_folder'] . '/final/' . $safe);
-                if ((int)($h[1] ?? 0) === 0) break; // frei
-                $safe = $base . ' (' . $i . ')' . $ext;
-            }
-        } catch (\Throwable $e) {
-            // NAS gerade nicht erreichbar → eindeutigen Namen wählen (kein Überschreiben).
-            $safe = $base . ' - ' . substr(bin2hex(random_bytes(3)), 0, 6) . $ext;
+        $base   = "{$kuerzel} - {$titleSafe} - Final";
+        $folder = $p['nas_folder'] . '/final/';
+        try { $nas = new NasWebDAV(); } catch (\Throwable $e) { $nas = null; }
+        // „Belegt" = schon auf dem NAS ODER als noch laufender/reservierter Upload
+        // desselben Projekts vorgemerkt (pending_uploads) — verhindert, dass zwei
+        // gleichzeitige Finals denselben Zielnamen signieren und sich überschreiben.
+        $taken = static function (string $name) use ($nas, $folder, $projectId): bool {
+            if (db_one("SELECT id FROM pending_uploads WHERE project_id = ? AND kind = 'final' AND filename = ?", [$projectId, $name])) return true;
+            if ($nas === null) return false;
+            try { $h = $nas->head($folder . $name); return (int)($h[1] ?? 0) > 0; }
+            catch (\Throwable $e) { return false; }
+        };
+        $safe = $base . $ext;
+        for ($i = 2; $i <= 60 && $taken($safe); $i++) {
+            $safe = $base . ' (' . $i . ')' . $ext;
         }
+        // Namen sofort reservieren (best effort), damit ein zeitgleiches Ticket ihn
+        // nicht auch wählt. Reservierungen (id-Präfix „resv_") tauchen nicht in der
+        // Medienliste auf und werden aufgeräumt, sobald die Datei am NAS liegt.
+        try {
+            db_exec(
+                "INSERT INTO pending_uploads (id, project_id, kind, filename, uploaded_by) VALUES (?, ?, 'final', ?, ?)",
+                ['resv_' . bin2hex(random_bytes(8)), $projectId, $safe, $session['uid']]
+            );
+        } catch (\Throwable $e) { /* Reservierung nur best effort */ }
     }
     $target = $p['nas_folder'] . '/' . $kind . '/' . $safe;
 }
