@@ -114,7 +114,16 @@ function nas_provision_shootday(string $shootDayId): string
     $clientSlug = slugify($custName !== '' ? $custName : 'intern');
     $kuerzel    = nas_kuerzel($custName !== '' ? $custName : 'Intern');
     $dateStr    = $sd['date'] ? date('d.m.y', (int)strtotime((string)$sd['date'])) : date('d.m.y');
-    $nasFolder  = "{$clientSlug}/{$kuerzel} - Dreh {$dateStr}";
+    $base       = "{$clientSlug}/{$kuerzel} - Dreh {$dateStr}";
+
+    // Eindeutig machen: zwei Drehtage desselben Kunden am selben Datum dürfen sich
+    // NICHT denselben Ordner teilen (sonst mischen/überschreiben sich die Dateien).
+    $nasFolder = $base;
+    for ($i = 2; $i <= 50; $i++) {
+        $clash = db_one("SELECT id FROM shoot_days WHERE nas_folder = ? AND id <> ?", [$nasFolder, $shootDayId]);
+        if (!$clash) break;
+        $nasFolder = $base . ' (' . $i . ')';
+    }
 
     db_exec("UPDATE shoot_days SET nas_folder = ? WHERE id = ?", [$nasFolder, $shootDayId]);
     try {

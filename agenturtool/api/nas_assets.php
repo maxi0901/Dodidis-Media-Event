@@ -34,8 +34,11 @@ function nas_shootday_access(array $sd, array $session): bool
     $uid = (string)$session['uid'];
     if (has_role('admin', 'manager')) return true;
     if ((string)($sd['videograf_id'] ?? '') === $uid) return true;
+    if (db_one("SELECT 1 FROM projects WHERE shoot_day_id = ? AND cutter_id = ? LIMIT 1", [(string)$sd['id'], $uid])) return true;
+    // M:N-Zuweisung (project_cutters) berücksichtigen — analog requireProjectAccess().
     return (bool)db_one(
-        "SELECT 1 FROM projects WHERE shoot_day_id = ? AND cutter_id = ? LIMIT 1",
+        "SELECT 1 FROM project_cutters pc JOIN projects p ON p.id = pc.project_id
+          WHERE p.shoot_day_id = ? AND pc.user_id = ? LIMIT 1",
         [(string)$sd['id'], $uid]
     );
 }
@@ -391,7 +394,12 @@ if ($method === 'POST' && $action === 'pending') {
     if ($shootDayId !== '') {
         // Drehtag-Rohmaterial (kein Projekt).
         if (!has_role('admin', 'manager', 'videograf')) json_err(403, 'Keine Berechtigung (Rohmaterial).');
-        if (!db_one("SELECT id FROM shoot_days WHERE id = ?", [$shootDayId])) json_err(404, 'Drehtag nicht gefunden.');
+        $sdRow = db_one("SELECT id, videograf_id FROM shoot_days WHERE id = ?", [$shootDayId]);
+        if (!$sdRow) json_err(404, 'Drehtag nicht gefunden.');
+        // Wie tus_ticket.php: Videograf darf nur eigene Drehtage (Endpoint direkt aufrufbar).
+        if (!has_role('admin', 'manager') && (string)($sdRow['videograf_id'] ?? '') !== (string)$session['uid']) {
+            json_err(403, 'Nur eigene Drehtage.');
+        }
         try {
             db_exec(
                 "REPLACE INTO pending_uploads (id, project_id, shoot_day_id, kind, filename, size_bytes, uploaded_by)
@@ -405,7 +413,12 @@ if ($method === 'POST' && $action === 'pending') {
     if ($custId !== '') {
         // Kundenmaterial / B-Roll (kein Projekt).
         if (!has_role('admin', 'manager', 'videograf')) json_err(403, 'Keine Berechtigung (Kundenmaterial).');
-        if (!db_one("SELECT id FROM customers WHERE id = ?", [$custId])) json_err(404, 'Kunde nicht gefunden.');
+        $cRow = db_one("SELECT id, manager_id FROM customers WHERE id = ?", [$custId]);
+        if (!$cRow) json_err(404, 'Kunde nicht gefunden.');
+        // Wie tus_ticket.php: Manager nur eigene Kunden (Endpoint direkt aufrufbar).
+        if (!has_role('admin') && has_role('manager') && (string)($cRow['manager_id'] ?? '') !== (string)$session['uid']) {
+            json_err(403, 'Nur eigene Kunden.');
+        }
         try {
             db_exec(
                 "REPLACE INTO pending_uploads (id, project_id, shoot_day_id, customer_id, kind, filename, size_bytes, uploaded_by)
