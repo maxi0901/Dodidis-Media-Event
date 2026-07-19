@@ -10653,11 +10653,13 @@ const NAS_RESUMABLE_THRESHOLD = 100 * 1024 * 1024; // 100 MiB
 async function nasMediaStartUploads(kind, projectId, files, parentId = null) {
   // Sequentiell hochladen — schont Netcup-Limits und den Tunnel
   for (const file of files) {
-    // Nur Rohmaterial über den vServer (schnell, am Shared-Host vorbei). Finale
-    // Schnitte bleiben bewusst auf dem klassischen Weg: dort entsteht ein echter
-    // Asset-DB-Eintrag, den der Posting-Planer/die Freigabe/Kommentare brauchen —
-    // der vServer-Weg legt für angekommene Dateien (noch) keinen solchen an.
-    const isResumable = kind === 'raw' && !parentId && file.size > NAS_RESUMABLE_THRESHOLD;
+    // Rohmaterial UND frische finale Schnitte über den vServer (schnell, am
+    // Shared-Host vorbei). Sobald die Datei auf dem NAS liegt, registriert
+    // nas_assets.php sie als echtes „stored"-Asset (Posting-Planer/Freigabe/
+    // Kommentare funktionieren). Korrektur-Versionen (parentId) bleiben auf dem
+    // klassischen Weg, damit die Versionskette (parent_id) verknüpft bleibt und
+    // kein Dateiname auf dem NAS überschrieben wird.
+    const isResumable = !parentId && (kind === 'raw' || kind === 'final') && file.size > NAS_RESUMABLE_THRESHOLD;
     const u = { key: 'u' + (++nasUploadSeq), name: file.name, kind, pct: 0, error: null,
                 size: file.size, resumable: isResumable, paused: false };
     if (isResumable) u.controller = new AbortController();
@@ -10674,8 +10676,10 @@ async function nasMediaStartUploads(kind, projectId, files, parentId = null) {
     };
     try {
       if (isResumable) {
-        // Große Rohdatei → resumable zum vServer (chunked, wiederaufnehmbar).
+        // Roh-/Final-Datei → resumable zum vServer (chunked, wiederaufnehmbar).
         // Gilt als fertig, sobald am vServer; NAS-Sicherung läuft im Hintergrund.
+        // Finale Schnitte werden nach NAS-Ankunft serverseitig als echtes Asset
+        // registriert (nas_assets.php) und sind dann im Posting-Planer nutzbar.
         const nasName = await nasResumableUpload(file, projectId, kind, onProgress, u);
         nasMedia.uploads = nasMedia.uploads.filter(x => x !== u);
         showToast('Upload abgeschlossen', file.name + ' — wird auf dem NAS gesichert…');

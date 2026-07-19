@@ -61,8 +61,9 @@ if ($method === 'GET' && $projId && !$id) {
     // Manuell auf dem NAS abgelegte Dateien mit auflisten (ohne DB-Eintrag).
     // So tauchen Dateien auf, die jemand direkt in raw/ oder final/ kopiert hat
     // (z. B. großes Rohmaterial per SMB/lokal statt über den Upload-Durchlauf).
-    $proj = db_one("SELECT nas_folder FROM projects WHERE id = ?", [$projId]);
+    $proj = db_one("SELECT nas_folder, customer_id FROM projects WHERE id = ?", [$projId]);
     if ($proj && !empty($proj['nas_folder'])) {
+        $custId = $proj['customer_id'] ?? null;
         // Basenames aller bekannten DB-Assets (nas_key steht nicht im Listing-SELECT)
         $known = [];
         foreach (db_all("SELECT nas_key FROM assets WHERE project_id = ?", [$projId]) as $k) {
@@ -74,13 +75,57 @@ if ($method === 'GET' && $projId && !$id) {
             foreach (['raw', 'final'] as $kind) {
                 foreach ($nas->listDir($proj['nas_folder'] . '/' . $kind) as $f) {
                     if (!empty($known[$f['name']])) continue; // schon als DB-Asset gelistet
+                    $nasKey = $proj['nas_folder'] . '/' . $kind . '/' . $f['name'];
+                    $ctype  = $f['ctype'] ?: nas_guess_ctype($f['name']);
+
+                    // Finale Schnitte, die auf dem NAS liegen (per vServer-Upload ODER
+                    // manuell abgelegt), als ECHTES Asset registrieren — damit sie im
+                    // Posting-Planer, in der Freigabe und für Kommentare nutzbar sind,
+                    // nicht nur virtuell. Idempotent (nas_key ist unique). Rohmaterial
+                    // bleibt bewusst virtuell (braucht keinen DB-Eintrag).
+                    if ($kind === 'final') {
+                        $aid = uid('na');
+                        try {
+                            db_exec(
+                                "INSERT INTO assets
+                                   (id, project_id, customer_id, kind, parent_id, nas_key,
+                                    filename, content_type, size_bytes, status, confirmed_at)
+                                 VALUES (?, ?, ?, 'final', NULL, ?, ?, ?, ?, 'stored', NOW())",
+                                [$aid, $projId, $custId, $nasKey, $f['name'], $ctype, $f['size']]
+                            );
+                            log_activity('asset', $aid, 'autoregistered', ['project' => $projId, 'nas_key' => $nasKey]);
+                        } catch (\Throwable $e) {
+                            // Duplikat/Rennen → vorhandenes Asset einlesen und dessen ID nutzen.
+                            $ex  = db_one("SELECT id FROM assets WHERE nas_key = ?", [$nasKey]);
+                            $aid = $ex['id'] ?? null;
+                            if ($aid === null) continue; // konnte weder anlegen noch finden
+                        }
+                        $known[$f['name']] = true;
+                        $rows[] = [
+                            'id'          => $aid,
+                            'projectId'   => $projId,
+                            'kind'        => 'final',
+                            'parentId'    => null,
+                            'filename'    => $f['name'],
+                            'contentType' => $ctype,
+                            'sizeBytes'   => $f['size'],
+                            'status'      => 'stored',
+                            'uploadedBy'  => null,
+                            'createdAt'   => null,
+                            'confirmedAt' => null,
+                            'openComments'=> 0,
+                            'manual'      => false,
+                        ];
+                        continue;
+                    }
+
                     $rows[] = [
                         'id'          => 'nas:' . $kind . ':' . $f['name'],
                         'projectId'   => $projId,
                         'kind'        => $kind,
                         'parentId'    => null,
                         'filename'    => $f['name'],
-                        'contentType' => $f['ctype'] ?: nas_guess_ctype($f['name']),
+                        'contentType' => $ctype,
                         'sizeBytes'   => $f['size'],
                         'status'      => 'stored',
                         'uploadedBy'  => null,
