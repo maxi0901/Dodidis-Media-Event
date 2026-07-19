@@ -128,6 +128,32 @@ function nas_provision_shootday(string $shootDayId): string
 }
 
 /**
+ * Legt den Kundenmaterial-Ordner (B-Roll etc.) an (idempotent):
+ *   {kunde}/{Kürzel} - Material
+ */
+function nas_provision_customer_material(string $customerId): string
+{
+    $c = db_one("SELECT id, name, material_folder FROM customers WHERE id = ?", [$customerId]);
+    if (!$c) throw new \RuntimeException('Kunde nicht gefunden: ' . $customerId);
+    if (!empty($c['material_folder'])) return (string)$c['material_folder'];
+
+    $name       = (string)($c['name'] ?? 'Kunde');
+    $clientSlug = slugify($name !== '' ? $name : 'intern');
+    $kuerzel    = nas_kuerzel($name !== '' ? $name : 'Intern');
+    $nasFolder  = "{$clientSlug}/{$kuerzel} - Material";
+
+    db_exec("UPDATE customers SET material_folder = ? WHERE id = ?", [$nasFolder, $customerId]);
+    try {
+        (new NasWebDAV())->ensureDir($nasFolder);
+    } catch (\Throwable $e) {
+        db_exec("UPDATE customers SET material_folder = NULL WHERE id = ?", [$customerId]);
+        throw $e;
+    }
+    log_activity('nas_customer', $customerId, 'material_folder_created', ['folder' => $nasFolder]);
+    return $nasFolder;
+}
+
+/**
  * Ersetzte Final-Versionen eines Projekts aufräumen (bei Freigabe/Archivierung).
  *
  * „Ersetzt" heißt: ein anderer finaler Schnitt verweist per parent_id auf das

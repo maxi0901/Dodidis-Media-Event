@@ -935,6 +935,12 @@ addCol($pdo, 'pending_uploads', 'shoot_day_id',
 step($pdo, "pending_uploads.project_id nullable (Drehtag-Uploads ohne Projekt)",
     "ALTER TABLE pending_uploads MODIFY COLUMN project_id VARCHAR(64) NULL", $results);
 
+// ── 39. Kundenmaterial (B-Roll): NAS-Ordner pro Kunde + Scope in pending ──────
+addCol($pdo, 'customers', 'material_folder',
+    "ALTER TABLE customers ADD COLUMN material_folder VARCHAR(500) NULL", $results);
+addCol($pdo, 'pending_uploads', 'customer_id',
+    "ALTER TABLE pending_uploads ADD COLUMN customer_id VARCHAR(64) NULL", $results);
+
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>
