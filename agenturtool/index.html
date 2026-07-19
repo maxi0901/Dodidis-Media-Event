@@ -4185,6 +4185,31 @@
   :root[data-theme="dark"] .topbar { background:rgba(15,16,19,0.85); }
   :root[data-theme="dark"] .bottom-nav { background:rgba(15,16,19,0.97); }
 
+  /* ── Globales Upload-Dock (oben rechts, überlebt Seitenwechsel) ──────────── */
+  .upload-dock {
+    position:fixed; top:72px; right:16px; z-index:1500;
+    width:min(340px, calc(100vw - 32px));
+    display:flex; flex-direction:column; gap:8px; pointer-events:none;
+  }
+  .upload-dock:empty { display:none; }
+  .upl-card {
+    pointer-events:auto; background:var(--bg-1); border:1px solid var(--border);
+    border-radius:12px; box-shadow:var(--shadow-sm); padding:10px 12px;
+  }
+  .upl-head { display:flex; align-items:center; gap:8px; }
+  .upl-name { flex:1; min-width:0; font-size:12.5px; font-weight:600; color:var(--text-1);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .upl-x { background:none; border:none; color:var(--text-3); cursor:pointer; font-size:14px;
+    line-height:1; padding:2px 4px; flex-shrink:0; }
+  .upl-x:hover { color:var(--text-1); }
+  .upl-bar-wrap { height:6px; background:var(--bg-3); border-radius:3px; overflow:hidden; margin-top:8px; }
+  .upl-bar { height:100%; width:0; background:var(--accent); border-radius:3px; transition:width .15s ease; }
+  .upl-bar.err  { background:var(--danger); }
+  .upl-bar.done { background:var(--success); }
+  .upl-info { display:flex; justify-content:space-between; gap:8px; font-size:11px;
+    color:var(--text-3); margin-top:5px; }
+  @media (max-width:768px) { .upload-dock { top:auto; bottom:calc(66px + var(--safe-bottom)); } }
+
 </style>
 </head>
 <body>
@@ -4281,6 +4306,9 @@
 
 <!-- MODAL CONTAINER -->
 <div id="modal-container"></div>
+
+<!-- GLOBALES UPLOAD-DOCK (oben rechts, seitenübergreifend sichtbar) -->
+<div class="upload-dock" id="upload-dock"></div>
 
 <script src="api/upload.js"></script>
 <script>
@@ -5509,6 +5537,7 @@ function renderPage() {
   }
 
   refreshCustomerFilterBar(session);
+  renderUploadDock(); // globales Upload-Dock seitenübergreifend aktuell halten
 
   const render = pages[currentPage] || renderDashboard;
   render(session);
@@ -10446,7 +10475,11 @@ function scriptFileOf(project) {
    Nutzt uploadAsset/downloadAsset/listAssets aus api/upload.js.
    Ordner werden automatisch angelegt (Idee→Projekt bzw. beim ersten Upload).
    --------------------------------------------------------------------------- */
-const nasMedia = { projectId: null, assets: [], uploads: [], loading: false, error: null };
+const nasMedia = { projectId: null, assets: [], loading: false, error: null };
+// Laufende Uploads GLOBAL (nicht an die Projektansicht gebunden) → laufen weiter,
+// wenn man das Projekt schließt oder die Seite wechselt, und werden im Dock oben
+// rechts angezeigt.
+let appUploads = [];
 let nasUploadSeq = 0;
 
 // Zentrale Event-Delegation für Medien-Zeilen-Buttons. data-nas-id wird vom
@@ -10474,7 +10507,6 @@ async function loadAndRenderNasMedia(projectId) {
   if (nasMedia.projectId !== projectId) {
     nasMedia.projectId = projectId;
     nasMedia.assets  = [];
-    nasMedia.uploads = [];
   }
   nasMedia.loading = true;
   nasMedia.error   = null;
@@ -10577,7 +10609,7 @@ function renderNasMedia() {
 
   const group = (kind, label, canUpload, multiple) => {
     const assets  = nasMedia.assets.filter(a => a.kind === kind);
-    const uploads = nasMedia.uploads.filter(u => u.kind === kind);
+    const uploads = appUploads.filter(u => u.projectId === nasMedia.projectId && u.kind === kind);
 
     // Finale Schnitte: „ersetzt" ist ein Asset nur, wenn eine neuere Version
     // per parent_id darauf zeigt (Versionskette). Eigenständige Deliverables
@@ -10645,61 +10677,103 @@ function nasMediaPickVersion(parentAssetId, projectId) {
   nasMediaPick('final', projectId, parentAssetId);
 }
 
-// Ab dieser Größe gehen Uploads den resumable Weg (direkt zum vServer/NAS, am
-// PHP-Shared-Host vorbei) statt durch den klassischen Durchlauf-Upload. Bewusst
-// niedrig, damit auch mittelgroße Roh-/Final-Dateien den schnellen Pfad nehmen.
-const NAS_RESUMABLE_THRESHOLD = 100 * 1024 * 1024; // 100 MiB
+// Ab dieser Größe gehen Uploads den resumable Weg (direkt zum vServer/NAS). 0 =
+// ALLES läuft über den vServer, egal wie klein. Nur Korrektur-Versionen
+// (parentId) bleiben klassisch (Versionskette/parent_id, kein Überschreiben).
+const NAS_RESUMABLE_THRESHOLD = 0;
+
+// Dock oben rechts neu zeichnen + (falls Projekt offen) die Inline-Liste.
+function uploadsChanged() { renderUploadDock(); renderNasMedia(); }
+function removeUpload(u) { appUploads = appUploads.filter(x => x !== u); uploadsChanged(); }
+// „fertig"-Kachel kurz stehen lassen, dann aus dem Dock entfernen.
+function scheduleUploadRemoval(u) { setTimeout(() => removeUpload(u), 4000); }
+
+// Nur die Fortschrittswerte im Dock aktualisieren (ohne Neuaufbau → kein Flackern).
+function updateUploadDockProgress(u) {
+  const bar = document.getElementById('updock-bar-' + u.key);
+  const pct = document.getElementById('updock-pct-' + u.key);
+  const inf = document.getElementById('updock-info-' + u.key);
+  if (bar) bar.style.width = u.pct + '%';
+  if (pct) pct.textContent = u.pct + ' %';
+  if (inf) inf.textContent = nasUpStatusText(u);
+}
+
+// Globales Dock (oben rechts). Zeigt alle laufenden/fehlgeschlagenen Uploads,
+// seitenübergreifend. Leeres Dock wird per CSS (:empty) ausgeblendet.
+function renderUploadDock() {
+  const dock = document.getElementById('upload-dock');
+  if (!dock) return;
+  dock.innerHTML = appUploads.map(u => {
+    const barCls = u.error ? 'err' : (u.done ? 'done' : '');
+    const pctTxt = u.error ? '✕' : (u.done ? '✓' : (u.pct + ' %'));
+    const info   = u.error ? escape(u.error)
+                  : (u.done ? 'am vServer — wird gesichert…' : escape(nasUpStatusText(u)));
+    const closeBtn = u.error
+      ? `<button class="upl-x" title="Entfernen" onclick="nasMediaDismissUpload('${u.key}')">✕</button>`
+      : (!u.done && u.resumable
+          ? `<button class="upl-x" title="Upload abbrechen" onclick="nasCancelUpload('${u.key}')">✕</button>`
+          : '');
+    const label = u.projectTitle ? `${escape(u.name)}  ·  ${escape(u.projectTitle)}` : escape(u.name);
+    return `<div class="upl-card">
+      <div class="upl-head"><span class="upl-name" title="${label}">${label}</span>${closeBtn}</div>
+      <div class="upl-bar-wrap"><div class="upl-bar ${barCls}" id="updock-bar-${u.key}" style="width:${u.error ? 100 : u.pct}%;"></div></div>
+      <div class="upl-info"><span id="updock-info-${u.key}">${info}</span><span id="updock-pct-${u.key}">${pctTxt}</span></div>
+    </div>`;
+  }).join('');
+}
 
 async function nasMediaStartUploads(kind, projectId, files, parentId = null) {
+  const proj = store.projects.find(p => p.id === projectId);
+  const projectTitle = proj ? (proj.title || '') : '';
   // Sequentiell hochladen — schont Netcup-Limits und den Tunnel
   for (const file of files) {
-    // Rohmaterial UND frische finale Schnitte über den vServer (schnell, am
-    // Shared-Host vorbei). Sobald die Datei auf dem NAS liegt, registriert
-    // nas_assets.php sie als echtes „stored"-Asset (Posting-Planer/Freigabe/
-    // Kommentare funktionieren). Korrektur-Versionen (parentId) bleiben auf dem
-    // klassischen Weg, damit die Versionskette (parent_id) verknüpft bleibt und
-    // kein Dateiname auf dem NAS überschrieben wird.
+    // Alles über den vServer (schnell, am Shared-Host vorbei). Sobald die Datei
+    // auf dem NAS liegt, registriert nas_assets.php finale Schnitte als echtes
+    // „stored"-Asset (Posting-Planer/Freigabe/Kommentare). Nur Korrektur-
+    // Versionen (parentId) laufen klassisch (Versionskette bleibt verknüpft).
     const isResumable = !parentId && (kind === 'raw' || kind === 'final') && file.size > NAS_RESUMABLE_THRESHOLD;
-    const u = { key: 'u' + (++nasUploadSeq), name: file.name, kind, pct: 0, error: null,
-                size: file.size, resumable: isResumable, paused: false };
+    const u = { key: 'u' + (++nasUploadSeq), name: file.name, kind, projectId, projectTitle,
+                pct: 0, error: null, size: file.size, resumable: isResumable, paused: false, done: false };
     if (isResumable) u.controller = new AbortController();
-    nasMedia.uploads.push(u);
-    renderNasMedia();
+    appUploads.push(u);
+    uploadsChanged();
     const onProgress = (pct) => {
       u.pct = pct;
+      // Inline-Zeile (falls das Projekt gerade offen ist)
       const bar = document.getElementById('nas-up-bar-' + u.key);
       const lbl = document.getElementById('nas-up-pct-' + u.key);
       const inf = document.getElementById('nas-up-info-' + u.key);
       if (bar) bar.style.width = pct + '%';
       if (lbl) lbl.textContent = pct + ' %';
       if (inf) inf.textContent = nasUpStatusText(u);
+      updateUploadDockProgress(u); // globales Dock
     };
     try {
       if (isResumable) {
         // Roh-/Final-Datei → resumable zum vServer (chunked, wiederaufnehmbar).
         // Gilt als fertig, sobald am vServer; NAS-Sicherung läuft im Hintergrund.
-        // Finale Schnitte werden nach NAS-Ankunft serverseitig als echtes Asset
-        // registriert (nas_assets.php) und sind dann im Posting-Planer nutzbar.
         const nasName = await nasResumableUpload(file, projectId, kind, onProgress, u);
-        nasMedia.uploads = nasMedia.uploads.filter(x => x !== u);
+        u.done = true; u.pct = 100; uploadsChanged();
         showToast('Upload abgeschlossen', file.name + ' — wird auf dem NAS gesichert…');
-        await loadAndRenderNasMedia(projectId);          // zeigt Pending (vom vServer ladbar)
+        if (nasMedia.projectId === projectId) await loadAndRenderNasMedia(projectId);
         nasRevealAfterTransfer(projectId, kind, nasName); // Hintergrund: auf NAS-Ankunft warten
       } else {
         const asset = await uploadAsset(file, projectId, { kind, parentId, onProgress });
-        nasMedia.uploads = nasMedia.uploads.filter(x => x !== u);
-        nasMedia.assets.unshift(asset);
+        u.done = true; u.pct = 100;
+        if (nasMedia.projectId === projectId) nasMedia.assets.unshift(asset);
+        uploadsChanged();
         showToast('Upload abgeschlossen', file.name);
       }
+      scheduleUploadRemoval(u); // „fertig" kurz zeigen, dann aus dem Dock nehmen
     } catch (err) {
       if (u.canceled) {
-        nasMedia.uploads = nasMedia.uploads.filter(x => x !== u); // Abbruch: kein Fehler-Zustand
+        removeUpload(u); // Abbruch: kein Fehler-Zustand
       } else {
         u.error = err.message || 'Unbekannter Fehler';
+        uploadsChanged();
         showToast('Upload fehlgeschlagen', file.name + ' — ' + u.error);
       }
     }
-    renderNasMedia();
   }
 }
 
@@ -10773,6 +10847,7 @@ async function nasTusUpload(endpoint, file, { onProgress, kind, projectId, token
     if (u) u.paused = p;
     const inf = u && document.getElementById('nas-up-info-' + u.key);
     if (inf) inf.textContent = nasUpStatusText(u);
+    if (u) updateUploadDockProgress(u); // Pause-Hinweis auch im Dock zeigen
   };
 
   // Gedrosselte Fortschrittsmeldung (max. ~alle 150 ms), damit der Balken sich
@@ -10899,8 +10974,8 @@ async function nasTusUpload(endpoint, file, { onProgress, kind, projectId, token
 }
 
 function nasMediaDismissUpload(key) {
-  nasMedia.uploads = nasMedia.uploads.filter(x => x.key !== key);
-  renderNasMedia();
+  appUploads = appUploads.filter(x => x.key !== key);
+  uploadsChanged();
 }
 
 // Statuszeile unter dem Fortschrittsbalken: Fortschritt in MB (feiner ablesbar
@@ -10931,7 +11006,7 @@ function nasWaitOnline(signal) {
 // Laufenden resumable Upload abbrechen: Client stoppen, Puffer am vServer
 // verwerfen (tus termination) und Resume-Merker löschen.
 async function nasCancelUpload(key) {
-  const u = nasMedia.uploads.find(x => x.key === key);
+  const u = appUploads.find(x => x.key === key);
   if (!u) return;
   u.canceled = true;
   try { if (u.controller) u.controller.abort(); } catch (_) {}
@@ -10939,8 +11014,7 @@ async function nasCancelUpload(key) {
     try { await fetch(u.uploadUrl, { method: 'DELETE', headers: { 'Tus-Resumable': '1.0.0' } }); } catch (_) {}
   }
   try { if (u.fp) localStorage.removeItem(u.fp); } catch (_) {}
-  nasMedia.uploads = nasMedia.uploads.filter(x => x !== u);
-  renderNasMedia();
+  removeUpload(u);
   showToast('Abgebrochen', u.name);
 }
 
