@@ -116,7 +116,7 @@ function serve_file_with_range(string $path, string $ctype, string $filename): v
     fseek($fh, $start);
     $remaining = $end - $start + 1;
     while ($remaining > 0 && !feof($fh)) {
-        $chunk = fread($fh, (int)min(131072, $remaining));
+        $chunk = fread($fh, (int)min(1048576, $remaining)); // 1 MB statt 128 KB → weniger Overhead
         if ($chunk === false) break;
         echo $chunk;
         $remaining -= strlen($chunk);

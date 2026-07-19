@@ -69,13 +69,21 @@ tusd (lokal), der Rest weiter an den NAS-WebDAV:
 ```caddy
 nas.dodidis-media.de {
     handle /files/* {
-        reverse_proxy 127.0.0.1:1080
+        reverse_proxy 127.0.0.1:1080 {
+            # Streaming statt Voll-Pufferung → höherer Upload-Durchsatz und
+            # sofortige Weitergabe der Chunks an tusd (kein Buffern der Bodies).
+            flush_interval -1
+        }
     }
     handle {
         reverse_proxy 100.97.62.62:5005
     }
 }
 ```
+> Hinweis: `flush_interval -1` sorgt dafür, dass Caddy die Upload-Chunks direkt
+> durchreicht, statt den Request-Body erst komplett zu puffern. Wichtig für
+> schnelle, große (Resumable-)Uploads.
+
 Neu laden:
 ```bash
 docker exec caddy caddy reload --config /etc/caddy/Caddyfile   # oder: docker restart caddy

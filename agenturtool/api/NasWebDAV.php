@@ -189,18 +189,33 @@ class NasWebDAV
         curl_setopt($ch, CURLOPT_TIMEOUT, 0);
         curl_setopt($ch, CURLOPT_LOW_SPEED_LIMIT, 1);
         curl_setopt($ch, CURLOPT_LOW_SPEED_TIME, 120);
+        curl_setopt($ch, CURLOPT_BUFFERSIZE, 262144); // größere cURL-Lesepuffer
         if ($curlRange !== null) {
             curl_setopt($ch, CURLOPT_RANGE, $curlRange);
         }
-        // In den Ausgabepuffer streamen; bei Client-Abbruch sauber stoppen.
-        curl_setopt($ch, CURLOPT_WRITEFUNCTION, static function ($ch, string $chunk): int {
+        // In den Ausgabestrom streamen, aber NICHT nach jedem (kleinen) cURL-Write
+        // flushen — das kostete pro Mini-Chunk einen Syscall und bremste den
+        // Durchsatz. Stattdessen ~1 MB puffern und dann gesammelt rausschreiben.
+        $buf = '';
+        $flushAt = 1 << 20; // 1 MB
+        curl_setopt($ch, CURLOPT_WRITEFUNCTION, static function ($ch, string $chunk) use (&$buf, $flushAt): int {
             if (connection_aborted()) return 0; // signalisiert cURL: abbrechen
-            echo $chunk;
-            if (ob_get_level() > 0) ob_flush();
-            flush();
+            $buf .= $chunk;
+            if (strlen($buf) >= $flushAt) {
+                echo $buf;
+                $buf = '';
+                if (ob_get_level() > 0) @ob_flush();
+                @flush();
+            }
             return strlen($chunk);
         });
         $this->exec($ch);
+        // Restpuffer rausschreiben.
+        if ($buf !== '') {
+            echo $buf;
+            if (ob_get_level() > 0) @ob_flush();
+            @flush();
+        }
     }
 
     /**
