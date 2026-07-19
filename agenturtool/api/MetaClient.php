@@ -28,6 +28,7 @@ class MetaClient
         'instagram_content_publish',
         'instagram_manage_comments',   // Kommentare lesen & beantworten
         'instagram_manage_insights',   // Views/Reichweite je Post
+        'instagram_manage_messages',   // Auto-DMs als Antwort auf Kommentare
     ];
 
     private string $appId;

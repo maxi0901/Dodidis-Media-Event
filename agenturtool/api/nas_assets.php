@@ -17,6 +17,7 @@ $id      = $_GET['id']           ?? null;
 $action  = $_GET['action']       ?? null;
 $projId  = $_GET['project_id']   ?? null;
 $shootId = $_GET['shoot_day_id'] ?? null;
+$custIdG = $_GET['customer_id']  ?? null;
 
 if (in_array($method, ['POST', 'PUT', 'DELETE'], true)) {
     require_csrf();
@@ -33,8 +34,11 @@ function nas_shootday_access(array $sd, array $session): bool
     $uid = (string)$session['uid'];
     if (has_role('admin', 'manager')) return true;
     if ((string)($sd['videograf_id'] ?? '') === $uid) return true;
+    if (db_one("SELECT 1 FROM projects WHERE shoot_day_id = ? AND cutter_id = ? LIMIT 1", [(string)$sd['id'], $uid])) return true;
+    // M:N-Zuweisung (project_cutters) berücksichtigen — analog requireProjectAccess().
     return (bool)db_one(
-        "SELECT 1 FROM projects WHERE shoot_day_id = ? AND cutter_id = ? LIMIT 1",
+        "SELECT 1 FROM project_cutters pc JOIN projects p ON p.id = pc.project_id
+          WHERE p.shoot_day_id = ? AND pc.user_id = ? LIMIT 1",
         [(string)$sd['id'], $uid]
     );
 }
@@ -107,6 +111,98 @@ if ($method === 'GET' && $shootId && $action === 'download') {
     if (!$sd) json_err(404, 'Drehtag nicht gefunden.');
     if (!nas_shootday_access($sd, $session)) json_err(403, 'Kein Zugriff auf diesen Drehtag.');
     $folder = (string)($sd['nas_folder'] ?? '');
+    $file   = ltrim(str_replace(['/', '\\'], '_', (string)($_GET['file'] ?? '')), '.');
+    if ($folder === '' || $file === '') json_err(400, 'Datei fehlt.');
+    (new NasWebDAV())->passthru($folder . '/' . $file, $file);
+    exit;
+}
+
+/** Zugriff auf Kundenmaterial: Admin; Manager (eigener Kunde); Videograf/Cutter,
+ *  wenn ihnen ein Projekt dieses Kunden zugewiesen ist. */
+function nas_customer_material_access(string $customerId, array $session): bool
+{
+    if (has_role('admin')) return true;
+    $uid = (string)$session['uid'];
+    if (has_role('manager')) {
+        $c = db_one("SELECT manager_id FROM customers WHERE id = ?", [$customerId]);
+        if ($c && (string)($c['manager_id'] ?? '') === $uid) return true;
+    }
+    if (db_one("SELECT 1 FROM projects WHERE customer_id = ? AND (videograf_id = ? OR cutter_id = ?) LIMIT 1", [$customerId, $uid, $uid])) return true;
+    // M:N-Zuweisung (project_cutters) berücksichtigen — analog requireProjectAccess().
+    return (bool)db_one(
+        "SELECT 1 FROM project_cutters pc JOIN projects p ON p.id = pc.project_id
+          WHERE p.customer_id = ? AND pc.user_id = ? LIMIT 1",
+        [$customerId, $uid]
+    );
+}
+
+// ── Route: GET ?customer_id=&action=material — Kundenmaterial listen ──────────
+if ($method === 'GET' && $custIdG && $action === 'material') {
+    $c = db_one("SELECT id, material_folder FROM customers WHERE id = ?", [$custIdG]);
+    if (!$c) json_err(404, 'Kunde nicht gefunden.');
+    if (!nas_customer_material_access((string)$custIdG, $session)) json_err(403, 'Kein Zugriff auf das Kundenmaterial.');
+
+    $rows   = [];
+    $folder = (string)($c['material_folder'] ?? '');
+    if ($folder !== '') {
+        try {
+            foreach ((new NasWebDAV())->listDir($folder) as $f) {
+                $rows[] = [
+                    'id'          => 'nas:mat:' . $f['name'],
+                    'customerId'  => $custIdG,
+                    'kind'        => 'material',
+                    'filename'    => $f['name'],
+                    'contentType' => $f['ctype'] ?: nas_guess_ctype($f['name']),
+                    'sizeBytes'   => $f['size'],
+                    'status'      => 'stored',
+                    'manual'      => true,
+                    'pending'     => false,
+                ];
+            }
+        } catch (\Throwable $e) {
+            error_log('[nas_assets] Kundenmaterial-Listing ' . $custIdG . ': ' . $e->getMessage());
+        }
+    }
+    try {
+        $pend = db_all("SELECT id, filename, size_bytes AS sizeBytes, created_at
+                          FROM pending_uploads WHERE customer_id = ? AND kind = 'material'", [$custIdG]);
+        if ($pend) {
+            $onNas = [];
+            foreach ($rows as $r) $onNas[$r['filename']] = true;
+            $creds = nas_credentials();
+            $pu    = parse_url($creds['base']);
+            $vhost = ($pu['scheme'] ?? 'https') . '://' . ($pu['host'] ?? '')
+                   . (isset($pu['port']) ? ':' . $pu['port'] : '');
+            foreach ($pend as $row) {
+                if (!empty($onNas[$row['filename']]) || strtotime((string)$row['created_at']) < time() - 7 * 86400) {
+                    try { db_exec("DELETE FROM pending_uploads WHERE id = ?", [$row['id']]); } catch (\Throwable $_) {}
+                    continue;
+                }
+                $rows[] = [
+                    'id'          => 'pending:' . $row['id'],
+                    'customerId'  => $custIdG,
+                    'kind'        => 'material',
+                    'filename'    => $row['filename'],
+                    'contentType' => nas_guess_ctype($row['filename']),
+                    'sizeBytes'   => $row['sizeBytes'] !== null ? (int)$row['sizeBytes'] : null,
+                    'status'      => 'buffering',
+                    'manual'      => false,
+                    'pending'     => true,
+                    'vserverUrl'  => $vhost . '/files/' . rawurlencode($row['id']),
+                ];
+            }
+        }
+    } catch (\Throwable $e) { /* pending evtl. nicht migriert */ }
+
+    json_ok($rows);
+}
+
+// ── Route: GET ?customer_id=&action=material_download&file= ───────────────────
+if ($method === 'GET' && $custIdG && $action === 'material_download') {
+    $c = db_one("SELECT id, material_folder FROM customers WHERE id = ?", [$custIdG]);
+    if (!$c) json_err(404, 'Kunde nicht gefunden.');
+    if (!nas_customer_material_access((string)$custIdG, $session)) json_err(403, 'Kein Zugriff auf das Kundenmaterial.');
+    $folder = (string)($c['material_folder'] ?? '');
     $file   = ltrim(str_replace(['/', '\\'], '_', (string)($_GET['file'] ?? '')), '.');
     if ($folder === '' || $file === '') json_err(400, 'Datei fehlt.');
     (new NasWebDAV())->passthru($folder . '/' . $file, $file);
@@ -249,6 +345,14 @@ if ($method === 'GET' && $projId && !$id) {
 
             foreach ($pend as $row) {
                 $key = $row['kind'] . '/' . $row['filename'];
+                // Namensreservierungen (id „resv_…") NICHT anzeigen — nur aufräumen,
+                // sobald die echte Datei da ist oder die Reservierung alt (>6 h) ist.
+                if (strpos((string)$row['id'], 'resv_') === 0) {
+                    if (!empty($onNas[$key]) || strtotime((string)$row['created_at']) < time() - 6 * 3600) {
+                        try { db_exec("DELETE FROM pending_uploads WHERE id = ?", [$row['id']]); } catch (\Throwable $_) {}
+                    }
+                    continue;
+                }
                 // schon auf dem NAS, oder verwaister Puffer (>7 Tage) → aufräumen.
                 // 7 Tage (nicht 24h): ein am vServer gestrandeter Upload (NAS-Push
                 // schlug transient fehl) bleibt sichtbar, bis der Retry-Timer ihn
@@ -289,6 +393,7 @@ if ($method === 'POST' && $action === 'pending') {
     $uploadId   = trim((string)($b['upload_id'] ?? ''));
     $projectId  = trim((string)($b['project_id'] ?? ''));
     $shootDayId = trim((string)($b['shoot_day_id'] ?? ''));
+    $custId     = trim((string)($b['customer_id'] ?? ''));
     $kind       = trim((string)($b['kind'] ?? 'raw'));
     $filename   = trim((string)($b['filename'] ?? ''));
     $size       = (int)($b['size'] ?? 0);
@@ -300,7 +405,12 @@ if ($method === 'POST' && $action === 'pending') {
     if ($shootDayId !== '') {
         // Drehtag-Rohmaterial (kein Projekt).
         if (!has_role('admin', 'manager', 'videograf')) json_err(403, 'Keine Berechtigung (Rohmaterial).');
-        if (!db_one("SELECT id FROM shoot_days WHERE id = ?", [$shootDayId])) json_err(404, 'Drehtag nicht gefunden.');
+        $sdRow = db_one("SELECT id, videograf_id FROM shoot_days WHERE id = ?", [$shootDayId]);
+        if (!$sdRow) json_err(404, 'Drehtag nicht gefunden.');
+        // Wie tus_ticket.php: Videograf darf nur eigene Drehtage (Endpoint direkt aufrufbar).
+        if (!has_role('admin', 'manager') && (string)($sdRow['videograf_id'] ?? '') !== (string)$session['uid']) {
+            json_err(403, 'Nur eigene Drehtage.');
+        }
         try {
             db_exec(
                 "REPLACE INTO pending_uploads (id, project_id, shoot_day_id, kind, filename, size_bytes, uploaded_by)
@@ -311,7 +421,31 @@ if ($method === 'POST' && $action === 'pending') {
         json_ok(['pending' => true]);
     }
 
-    if ($projectId === '') json_err(400, 'project_id oder shoot_day_id ist Pflicht.');
+    if ($custId !== '') {
+        // Kundenmaterial / B-Roll (kein Projekt).
+        if (!has_role('admin', 'manager', 'videograf')) json_err(403, 'Keine Berechtigung (Kundenmaterial).');
+        $cRow = db_one("SELECT id, manager_id FROM customers WHERE id = ?", [$custId]);
+        if (!$cRow) json_err(404, 'Kunde nicht gefunden.');
+        // Wie tus_ticket.php (Endpoint direkt aufrufbar): Manager nur eigene Kunden;
+        // Videograf nur Kunden mit zugewiesenem Projekt.
+        if (!has_role('admin')) {
+            if (has_role('manager')) {
+                if ((string)($cRow['manager_id'] ?? '') !== (string)$session['uid']) json_err(403, 'Nur eigene Kunden.');
+            } elseif (!db_one("SELECT 1 FROM projects WHERE customer_id = ? AND videograf_id = ? LIMIT 1", [$custId, $session['uid']])) {
+                json_err(403, 'Nur Kunden mit dir zugewiesenem Projekt.');
+            }
+        }
+        try {
+            db_exec(
+                "REPLACE INTO pending_uploads (id, project_id, shoot_day_id, customer_id, kind, filename, size_bytes, uploaded_by)
+                 VALUES (?, NULL, NULL, ?, 'material', ?, ?, ?)",
+                [$uploadId, $custId, $safe, $size ?: null, $session['uid']]
+            );
+        } catch (\Throwable $e) { error_log('[nas_assets pending cust] ' . $e->getMessage()); }
+        json_ok(['pending' => true]);
+    }
+
+    if ($projectId === '') json_err(400, 'project_id, shoot_day_id oder customer_id ist Pflicht.');
     if (!in_array($kind, ['raw', 'final'], true)) json_err(400, "kind muss 'raw' oder 'final' sein.");
 
     requireProjectAccess($projectId, $session);
@@ -374,7 +508,47 @@ if ($method === 'POST' && $action === 'prepare') {
     $safeFilename = substr($safeFilename, 0, 200);
 
     $assetId = uid('na');
-    $nasKey  = $p['nas_folder'] . '/' . $kind . '/' . $assetId . '_' . $safeFilename;
+
+    // Finale Schnitte lesbar benennen: „{Kürzel} - {Video} - Final" bzw. bei
+    // Korrektur-Versionen (parentId) „… - V1/V2". Kollisionssicher gegen NAS;
+    // ist das NAS nicht erreichbar, greift der eindeutige assetId-Präfix.
+    if ($kind === 'final') {
+        $meta = db_one(
+            "SELECT p.title, c.name AS customerName
+               FROM projects p LEFT JOIN customers c ON c.id = p.customer_id
+              WHERE p.id = ?",
+            [$projectId]
+        );
+        $ext       = (preg_match('/(\.[A-Za-z0-9]{1,8})$/', $safeFilename, $mm)) ? $mm[1] : '';
+        $kuerzel   = nas_kuerzel((string)($meta['customerName'] ?? 'Intern'));
+        $titleSafe = trim(preg_replace('/[\/\\\\]/', '_', (string)($meta['title'] ?? 'Video')));
+        try {
+            $nas = new NasWebDAV();
+            if ($parentId) {
+                $cnt  = (int)(db_one("SELECT COUNT(*) AS n FROM assets WHERE project_id = ? AND kind = 'final' AND status = 'stored'", [$projectId])['n'] ?? 0);
+                $n    = max(1, $cnt);
+                $safeFilename = "{$kuerzel} - {$titleSafe} - V{$n}{$ext}";
+                for ($i = $n; $i <= $n + 50; $i++) {
+                    $cand = "{$kuerzel} - {$titleSafe} - V{$i}{$ext}";
+                    $h = $nas->head($p['nas_folder'] . '/final/' . $cand);
+                    if ((int)($h[1] ?? 0) === 0) { $safeFilename = $cand; break; }
+                }
+            } else {
+                $base = "{$kuerzel} - {$titleSafe} - Final";
+                $safeFilename = $base . $ext;
+                for ($i = 2; $i <= 50; $i++) {
+                    $h = $nas->head($p['nas_folder'] . '/final/' . $safeFilename);
+                    if ((int)($h[1] ?? 0) === 0) break;
+                    $safeFilename = $base . ' (' . $i . ')' . $ext;
+                }
+            }
+        } catch (\Throwable $e) {
+            $safeFilename = $assetId . '_' . $safeFilename; // NAS offline → eindeutig
+        }
+        $nasKey = $p['nas_folder'] . '/final/' . $safeFilename;
+    } else {
+        $nasKey = $p['nas_folder'] . '/' . $kind . '/' . $assetId . '_' . $safeFilename;
+    }
 
     $customerId = db_one("SELECT customer_id FROM projects WHERE id = ?", [$projectId]);
 

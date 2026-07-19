@@ -114,7 +114,16 @@ function nas_provision_shootday(string $shootDayId): string
     $clientSlug = slugify($custName !== '' ? $custName : 'intern');
     $kuerzel    = nas_kuerzel($custName !== '' ? $custName : 'Intern');
     $dateStr    = $sd['date'] ? date('d.m.y', (int)strtotime((string)$sd['date'])) : date('d.m.y');
-    $nasFolder  = "{$clientSlug}/{$kuerzel} - Dreh {$dateStr}";
+    $base       = "{$clientSlug}/{$kuerzel} - Dreh {$dateStr}";
+
+    // Eindeutig machen: zwei Drehtage desselben Kunden am selben Datum dürfen sich
+    // NICHT denselben Ordner teilen (sonst mischen/überschreiben sich die Dateien).
+    $nasFolder = $base;
+    for ($i = 2; $i <= 50; $i++) {
+        $clash = db_one("SELECT id FROM shoot_days WHERE nas_folder = ? AND id <> ?", [$nasFolder, $shootDayId]);
+        if (!$clash) break;
+        $nasFolder = $base . ' (' . $i . ')';
+    }
 
     db_exec("UPDATE shoot_days SET nas_folder = ? WHERE id = ?", [$nasFolder, $shootDayId]);
     try {
@@ -124,6 +133,32 @@ function nas_provision_shootday(string $shootDayId): string
         throw $e;
     }
     log_activity('nas_shootday', $shootDayId, 'nas_folder_created', ['folder' => $nasFolder]);
+    return $nasFolder;
+}
+
+/**
+ * Legt den Kundenmaterial-Ordner (B-Roll etc.) an (idempotent):
+ *   {kunde}/{Kürzel} - Material
+ */
+function nas_provision_customer_material(string $customerId): string
+{
+    $c = db_one("SELECT id, name, material_folder FROM customers WHERE id = ?", [$customerId]);
+    if (!$c) throw new \RuntimeException('Kunde nicht gefunden: ' . $customerId);
+    if (!empty($c['material_folder'])) return (string)$c['material_folder'];
+
+    $name       = (string)($c['name'] ?? 'Kunde');
+    $clientSlug = slugify($name !== '' ? $name : 'intern');
+    $kuerzel    = nas_kuerzel($name !== '' ? $name : 'Intern');
+    $nasFolder  = "{$clientSlug}/{$kuerzel} - Material";
+
+    db_exec("UPDATE customers SET material_folder = ? WHERE id = ?", [$nasFolder, $customerId]);
+    try {
+        (new NasWebDAV())->ensureDir($nasFolder);
+    } catch (\Throwable $e) {
+        db_exec("UPDATE customers SET material_folder = NULL WHERE id = ?", [$customerId]);
+        throw $e;
+    }
+    log_activity('nas_customer', $customerId, 'material_folder_created', ['folder' => $nasFolder]);
     return $nasFolder;
 }
 

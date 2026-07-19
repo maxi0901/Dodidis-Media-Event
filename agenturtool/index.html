@@ -9351,7 +9351,7 @@ async function nasShootDayUpload(file, shootDayId, onProgress, u) {
     await fetch(`${API_BASE}/nas_assets.php?action=pending`, {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
-      body: JSON.stringify({ upload_id: up.id, shoot_day_id: shootDayId, kind: 'raw', filename: file.name, size: file.size }),
+      body: JSON.stringify({ upload_id: up.id, shoot_day_id: shootDayId, kind: 'raw', filename: filename, size: file.size }),
     });
   } catch (_) { /* Upload läuft trotzdem */ }
   return filename || file.name;
@@ -9398,6 +9398,130 @@ async function sdRevealAfterTransfer(shootDayId, filename) {
     } catch (_) { continue; }
     if (list.some(a => a.filename === filename && !a.pending)) {
       if (sdMedia.shootDayId === shootDayId) await loadShootDayMedia(shootDayId);
+      showToast('Auf NAS gesichert', filename);
+      return;
+    }
+  }
+}
+
+/* ===================== Kundenmaterial / B-Roll ===================== */
+const custMedia = { customerId: null, assets: [] };
+
+function custMaterialPick(customerId) {
+  const input = document.createElement('input');
+  input.type = 'file'; input.multiple = true; input.style.display = 'none';
+  document.body.appendChild(input);
+  input.onchange = (e) => {
+    const files = Array.from(e.target.files || []);
+    document.body.removeChild(input);
+    if (files.length) custMaterialStartUploads(customerId, files);
+  };
+  input.click();
+}
+
+// Rendert eine Material-Liste (mit Download) in ein Element. Rechte prüft der Server.
+function renderCustomerMaterialList(elId, customerId, assets, emptyHint) {
+  const el = document.getElementById(elId); if (!el) return;
+  if (!assets.length) {
+    el.innerHTML = `<div class="text-muted" style="padding:12px;font-size:13px;">${emptyHint}</div>`;
+    return;
+  }
+  el.innerHTML = assets.map(a => {
+    const dl = a.pending
+      ? (a.vserverUrl ? `<a class="btn btn-ghost btn-sm" href="${a.vserverUrl}" target="_blank" rel="noopener" style="flex-shrink:0;">⬇ vServer</a>` : '')
+      : `<a class="btn btn-secondary btn-sm" style="flex-shrink:0;" href="${API_BASE}/nas_assets.php?customer_id=${encodeURIComponent(customerId)}&action=material_download&file=${encodeURIComponent(a.filename)}">⬇ Laden</a>`;
+    const meta = a.pending ? 'wird auf den NAS gesichert…' : nasFmtBytes(a.sizeBytes);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(a.filename)}</div>
+        <div style="font-size:11px;color:var(--text-3);">${escape(meta)}</div>
+      </div>${dl}</div>`;
+  }).join('');
+}
+
+async function fetchCustomerMaterial(customerId) {
+  const res = await fetch(`${API_BASE}/nas_assets.php?customer_id=${encodeURIComponent(customerId)}&action=material`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+  const dj = await res.json().catch(() => ({}));
+  if (!res.ok || !dj.ok) throw new Error((dj && dj.error) || ('HTTP ' + res.status));
+  return dj.data || [];
+}
+
+// Im Kundenmodal (Upload + Liste).
+async function loadCustomerMaterial(customerId) {
+  custMedia.customerId = customerId;
+  const el = document.getElementById('cust-material-list'); if (!el) return;
+  try {
+    custMedia.assets = await fetchCustomerMaterial(customerId);
+    renderCustomerMaterialList('cust-material-list', customerId, custMedia.assets, 'Noch kein Kundenmaterial hochgeladen.');
+  } catch (e) {
+    el.innerHTML = `<div class="text-muted" style="padding:12px;">Nicht verfügbar: ${escape(e.message || 'Fehler')}</div>`;
+  }
+}
+
+// Beim Video: Kundenmaterial des Projekt-Kunden anzeigen (read/download, auch Cutter).
+async function loadProjectCustomerMaterial(customerId) {
+  const el = document.getElementById('proj-cust-material'); if (!el || !customerId) return;
+  try {
+    const assets = await fetchCustomerMaterial(customerId);
+    renderCustomerMaterialList('proj-cust-material', customerId, assets, 'Kein Kundenmaterial vorhanden.');
+  } catch (e) {
+    el.innerHTML = `<div class="text-muted" style="padding:12px;font-size:12.5px;">Kundenmaterial nicht verfügbar: ${escape(e.message || 'Fehler')}</div>`;
+  }
+}
+
+async function nasCustomerMaterialUpload(file, customerId, onProgress, u) {
+  const signal = u && u.controller ? u.controller.signal : undefined;
+  const t = await fetch(`${API_BASE}/tus_ticket.php?customer_id=${encodeURIComponent(customerId)}&kind=raw&filename=${encodeURIComponent(file.name)}`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF }, signal });
+  const tj = await t.json().catch(() => ({}));
+  if (!t.ok || !tj.ok) throw new Error((tj && tj.error) || ('Ticket HTTP ' + t.status));
+  const { endpoint, token, filename } = tj.data;
+  const up = await nasTusUpload(endpoint, file, { onProgress, kind: 'raw', projectId: 'cust_' + customerId, token, u });
+  try {
+    await fetch(`${API_BASE}/nas_assets.php?action=pending`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ upload_id: up.id, customer_id: customerId, kind: 'material', filename: filename, size: file.size }),
+    });
+  } catch (_) { /* läuft trotzdem */ }
+  return filename || file.name;
+}
+
+async function custMaterialStartUploads(customerId, files) {
+  const cust = store.customers.find(c => c.id === customerId);
+  const label = 'Kundenmaterial' + (cust ? ' · ' + cust.name : '');
+  for (const file of files) {
+    const u = { key: 'u' + (++nasUploadSeq), name: file.name, kind: 'material', customerId, projectTitle: label,
+                pct: 0, error: null, size: file.size, resumable: true, paused: false, done: false,
+                controller: new AbortController() };
+    appUploads.push(u);
+    uploadsChanged();
+    const onProgress = (pct) => {
+      u.pct = pct;
+      const bar = document.getElementById('nas-up-bar-' + u.key); if (bar) bar.style.width = pct + '%';
+      updateUploadDockProgress(u);
+    };
+    try {
+      const nasName = await nasCustomerMaterialUpload(file, customerId, onProgress, u);
+      u.done = true; u.pct = 100; uploadsChanged();
+      showToast('Upload abgeschlossen', file.name + ' — wird auf dem NAS gesichert…');
+      if (custMedia.customerId === customerId) await loadCustomerMaterial(customerId);
+      custMaterialReveal(customerId, nasName);
+      scheduleUploadRemoval(u);
+    } catch (err) {
+      if (u.canceled) removeUpload(u);
+      else { u.error = err.message || 'Unbekannter Fehler'; uploadsChanged(); showToast('Upload fehlgeschlagen', file.name + ' — ' + u.error); }
+    }
+  }
+}
+
+async function custMaterialReveal(customerId, filename) {
+  const deadline = Date.now() + 20 * 60 * 1000;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 6000));
+    let list = [];
+    try { list = await fetchCustomerMaterial(customerId); } catch (_) { continue; }
+    if (list.some(a => a.filename === filename && !a.pending)) {
+      if (custMedia.customerId === customerId) await loadCustomerMaterial(customerId);
       showToast('Auf NAS gesichert', filename);
       return;
     }
@@ -10782,6 +10906,14 @@ function renderNasMedia() {
       ${nasMedia.loading && !nasMedia.assets.length ? `<div class="text-sm text-muted" style="margin-top:8px;">Lade Medien…</div>` : ''}
       ${group('raw', 'Rohmaterial', canUpRaw, true)}
       ${group('final', 'Finale Schnitte', canUpFinal, false)}
+      ${(() => {
+        const proj = store.projects.find(p => p.id === pid);
+        if (!proj || !proj.customerId) return '';
+        return `<div style="margin-top:16px;">
+          <div class="cutter-detail-label" style="font-size:12px;margin-bottom:8px;">Kundenmaterial / B-Roll</div>
+          <div id="proj-cust-material" style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;overflow:hidden;"><div class="text-muted" style="padding:12px;font-size:12.5px;">Lade…</div></div>
+        </div>`;
+      })()}
       <div style="font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.5;">
         💡 Große Rohdateien (auch 100 GB) können hier direkt hochgeladen werden —
         sie laufen wiederaufnehmbar am Umweg vorbei direkt zum NAS. Bricht die
@@ -10789,6 +10921,8 @@ function renderNasMedia() {
         Netz per SMB in den <code>raw</code>/<code>final</code>-Ordner legen und „↻ Aktualisieren".
       </div>
     </div>`;
+  const _proj = store.projects.find(p => p.id === pid);
+  if (_proj && _proj.customerId) loadProjectCustomerMaterial(_proj.customerId);
 }
 
 function nasMediaPick(kind, projectId, parentId = null) {
@@ -10936,7 +11070,7 @@ async function nasResumableUpload(file, projectId, kind, onProgress, u) {
     await fetch(`${API_BASE}/nas_assets.php?action=pending`, {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
-      body: JSON.stringify({ upload_id: up.id, project_id: projectId, kind, filename: file.name, size: file.size }),
+      body: JSON.stringify({ upload_id: up.id, project_id: projectId, kind, filename: filename, size: file.size }),
     });
   } catch (_) { /* Upload läuft trotzdem; erscheint spätestens nach NAS-Ankunft */ }
 
@@ -12198,6 +12332,7 @@ function openCustomerModal(customerId = null) {
           <button type="button" class="modal-tab" onclick="switchTab(event,'tab-kontakt')">Kontakt & Rechnung</button>
           <button type="button" class="modal-tab" onclick="switchTab(event,'tab-vertrag')">Vertrag</button>
           <button type="button" class="modal-tab" onclick="switchTab(event,'tab-checklist')">Onboarding</button>
+          ${!isNew ? `<button type="button" class="modal-tab" onclick="switchTab(event,'tab-material')">Material</button>` : ''}
         </div>
 
         <form onsubmit="saveCustomer(event, '${customer?.id || ''}')">
@@ -12424,6 +12559,17 @@ function openCustomerModal(customerId = null) {
               </div>
             </div>` : ''}
 
+            ${!isNew ? `
+            <!-- TAB: KUNDENMATERIAL / B-ROLL -->
+            <div class="tab-content" id="tab-material">
+              <div class="section-title">Kundenmaterial / B-Roll</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;">
+                <div class="text-sm text-muted">Material, das für die Videos dieses Kunden bereitsteht. Zugewiesene Cutter sehen es beim Video und können es laden.</div>
+                <button type="button" class="btn btn-secondary btn-sm" style="flex-shrink:0;" onclick="custMaterialPick('${customer.id}')">+ Hochladen</button>
+              </div>
+              <div id="cust-material-list" style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;overflow:hidden;"><div class="text-muted" style="padding:12px;">Lade…</div></div>
+            </div>` : ''}
+
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
@@ -12437,6 +12583,7 @@ function openCustomerModal(customerId = null) {
   `;
   $('#modal-container').innerHTML = html;
   if (!isNew && hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) loadCustomerSocialAccounts(customer.id);
+  if (!isNew) loadCustomerMaterial(customer.id);
 }
 
 // Startet den Meta-OAuth-Flow für diesen Kunden (öffnet meta_connect.php in
