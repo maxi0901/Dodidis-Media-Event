@@ -13,9 +13,10 @@ require_once __DIR__ . '/nas_files.php';
 
 $session = require_login();
 $method  = $_SERVER['REQUEST_METHOD'];
-$id      = $_GET['id']         ?? null;
-$action  = $_GET['action']     ?? null;
-$projId  = $_GET['project_id'] ?? null;
+$id      = $_GET['id']           ?? null;
+$action  = $_GET['action']       ?? null;
+$projId  = $_GET['project_id']   ?? null;
+$shootId = $_GET['shoot_day_id'] ?? null;
 
 if (in_array($method, ['POST', 'PUT', 'DELETE'], true)) {
     require_csrf();
@@ -23,6 +24,93 @@ if (in_array($method, ['POST', 'PUT', 'DELETE'], true)) {
 
 if (($session['type'] ?? '') !== 'staff') {
     json_err(403, 'Nur Mitarbeiter dürfen auf Assets zugreifen.');
+}
+
+/** Zugriff auf einen Drehtag prüfen: Admin/Manager immer; Videograf nur eigene;
+ *  Cutter, wenn ein ihm zugewiesenes Projekt an diesem Drehtag hängt. */
+function nas_shootday_access(array $sd, array $session): bool
+{
+    $uid = (string)$session['uid'];
+    if (has_role('admin', 'manager')) return true;
+    if ((string)($sd['videograf_id'] ?? '') === $uid) return true;
+    return (bool)db_one(
+        "SELECT 1 FROM projects WHERE shoot_day_id = ? AND cutter_id = ? LIMIT 1",
+        [(string)$sd['id'], $uid]
+    );
+}
+
+// ── Route: GET ?shoot_day_id= — Rohmaterial eines Drehtags auflisten ──────────
+if ($method === 'GET' && $shootId && !$id && $action !== 'download') {
+    $sd = db_one("SELECT id, videograf_id, nas_folder FROM shoot_days WHERE id = ?", [$shootId]);
+    if (!$sd) json_err(404, 'Drehtag nicht gefunden.');
+    if (!nas_shootday_access($sd, $session)) json_err(403, 'Kein Zugriff auf diesen Drehtag.');
+
+    $rows   = [];
+    $folder = (string)($sd['nas_folder'] ?? '');
+    if ($folder !== '') {
+        try {
+            foreach ((new NasWebDAV())->listDir($folder) as $f) {
+                $rows[] = [
+                    'id'          => 'nas:sd:' . $f['name'],
+                    'shootDayId'  => $shootId,
+                    'kind'        => 'raw',
+                    'filename'    => $f['name'],
+                    'contentType' => $f['ctype'] ?: nas_guess_ctype($f['name']),
+                    'sizeBytes'   => $f['size'],
+                    'status'      => 'stored',
+                    'manual'      => true,
+                    'pending'     => false,
+                ];
+            }
+        } catch (\Throwable $e) {
+            error_log('[nas_assets] Drehtag-Listing ' . $shootId . ': ' . $e->getMessage());
+        }
+    }
+    // Am vServer gepufferte Uploads dieses Drehtags mit anzeigen (buffering).
+    try {
+        $pend = db_all("SELECT id, filename, size_bytes AS sizeBytes, created_at
+                          FROM pending_uploads WHERE shoot_day_id = ?", [$shootId]);
+        if ($pend) {
+            $onNas = [];
+            foreach ($rows as $r) $onNas[$r['filename']] = true;
+            $creds = nas_credentials();
+            $pu    = parse_url($creds['base']);
+            $vhost = ($pu['scheme'] ?? 'https') . '://' . ($pu['host'] ?? '')
+                   . (isset($pu['port']) ? ':' . $pu['port'] : '');
+            foreach ($pend as $row) {
+                if (!empty($onNas[$row['filename']]) || strtotime((string)$row['created_at']) < time() - 7 * 86400) {
+                    try { db_exec("DELETE FROM pending_uploads WHERE id = ?", [$row['id']]); } catch (\Throwable $_) {}
+                    continue;
+                }
+                $rows[] = [
+                    'id'          => 'pending:' . $row['id'],
+                    'shootDayId'  => $shootId,
+                    'kind'        => 'raw',
+                    'filename'    => $row['filename'],
+                    'contentType' => nas_guess_ctype($row['filename']),
+                    'sizeBytes'   => $row['sizeBytes'] !== null ? (int)$row['sizeBytes'] : null,
+                    'status'      => 'buffering',
+                    'manual'      => false,
+                    'pending'     => true,
+                    'vserverUrl'  => $vhost . '/files/' . rawurlencode($row['id']),
+                ];
+            }
+        }
+    } catch (\Throwable $e) { /* pending evtl. nicht migriert — ignorieren */ }
+
+    json_ok($rows);
+}
+
+// ── Route: GET ?shoot_day_id=&action=download&file= — Drehtag-Datei laden ─────
+if ($method === 'GET' && $shootId && $action === 'download') {
+    $sd = db_one("SELECT id, videograf_id, nas_folder FROM shoot_days WHERE id = ?", [$shootId]);
+    if (!$sd) json_err(404, 'Drehtag nicht gefunden.');
+    if (!nas_shootday_access($sd, $session)) json_err(403, 'Kein Zugriff auf diesen Drehtag.');
+    $folder = (string)($sd['nas_folder'] ?? '');
+    $file   = ltrim(str_replace(['/', '\\'], '_', (string)($_GET['file'] ?? '')), '.');
+    if ($folder === '' || $file === '') json_err(400, 'Datei fehlt.');
+    (new NasWebDAV())->passthru($folder . '/' . $file, $file);
+    exit;
 }
 
 // ── Route: GET ?project_id= — list assets for a project ──────────────────────
@@ -197,23 +285,39 @@ if ($method === 'GET' && $projId && !$id) {
 
 // ── Route: POST ?action=pending — resumable Upload am vServer registrieren ────
 if ($method === 'POST' && $action === 'pending') {
-    $b         = input_json();
-    $uploadId  = trim((string)($b['upload_id'] ?? ''));
-    $projectId = trim((string)($b['project_id'] ?? ''));
-    $kind      = trim((string)($b['kind'] ?? 'raw'));
-    $filename  = trim((string)($b['filename'] ?? ''));
-    $size      = (int)($b['size'] ?? 0);
+    $b          = input_json();
+    $uploadId   = trim((string)($b['upload_id'] ?? ''));
+    $projectId  = trim((string)($b['project_id'] ?? ''));
+    $shootDayId = trim((string)($b['shoot_day_id'] ?? ''));
+    $kind       = trim((string)($b['kind'] ?? 'raw'));
+    $filename   = trim((string)($b['filename'] ?? ''));
+    $size       = (int)($b['size'] ?? 0);
 
     if ($uploadId === '' || !preg_match('/^[A-Za-z0-9._-]{8,128}$/', $uploadId)) json_err(400, 'upload_id ungültig.');
-    if ($projectId === '') json_err(400, 'project_id ist Pflicht.');
-    if (!in_array($kind, ['raw', 'final'], true)) json_err(400, "kind muss 'raw' oder 'final' sein.");
     if ($filename === '') json_err(400, 'filename ist Pflicht.');
+    $safe = ltrim(substr(preg_replace('/[\/\\\\]/', '_', $filename), 0, 200), '.');
+
+    if ($shootDayId !== '') {
+        // Drehtag-Rohmaterial (kein Projekt).
+        if (!has_role('admin', 'manager', 'videograf')) json_err(403, 'Keine Berechtigung (Rohmaterial).');
+        if (!db_one("SELECT id FROM shoot_days WHERE id = ?", [$shootDayId])) json_err(404, 'Drehtag nicht gefunden.');
+        try {
+            db_exec(
+                "REPLACE INTO pending_uploads (id, project_id, shoot_day_id, kind, filename, size_bytes, uploaded_by)
+                 VALUES (?, NULL, ?, 'raw', ?, ?, ?)",
+                [$uploadId, $shootDayId, $safe, $size ?: null, $session['uid']]
+            );
+        } catch (\Throwable $e) { error_log('[nas_assets pending sd] ' . $e->getMessage()); }
+        json_ok(['pending' => true]);
+    }
+
+    if ($projectId === '') json_err(400, 'project_id oder shoot_day_id ist Pflicht.');
+    if (!in_array($kind, ['raw', 'final'], true)) json_err(400, "kind muss 'raw' oder 'final' sein.");
 
     requireProjectAccess($projectId, $session);
     if ($kind === 'raw'   && !has_role('admin', 'manager', 'videograf')) json_err(403, 'Keine Berechtigung (Rohmaterial).');
     if ($kind === 'final' && !has_role('admin', 'manager', 'cutter'))    json_err(403, 'Keine Berechtigung (finale Schnitte).');
 
-    $safe = ltrim(substr(preg_replace('/[\/\\\\]/', '_', $filename), 0, 200), '.');
     try {
         db_exec(
             "REPLACE INTO pending_uploads (id, project_id, kind, filename, size_bytes, uploaded_by)

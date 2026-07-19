@@ -924,6 +924,17 @@ if (!tableExists($pdo, 'ig_events')) {
     $results[] = ['ok' => true, 'label' => "ig_events: bereits vorhanden"];
 }
 
+// ── 38. Drehtag-Uploads: NAS-Ordner pro Drehtag + Scope in pending_uploads ─────
+// Drehtag bekommt einen eigenen Rohmaterial-Ordner „{Kürzel} - Dreh {Datum}".
+// pending_uploads bekommt shoot_day_id (project_id wird nullable, da ein Upload
+// nun entweder zu einem Projekt ODER zu einem Drehtag gehört).
+addCol($pdo, 'shoot_days', 'nas_folder',
+    "ALTER TABLE shoot_days ADD COLUMN nas_folder VARCHAR(500) NULL", $results);
+addCol($pdo, 'pending_uploads', 'shoot_day_id',
+    "ALTER TABLE pending_uploads ADD COLUMN shoot_day_id VARCHAR(64) NULL", $results);
+step($pdo, "pending_uploads.project_id nullable (Drehtag-Uploads ohne Projekt)",
+    "ALTER TABLE pending_uploads MODIFY COLUMN project_id VARCHAR(64) NULL", $results);
+
 $fails = array_values(array_filter($results, fn($r) => !$r['ok']));
 ?>
 <!DOCTYPE html>

@@ -9267,6 +9267,15 @@ function openShootDayModal(shootDayId = null) {
             ${!isNew && linkedProjects.length === 0 ? `
               <div class="info-box">Noch keine Projekte zugewiesen. Beim Anlegen eines Projekts kannst du diesen Drehtag wählen.</div>
             ` : ''}
+
+            ${!isNew ? `
+              <div class="section-title">Rohmaterial (Drehtag)</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;">
+                <div class="text-sm text-muted">Landet im Drehtag-Ordner „… - Dreh …" und ist für zugewiesene Cutter sichtbar.</div>
+                <button type="button" class="btn btn-secondary btn-sm" style="flex-shrink:0;" onclick="sdMediaPick('${sd.id}')">+ Hochladen</button>
+              </div>
+              <div id="sd-media-list" style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;overflow:hidden;"><div class="text-muted" style="padding:12px;">Lade…</div></div>
+            ` : ''}
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
@@ -9278,6 +9287,121 @@ function openShootDayModal(shootDayId = null) {
     </div>
   `;
   $('#modal-container').innerHTML = html;
+  if (!isNew) loadShootDayMedia(sd.id);
+}
+
+/* ===================== Drehtag-Rohmaterial (Upload/Anzeige) ===================== */
+const sdMedia = { shootDayId: null, assets: [] };
+
+function sdMediaPick(shootDayId) {
+  const input = document.createElement('input');
+  input.type = 'file'; input.multiple = true; input.style.display = 'none';
+  document.body.appendChild(input);
+  input.onchange = (e) => {
+    const files = Array.from(e.target.files || []);
+    document.body.removeChild(input);
+    if (files.length) sdMediaStartUploads(shootDayId, files);
+  };
+  input.click();
+}
+
+async function loadShootDayMedia(shootDayId) {
+  sdMedia.shootDayId = shootDayId;
+  const el = document.getElementById('sd-media-list'); if (!el) return;
+  try {
+    const res = await fetch(`${API_BASE}/nas_assets.php?shoot_day_id=${encodeURIComponent(shootDayId)}`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+    const dj = await res.json().catch(() => ({}));
+    if (!res.ok || !dj.ok) throw new Error((dj && dj.error) || ('HTTP ' + res.status));
+    sdMedia.assets = dj.data || [];
+    renderShootDayMediaList();
+  } catch (e) {
+    el.innerHTML = `<div class="text-muted" style="padding:12px;">Nicht verfügbar: ${escape(e.message || 'Fehler')}</div>`;
+  }
+}
+
+function renderShootDayMediaList() {
+  const el = document.getElementById('sd-media-list'); if (!el) return;
+  if (!sdMedia.assets.length) {
+    el.innerHTML = `<div class="text-muted" style="padding:12px;font-size:13px;">Noch kein Rohmaterial. Lade Dateien hoch – sie landen im Drehtag-Ordner.</div>`;
+    return;
+  }
+  el.innerHTML = sdMedia.assets.map(a => {
+    const dl = a.pending
+      ? (a.vserverUrl ? `<a class="btn btn-ghost btn-sm" href="${a.vserverUrl}" target="_blank" rel="noopener" style="flex-shrink:0;">⬇ vServer</a>` : '')
+      : `<a class="btn btn-secondary btn-sm" style="flex-shrink:0;" href="${API_BASE}/nas_assets.php?shoot_day_id=${encodeURIComponent(sdMedia.shootDayId)}&action=download&file=${encodeURIComponent(a.filename)}">⬇ Laden</a>`;
+    const meta = a.pending ? 'wird auf den NAS gesichert…' : nasFmtBytes(a.sizeBytes);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(a.filename)}</div>
+        <div style="font-size:11px;color:var(--text-3);">${escape(meta)}</div>
+      </div>${dl}</div>`;
+  }).join('');
+}
+
+// tus-Upload für Drehtag-Rohmaterial (nutzt denselben vServer-Weg + globales Dock).
+async function nasShootDayUpload(file, shootDayId, onProgress, u) {
+  const signal = u && u.controller ? u.controller.signal : undefined;
+  const t = await fetch(`${API_BASE}/tus_ticket.php?shoot_day_id=${encodeURIComponent(shootDayId)}&kind=raw&filename=${encodeURIComponent(file.name)}`,
+    { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF }, signal });
+  const tj = await t.json().catch(() => ({}));
+  if (!t.ok || !tj.ok) throw new Error((tj && tj.error) || ('Ticket HTTP ' + t.status));
+  const { endpoint, token, filename } = tj.data;
+  const up = await nasTusUpload(endpoint, file, { onProgress, kind: 'raw', projectId: 'sd_' + shootDayId, token, u });
+  try {
+    await fetch(`${API_BASE}/nas_assets.php?action=pending`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+      body: JSON.stringify({ upload_id: up.id, shoot_day_id: shootDayId, kind: 'raw', filename: file.name, size: file.size }),
+    });
+  } catch (_) { /* Upload läuft trotzdem */ }
+  return filename || file.name;
+}
+
+async function sdMediaStartUploads(shootDayId, files) {
+  const sd = store.shootDays.find(s => s.id === shootDayId);
+  const cust = sd ? store.customers.find(c => c.id === sd.customerId) : null;
+  const label = 'Drehtag' + (cust ? ' · ' + cust.name : '') + (sd && sd.date ? ' · ' + fmtDate(sd.date) : '');
+  for (const file of files) {
+    const u = { key: 'u' + (++nasUploadSeq), name: file.name, kind: 'raw', shootDayId, projectTitle: label,
+                pct: 0, error: null, size: file.size, resumable: true, paused: false, done: false,
+                controller: new AbortController() };
+    appUploads.push(u);
+    uploadsChanged();
+    const onProgress = (pct) => {
+      u.pct = pct;
+      const bar = document.getElementById('nas-up-bar-' + u.key); if (bar) bar.style.width = pct + '%';
+      updateUploadDockProgress(u);
+    };
+    try {
+      const nasName = await nasShootDayUpload(file, shootDayId, onProgress, u);
+      u.done = true; u.pct = 100; uploadsChanged();
+      showToast('Upload abgeschlossen', file.name + ' — wird auf dem NAS gesichert…');
+      if (sdMedia.shootDayId === shootDayId) await loadShootDayMedia(shootDayId);
+      sdRevealAfterTransfer(shootDayId, nasName);
+      scheduleUploadRemoval(u);
+    } catch (err) {
+      if (u.canceled) removeUpload(u);
+      else { u.error = err.message || 'Unbekannter Fehler'; uploadsChanged(); showToast('Upload fehlgeschlagen', file.name + ' — ' + u.error); }
+    }
+  }
+}
+
+async function sdRevealAfterTransfer(shootDayId, filename) {
+  const deadline = Date.now() + 20 * 60 * 1000;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 6000));
+    let list = [];
+    try {
+      const res = await fetch(`${API_BASE}/nas_assets.php?shoot_day_id=${encodeURIComponent(shootDayId)}`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+      const dj = await res.json().catch(() => ({}));
+      list = (dj && dj.ok && dj.data) ? dj.data : [];
+    } catch (_) { continue; }
+    if (list.some(a => a.filename === filename && !a.pending)) {
+      if (sdMedia.shootDayId === shootDayId) await loadShootDayMedia(shootDayId);
+      showToast('Auf NAS gesichert', filename);
+      return;
+    }
+  }
 }
 
 async function saveShootDay(e, shootDayId) {

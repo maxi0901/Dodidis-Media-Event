@@ -72,6 +72,62 @@ function nas_provision_project_quietly(string $projectId): void
 }
 
 /**
+ * Kürzel aus einem Namen ableiten (Anfangsbuchstaben der Wörter, max. 4 Zeichen).
+ * z. B. „Team Core Health" → „TCH". Dient als lesbares Präfix in Ordnernamen.
+ */
+function nas_kuerzel(string $name): string
+{
+    $name  = trim($name);
+    if ($name === '') return 'INT';
+    $words = preg_split('/[\s\-_]+/', $name, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    $abbr  = '';
+    foreach ($words as $w) {
+        $ch = mb_substr($w, 0, 1);
+        if (preg_match('/[A-Za-z0-9]/u', $ch)) $abbr .= mb_strtoupper($ch);
+        if (mb_strlen($abbr) >= 4) break;
+    }
+    if ($abbr === '') {
+        $clean = preg_replace('/[^A-Za-z0-9]/', '', $name) ?: 'INT';
+        $abbr  = mb_strtoupper(mb_substr($clean, 0, 3));
+    }
+    return $abbr;
+}
+
+/**
+ * Legt den NAS-Rohmaterial-Ordner eines Drehtags an (idempotent):
+ *   {kunde}/{Kürzel} - Dreh {DD.MM.YY}
+ * Gibt den nas_folder zurück; rollt bei NAS-Fehler zurück.
+ */
+function nas_provision_shootday(string $shootDayId): string
+{
+    $sd = db_one(
+        "SELECT s.id, s.date, s.nas_folder, c.name AS customerName
+           FROM shoot_days s
+           LEFT JOIN customers c ON c.id = s.customer_id
+          WHERE s.id = ?",
+        [$shootDayId]
+    );
+    if (!$sd) throw new \RuntimeException('Drehtag nicht gefunden: ' . $shootDayId);
+    if (!empty($sd['nas_folder'])) return (string)$sd['nas_folder'];
+
+    $custName   = (string)($sd['customerName'] ?? '');
+    $clientSlug = slugify($custName !== '' ? $custName : 'intern');
+    $kuerzel    = nas_kuerzel($custName !== '' ? $custName : 'Intern');
+    $dateStr    = $sd['date'] ? date('d.m.y', (int)strtotime((string)$sd['date'])) : date('d.m.y');
+    $nasFolder  = "{$clientSlug}/{$kuerzel} - Dreh {$dateStr}";
+
+    db_exec("UPDATE shoot_days SET nas_folder = ? WHERE id = ?", [$nasFolder, $shootDayId]);
+    try {
+        (new NasWebDAV())->ensureDir($nasFolder);
+    } catch (\Throwable $e) {
+        db_exec("UPDATE shoot_days SET nas_folder = NULL WHERE id = ?", [$shootDayId]);
+        throw $e;
+    }
+    log_activity('nas_shootday', $shootDayId, 'nas_folder_created', ['folder' => $nasFolder]);
+    return $nasFolder;
+}
+
+/**
  * Ersetzte Final-Versionen eines Projekts aufräumen (bei Freigabe/Archivierung).
  *
  * „Ersetzt" heißt: ein anderer finaler Schnitt verweist per parent_id auf das
