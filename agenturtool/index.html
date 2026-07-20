@@ -4235,6 +4235,10 @@
   .nas-file[draggable="true"]:active { cursor:grabbing; }
   .nas-file .btn { cursor:pointer; }
 
+  /* Klick auf leeren Kalendertag → anlegen (dezenter Hinweis). */
+  .dw-day, .cal-mday:not(.out) { cursor:pointer; }
+  .dw-day:hover, .cal-mday:not(.out):hover { box-shadow: inset 0 0 0 2px var(--accent-soft); }
+
 </style>
 </head>
 <body>
@@ -6743,7 +6747,7 @@ function buildDwGridHtml(session, weekStart, opts = {}) {
                : ev.todoId ? `onclick="openTodoModal('${ev.todoId}')"` : '';
       return `<div class="dw-slot ${ev.cat}" ${oc}>${escape(ev.title || '—')}<span class="dw-st">${escape(ev.sub)}</span></div>`;
     }).join('');
-    return `<div class="dw-day${isToday ? ' today' : ''}"><div class="dw-wl">${WD[i]}</div><div class="dw-wn">${d.getDate()}</div>${slots}</div>`;
+    return `<div class="dw-day${isToday ? ' today' : ''}" data-cal-date="${localDateStr(d)}"><div class="dw-wl">${WD[i]}</div><div class="dw-wn">${d.getDate()}</div>${slots}</div>`;
   }).join('');
 
   // In einen Scroll-Container packen → auf dem Handy horizontal scrollbar
@@ -6904,7 +6908,7 @@ function renderCalMonthGrid(elementId, session) {
                : ev.todoId ? `onclick="openTodoModal('${ev.todoId}')"` : '';
       return `<div class="dw-slot ${ev.cat}" ${oc}>${escape(ev.title || '')}${ev.sub ? `<span class="dw-st">${escape(ev.sub)}</span>` : ''}</div>`;
     }).join('');
-    cells += `<div class="cal-mday${out ? ' out' : ''}${isToday ? ' today' : ''}"><div class="cal-mdn">${d.getDate()}</div>${slots}</div>`;
+    cells += `<div class="cal-mday${out ? ' out' : ''}${isToday ? ' today' : ''}" data-cal-date="${ds}"><div class="cal-mdn">${d.getDate()}</div>${slots}</div>`;
   }
 
   const available = getAvailableCalCats(session.user);
@@ -9197,7 +9201,7 @@ function renderShootDays(session) {
    Drehtag ist eine eigene Entität (store.shootDays):
    nur Datum, Videograf, Zeitraum, optional Kunde + Notiz.
    Videos/Projekte werden separat angelegt und dem Drehtag zugewiesen. */
-function openShootDayModal(shootDayId = null) {
+function openShootDayModal(shootDayId = null, prefillDate = null) {
   const session = getCurrentUser();
   if (!session || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) return;
 
@@ -9212,7 +9216,7 @@ function openShootDayModal(shootDayId = null) {
   const videografOptions = '<option value="">– Videograf wählen –</option>' +
     videografs.map(u => `<option value="${u.id}" ${sd?.videografId === u.id ? 'selected' : ''}>${escape(u.name)}</option>`).join('');
 
-  const defaultDate = sd?.date || (() => {
+  const defaultDate = sd?.date || prefillDate || (() => {
     const d = new Date();
     d.setDate(d.getDate() + 3);
     return localDateStr(d);
@@ -14334,6 +14338,38 @@ function setCalendarView(view) {
   renderCalendar(getCurrentUser());
 }
 
+// Klick auf einen leeren Kalendertag (Wochen-/Monatsraster) → Auswahl, was am
+// gewählten Datum angelegt werden soll (Drehtag/Meeting). Uhrzeit im Formular.
+function openCalendarCreate(dateStr) {
+  const session = getCurrentUser();
+  if (!session || session.type !== 'staff') return;
+  // Drehtag- und Meeting-Anlegen sind (wie in den Modals) Admin/Manager. Für
+  // andere Rollen kein leeres/read-only Formular öffnen.
+  if (!hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) return;
+  const pretty = fmtDate(dateStr);
+  const btn = (icon, label, call) =>
+    `<button type="button" class="btn btn-secondary" style="justify-content:flex-start;font-size:14px;padding:12px 16px;" onclick="closeModal();${call}">${icon} ${label}</button>`;
+  $('#modal-container').innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:360px;">
+        <div class="modal-header"><div class="modal-title">Am ${escape(pretty)} anlegen</div><button class="modal-close" onclick="closeModal()">×</button></div>
+        <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;">
+          ${btn('🎥', 'Drehtag', `openShootDayModal(null,'${dateStr}')`)}
+          ${btn('📅', 'Meeting / Termin', `openMeetingModal(null,'${dateStr}')`)}
+        </div>
+      </div>
+    </div>`;
+}
+
+// Einmaliger delegierter Klick-Handler: leerer Kalendertag → Anlegen-Auswahl.
+document.addEventListener('click', (e) => {
+  const cell = e.target && e.target.closest ? e.target.closest('[data-cal-date]') : null;
+  if (!cell) return;
+  // Klicks auf Event-Chips/Buttons/Links NICHT als „neu anlegen" werten.
+  if (e.target.closest('.dw-slot, .ical-event, .month-bar, .cal-bar, button, a, input, select')) return;
+  openCalendarCreate(cell.getAttribute('data-cal-date'));
+});
+
 function calNav(prefix, delta) {
   if (prefix === 'mini') {
     if (dashboardView === 'week') {
@@ -16639,7 +16675,7 @@ function renderMeetings(session) {
     </div>`;
 }
 
-function openMeetingModal(meetingId = null) {
+function openMeetingModal(meetingId = null, prefillDate = null) {
   const session = getCurrentUser();
   if (!session || session.type !== 'staff') return;
   const user = session.user;
@@ -16670,7 +16706,7 @@ function openMeetingModal(meetingId = null) {
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Datum *</label>
-                <input type="date" name="date" value="${m?.date || ''}" ${ro ? 'disabled' : ''} required />
+                <input type="date" name="date" value="${m?.date || prefillDate || ''}" ${ro ? 'disabled' : ''} required />
               </div>
               <div class="form-group">
                 <label class="form-label">Uhrzeit von</label>
