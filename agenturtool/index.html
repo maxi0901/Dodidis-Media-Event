@@ -15628,6 +15628,17 @@ function renderMetaDiag(d) {
     secretV = bits.join(' · ');
   }
 
+  // Instagram-App-Geheimcode (separat — IG-Webhooks werden damit signiert)
+  const igs = d.igAppSecret || {};
+  let igsV;
+  if (!igs.set) igsV = warn('nicht gesetzt → IG-Webhook nutzt das Facebook-Secret. Beim Instagram-Business-Login ist das FALSCH → hier den „Instagram-App-Geheimcode" eintragen.');
+  else {
+    const b = [ok('gesetzt (' + igs.len + ' Zeichen, ' + (igs.preview || '') + ')')];
+    if (igs.hasWhitespace) b.push(warn('Leerzeichen/Umbruch — entfernen'));
+    b.push(`<span style="color:var(--text-3);">IG-Webhook signiert mit: ${escape(igs.usedForWebhook || '')}</span>`);
+    igsV = b.join(' · ');
+  }
+
   const tok = (o, name) => o && o.set
     ? ok('gesetzt' + (o.len ? ' (' + o.len + ' Z.' + (o.hasWhitespace ? ', ⚠ Leerzeichen' : '') + ')' : ''))
     : err(name + ' fehlt');
@@ -15641,7 +15652,8 @@ function renderMetaDiag(d) {
   el.innerHTML =
     row('App-ID', `${escape(d.appId || '—')} <span style="color:var(--text-3);">· Graph ${escape(d.graphVersion || '')}</span>`) +
     row('config.meta.php', d.configFileExists ? ok('vorhanden') : err('fehlt — aus config.meta.php.example anlegen')) +
-    row('App-Geheimcode (Signatur)', secretV) +
+    row('App-Geheimcode (Facebook)', secretV) +
+    row('Instagram-App-Geheimcode', igsV) +
     row('Instagram Verify-Token', tok(d.igVerifyToken, 'ig_verify_token')) +
     row('WhatsApp Verify-Token', tok(d.waVerifyToken, 'wa_verify_token')) +
     row('WhatsApp Phone-Number-ID', d.waPhoneNumberId && d.waPhoneNumberId.set ? ok('gesetzt') : warn('fehlt')) +

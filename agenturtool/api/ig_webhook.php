@@ -43,7 +43,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
 
 // ── POST — Ereignisse ────────────────────────────────────────────────────────
 $raw    = (string)file_get_contents('php://input');
-$secret = (string)$cfg['app_secret'];
+// Instagram-Webhooks (Instagram-Business-Login) sind mit dem SEPARATEN
+// Instagram-App-Geheimcode signiert. Falls gesetzt, den nehmen — sonst als
+// Fallback der Facebook-app_secret (alte Graph-API-Anbindung).
+$secret = (string)(($cfg['ig_app_secret'] ?? '') !== '' ? $cfg['ig_app_secret'] : $cfg['app_secret']);
 
 // Signatur PFLICHT, sobald ein App-Secret gesetzt ist (Endpunkt hat kein Login).
 $sigHeader = (string)($_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '');
