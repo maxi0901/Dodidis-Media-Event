@@ -47,10 +47,14 @@ $secret = (string)$cfg['app_secret'];
 
 // Signatur PFLICHT, sobald ein App-Secret gesetzt ist (Endpunkt hat kein Login).
 $sigHeader = (string)($_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '');
+// Diagnose: jeder eingehende POST wird protokolliert (kein Secret/Payload).
+error_log('[ig_webhook] POST empfangen len=' . strlen($raw)
+    . ' sig=' . ($sigHeader !== '' ? '1' : '0')
+    . ' app_secret=' . ($secret !== '' ? 'gesetzt' : 'LEER'));
 if ($secret !== '') {
-    if ($sigHeader === '') { http_response_code(403); exit('Missing signature'); }
+    if ($sigHeader === '') { error_log('[ig_webhook] ABGEWIESEN: Signatur fehlt'); http_response_code(403); exit('Missing signature'); }
     $expected = 'sha256=' . hash_hmac('sha256', $raw, $secret);
-    if (!hash_equals($expected, $sigHeader)) { http_response_code(403); exit('Bad signature'); }
+    if (!hash_equals($expected, $sigHeader)) { error_log('[ig_webhook] ABGEWIESEN: Signatur ungültig (app_secret falsch?)'); http_response_code(403); exit('Bad signature'); }
 }
 
 $data = json_decode($raw, true);
@@ -86,9 +90,6 @@ foreach (($data['entry'] ?? []) as $entry) {
         $fromUser = (string)($v['from']['username'] ?? '');
         $mediaId  = (string)($v['media']['id'] ?? '');
 
-        // Eigene Kommentare (Konto antwortet sich sonst selbst) überspringen.
-        if ($fromId !== '' && $fromId === $igAccountId) continue;
-
         try {
             // 1) Dedupe: nur wenn wirklich neu eingefügt, weitermachen.
             $created = db_exec(
@@ -98,6 +99,13 @@ foreach (($data['entry'] ?? []) as $entry) {
                 [uid('ige'), $commentId, $mediaId ?: null, $fromUser ?: null, $text]
             );
             if ($created < 1) continue; // Meta-Retry / Duplikat
+
+            // Eigene Kommentare (Konto antwortet sich sonst selbst) SICHTBAR
+            // überspringen — so sieht man im Log, dass der Webhook ankam.
+            if ($fromId !== '' && $fromId === $igAccountId) {
+                db_exec("UPDATE ig_events SET status='skipped', detail='Eigener Kommentar (kein Selbst-Antworten)' WHERE comment_id=?", [$commentId]);
+                continue;
+            }
 
             // 2) Konto → Kunde + Token
             $acc = db_one(
