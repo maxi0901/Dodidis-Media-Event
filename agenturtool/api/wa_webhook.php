@@ -39,17 +39,38 @@ $secret = (string)$cfg['app_secret'];
 // PFLICHT — sonst könnte jeder ohne Header gefälschte Inbox-Daten einschleusen
 // (der Endpunkt hat kein Login). Header: sha256=<hmac>
 $sigHeader = (string)($_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '');
+
+// Letzten Webhook-Versuch für die Admin-Diagnose festhalten (single-key upsert).
+$recordLast = static function (int $status, string $note) use ($sigHeader, $secret) {
+    try {
+        db_exec(
+            "INSERT INTO app_config (`key`, value) VALUES ('wa_webhook_last', ?)
+             ON DUPLICATE KEY UPDATE value = VALUES(value)",
+            [json_encode([
+                'status'    => $status,
+                'note'      => $note,
+                'signatur'  => ($sigHeader !== '' ? 'vorhanden' : 'fehlt'),
+                'appSecret' => ($secret !== '' ? 'gesetzt' : 'LEER'),
+                'zeit'      => date('Y-m-d H:i:s'),
+            ], JSON_UNESCAPED_UNICODE)]
+        );
+    } catch (\Throwable $e) { /* best-effort */ }
+};
+
 if ($secret !== '') {
     if ($sigHeader === '') {
+        $recordLast(403, 'Signatur fehlt');
         http_response_code(403);
         exit('Missing signature');
     }
     $expected = 'sha256=' . hash_hmac('sha256', $raw, $secret);
     if (!hash_equals($expected, $sigHeader)) {
+        $recordLast(403, 'Signatur ungültig — app_secret stimmt nicht');
         http_response_code(403);
         exit('Bad signature');
     }
 }
+$recordLast(200, 'empfangen & verarbeitet');
 
 $data = json_decode($raw, true);
 if (!is_array($data)) { http_response_code(200); exit('ok'); }

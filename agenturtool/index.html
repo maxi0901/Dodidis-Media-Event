@@ -15431,6 +15431,20 @@ function renderKommunikation(session) {
         </div>
         <div id="ig-events"><div class="text-muted" style="padding:18px;">Lade…</div></div>
       </div>
+      <div class="card" style="padding:0;overflow:hidden;margin-top:14px;">
+        <div style="padding:14px 16px;font-weight:600;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+          <span>🔧 Diagnose (Meta / Webhook)</span>
+          <button class="btn btn-ghost btn-sm" onclick="loadMetaDiag()">↻</button>
+        </div>
+        <div id="meta-diag"><div class="text-muted" style="padding:18px;">Lade…</div></div>
+      </div>
+      <style>
+        .md-row { display:flex; gap:10px; align-items:flex-start; padding:9px 16px; border-bottom:1px solid var(--border); font-size:13px; }
+        .md-row:last-child { border-bottom:none; }
+        .md-k { color:var(--text-2); min-width:180px; flex-shrink:0; }
+        .md-v { flex:1; min-width:0; }
+        .md-ok { color:var(--success); } .md-warn { color:var(--warning); } .md-err { color:var(--danger); }
+      </style>
       <style>
         .ig-rule { display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-bottom:1px solid var(--border); }
         .ig-rule:last-child { border-bottom:none; }
@@ -15446,6 +15460,7 @@ function renderKommunikation(session) {
     loadIgRules();
     loadIgEvents();
     loadIgPosts();
+    loadMetaDiag();
     return;
   }
 
@@ -15579,6 +15594,59 @@ async function loadIgPosts() {
 function igPostLabel(p) {
   const t = p.projectTitle || (p.caption ? String(p.caption).slice(0, 40) : 'Beitrag');
   return (p.customerName ? p.customerName + ' · ' : '') + t;
+}
+
+async function loadMetaDiag() {
+  const el = document.getElementById('meta-diag'); if (!el) return;
+  try {
+    const res = await fetch(`${API_BASE}/meta_diag.php`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+    const dj = await res.json().catch(() => ({}));
+    if (!res.ok || !dj.ok) throw new Error((dj && dj.error) || ('HTTP ' + res.status));
+    renderMetaDiag(dj.data);
+  } catch (e) {
+    el.innerHTML = `<div class="text-muted" style="padding:18px;">Diagnose nicht verfügbar: ${escape(e.message || 'Fehler')}</div>`;
+  }
+}
+
+function renderMetaDiag(d) {
+  const el = document.getElementById('meta-diag'); if (!el || !d) return;
+  const row = (k, vHtml) => `<div class="md-row"><div class="md-k">${k}</div><div class="md-v">${vHtml}</div></div>`;
+  const ok = (t) => `<span class="md-ok">✓ ${escape(t)}</span>`;
+  const warn = (t) => `<span class="md-warn">⚠ ${escape(t)}</span>`;
+  const err = (t) => `<span class="md-err">✗ ${escape(t)}</span>`;
+
+  // app_secret — der häufigste Stolperstein
+  const s = d.appSecret || {};
+  let secretV;
+  if (!s.set) secretV = err('nicht gesetzt (dann Signaturprüfung aus → unsicher)');
+  else if (s.placeholder) secretV = err('Platzhalter — echten App-Geheimcode eintragen');
+  else {
+    const bits = [ok('gesetzt (' + s.len + ' Zeichen, ' + (s.preview || '') + ')')];
+    if (s.hasWhitespace) bits.push(warn('Leerzeichen/Umbruch am Rand — entfernen'));
+    bits.push(`<span style="color:var(--text-3);">Quelle: ${escape(s.source || '?')}</span>`);
+    if (s.envOverride) bits.push(warn('Umgebungsvariable META_APP_SECRET überschreibt config.meta.php!'));
+    secretV = bits.join(' · ');
+  }
+
+  const tok = (o, name) => o && o.set
+    ? ok('gesetzt' + (o.len ? ' (' + o.len + ' Z.' + (o.hasWhitespace ? ', ⚠ Leerzeichen' : '') + ')' : ''))
+    : err(name + ' fehlt');
+
+  const wh = (d.lastWebhooks || []).map(w => {
+    const cls = w.status === 200 ? 'md-ok' : 'md-err';
+    return `<div style="padding:2px 0;"><span class="${cls}">${w.status}</span> · ${escape(w.channel || '')} · ${escape(w.note || '')}
+      <span style="color:var(--text-3);">(Sig: ${escape(w.signatur || '?')}, Secret: ${escape(w.appSecret || '?')}, ${escape(w.updatedAt || w.zeit || '')})</span></div>`;
+  }).join('') || '<span class="text-muted">Noch kein Webhook empfangen.</span>';
+
+  el.innerHTML =
+    row('App-ID', `${escape(d.appId || '—')} <span style="color:var(--text-3);">· Graph ${escape(d.graphVersion || '')}</span>`) +
+    row('config.meta.php', d.configFileExists ? ok('vorhanden') : err('fehlt — aus config.meta.php.example anlegen')) +
+    row('App-Geheimcode (Signatur)', secretV) +
+    row('Instagram Verify-Token', tok(d.igVerifyToken, 'ig_verify_token')) +
+    row('WhatsApp Verify-Token', tok(d.waVerifyToken, 'wa_verify_token')) +
+    row('WhatsApp Phone-Number-ID', d.waPhoneNumberId && d.waPhoneNumberId.set ? ok('gesetzt') : warn('fehlt')) +
+    row('WhatsApp Token', tok(d.waToken, 'wa_token')) +
+    row('Letzte Webhook-Versuche', wh);
 }
 
 function openIgRuleModal(id) {

@@ -51,14 +51,41 @@ $sigHeader = (string)($_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '');
 error_log('[ig_webhook] POST empfangen len=' . strlen($raw)
     . ' sig=' . ($sigHeader !== '' ? '1' : '0')
     . ' app_secret=' . ($secret !== '' ? 'gesetzt' : 'LEER'));
+
+// Letzten Webhook-Versuch für die Admin-Diagnose (meta_diag.php) festhalten —
+// single-key upsert in app_config, kein Wachstum, keine Secrets.
+$recordLast = static function (int $status, string $note) use ($sigHeader, $secret) {
+    try {
+        db_exec(
+            "INSERT INTO app_config (`key`, value) VALUES ('ig_webhook_last', ?)
+             ON DUPLICATE KEY UPDATE value = VALUES(value)",
+            [json_encode([
+                'status'    => $status,
+                'note'      => $note,
+                'signatur'  => ($sigHeader !== '' ? 'vorhanden' : 'fehlt'),
+                'appSecret' => ($secret !== '' ? 'gesetzt' : 'LEER'),
+                'zeit'      => date('Y-m-d H:i:s'),
+            ], JSON_UNESCAPED_UNICODE)]
+        );
+    } catch (\Throwable $e) { /* Diagnose ist best-effort */ }
+};
+
 if ($secret !== '') {
-    if ($sigHeader === '') { error_log('[ig_webhook] ABGEWIESEN: Signatur fehlt'); http_response_code(403); exit('Missing signature'); }
+    if ($sigHeader === '') {
+        error_log('[ig_webhook] ABGEWIESEN: Signatur fehlt');
+        $recordLast(403, 'Signatur fehlt');
+        http_response_code(403); exit('Missing signature');
+    }
     $expected = 'sha256=' . hash_hmac('sha256', $raw, $secret);
-    if (!hash_equals($expected, $sigHeader)) { error_log('[ig_webhook] ABGEWIESEN: Signatur ungültig (app_secret falsch?)'); http_response_code(403); exit('Bad signature'); }
+    if (!hash_equals($expected, $sigHeader)) {
+        error_log('[ig_webhook] ABGEWIESEN: Signatur ungültig (app_secret falsch?)');
+        $recordLast(403, 'Signatur ungültig — app_secret stimmt nicht');
+        http_response_code(403); exit('Bad signature');
+    }
 }
 
 $data = json_decode($raw, true);
-if (!is_array($data)) { http_response_code(200); exit('ok'); }
+if (!is_array($data)) { $recordLast(200, 'empfangen (leer/kein JSON)'); http_response_code(200); exit('ok'); }
 
 /** Prüft, ob ein Kommentartext auf eine Regel passt. */
 $ruleMatches = static function (array $rule, string $text): bool {
@@ -170,5 +197,6 @@ foreach (($data['entry'] ?? []) as $entry) {
     }
 }
 
+$recordLast(200, 'empfangen & verarbeitet');
 http_response_code(200);
 echo 'ok';
