@@ -217,7 +217,18 @@ foreach (($data['entry'] ?? []) as $entry) {
                 [(string)$hit['id'], $didPub, $didDm, $status, $errs ? implode(' | ', $errs) : null, $commentId]
             );
         } catch (\Throwable $e) {
+            // Verarbeitungsfehler NICHT verschlucken — sonst bleibt der oben
+            // angelegte Datensatz auf 'pending' und erscheint als grundloses
+            // „übersprungen". Den echten Grund in den Datensatz schreiben.
             error_log('[ig_webhook] ' . $e->getMessage());
+            if ($commentId !== '') {
+                try {
+                    db_exec(
+                        "UPDATE ig_events SET status='error', detail=? WHERE comment_id=? AND status='pending'",
+                        ['Verarbeitungsfehler: ' . $e->getMessage(), $commentId]
+                    );
+                } catch (\Throwable $e2) { /* best-effort */ }
+            }
         }
     }
 }
