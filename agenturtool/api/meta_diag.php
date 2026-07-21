@@ -92,7 +92,7 @@ $relevant = [
 try {
     $client = new MetaClient();
     $accs = db_all(
-        "SELECT account_label AS label, external_id AS externalId,
+        "SELECT account_label AS label, external_id AS externalId, page_id AS pageId,
                 customer_id AS customerId, access_token AS token
            FROM social_accounts
           WHERE platform = 'instagram' AND status = 'connected'
@@ -110,21 +110,43 @@ try {
             $out['igAccounts'][] = $entry;
             continue;
         }
+        // IDs dieses Kontos, gegen die granulare target_ids matchen (IG-Konto + Seite).
+        $accountIds = array_values(array_filter([
+            (string)($acc['externalId'] ?? ''),
+            (string)($acc['pageId'] ?? ''),
+        ], static fn($v) => $v !== ''));
         try {
-            $dbg = $client->debugToken($tok);
-            $granted = $dbg['scopes'];
+            $dbg  = $client->debugToken($tok);
+            $flat = $dbg['scopes'];
+            $gran = $dbg['granularScopes'];
             $entry['tokenValid'] = $dbg['isValid'];
             $entry['tokenExpiresAt'] = $dbg['expiresAt'];
+
+            // Ein Scope gilt als gewährt, wenn er flach gelistet ist ODER granular
+            // (Asset-gebunden) für dieses Konto/diese Seite vergeben wurde. Ist ein
+            // granularer Scope nur für ANDERE Assets vergeben, zählt er hier NICHT.
+            $isGranted = static function (string $scope) use ($flat, $gran, $accountIds): bool {
+                if (in_array($scope, $flat, true)) return true;
+                foreach ($gran as $g) {
+                    if (($g['scope'] ?? '') !== $scope) continue;
+                    $targets = $g['targetIds'] ?? [];
+                    // Ohne target_ids (kontoweit) oder mit passendem Ziel → gewährt.
+                    if (!$targets) return true;
+                    if ($accountIds && array_intersect($targets, $accountIds)) return true;
+                }
+                return false;
+            };
+
             $entry['scopes'] = [];
             foreach ($relevant as $scope => $desc) {
                 $entry['scopes'][] = [
                     'scope'   => $scope,
                     'label'   => $desc,
-                    'granted' => in_array($scope, $granted, true),
+                    'granted' => $isGranted($scope),
                 ];
             }
             // Kernaussage für die DM-Fehlersuche:
-            $entry['canDm'] = in_array('instagram_manage_messages', $granted, true);
+            $entry['canDm'] = $isGranted('instagram_manage_messages');
         } catch (\Throwable $e) {
             $entry['error'] = $e->getMessage();
         }
