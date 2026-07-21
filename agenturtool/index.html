@@ -15649,6 +15649,31 @@ function renderMetaDiag(d) {
       <span style="color:var(--text-3);">(Sig: ${escape(w.signatur || '?')}, Secret: ${escape(w.appSecret || '?')}, ${escape(w.updatedAt || w.zeit || '')})</span></div>`;
   }).join('') || '<span class="text-muted">Noch kein Webhook empfangen.</span>';
 
+  // Verbundene IG-Konten: gewährte Scopes (erklärt u. a. den DM-Fehler #3).
+  const accs = d.igAccounts;
+  let accHtml;
+  if (Array.isArray(accs) && accs.length) {
+    accHtml = accs.map(a => {
+      if (a.error) return `<div style="padding:4px 0;">${escape(a.label || a.externalId || 'Konto')} — ${err(a.error)}</div>`;
+      const chips = (a.scopes || []).map(sc =>
+        `<span class="${sc.granted ? 'md-ok' : 'md-err'}" style="display:inline-block;margin:1px 6px 1px 0;font-size:12px;">${sc.granted ? '✓' : '✗'} ${escape(sc.label)}</span>`
+      ).join('');
+      const dmHint = a.canDm
+        ? ok('DM möglich')
+        : warn('Keine DM-Berechtigung → Konto neu verbinden (Scope instagram_manage_messages)');
+      const exp = a.tokenExpiresAt ? ` <span style="color:var(--text-3);">Token bis ${escape(a.tokenExpiresAt)}</span>` : '';
+      const valid = a.tokenValid === false ? ' ' + err('Token ungültig/abgelaufen') : '';
+      return `<div style="padding:4px 0;border-top:1px solid var(--border);">
+        <div style="font-weight:600;">${escape(a.label || a.externalId || 'Konto')}${valid}${exp}</div>
+        <div style="margin:3px 0;">${chips}</div>
+        <div>${dmHint}</div></div>`;
+    }).join('');
+  } else if (accs && accs.error) {
+    accHtml = err(accs.error);
+  } else {
+    accHtml = '<span class="text-muted">Kein verbundenes Instagram-Konto.</span>';
+  }
+
   el.innerHTML =
     row('App-ID', `${escape(d.appId || '—')} <span style="color:var(--text-3);">· Graph ${escape(d.graphVersion || '')}</span>`) +
     row('config.meta.php', d.configFileExists ? ok('vorhanden') : err('fehlt — aus config.meta.php.example anlegen')) +
@@ -15658,6 +15683,7 @@ function renderMetaDiag(d) {
     row('WhatsApp Verify-Token', tok(d.waVerifyToken, 'wa_verify_token')) +
     row('WhatsApp Phone-Number-ID', d.waPhoneNumberId && d.waPhoneNumberId.set ? ok('gesetzt') : warn('fehlt')) +
     row('WhatsApp Token', tok(d.waToken, 'wa_token')) +
+    row('IG-Konten & Berechtigungen', accHtml) +
     row('Letzte Webhook-Versuche', wh);
 }
 

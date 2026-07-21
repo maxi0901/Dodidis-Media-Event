@@ -379,4 +379,27 @@ class MetaClient
         }
         return $json;
     }
+
+    /**
+     * Prüft ein Zugriffstoken via /debug_token und gibt die tatsächlich
+     * gewährten Scopes zurück (für die Admin-Diagnose). Verwendet ein
+     * App-Access-Token (app_id|app_secret) als Prüf-Token.
+     *
+     * @return array{isValid:bool, type:string, scopes:string[], expiresAt:?string}
+     */
+    public function debugToken(string $token): array
+    {
+        $res  = $this->get('/debug_token', [
+            'input_token'  => $token,
+            'access_token' => $this->appId . '|' . $this->appSecret,
+        ]);
+        $data = is_array($res['data'] ?? null) ? $res['data'] : [];
+        $exp  = (int)($data['expires_at'] ?? 0);
+        return [
+            'isValid'   => (bool)($data['is_valid'] ?? false),
+            'type'      => (string)($data['type'] ?? ''),
+            'scopes'    => array_values(array_map('strval', (array)($data['scopes'] ?? []))),
+            'expiresAt' => $exp > 0 ? date('Y-m-d H:i:s', $exp) : null,
+        ];
+    }
 }
