@@ -81,8 +81,30 @@ if ($secret !== '') {
     }
     $expected = 'sha256=' . hash_hmac('sha256', $raw, $secret);
     if (!hash_equals($expected, $sigHeader)) {
-        error_log('[ig_webhook] ABGEWIESEN: Signatur ungültig (app_secret falsch?)');
-        $recordLast(403, 'Signatur ungültig — app_secret stimmt nicht');
+        // Genaue Diagnose: gegen BEIDE hinterlegten Codes prüfen, damit die
+        // Admin-Diagnose zeigt, WELCHER Code (falls überhaupt) zur empfangenen
+        // Signatur passt. HMAC-Präfixe sind keine Secrets → anzeigbar.
+        $fbSecret = (string)($cfg['app_secret'] ?? '');
+        $igSecret = (string)($cfg['ig_app_secret'] ?? '');
+        $fbSig    = $fbSecret !== '' ? 'sha256=' . hash_hmac('sha256', $raw, $fbSecret) : '';
+        $igSig    = $igSecret !== '' ? 'sha256=' . hash_hmac('sha256', $raw, $igSecret) : '';
+
+        $match = 'KEINEM hinterlegten Code';
+        if ($igSig !== '' && hash_equals($igSig, $sigHeader)) {
+            $match = 'Instagram-App-Geheimcode (ig_app_secret)';
+        } elseif ($fbSig !== '' && hash_equals($fbSig, $sigHeader)) {
+            $match = 'Facebook-App-Geheimcode (app_secret)';
+        }
+        $used = $igSecret !== '' ? 'ig_app_secret' : 'app_secret (Fallback)';
+
+        $note = 'Signatur ungültig bei X-Hub-Signature-256. '
+            . 'Empfangen ' . (substr($sigHeader, 0, 20) ?: '—') . '…'
+            . ' · geprüft mit ' . $used
+            . ' · Signatur passt zu: ' . $match
+            . ' · Body ' . strlen($raw) . ' B';
+
+        error_log('[ig_webhook] ABGEWIESEN: ' . $note);
+        $recordLast(403, $note);
         http_response_code(403); exit('Bad signature');
     }
 }
