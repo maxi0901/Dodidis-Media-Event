@@ -379,4 +379,44 @@ class MetaClient
         }
         return $json;
     }
+
+    /**
+     * Prüft ein Zugriffstoken via /debug_token und gibt die tatsächlich
+     * gewährten Scopes zurück (für die Admin-Diagnose). Verwendet ein
+     * App-Access-Token (app_id|app_secret) als Prüf-Token.
+     *
+     * Für Page-/IG-Tokens meldet Meta Asset-gebundene Berechtigungen in
+     * `granular_scopes` (Scope + target_ids), NICHT zwingend im flachen
+     * `scopes`. Beides wird zurückgegeben, damit die Diagnose eine granular
+     * (für ein bestimmtes Konto) gewährte Berechtigung nicht als „fehlt"
+     * ausweist.
+     *
+     * @return array{isValid:bool, type:string, scopes:string[], granularScopes:array<int,array{scope:string,targetIds:string[]}>, expiresAt:?string}
+     */
+    public function debugToken(string $token): array
+    {
+        $res  = $this->get('/debug_token', [
+            'input_token'  => $token,
+            'access_token' => $this->appId . '|' . $this->appSecret,
+        ]);
+        $data = is_array($res['data'] ?? null) ? $res['data'] : [];
+        $exp  = (int)($data['expires_at'] ?? 0);
+
+        $granular = [];
+        foreach ((array)($data['granular_scopes'] ?? []) as $g) {
+            if (!is_array($g) || ($g['scope'] ?? '') === '') continue;
+            $granular[] = [
+                'scope'     => (string)$g['scope'],
+                'targetIds' => array_values(array_map('strval', (array)($g['target_ids'] ?? []))),
+            ];
+        }
+
+        return [
+            'isValid'        => (bool)($data['is_valid'] ?? false),
+            'type'           => (string)($data['type'] ?? ''),
+            'scopes'         => array_values(array_map('strval', (array)($data['scopes'] ?? []))),
+            'granularScopes' => $granular,
+            'expiresAt'      => $exp > 0 ? date('Y-m-d H:i:s', $exp) : null,
+        ];
+    }
 }
