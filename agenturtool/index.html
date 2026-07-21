@@ -15572,7 +15572,9 @@ function renderIgEvents() {
     const when = e.createdAt ? new Date(String(e.createdAt).replace(' ', 'T')).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
     const did = [e.didPublic ? 'Antwort' : '', e.didDm ? 'DM' : ''].filter(Boolean).join(' + ');
     const what = e.status === 'ok' ? `✓ ${did || 'ausgeführt'}${e.ruleName ? ' · ' + escape(e.ruleName) : ''}`
-      : (e.status === 'error' ? `⚠ Fehler: ${escape(e.detail || '')}` : `— ${escape(e.detail || 'übersprungen')}`);
+      : (e.status === 'error' ? `⚠ Fehler: ${escape(e.detail || '')}`
+      : (e.status === 'pending' ? '⏳ Verarbeitung unterbrochen (kein Grund erfasst)'
+      : `— ${escape(e.detail || 'übersprungen')}`));
     return `<div class="ig-ev">
       <div class="ig-ev-dot ${dot}"></div>
       <div style="flex:1;min-width:0;">
