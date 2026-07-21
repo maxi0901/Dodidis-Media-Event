@@ -48,8 +48,13 @@ function meta_config(): array
         'wa_token'           => $pick('WA_TOKEN', 'wa_token'),
         'wa_verify_token'    => $pick('WA_VERIFY_TOKEN', 'wa_verify_token'),
         // Instagram-Automatisierung (Auto-Antworten/DMs auf Kommentare):
-        // eigener Webhook-Verify-Token. Signatur nutzt app_secret (oben).
+        // eigener Webhook-Verify-Token + eigener App-Geheimcode. Der Instagram-
+        // Business-Login hat ein SEPARATES App-Secret (Meta-App -> Instagram ->
+        // API-Setup -> „Instagram-App-Geheimcode"); IG-Webhooks werden damit
+        // signiert, NICHT mit dem Facebook-app_secret. Fällt leer auf app_secret
+        // zurück (alte Graph-API-Anbindung über die Facebook-Seite).
         'ig_verify_token'    => $pick('IG_VERIFY_TOKEN', 'ig_verify_token'),
+        'ig_app_secret'      => $pick('IG_APP_SECRET', 'ig_app_secret'),
     ];
     return $cache;
 }

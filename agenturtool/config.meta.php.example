@@ -43,4 +43,11 @@ return [
     //   Nötige Berechtigungen: instagram_manage_comments (öffentliche Antwort)
     //   und instagram_manage_messages (private DM als Antwort auf Kommentar).
     'ig_verify_token'    => 'FREI-WAEHLBARES-IG-VERIFY-PASSWORT',
+
+    // WICHTIG: Beim Instagram-Business-Login hat Instagram einen EIGENEN
+    // App-Geheimcode (Meta-App -> Instagram -> API-Setup -> „Instagram-App-
+    // Geheimcode"). IG-Webhooks werden DAMIT signiert — NICHT mit app_secret
+    // oben (das ist der Facebook-App-Geheimcode für WhatsApp/Graph). Leer lassen
+    // nur bei der alten Graph-API-Anbindung über die Facebook-Seite.
+    'ig_app_secret'      => 'HIER-DER-INSTAGRAM-APP-GEHEIMCODE',
 ];

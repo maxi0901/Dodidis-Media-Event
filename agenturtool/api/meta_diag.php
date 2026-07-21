@@ -52,6 +52,11 @@ $out = [
         'source'      => $env('META_APP_SECRET') !== '' ? 'Umgebung (SetEnv)' : (($file['app_secret'] ?? '') !== '' ? 'config.meta.php' : 'keine'),
         'envOverride' => $env('META_APP_SECRET') !== '',
     ]),
+    'igAppSecret'      => array_merge($describe((string)$cfg['ig_app_secret']), [
+        'usedForWebhook' => ((string)$cfg['ig_app_secret'] !== '')
+            ? 'Instagram-App-Geheimcode'
+            : 'Facebook-App-Geheimcode (Fallback)',
+    ]),
     'igVerifyToken'    => $describe((string)$cfg['ig_verify_token']),
     'waVerifyToken'    => $describe((string)$cfg['wa_verify_token']),
     'waPhoneNumberId'  => ['set' => (string)$cfg['wa_phone_number_id'] !== ''],
