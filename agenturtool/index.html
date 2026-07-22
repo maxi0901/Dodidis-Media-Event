@@ -10949,11 +10949,18 @@ function renderNasMedia() {
     // Nur der NEUESTE finale Schnitt ist „aktiv" — alle älteren werden
     // ausgegraut, egal ob per „Neue Version" verkettet oder separat hochgeladen.
     let latestFinalId = null;
-    if (kind === 'final' && assets.length) {
-      latestFinalId = assets.slice().sort((a, b) =>
-        String(b.createdAt || '').localeCompare(String(a.createdAt || '')) ||
-        String(b.id).localeCompare(String(a.id))
-      )[0].id;
+    if (kind === 'final') {
+      // Nur fertig auf dem NAS liegende Schnitte zählen — ein noch zum NAS
+      // laufender (pending) Upload ist nicht reviewbar und darf nicht als
+      // „neueste Version" gewählt werden (sonst verlieren alle echten Finals
+      // den „Neue Version"-Button, bis der Transfer fertig ist).
+      const stored = assets.filter(a => !a.pending);
+      if (stored.length) {
+        latestFinalId = stored.slice().sort((a, b) =>
+          String(b.createdAt || '').localeCompare(String(a.createdAt || '')) ||
+          String(b.id).localeCompare(String(a.id))
+        )[0].id;
+      }
     }
     const rows = kind === 'final'
       ? assets.map(a => {
@@ -11454,7 +11461,9 @@ function nasFmtTimecode(sec) {
 // Ist dieses Asset der NEUESTE finale Schnitt des Projekts? (bestimmt, ob offene
 // Punkte älterer Versionen hier zusätzlich angezeigt werden)
 function nasIsLatestFinal(assetId) {
-  const finals = (nasMedia.assets || []).filter(a => a.kind === 'final');
+  // Nur fertig gespeicherte (nicht pending) Finals berücksichtigen — analog zu
+  // group(): ein noch laufender vServer→NAS-Transfer ist nicht die aktive Version.
+  const finals = (nasMedia.assets || []).filter(a => a.kind === 'final' && !a.pending);
   if (!finals.length) return false;
   const latest = finals.slice().sort((a, b) =>
     String(b.createdAt || '').localeCompare(String(a.createdAt || '')) ||
@@ -11602,7 +11611,13 @@ async function nasCommentToggle(commentId, resolved) {
     const json = await res.json();
     if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
     const idx = nasPlayer.comments.findIndex(c => c.id === commentId);
-    if (idx >= 0) nasPlayer.comments[idx] = json.data;
+    if (idx >= 0) {
+      // Server-Antwort trägt kein fromOther/sourceLabel — von der bisherigen
+      // (übertragenen) Fassung übernehmen, sonst würde der Punkt fälschlich dem
+      // neuen Asset statt seiner Ursprungsversion zugerechnet.
+      const prev = nasPlayer.comments[idx];
+      nasPlayer.comments[idx] = { ...json.data, fromOther: prev.fromOther, sourceLabel: prev.sourceLabel };
+    }
     renderNasComments();
     nasSyncOpenCount();
   } catch (err) {
@@ -11630,9 +11645,20 @@ async function nasCommentDelete(commentId) {
 
 // Offene-Kommentare-Badge in der Medien-Sektion aktuell halten
 function nasSyncOpenCount() {
-  const a = nasMedia.assets.find(x => x.id === nasPlayer.assetId);
-  if (!a) return;
-  a.openComments = nasPlayer.comments.filter(c => c.status === 'open' && !c.fromOther).length;
+  // Offene Punkte je QUELL-Asset zählen (jeder Kommentar trägt seine assetId,
+  // auch die übertragenen Punkte älterer Versionen). So bekommt sowohl das
+  // aktuelle als auch das ältere (ausgegraute) Video seine korrekte „offen"-
+  // Badge — ohne vollständiges Neuladen.
+  const counts = {};
+  nasPlayer.comments.forEach(c => {
+    if (c.status === 'open' && c.assetId) counts[c.assetId] = (counts[c.assetId] || 0) + 1;
+  });
+  const ids = new Set(nasPlayer.comments.map(c => c.assetId).filter(Boolean));
+  ids.add(nasPlayer.assetId); // aktuelles Asset immer setzen (auch auf 0)
+  ids.forEach(id => {
+    const a = nasMedia.assets.find(x => x.id === id);
+    if (a) a.openComments = counts[id] || 0;
+  });
   renderNasMedia();
 }
 
