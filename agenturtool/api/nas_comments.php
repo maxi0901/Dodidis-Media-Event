@@ -34,6 +34,32 @@ if (($session['type'] ?? '') !== 'staff') {
     json_err(403, 'Nur Mitarbeiter dürfen Review-Kommentare sehen.');
 }
 
+// ── GET ?project_id=&open_finals=1[&exclude=] — offene Punkte aller finalen
+//    Versionen eines Projekts. Damit lassen sich die noch offenen Korrektur-
+//    punkte älterer Schnitte am NEUESTEN Video anzeigen/abhaken, ohne die alte
+//    (ausgegraute) Version öffnen zu müssen. `exclude` = aktuelles Asset.
+if ($method === 'GET' && ($_GET['project_id'] ?? '') !== '' && ($_GET['open_finals'] ?? '') === '1') {
+    $pid = (string)$_GET['project_id'];
+    requireProjectAccess($pid, $session);
+    $exclude = (string)($_GET['exclude'] ?? '');
+
+    $rows = db_all(
+        "SELECT c.id, c.asset_id AS assetId, a.filename AS sourceLabel,
+                c.user_id AS userId, u.name AS userName,
+                c.timecode, c.body, c.status,
+                c.resolved_by AS resolvedBy, c.resolved_at AS resolvedAt,
+                c.created_at AS createdAt
+           FROM asset_comments c
+           JOIN assets a ON a.id = c.asset_id
+           LEFT JOIN users u ON u.id = c.user_id
+          WHERE a.project_id = ? AND a.kind = 'final' AND c.status = 'open'
+            AND (? = '' OR c.asset_id <> ?)
+          ORDER BY a.created_at, COALESCE(c.timecode, 999999), c.created_at",
+        [$pid, $exclude, $exclude]
+    );
+    json_ok($rows);
+}
+
 // ── GET ?asset_id= — Kommentare eines Assets ─────────────────────────────────
 if ($method === 'GET' && $assetId) {
     $a = db_one("SELECT project_id FROM assets WHERE id = ?", [$assetId]);
@@ -86,10 +112,12 @@ if ($method === 'POST' && !$id) {
         [$cid, $assetId, $a['project_id'], $session['uid'], $timecode, $body]
     );
 
-    // Auto-Status: fertig → korrektur (nur vorwärts, nie überschreiben)
+    // Auto-Status: jeder neue Kommentar setzt das Projekt auf 'korrektur' —
+    // aus JEDEM Status (nicht nur 'fertig'), da auch bereits freigegebene
+    // Videos noch Korrekturen bekommen können. Ausnahme: schon 'korrektur'.
     try {
         db_exec(
-            "UPDATE projects SET status = 'korrektur' WHERE id = ? AND status = 'fertig'",
+            "UPDATE projects SET status = 'korrektur' WHERE id = ? AND status <> 'korrektur'",
             [$a['project_id']]
         );
     } catch (\Throwable $e) {
