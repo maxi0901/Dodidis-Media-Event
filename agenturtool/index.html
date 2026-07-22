@@ -10946,11 +10946,20 @@ function renderNasMedia() {
     // (z. B. Imagefilm UND Teaser) gelten alle als aktuell und behalten ihren
     // „Neue Version"-Button. Nach Abnahme ist der Upload für Cutter eingefroren.
     const uploadAllowed = canUpload && (kind !== 'final' || !locked || isPriv);
-    const superseded = kind === 'final'
-      ? new Set(assets.map(a => a.parentId).filter(Boolean))
-      : new Set();
+    // Nur der NEUESTE finale Schnitt ist „aktiv" — alle älteren werden
+    // ausgegraut, egal ob per „Neue Version" verkettet oder separat hochgeladen.
+    let latestFinalId = null;
+    if (kind === 'final' && assets.length) {
+      latestFinalId = assets.slice().sort((a, b) =>
+        String(b.createdAt || '').localeCompare(String(a.createdAt || '')) ||
+        String(b.id).localeCompare(String(a.id))
+      )[0].id;
+    }
     const rows = kind === 'final'
-      ? assets.map(a => assetRow(a, { old: superseded.has(a.id), latestFinal: !superseded.has(a.id) })).join('')
+      ? assets.map(a => {
+          const isLatest = a.id === latestFinalId;
+          return assetRow(a, { old: !isLatest, latestFinal: isLatest });
+        }).join('')
       : assets.map(a => assetRow(a)).join('');
 
     const dropAttrs = uploadAllowed ? ` class="nas-drop" data-drop="${kind}" data-pid="${escape(pid)}"` : '';
@@ -11442,6 +11451,18 @@ function nasFmtTimecode(sec) {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
+// Ist dieses Asset der NEUESTE finale Schnitt des Projekts? (bestimmt, ob offene
+// Punkte älterer Versionen hier zusätzlich angezeigt werden)
+function nasIsLatestFinal(assetId) {
+  const finals = (nasMedia.assets || []).filter(a => a.kind === 'final');
+  if (!finals.length) return false;
+  const latest = finals.slice().sort((a, b) =>
+    String(b.createdAt || '').localeCompare(String(a.createdAt || '')) ||
+    String(b.id).localeCompare(String(a.id))
+  )[0];
+  return !!latest && latest.id === assetId;
+}
+
 async function loadNasComments(assetId) {
   try {
     const res = await fetch(`${API_BASE}/nas_comments.php?asset_id=${encodeURIComponent(assetId)}`,
@@ -11452,6 +11473,20 @@ async function loadNasComments(assetId) {
   } catch (err) {
     nasPlayer.comments = [];
     showToast('Kommentare konnten nicht geladen werden', err.message);
+  }
+  // Am neuesten Video zusätzlich die noch OFFENEN Punkte älterer Versionen
+  // anzeigen, damit man sie hier abhaken kann (ohne die alte Datei zu öffnen).
+  if (nasIsLatestFinal(assetId) && nasMedia.projectId) {
+    try {
+      const r2 = await fetch(
+        `${API_BASE}/nas_comments.php?project_id=${encodeURIComponent(nasMedia.projectId)}&open_finals=1&exclude=${encodeURIComponent(assetId)}`,
+        { credentials: 'same-origin' });
+      const j2 = await r2.json();
+      if (r2.ok && j2.ok && Array.isArray(j2.data)) {
+        j2.data.forEach(c => { c.fromOther = true; });
+        nasPlayer.comments = nasPlayer.comments.concat(j2.data);
+      }
+    } catch { /* Übertragene Punkte sind optional */ }
   }
   nasPlayer.loading = false;
   renderNasComments();
@@ -11493,6 +11528,7 @@ function renderNasComments() {
           </div>
           <div class="nas-comment-sub">
             ${hasTc ? `<span class="nas-tc-chip">▶ ${nasFmtTimecode(c.timecode)}</span>` : ''}
+            ${c.fromOther ? `<span class="nas-version-chip" title="Offener Punkt aus vorheriger Version${c.sourceLabel ? ': ' + escape(c.sourceLabel) : ''}">↩ Vorversion</span>` : ''}
             ${when ? `<span>${when}</span>` : ''}
             ${c.status !== 'open' ? `<span>· erledigt</span>` : ''}
           </div>
@@ -11545,6 +11581,13 @@ async function nasCommentSubmit() {
     nasPlayer.comments.sort((a, b) => (a.timecode ?? 1e9) - (b.timecode ?? 1e9));
     renderNasComments();
     nasSyncOpenCount();
+    // Auto-Status „Korrektur": das Backend setzt das Projekt (aus jedem Status)
+    // auf 'korrektur' — lokal spiegeln, damit die Board-Ansicht stimmt.
+    const proj = store.projects.find(p => p.id === nasMedia.projectId);
+    if (proj && proj.status !== 'korrektur') {
+      proj.status = 'korrektur';
+      showToast('Status: Korrektur', `„${proj.title || 'Projekt'}" steht jetzt auf Korrektur.`);
+    }
   } catch (err) {
     showToast('Kommentar fehlgeschlagen', err.message);
   }
@@ -11589,7 +11632,7 @@ async function nasCommentDelete(commentId) {
 function nasSyncOpenCount() {
   const a = nasMedia.assets.find(x => x.id === nasPlayer.assetId);
   if (!a) return;
-  a.openComments = nasPlayer.comments.filter(c => c.status === 'open').length;
+  a.openComments = nasPlayer.comments.filter(c => c.status === 'open' && !c.fromOther).length;
   renderNasMedia();
 }
 
