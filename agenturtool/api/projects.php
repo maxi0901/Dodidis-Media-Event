@@ -275,7 +275,7 @@ function can_read_project(array $p, array $session): bool
 
 function build_project_params(array $b, bool $forInsert): array
 {
-    $valid = ['idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert'];
+    $valid = ['idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','gepostet','archiviert'];
     $out = [];
 
     if (array_key_exists('title', $b))         $out['title']        = s($b['title'], 190);
