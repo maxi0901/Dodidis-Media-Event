@@ -102,7 +102,7 @@ switch ($method) {
         } catch (\Throwable $e) {
             // status-Spalte fehlt – nachrüsten und erneut versuchen
             try {
-                db()->exec("ALTER TABLE projects ADD COLUMN status ENUM('idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert') NOT NULL DEFAULT 'skript'");
+                db()->exec("ALTER TABLE projects ADD COLUMN status ENUM('idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','gepostet','archiviert') NOT NULL DEFAULT 'skript'");
             } catch (\Throwable $_) {}
             try {
                 $cur = db_one("SELECT id, title, videograf_id, cutter_id, customer_id, status, shoot_date FROM projects WHERE id = ?", [$id]);
@@ -135,29 +135,12 @@ switch ($method) {
         error_log('[projects PUT] id=' . $id . ' uid=' . ($session['uid'] ?? '?') . ' isPriv=' . ($isPriv?'1':'0') . ' isVid=' . ($isVid?'1':'0') . ' isCut=' . ($isCut?'1':'0') . ' body=' . json_encode($b) . ' params=' . json_encode($params));
         if (!$params) json_ok(['id' => $id]);
 
-        // Abnahme (freigegeben) ist Admin/Manager vorbehalten und nur möglich,
-        // wenn keine offenen Review-Kommentare mehr existieren (Abnahme-Gate).
-        if (($params['status'] ?? '') === 'freigegeben') {
-            if (!$isPriv) {
-                json_err(403, 'Freigeben dürfen nur Manager oder Admins.');
-            }
-            try {
-                // Join auf assets: nur Kommentare zählen, deren Asset noch existiert —
-                // verwaiste Kommentare gelöschter Assets dürfen die Abnahme nicht blockieren
-                $open = db_one(
-                    "SELECT COUNT(*) AS n
-                       FROM asset_comments c
-                       JOIN assets a ON a.id = c.asset_id AND a.status = 'stored'
-                      WHERE c.project_id = ? AND c.status = 'open'",
-                    [$id]
-                );
-                $n = (int)($open['n'] ?? 0);
-                if ($n > 0) {
-                    json_err(409, "Es gibt noch {$n} offene Review-Kommentare. Erst abhaken oder löschen, dann freigeben.");
-                }
-            } catch (\Throwable $e) {
-                // Tabelle fehlt noch (Migration nicht gelaufen) → Gate überspringen
-            }
+        // Abnahme (freigegeben) ist Admin/Manager vorbehalten. Es gibt BEWUSST
+        // KEINE harte Sperre mehr bei offenen Review-Kommentaren: Freigeben ist
+        // immer möglich, unabhängig davon, ob alle Korrekturpunkte abgehakt sind
+        // (das Abhaken ist entkoppelt von der Freigabe).
+        if (($params['status'] ?? '') === 'freigegeben' && !$isPriv) {
+            json_err(403, 'Freigeben dürfen nur Manager oder Admins.');
         }
 
         $set = [];

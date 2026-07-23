@@ -80,9 +80,12 @@ switch ($method) {
             // Der Planer zeigt standardmäßig freigegebene, kann aber (Filter) alle
             // Reels anzeigen (Wunsch aus der Besprechung: nicht nur fertige planbar).
             $onlyReady = !empty($_GET['only_ready']);
+            // „Fertige" = freigegebene (posting-fertig). „Alle" = alle mit finalem
+            // Video, die NOCH NICHT freigegeben (und nicht schon gepostet/archiviert)
+            // sind — freigegebene erscheinen unter „Alle" bewusst nicht.
             $statusCond = $onlyReady
                 ? "p.status = 'freigegeben'"
-                : "p.status IN ('fertig','korrektur','freigegeben','archiviert')";
+                : "p.status IN ('fertig','korrektur')";
 
             $scopeCond = $mgrScope !== null ? " AND c.manager_id = ?" : '';
             $scopeParams = $mgrScope !== null ? [$mgrScope] : [];
@@ -125,7 +128,7 @@ switch ($method) {
                         cq.caption, cq.media_url AS mediaUrl, cq.thumbnail_url AS thumbnailUrl,
                         cq.status, cq.scheduled_at AS scheduledAt, cq.published_at AS publishedAt,
                         cq.is_test AS isTest,
-                        p.title AS projectTitle
+                        p.title AS projectTitle, p.status AS projectStatus
                    FROM content_queue cq
               LEFT JOIN customers c ON c.id = cq.customer_id
               LEFT JOIN projects  p ON p.id = cq.project_id
