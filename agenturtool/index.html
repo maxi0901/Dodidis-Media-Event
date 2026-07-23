@@ -3056,6 +3056,158 @@
   .dw-slot.cat-url { background: #e7e6e2; color: #55585e; }
   .dw-scroll { }  /* Desktop: normal; Mobile: horizontal scrollbar (siehe unten) */
 
+  /* Stundenbasierte Wochenansicht. Farben und Typografie bleiben im bestehenden
+     dw-Kalenderstil; nur das Layout wird zu einem echten Zeitraster. */
+  .chw {
+    --chw-hour-h: 56px;
+    --chw-time-w: 58px;
+    height: min(72vh, 760px);
+    min-height: 480px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    position: relative;
+  }
+  .chw-track {
+    display: grid;
+    grid-template-columns: var(--chw-time-w) repeat(7, minmax(120px, 1fr));
+    grid-template-rows: 62px auto calc(24 * var(--chw-hour-h));
+    min-width: 900px;
+    position: relative;
+  }
+  .chw-corner,
+  .chw-day-head {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--bg-1);
+    border-bottom: 1px solid var(--border);
+  }
+  .chw-corner {
+    left: 0;
+    z-index: 40;
+    grid-column: 1;
+    grid-row: 1;
+    border-right: 1px solid var(--border);
+  }
+  .chw-day-head {
+    grid-row: 1;
+    padding: 11px 8px 9px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+  }
+  .chw-day-head .dw-wl { display: block; }
+  .chw-day-head .dw-wn { margin: 3px 0 0; font-size: 19px; }
+  .chw-day-head.today { background: var(--bg-2); }
+  .chw-allday-label {
+    position: sticky;
+    left: 0;
+    z-index: 20;
+    grid-column: 1;
+    grid-row: 2;
+    padding: 9px 7px;
+    text-align: right;
+    color: var(--text-3);
+    font-size: 10px;
+    background: var(--bg-1);
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .chw-allday {
+    grid-column: 2 / 9;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: 25px;
+    gap: 3px 0;
+    min-height: 32px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .chw-allday .dw-allday { margin: 0 3px; cursor: pointer; }
+  .chw-times {
+    position: sticky;
+    left: 0;
+    z-index: 15;
+    grid-column: 1;
+    grid-row: 3;
+    background: var(--bg-1);
+    border-right: 1px solid var(--border);
+  }
+  .chw-time {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: var(--chw-hour-h);
+    padding: 0 7px 0 2px;
+    color: var(--text-3);
+    font-size: 10px;
+    text-align: right;
+    transform: translateY(-6px);
+  }
+  .chw-days {
+    grid-column: 2 / 9;
+    grid-row: 3;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    position: relative;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--chw-hour-h) / 2 - 1px),
+      color-mix(in srgb, var(--border) 48%, transparent) calc(var(--chw-hour-h) / 2),
+      transparent calc(var(--chw-hour-h) / 2 + 1px),
+      transparent calc(var(--chw-hour-h) - 1px),
+      var(--border) var(--chw-hour-h)
+    );
+  }
+  .chw-day-col { position: relative; border-right: 1px solid var(--border); min-width: 0; }
+  .chw-day-col.today { background: color-mix(in srgb, var(--bg-2) 55%, transparent); }
+  .chw-day-col.dnd-over {
+    background: rgba(20,184,166,0.09);
+    outline: 2px dashed rgba(20,184,166,0.45);
+    outline-offset: -2px;
+  }
+  .chw-event {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    z-index: 4;
+    min-height: 24px;
+    margin: 0;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  }
+  .chw-event[draggable="true"] { cursor: grab; }
+  .chw-event[draggable="true"]:active { cursor: grabbing; }
+  .chw-event.dnd-dragging { opacity: .42; }
+  .chw-selection {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    z-index: 12;
+    min-height: 28px;
+    border: 1px solid var(--accent);
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--accent) 22%, var(--bg-2));
+    color: var(--text-1);
+    padding: 5px 7px;
+    font-size: 11px;
+    font-weight: 650;
+    pointer-events: none;
+    box-shadow: 0 5px 18px rgba(0,0,0,.22);
+  }
+  .chw-day-col.can-create { cursor: crosshair; }
+  .chw-now { position: absolute; z-index: 8; height: 2px; background: var(--apple-red); pointer-events: none; }
+  .chw-now::before { content:""; position:absolute; left:-4px; top:-3px; width:8px; height:8px; border-radius:50%; background:inherit; }
+  @media (max-width: 720px) {
+    .chw { --chw-time-w: 44px; height: 68vh; min-height: 430px; }
+    .chw-track { grid-template-columns: var(--chw-time-w) repeat(7, minmax(150px, 1fr)); min-width: 1094px; }
+  }
+
   /* Monatsraster (Kalender-Seite) im Vorlagen-Design */
   .cal-mwds { display: grid; grid-template-columns: repeat(7, 1fr); }
   .cal-mwd { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-3); font-weight: 600; padding: 6px 8px; }
@@ -6899,7 +7051,204 @@ function renderCalWeekGrid(elementId, session) {
       </div>
     </div>
     <div class="cal-filter-bar"><span class="cal-filter-label">Anzeigen:</span>${filterBtns}</div>
-    ${buildDwGridHtml(session, start, { visibility: vis })}`;
+    ${buildCalendarHourWeekHtml(session, start, vis)}`;
+
+  requestAnimationFrame(() => {
+    const scroller = el.querySelector('.chw');
+    if (scroller) {
+      scroller.scrollTop = 7 * 56;
+      enableCalendarRangeCreate(scroller);
+    }
+  });
+
+}
+
+function calendarEventDndAttrs(ev, session) {
+  const canMove = session?.type === 'staff' && hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER);
+  if (!canMove || window.matchMedia('(hover: none)').matches || !ev.moveType || !ev.moveId) return '';
+  return `draggable="true" ondragstart="calTimeDragStart(event,'${ev.moveType}','${ev.moveId}','${ev.date}','${ev.start || ''}')" ondragend="calTimeDragEnd(event)"`;
+}
+
+function buildCalendarHourWeekHtml(session, weekStart, vis) {
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(weekStart); date.setDate(weekStart.getDate() + i);
+    return date;
+  });
+  const startStr = localDateStr(days[0]);
+  const todayStr = localDateStr(new Date());
+  const WD = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  const bars = buildCalendarBars(session);
+  const timed = days.map(() => []);
+  const allday = [];
+  const hhmm = value => (value || '').slice(0, 5);
+  const minutes = value => {
+    const m = /^(\d{1,2}):(\d{2})/.exec(value || '');
+    return m ? Math.min(1439, Number(m[1]) * 60 + Number(m[2])) : 9 * 60;
+  };
+  const addTimed = (date, event) => {
+    const idx = dashDayIndex(date, startStr);
+    if (idx >= 0 && idx < 7) timed[idx].push(event);
+  };
+
+  bars.forEach(b => {
+    if (b.phase === 'vacation') {
+      if (vis.vacation && b.endDate >= startStr && b.startDate <= localDateStr(days[6])) allday.push(b);
+      return;
+    }
+    if (b.phase === 'meeting') {
+      if (!vis.meetings) return;
+      const m = (store.meetings || []).find(x => x.id === b.meetingId);
+      if (!m) return;
+      addTimed(m.date, { cat:'cat-meet', title:b.title, sub:'Meeting', date:m.date,
+        start:hhmm(m.startTime) || '09:00', end:hhmm(m.endTime), moveType:'meeting', moveId:m.id,
+        click:`openMeetingModal('${m.id}')` });
+      return;
+    }
+    if (b.phase === 'shoot') {
+      if (!vis.shoot) return;
+      const sd = (store.shootDays || []).find(x => x.id === b.shootDayId);
+      if (!sd) return;
+      addTimed(sd.date, { cat:'cat-dreh', title:b.title, sub:'Drehtag', date:sd.date,
+        start:hhmm(sd.startTime) || '09:00', end:hhmm(sd.endTime), moveType:'shoot', moveId:sd.id,
+        click:`openShootDayModal('${sd.id}')` });
+      return;
+    }
+    if (b.phase === 'posting') {
+      if (!vis.videos) return;
+      const date = b.postingDate || b.endDate;
+      addTimed(date, { cat:'cat-post', title:b.title, sub:'Posting', date,
+        start:hhmm(b.time) || '18:00', end:'', moveType:'posting', moveId:b.projectId,
+        click:`openProjectModal('${b.projectId}')` });
+      return;
+    }
+    if (b.phase === 'deadline') {
+      if (!vis.videos) return;
+      const date = b.deadline || b.endDate;
+      addTimed(date, { cat:'cat-prod', title:b.title, sub:'Deadline', date,
+        start:hhmm(b.time) || '17:00', end:'', moveType:'deadline', moveId:b.projectId,
+        click:`openProjectModal('${b.projectId}')` });
+    }
+  });
+
+  if (vis.todos) {
+    const isAdmin = hasRole(session.user, ROLES.ADMIN);
+    (store.todos || []).filter(t => t.dueDate && t.status !== 'done' &&
+      (isAdmin || (t.assigneeIds || []).includes(session.user.id))).forEach(t => {
+        const idx = dashDayIndex(t.dueDate, startStr);
+        if (idx >= 0 && idx < 7) allday.push({
+          phase:'todo', startDate:t.dueDate, endDate:t.dueDate, title:t.title,
+          todoId:t.id, moveType:'todo', moveId:t.id
+        });
+      });
+  }
+
+  const allDayHtml = allday.map((b, lane) => {
+    const s = Math.max(0, dashDayIndex(b.startDate, startStr));
+    const e = Math.min(6, dashDayIndex(b.endDate, startStr));
+    const isTodo = b.phase === 'todo';
+    const cat = isTodo ? 'cat-todo' : 'cat-url';
+    const click = isTodo ? `openTodoModal('${b.todoId}')` : `navigateTo('vacation')`;
+    const dnd = isTodo ? calendarEventDndAttrs({
+      moveType:'todo', moveId:b.todoId, date:b.startDate, start:''
+    }, session) : '';
+    return `<div class="dw-allday ${cat}" style="grid-column:${s + 1}/span ${e - s + 1};grid-row:${lane + 1}" ${dnd} onclick="${click}" title="${escape(b.fullTitle || b.title || '')}">${escape(isTodo ? b.title : ((b.customer || '') + ' · Urlaub'))}</div>`;
+  }).join('');
+
+  const dayCols = days.map((day, idx) => {
+    const events = timed[idx].map(ev => {
+      const startMin = minutes(ev.start);
+      const endMin = ev.end ? minutes(ev.end) : startMin + 60;
+      const heightMin = Math.max(30, endMin > startMin ? endMin - startMin : 60);
+      const top = startMin / 60 * 56;
+      const height = heightMin / 60 * 56;
+      return `<div class="dw-slot chw-event ${ev.cat}" style="top:${top}px;height:${height}px" ${calendarEventDndAttrs(ev, session)} onclick="${ev.click}" title="${escape(ev.title)}">
+        ${escape(ev.title || '—')}<span class="dw-st">${escape(ev.start)} · ${escape(ev.sub)}</span>
+      </div>`;
+    }).join('');
+    return `<div class="chw-day-col${localDateStr(day) === todayStr ? ' today' : ''}" data-date="${localDateStr(day)}" ondragover="calTimeDragOver(event)" ondragleave="calTimeDragLeave(event)" ondrop="calTimeDrop(event,'${localDateStr(day)}')">${events}</div>`;
+  }).join('');
+
+  const now = new Date();
+  const nowIdx = days.findIndex(d => localDateStr(d) === todayStr);
+  const nowLine = nowIdx < 0 ? '' :
+    `<div class="chw-now" style="top:${(now.getHours() * 60 + now.getMinutes()) / 60 * 56}px;left:calc(${nowIdx} * (100% / 7));width:calc(100% / 7)"></div>`;
+
+  return `<div class="chw" aria-label="Stundenkalender Wochenansicht">
+    <div class="chw-track">
+      <div class="chw-corner"></div>
+      ${days.map((d, i) => `<div class="chw-day-head${localDateStr(d) === todayStr ? ' today' : ''}" style="grid-column:${i + 2}"><span class="dw-wl">${WD[i]}</span><span class="dw-wn">${d.getDate()}</span></div>`).join('')}
+      <div class="chw-allday-label">Ganztägig</div>
+      <div class="chw-allday">${allDayHtml}</div>
+      <div class="chw-times">${Array.from({length:24}, (_, h) => `<div class="chw-time" style="top:${h * 56}px">${String(h).padStart(2,'0')}:00</div>`).join('')}</div>
+      <div class="chw-days">${dayCols}${nowLine}</div>
+    </div>
+  </div>`;
+}
+
+function calMinutesLabel(total) {
+  const safe = Math.max(0, Math.min(24 * 60, total));
+  return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
+}
+
+// Apple-Kalender-artig: in einer freien Tagesspalte einen Zeitraum aufziehen.
+// Nur Desktop/Maus, damit vertikales Scrollen auf Touch-Geräten ungestört bleibt.
+function enableCalendarRangeCreate(scroller) {
+  const session = getCurrentUser();
+  if (!session || session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) return;
+
+  scroller.querySelectorAll('.chw-day-col').forEach(col => {
+    col.classList.add('can-create');
+    col.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || event.pointerType === 'touch' || event.target.closest('.chw-event')) return;
+      event.preventDefault();
+      const rect = col.getBoundingClientRect();
+      const initialScrollTop = scroller.scrollTop;
+      const snap = y => Math.max(0, Math.min(1440,
+        Math.round((((y - rect.top + scroller.scrollTop - initialScrollTop) / 56 * 60)) / 15) * 15));
+      const start = Math.min(1410, snap(event.clientY));
+      let current = start + 30;
+      const selection = document.createElement('div');
+      selection.className = 'chw-selection';
+      col.appendChild(selection);
+      col.setPointerCapture(event.pointerId);
+
+      const range = () => current < start
+        ? { from: Math.max(0, Math.min(current, start - 30)), to: start }
+        : { from: start, to: Math.min(1440, Math.max(current, start + 30)) };
+      const paint = () => {
+        const { from, to } = range();
+        selection.style.top = `${from / 60 * 56}px`;
+        selection.style.height = `${(to - from) / 60 * 56}px`;
+        selection.textContent = `${calMinutesLabel(from)}–${calMinutesLabel(to)}`;
+      };
+      paint();
+
+      const onMove = move => {
+        current = snap(move.clientY);
+        paint();
+        const edge = 52;
+        if (move.clientY < scroller.getBoundingClientRect().top + edge) scroller.scrollTop -= 18;
+        else if (move.clientY > scroller.getBoundingClientRect().bottom - edge) scroller.scrollTop += 18;
+      };
+      const onUp = up => {
+        col.removeEventListener('pointermove', onMove);
+        col.removeEventListener('pointerup', onUp);
+        col.removeEventListener('pointercancel', onCancel);
+        selection.remove();
+        const { from, to } = range();
+        openCalendarCreate(col.dataset.date, calMinutesLabel(from), calMinutesLabel(to));
+      };
+      const onCancel = () => {
+        col.removeEventListener('pointermove', onMove);
+        col.removeEventListener('pointerup', onUp);
+        col.removeEventListener('pointercancel', onCancel);
+        selection.remove();
+      };
+      col.addEventListener('pointermove', onMove);
+      col.addEventListener('pointerup', onUp);
+      col.addEventListener('pointercancel', onCancel);
+    });
+  });
 }
 
 // ── Kalender-Seite: Monatsraster im Vorlagen-Design ──────────────────────────
@@ -9264,7 +9613,7 @@ function renderShootDays(session) {
    Drehtag ist eine eigene Entität (store.shootDays):
    nur Datum, Videograf, Zeitraum, optional Kunde + Notiz.
    Videos/Projekte werden separat angelegt und dem Drehtag zugewiesen. */
-function openShootDayModal(shootDayId = null, prefillDate = null) {
+function openShootDayModal(shootDayId = null, prefillDate = null, prefillStart = null, prefillEnd = null) {
   const session = getCurrentUser();
   if (!session || !hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) return;
 
@@ -9313,11 +9662,11 @@ function openShootDayModal(shootDayId = null, prefillDate = null) {
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Von</label>
-                <input type="time" name="startTime" value="${sd?.startTime || '09:00'}" />
+                <input type="time" name="startTime" value="${sd?.startTime || prefillStart || '09:00'}" />
               </div>
               <div class="form-group">
                 <label class="form-label">Bis</label>
-                <input type="time" name="endTime" value="${sd?.endTime || '17:00'}" />
+                <input type="time" name="endTime" value="${sd?.endTime || prefillEnd || '17:00'}" />
               </div>
             </div>
             <div class="form-group">
@@ -10291,6 +10640,91 @@ async function calDrop(event, targetDate) {
     renderPage();
   } catch (e) {
     appAlert('Fehler beim Verschieben: ' + e.message);
+  }
+}
+
+let _calTimeDnd = null;
+
+function calTimeDragStart(event, type, id, origDate, origTime) {
+  _calTimeDnd = { type, id, origDate, origTime };
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', `${type}:${id}`);
+  event.currentTarget.classList.add('dnd-dragging');
+}
+
+function calTimeDragEnd(event) {
+  event.currentTarget.classList.remove('dnd-dragging');
+  document.querySelectorAll('.chw-day-col.dnd-over').forEach(el => el.classList.remove('dnd-over'));
+}
+
+function calTimeDragOver(event) {
+  if (!_calTimeDnd) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  event.currentTarget.classList.add('dnd-over');
+}
+
+function calTimeDragLeave(event) {
+  if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.classList.remove('dnd-over');
+}
+
+async function calTimeDrop(event, targetDate) {
+  event.preventDefault();
+  const col = event.currentTarget;
+  col.classList.remove('dnd-over');
+  if (!_calTimeDnd) return;
+  const move = _calTimeDnd;
+  _calTimeDnd = null;
+
+  const rect = col.getBoundingClientRect();
+  const minuteRaw = Math.max(0, Math.min(1439, (event.clientY - rect.top) / 56 * 60));
+  const targetMinutes = Math.round(minuteRaw / 15) * 15;
+  const targetTime = `${String(Math.floor(targetMinutes / 60)).padStart(2, '0')}:${String(targetMinutes % 60).padStart(2, '0')}:00`;
+  const body = {};
+  let endpoint = '';
+
+  if (move.type === 'posting') {
+    // Posting-Zeit ist derzeit projektweit nicht separat editierbar; beim Ziehen
+    // wird deshalb das Datum über den vorhandenen, konfliktgeprüften Ablauf verschoben.
+    _calDnd = { projectId: move.id, origDate: move.origDate };
+    return calDrop({ preventDefault(){}, currentTarget: col }, targetDate);
+  } else if (move.type === 'deadline') {
+    endpoint = `/projects.php?id=${encodeURIComponent(move.id)}`;
+    body.deadline = targetDate;
+  } else if (move.type === 'meeting') {
+    const item = (store.meetings || []).find(x => x.id === move.id);
+    endpoint = `/meetings.php?id=${encodeURIComponent(move.id)}`;
+    body.date = targetDate;
+    body.startTime = targetTime;
+    if (item?.endTime && item?.startTime) {
+      const toMin = t => Number(t.slice(0,2)) * 60 + Number(t.slice(3,5));
+      const duration = Math.max(15, toMin(item.endTime) - toMin(item.startTime));
+      const end = Math.min(1439, targetMinutes + duration);
+      body.endTime = `${String(Math.floor(end / 60)).padStart(2,'0')}:${String(end % 60).padStart(2,'0')}:00`;
+    }
+  } else if (move.type === 'shoot') {
+    const item = (store.shootDays || []).find(x => x.id === move.id);
+    endpoint = `/shootdays.php?id=${encodeURIComponent(move.id)}`;
+    body.date = targetDate;
+    body.startTime = targetTime;
+    if (item?.endTime && item?.startTime) {
+      const toMin = t => Number(t.slice(0,2)) * 60 + Number(t.slice(3,5));
+      const duration = Math.max(30, toMin(item.endTime) - toMin(item.startTime));
+      const end = Math.min(1439, targetMinutes + duration);
+      body.endTime = `${String(Math.floor(end / 60)).padStart(2,'0')}:${String(end % 60).padStart(2,'0')}:00`;
+    }
+  } else if (move.type === 'todo') {
+    endpoint = `/todos.php?id=${encodeURIComponent(move.id)}`;
+    body.dueDate = targetDate;
+  }
+
+  if (!endpoint) return;
+  try {
+    await apiPut(endpoint, body);
+    await pullAllFromCloud();
+    renderCalendar(getCurrentUser());
+  } catch (e) {
+    appAlert('Termin konnte nicht verschoben werden: ' + e.message);
   }
 }
 
@@ -14472,22 +14906,23 @@ function setCalendarView(view) {
 
 // Klick auf einen leeren Kalendertag (Wochen-/Monatsraster) → Auswahl, was am
 // gewählten Datum angelegt werden soll (Drehtag/Meeting). Uhrzeit im Formular.
-function openCalendarCreate(dateStr) {
+function openCalendarCreate(dateStr, startTime = null, endTime = null) {
   const session = getCurrentUser();
   if (!session || session.type !== 'staff') return;
   // Drehtag- und Meeting-Anlegen sind (wie in den Modals) Admin/Manager. Für
   // andere Rollen kein leeres/read-only Formular öffnen.
   if (!hasRole(session.user, ROLES.ADMIN, ROLES.MANAGER)) return;
   const pretty = fmtDate(dateStr);
+  const timeLabel = startTime && endTime ? ` · ${startTime}–${endTime}` : '';
   const btn = (icon, label, call) =>
     `<button type="button" class="btn btn-secondary" style="justify-content:flex-start;font-size:14px;padding:12px 16px;" onclick="closeModal();${call}">${icon} ${label}</button>`;
   $('#modal-container').innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="max-width:360px;">
-        <div class="modal-header"><div class="modal-title">Am ${escape(pretty)} anlegen</div><button class="modal-close" onclick="closeModal()">×</button></div>
+        <div class="modal-header"><div class="modal-title">Am ${escape(pretty + timeLabel)} anlegen</div><button class="modal-close" onclick="closeModal()">×</button></div>
         <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;">
-          ${btn('🎥', 'Drehtag', `openShootDayModal(null,'${dateStr}')`)}
-          ${btn('📅', 'Meeting / Termin', `openMeetingModal(null,'${dateStr}')`)}
+          ${btn('🎥', 'Drehtag', `openShootDayModal(null,'${dateStr}','${startTime || ''}','${endTime || ''}')`)}
+          ${btn('📅', 'Meeting / Termin', `openMeetingModal(null,'${dateStr}','${startTime || ''}','${endTime || ''}')`)}
         </div>
       </div>
     </div>`;
@@ -16915,7 +17350,7 @@ function renderMeetings(session) {
     </div>`;
 }
 
-function openMeetingModal(meetingId = null, prefillDate = null) {
+function openMeetingModal(meetingId = null, prefillDate = null, prefillStart = null, prefillEnd = null) {
   const session = getCurrentUser();
   if (!session || session.type !== 'staff') return;
   const user = session.user;
@@ -16950,11 +17385,11 @@ function openMeetingModal(meetingId = null, prefillDate = null) {
               </div>
               <div class="form-group">
                 <label class="form-label">Uhrzeit von</label>
-                <input type="time" name="startTime" value="${(m?.startTime || '09:00').slice(0,5)}" ${ro ? 'disabled' : ''} />
+                <input type="time" name="startTime" value="${(m?.startTime || prefillStart || '09:00').slice(0,5)}" ${ro ? 'disabled' : ''} />
               </div>
               <div class="form-group">
                 <label class="form-label">bis</label>
-                <input type="time" name="endTime" value="${(m?.endTime || '').slice(0,5)}" ${ro ? 'disabled' : ''} />
+                <input type="time" name="endTime" value="${(m?.endTime || prefillEnd || '').slice(0,5)}" ${ro ? 'disabled' : ''} />
               </div>
             </div>
             <div class="form-row">
