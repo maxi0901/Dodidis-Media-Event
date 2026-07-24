@@ -15612,6 +15612,9 @@ async function createApiToken() {
     try { await navigator.clipboard.writeText(token); copied = true; } catch {}
     // Vollständigen Token dauerhaft (bis Modal-Schließen) sichtbar zeigen —
     // umbrechend + zum Kopieren markierbar (appAlert würde den langen String kappen).
+    // Absolute API-Basis-URL (= DODIDIS_API_BASE fürs MCP-Setup) zum Kopieren.
+    let apiBase = API_BASE;
+    try { apiBase = new URL(API_BASE, location.href).href.replace(/\/+$/, ''); } catch {}
     const el = document.getElementById('api-token-new');
     if (el) {
       el.innerHTML = `
@@ -15620,10 +15623,17 @@ async function createApiToken() {
           <code class="api-token-value">${escape(token)}</code>
           <div style="display:flex;gap:8px;margin-top:8px;">
             <button type="button" class="btn btn-secondary btn-sm" data-tok="${escape(token)}"
-              onclick="navigator.clipboard.writeText(this.getAttribute('data-tok')).then(()=>showToast('Token kopiert',''),()=>showToast('Bitte manuell markieren',''))">Kopieren</button>
+              onclick="navigator.clipboard.writeText(this.getAttribute('data-tok')).then(()=>showToast('Token kopiert',''),()=>showToast('Bitte manuell markieren',''))">Token kopieren</button>
             <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('api-token-new').innerHTML=''">Ausblenden</button>
           </div>
-          ${copied ? '<div style="font-size:11px;color:var(--text-3);margin-top:6px;">In die Zwischenablage kopiert.</div>' : ''}
+          ${copied ? '<div style="font-size:11px;color:var(--text-3);margin-top:6px;">Token in die Zwischenablage kopiert.</div>' : ''}
+          <div style="font-size:12.5px;font-weight:600;margin:12px 0 6px;">API-Basis-URL (fürs MCP-Setup als DODIDIS_API_BASE):</div>
+          <code class="api-token-value">${escape(apiBase)}</code>
+          <div style="margin-top:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" data-url="${escape(apiBase)}"
+              onclick="navigator.clipboard.writeText(this.getAttribute('data-url')).then(()=>showToast('URL kopiert',''),()=>showToast('Bitte manuell markieren',''))">URL kopieren</button>
+          </div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:8px;line-height:1.5;">Diese beiden Werte im MCP-Server hinterlegen: <code>DODIDIS_API_BASE</code> = URL, <code>DODIDIS_API_TOKEN</code> = Token.</div>
         </div>`;
     }
     loadApiTokens();
