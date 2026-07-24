@@ -2,6 +2,10 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/response.php';
+// Persönliche Bearer-Token-Auth (MCP/Automatisierung) — definiert
+// try_api_token_auth()/is_api_token_request(). Immer laden, damit diese
+// Funktionen überall verfügbar sind (auch bei normaler Cookie-Session).
+require_once __DIR__ . '/token_auth.php';
 
 /**
  * Startet die PHP-Session mit sicheren Cookie-Parametern.
@@ -54,10 +58,7 @@ function require_login(): array
     start_app_session();
     // Kein Cookie-Login? Dann persönlichen Bearer-Token versuchen (MCP/Automation).
     if (empty($_SESSION['uid']) && empty($_SESSION['cid'])) {
-        if (!function_exists('try_api_token_auth')) {
-            @require_once __DIR__ . '/token_auth.php';
-        }
-        if (!function_exists('try_api_token_auth') || !try_api_token_auth()) {
+        if (!try_api_token_auth()) {
             json_err(401, 'Nicht angemeldet.');
         }
     }
