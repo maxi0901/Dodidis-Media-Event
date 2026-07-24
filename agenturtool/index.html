@@ -959,6 +959,7 @@
   .badge-fertig { color: #30d158; background: rgba(48,209,88,0.1); border-color: rgba(48,209,88,0.2); }
   .badge-korrektur { color: #ff453a; background: rgba(255,69,58,0.12); border-color: rgba(255,69,58,0.3); }
   .badge-freigegeben { color: #2dd4bf; background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.25); }
+  .badge-gepostet { color: #bf5af2; background: rgba(191,90,242,0.12); border-color: rgba(191,90,242,0.28); }
   .badge-archiviert { color: #6b7280; background: rgba(107,114,128,0.1); border-color: rgba(107,114,128,0.2); }
 
   /* CRM › Anfragen */
@@ -1814,6 +1815,15 @@
   .cal-bar.phase-posting { background: linear-gradient(90deg, #14b8a6, #2dd4bf); }
   .cal-bar.phase-vacation { background: linear-gradient(90deg, #94a3b8, #64748b); }
   .cal-bar.phase-deadline { background: linear-gradient(90deg, #ef4444, #ff453a); }
+  /* Geplantes Posting ohne freigegebenes Video → gestrichelt/ausgegraut, bis das
+     Video freigegeben ist (gilt für alle Kalender-Bar-Varianten). */
+  .cal-bar.draft, .week-bar.draft, .ical-event.draft, .month-bar.draft,
+  .icw-allday-event.draft, .icw-timed.draft {
+    background: transparent !important;
+    color: var(--text-3) !important;
+    border: 1px dashed var(--border-strong) !important;
+    opacity: 0.8;
+  }
 
   /* Bar Label nur an Anfang/Ende oder mittlerem Tag eines Mehrtagesblocks */
   .cal-bar-label {
@@ -4316,6 +4326,9 @@
   .pchip { display:flex; align-items:center; gap:5px; border-radius:6px; padding:3px 7px; margin-top:5px; font-size:10.5px; font-weight:600; cursor:pointer; line-height:1.3; background:var(--bg-3); color:var(--text-1); }
   .pchip.pub { background:#e3f3ea; color:#1d6f43; }
   .pchip.err { background:#fbe1de; color:#8c2318; }
+  /* Geplantes Posting ohne freigegebenes Video → gestrichelt/ausgegraut, bis das
+     Video freigegeben ist. */
+  .pchip.entwurf { background:transparent; color:var(--text-3); border:1px dashed var(--border-strong); opacity:.75; }
   .pchip .pf { margin-left:auto; font-size:9px; opacity:.7; text-transform:uppercase; }
   @media (max-width:860px) { .posting { grid-template-columns:1fr; } .pp-items { max-height:40vh; } }
 
@@ -4850,6 +4863,7 @@ const STATUS = {
   FERTIG: 'fertig',
   KORREKTUR: 'korrektur',
   FREIGEGEBEN: 'freigegeben',
+  GEPOSTET: 'gepostet',
   ARCHIVIERT: 'archiviert'
 };
 
@@ -4861,6 +4875,7 @@ const STATUS_LABELS = {
   fertig: 'Fertig – wartet auf Abnahme',
   korrektur: 'Korrektur',
   freigegeben: 'Freigegeben',
+  gepostet: 'Gepostet',
   archiviert: 'Archiviert'
 };
 // Legacy: 'skript' gibt es nicht mehr. Alte Einträge als Idee/Geplant (je nach Drehdatum)
@@ -4883,7 +4898,7 @@ const PHASE_OF_STATUS = {
   idee: 'ideen',
   geplant: 'production',
   gedreht: 'post', schnitt: 'post', korrektur: 'post',
-  fertig: 'post', freigegeben: 'post'
+  fertig: 'post', freigegeben: 'post', gepostet: 'post'
 };
 // Vor-Dreh-Automatik: Status 'idee' ohne Drehdatum, 'geplant' mit Drehtag/Drehdatum.
 // Status ab 'gedreht' (bereits abgedreht) wird NICHT verändert. Liefert true, wenn der
@@ -8039,6 +8054,9 @@ const PB_COLUMNS = [
       { key: 'freigabe', label: 'Freigabe', match: p => legacyStatus(p) === 'fertig',       entry: 'fertig' },
       { key: 'fertig',   label: 'Fertig',   match: p => legacyStatus(p) === 'freigegeben',  entry: 'freigegeben' },
     ], subDefault: 'freigabe' },
+  // Gepostet: bereits veröffentlichte Videos (Auto-Status beim Posten). Per Drag
+  // hierher/zurück lässt sich der Status auch manuell setzen/zurücknehmen.
+  { key: 'gepostet',   title: 'Gepostet',        statuses: ['gepostet'], entry: 'gepostet' },
 ];
 // Aktiver Unter-Tab je Spalte (pro Nutzer gemerkt).
 function getPbSub(col) {
@@ -8439,6 +8457,9 @@ function renderPostingPane() {
   const byDay = {};
   applyCustomerFilter(posting.scheduled).forEach(s => {
     if (!s.scheduledAt) return;
+    // Nie gedrehtes Projekt (Drehtag vorbei, nichts gedreht) → aus dem Kalender.
+    const proj = store.projects.find(p => p.id === s.projectId);
+    if (proj && isNichtGedreht(proj)) return;
     const day = String(s.scheduledAt).slice(0, 10);
     (byDay[day] = byDay[day] || []).push(s);
   });
@@ -8448,7 +8469,12 @@ function renderPostingPane() {
   for (let d = 1; d <= daysInMonth; d++) {
     const iso = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const chips = (byDay[iso] || []).map(s => {
-      const cls = s.status === 'published' ? 'pub' : (s.status === 'error' ? 'err' : '');
+      // published=grün, error=rot, sonst: gestrichelt (Entwurf), solange das
+      // Projekt noch nicht freigegeben/gepostet ist — danach normal (grau).
+      const notReady = s.projectStatus && s.projectStatus !== 'freigegeben' && s.projectStatus !== 'gepostet';
+      const cls = s.status === 'published' ? 'pub'
+        : (s.status === 'error' ? 'err'
+        : (notReady ? 'entwurf' : ''));
       const time = s.scheduledAt ? String(s.scheduledAt).slice(11, 16) : '';
       const testMark = s.isTest ? '🧪 ' : '';
       return `<div class="pchip ${cls}" onclick="ppChipClick(${s.id})" title="${s.isTest ? 'Test-Reel · ' : ''}${escape(s.projectTitle || '')} — ${escape(s.platform)}">
@@ -10727,7 +10753,15 @@ function getStatusActions(project, session) {
     buttons.push(`<button class="btn btn-primary btn-sm" onclick="approveProject('${project.id}')">✓ Freigeben</button>`);
     buttons.push(`<button class="btn btn-secondary btn-sm" onclick="openCorrectionModal('${project.id}')">↩ Korrektur anfragen</button>`);
   }
-  if (project.status === STATUS.FREIGEGEBEN && canActOnProject(project, session, 'archive')) {
+  // Gepostet-Toggle: freigegebenes Video als gepostet markieren bzw. wieder
+  // zurücknehmen (Admin/Manager). Wird beim echten Posten auch automatisch gesetzt.
+  if (project.status === STATUS.FREIGEGEBEN && canActOnProject(project, session, 'approve')) {
+    buttons.push(`<button class="btn btn-secondary btn-sm" onclick="setProjectStatus('${project.id}','${STATUS.GEPOSTET}')">📤 Als gepostet markieren</button>`);
+  }
+  if (project.status === STATUS.GEPOSTET && canActOnProject(project, session, 'approve')) {
+    buttons.push(`<button class="btn btn-secondary btn-sm" onclick="setProjectStatus('${project.id}','${STATUS.FREIGEGEBEN}')">↩ Posten zurücknehmen</button>`);
+  }
+  if ((project.status === STATUS.FREIGEGEBEN || project.status === STATUS.GEPOSTET) && canActOnProject(project, session, 'archive')) {
     buttons.push(`<button class="btn btn-secondary btn-sm" onclick="archiveProject('${project.id}')">→ Archivieren</button>`);
   }
   // Admin: Status jederzeit direkt setzen – im Projekt-Modal jetzt durch Klick auf das
@@ -13942,7 +13976,10 @@ function buildCalendarBars(session) {
     // Video-Termin – plus die separaten Entitäten Drehtag, Meeting, Aufgabe, Urlaub.
     // Umschalter „Alle / Deadlines / Postings" (nur für Rollen, die beides sehen).
     if (pd && showsPostings && calEventMode !== 'deadline') {
-      bars.push({ ...base, phase: 'posting', startDate: pd, endDate: pd, postingDate: pd, time: '18:00' });
+      // Gestrichelt/„Entwurf", solange das Video noch nicht freigegeben (bzw.
+      // schon gepostet) ist — dann volle Darstellung.
+      const draft = p.status !== STATUS.FREIGEGEBEN && p.status !== STATUS.GEPOSTET;
+      bars.push({ ...base, phase: 'posting', startDate: pd, endDate: pd, postingDate: pd, time: '18:00', draft });
     }
     // Cutter-Deadline als Einzeltermin: für Cutter (die kein Posting sehen) UND
     // zusätzlich für Admins (die so Posting + Deadline im Kalender haben).
@@ -14018,9 +14055,13 @@ function buildCalendarEvents(session) {
   }
 
   myProjects.forEach(p => {
+    // Nie gedrehtes Projekt (Drehtag vorbei, nichts gedreht) → aus dem Kalender.
+    if (isNichtGedreht(p)) return;
     const c = store.customers.find(x => x.id === p.customerId);
     const customerName = c?.name || '';
     const fullTitle = p.title + (customerName ? ' · ' + customerName : '');
+    // Posting gestrichelt, solange Video nicht freigegeben/gepostet ist.
+    const postDraft = p.status !== STATUS.FREIGEGEBEN && p.status !== STATUS.GEPOSTET;
 
     const sd = p.shootDate || null;
     const pd = p.postingDate || null;
@@ -14045,7 +14086,8 @@ function buildCalendarEvents(session) {
           isEnd: cur === pd,
           title: p.title,
           customer: customerName,
-          fullTitle
+          fullTitle,
+          draft: phase === 'posting' ? postDraft : false
         });
         cur = addDays(cur, 1);
       }
@@ -14056,7 +14098,7 @@ function buildCalendarEvents(session) {
       if (cd && showCutter) {
         add(cd, { kind: 'bar', projectId: p.id, phase: 'cutter', isStart: true, isEnd: true, title: p.title, customer: customerName, fullTitle });
       }
-      add(pd, { kind: 'bar', projectId: p.id, phase: 'posting', isStart: true, isEnd: true, title: p.title, customer: customerName, fullTitle });
+      add(pd, { kind: 'bar', projectId: p.id, phase: 'posting', isStart: true, isEnd: true, title: p.title, customer: customerName, fullTitle, draft: postDraft });
     }
 
     if (p.deadline) {
@@ -14311,7 +14353,7 @@ function renderMonthBar(b, startIdx, endIdx, cutsLeft, cutsRight) {
   else text = b.title;
   const showMChip = b.kuerzel && b.phase !== 'shoot' && b.phase !== 'vacation' && b.phase !== 'meeting';
   const mChip = showMChip ? `<span class="ical-kuerzel-chip">${escape(b.kuerzel)}</span>` : '';
-  const cls = `month-bar phase-${b.phase} ${b.nichtGedreht ? 'nicht-gedreht' : ''} ${cutsLeft ? 'cuts-left' : ''} ${cutsRight ? 'cuts-right' : ''}`;
+  const cls = `month-bar phase-${b.phase} ${b.draft ? 'draft' : ''} ${b.nichtGedreht ? 'nicht-gedreht' : ''} ${cutsLeft ? 'cuts-left' : ''} ${cutsRight ? 'cuts-right' : ''}`;
   const click = b.vacationId
     ? `onclick="navigateTo('vacation')"`
     : b.meetingId
@@ -14667,7 +14709,7 @@ function renderCategoryEvent(b, row, startCol, endCol) {
   // Kürzel als Kreis-Chip neben dem Balken-Text (nicht als plain-Text-Prefix)
   const showChip = b.kuerzel && b.phase !== 'shoot' && b.phase !== 'vacation' && b.phase !== 'todo' && b.phase !== 'meeting';
   const kuerzelChip = showChip ? `<span class="ical-kuerzel-chip">${escape(b.kuerzel)}</span>` : '';
-  const cls = `ical-event phase-${b.phase} ${b.nichtGedreht ? 'nicht-gedreht' : ''} ${b.cutsLeft ? 'cuts-left' : ''} ${b.cutsRight ? 'cuts-right' : ''}`;
+  const cls = `ical-event phase-${b.phase} ${b.draft ? 'draft' : ''} ${b.nichtGedreht ? 'nicht-gedreht' : ''} ${b.cutsLeft ? 'cuts-left' : ''} ${b.cutsRight ? 'cuts-right' : ''}`;
   let click;
   if (b.shootDayId) click = `onclick="openShootDayModal('${b.shootDayId}')"`;
   else if (b.vacationId) click = `onclick="navigateTo('vacation')"`;
@@ -14701,7 +14743,7 @@ function renderICWAllDay(b) {
   if (b.phase === 'vacation') text = 'Urlaub – ' + b.customer;
   else if (b.phase === 'production' || b.phase === 'editing') text = b.title;
   else text = b.title;
-  const cls = `icw-allday-event phase-${b.phase} ${b.cutsLeft ? 'cuts-left' : ''} ${b.cutsRight ? 'cuts-right' : ''}`;
+  const cls = `icw-allday-event phase-${b.phase} ${b.draft ? 'draft' : ''} ${b.cutsLeft ? 'cuts-left' : ''} ${b.cutsRight ? 'cuts-right' : ''}`;
   const click = b.vacationId ? `onclick="navigateTo('vacation')"` : `onclick="openProjectModal('${b.projectId}')"`;
   const tooltipPrefix = labels[b.phase] ? labels[b.phase] + ': ' : '';
   const title = b.fullTitle ? tooltipPrefix + b.fullTitle : text;
@@ -14906,7 +14948,7 @@ function renderWeekBar(b) {
   if (b.phase === 'vacation') text = 'Urlaub – ' + b.customer;
   else if (b.phase === 'production' || b.phase === 'editing') text = b.title;
   else text = b.title;
-  const cls = `week-bar phase-${b.phase} ${b.cutsLeft ? 'cuts-left' : ''} ${b.cutsRight ? 'cuts-right' : ''}`;
+  const cls = `week-bar phase-${b.phase} ${b.draft ? 'draft' : ''} ${b.cutsLeft ? 'cuts-left' : ''} ${b.cutsRight ? 'cuts-right' : ''}`;
   const click = b.vacationId ? `onclick="navigateTo('vacation')"` : `onclick="openProjectModal('${b.projectId}')"`;
   const time = b.time ? `<span class="week-bar-time">${b.time}</span>` : '';
   const tooltipPrefix = labels[b.phase] ? labels[b.phase] + ': ' : '';
@@ -15056,7 +15098,7 @@ function renderCalendarBar(ev) {
       labelText = (phaseLabels[ev.phase] || '') + ': ' + ev.title;
     }
   }
-  const cls = `cal-bar phase-${ev.phase} ${ev.isStart ? 'is-start' : ''} ${ev.isEnd ? 'is-end' : ''}`;
+  const cls = `cal-bar phase-${ev.phase} ${ev.draft ? 'draft' : ''} ${ev.isStart ? 'is-start' : ''} ${ev.isEnd ? 'is-end' : ''}`;
   const clickHandler = ev.vacationId
     ? `onclick="navigateTo('vacation')"`
     : `onclick="openProjectModal('${ev.projectId}')"`;

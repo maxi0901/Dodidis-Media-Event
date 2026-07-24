@@ -400,7 +400,7 @@ if (colExists($pdo, 'projects', 'data') && !colExists($pdo, 'projects', 'title')
             script       = NULLIF(JSON_UNQUOTE(JSON_EXTRACT(data, '$.script')), 'null'),
             status       = CASE
                 WHEN JSON_UNQUOTE(JSON_EXTRACT(data, '$.status'))
-                     IN ('skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','archiviert')
+                     IN ('idee','skript','geplant','gedreht','schnitt','fertig','korrektur','freigegeben','gepostet','archiviert')
                 THEN JSON_UNQUOTE(JSON_EXTRACT(data, '$.status'))
                 ELSE 'skript'
             END,

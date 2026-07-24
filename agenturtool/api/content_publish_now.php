@@ -82,6 +82,16 @@ db_exec(
     [$customerId, $asset['project_id'], $assetId, $isVideo ? 'reel' : 'post',
      $caption, $nowBerlin, json_encode($res)]
 );
+// Projekt auf 'gepostet' setzen (nur vorwärts aus einem fertigen/freigegebenen
+// Zustand — Ideen/Archiv nicht anfassen).
+try {
+    db_exec(
+        "UPDATE projects SET status='gepostet'
+          WHERE id=? AND status IN ('freigegeben','fertig','korrektur')",
+        [(string)$asset['project_id']]
+    );
+} catch (\Throwable $e) { /* ENUM evtl. noch ohne 'gepostet' — Migration nachziehen */ }
+
 log_activity('content', $assetId, 'published', ['platform' => 'instagram', 'ig_media' => $res['id']]);
 
 json_ok([
