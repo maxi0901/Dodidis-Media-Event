@@ -136,6 +136,16 @@ switch ($method) {
             }
         }
 
+        // Verschiebung kaskadieren: verknüpfte Projekte (shoot_day_id) tragen das
+        // Drehdatum als eigene Spalte (bei Anlage kopiert). Beim Verschieben des
+        // Drehtags müssen ihre shoot_date mitwandern, sonst zeigen Board/Kalender/
+        // API weiter das alte Datum.
+        if ($rescheduled && $newDate) {
+            try {
+                db_exec("UPDATE projects SET shoot_date = ? WHERE shoot_day_id = ?", [$newDate, $id]);
+            } catch (\Throwable $e) { /* best-effort — Drehtag ist bereits verschoben */ }
+        }
+
         log_activity('shootDay', $id, $rescheduled ? 'rescheduled' : 'edited');
         try {
             $result = db_one("SELECT $cols FROM shoot_days WHERE id = ?", [$id]);
