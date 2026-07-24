@@ -1027,6 +1027,14 @@
 
   .badge-role-admin { color: #ff453a; background: rgba(255,69,58,0.1); border-color: rgba(255,69,58,0.2); }
   .badge-role-support { color: #0a84ff; background: rgba(10,132,255,0.12); border-color: rgba(10,132,255,0.25); }
+  /* Frisch erzeugter API-Token: vollständig, umbrechend, markierbar */
+  .api-token-new-box { margin-top: 10px; padding: 12px; border: 1px solid var(--accent, #0a84ff); border-radius: 10px; background: rgba(10,132,255,0.06); }
+  .api-token-value {
+    display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px; line-height: 1.5; word-break: break-all; white-space: pre-wrap;
+    user-select: all; -webkit-user-select: all;
+    background: var(--bg-3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  }
 
   /* ── Support-Diagnose (nur Rolle 'support') ───────────────────────────── */
   /* Inline-Kästchen neben fehleranfälligen Feldern — nur Support sieht das. */
@@ -15550,6 +15558,7 @@ async function openStaffSelfProfile(user) {
             <div class="section-title">API-Token · MCP / Automatisierung</div>
             <div class="text-sm text-muted" style="margin-bottom:10px;">Persönlicher Zugriffstoken, mit dem ein Programm (z. B. ein MCP-Server) im Tool <strong>als du</strong> handelt — mit deinen Rechten und unter deinem Namen protokolliert. Der Klartext wird nur <strong>einmal</strong> angezeigt.</div>
             <div id="api-token-box"><div class="text-sm text-muted">Lade…</div></div>
+            <div id="api-token-new"></div>
             <button type="button" class="btn btn-secondary btn-sm" style="margin-top:10px;" onclick="createApiToken()">+ Neuen Token erzeugen</button>
           </div>
           <div class="modal-footer">
@@ -15598,11 +15607,25 @@ async function createApiToken() {
     });
     const j = await res.json();
     if (!res.ok || !j.ok) throw new Error(j.error || ('HTTP ' + res.status));
-    try { await navigator.clipboard.writeText(j.data.token); } catch {}
-    await appAlert(
-      'Dieser Token wird NUR EINMAL angezeigt — jetzt sicher speichern (wurde in die Zwischenablage kopiert):\n\n' + j.data.token,
-      { title: 'API-Token erstellt' }
-    );
+    const token = String(j.data.token || '');
+    let copied = false;
+    try { await navigator.clipboard.writeText(token); copied = true; } catch {}
+    // Vollständigen Token dauerhaft (bis Modal-Schließen) sichtbar zeigen —
+    // umbrechend + zum Kopieren markierbar (appAlert würde den langen String kappen).
+    const el = document.getElementById('api-token-new');
+    if (el) {
+      el.innerHTML = `
+        <div class="api-token-new-box">
+          <div style="font-size:12.5px;font-weight:600;margin-bottom:6px;">Neuer Token — wird nur JETZT angezeigt, sicher speichern:</div>
+          <code class="api-token-value">${escape(token)}</code>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" data-tok="${escape(token)}"
+              onclick="navigator.clipboard.writeText(this.getAttribute('data-tok')).then(()=>showToast('Token kopiert',''),()=>showToast('Bitte manuell markieren',''))">Kopieren</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('api-token-new').innerHTML=''">Ausblenden</button>
+          </div>
+          ${copied ? '<div style="font-size:11px;color:var(--text-3);margin-top:6px;">In die Zwischenablage kopiert.</div>' : ''}
+        </div>`;
+    }
     loadApiTokens();
   } catch (e) {
     showToast('Token-Erstellung fehlgeschlagen', e.message);
