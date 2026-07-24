@@ -2,6 +2,10 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/response.php';
+// Persönliche Bearer-Token-Auth (MCP/Automatisierung) — definiert
+// api_bearer_token()/try_api_token_auth()/is_api_token_request(). Immer laden,
+// damit diese Funktionen überall verfügbar sind (auch bei Cookie-Session).
+require_once __DIR__ . '/token_auth.php';
 
 /**
  * Startet die PHP-Session mit sicheren Cookie-Parametern.
@@ -51,19 +55,26 @@ function start_app_session(): void
  */
 function require_login(): array
 {
-    start_app_session();
-    // Kein Cookie-Login? Dann persönlichen Bearer-Token versuchen (MCP/Automation).
-    if (empty($_SESSION['uid']) && empty($_SESSION['cid'])) {
-        if (!function_exists('try_api_token_auth')) {
-            @require_once __DIR__ . '/token_auth.php';
+    // Persönlicher Bearer-Token? Dann REQUEST-LOKAL authentifizieren — bewusst
+    // OHNE start_app_session(): keine Cookie-Session, kein Set-Cookie, keine
+    // Persistenz. $_SESSION wird nur als flüchtiges Array für DIESEN Request
+    // befüllt (nicht gespeichert, da keine Session aktiv ist). So kann ein
+    // einmal gesendeter Token NICHT per Cookie zu einem dauerhaften Browser-
+    // Login (inkl. mintbarem CSRF-Token) umgewandelt werden.
+    if (api_bearer_token() !== '') {
+        // Absichern, dass für diesen Request keine Session-Cookies entstehen.
+        @ini_set('session.use_cookies', '0');
+        @ini_set('session.use_only_cookies', '0');
+        if (try_api_token_auth()) {
+            return current_session();
         }
-        if (!function_exists('try_api_token_auth') || !try_api_token_auth()) {
-            json_err(401, 'Nicht angemeldet.');
-        }
+        json_err(401, 'Ungültiger oder widerrufener API-Token.');
     }
-    // Aktivität markieren (sliding session) — bei Token-Requests nicht nötig.
-    if (!empty($GLOBALS['__api_token_auth'])) {
-        return current_session();
+
+    // Normale Cookie-Session.
+    start_app_session();
+    if (empty($_SESSION['uid']) && empty($_SESSION['cid'])) {
+        json_err(401, 'Nicht angemeldet.');
     }
     $_SESSION['last_seen'] = time();
     return current_session();
