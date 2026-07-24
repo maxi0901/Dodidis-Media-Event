@@ -1,5 +1,14 @@
 DirectoryIndex index.php
 
+# Authorization-Header an PHP durchreichen (Apache/CGI/FPM strippt ihn sonst oft) —
+# nötig für die persönliche Bearer-Token-Auth der API (MCP/Automatisierung).
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+
 # index.html ist nur Template — Direktzugriff verbieten, immer durch index.php laufen lassen
 <Files "index.html">
     Require all denied
