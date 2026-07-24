@@ -3093,8 +3093,9 @@
   .dw-slot {
     font-size: 11.5px; font-weight: 600; line-height: 1.25; padding: 6px 8px;
     border-radius: 7px; margin-bottom: 6px; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .dw-slot .dw-st { display: block; font-size: 10px; font-weight: 500; opacity: 0.75; margin-top: 2px; }
+  .dw-slot .dw-st { display: block; font-size: 10px; font-weight: 500; opacity: 0.75; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* Kategorie-Farben – exakt wie in der Vorlage (neues-ui-beispiel) */
   .dw-slot.cat-dreh { background: #e6dff6; color: #4c3a85; }
   .dw-slot.cat-prod { background: #fbe6b4; color: #6d4c05; }
@@ -3225,7 +3226,7 @@
     left: 4px;
     right: 4px;
     z-index: 4;
-    min-height: 24px;
+    min-height: 34px;
     margin: 0;
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,.12);
@@ -7283,6 +7284,34 @@ function calendarEventDndAttrs(ev, session) {
   return `draggable="true" ondragstart="calTimeDragStart(event,'${ev.moveType}','${ev.moveId}','${ev.date}','${ev.start || ''}')" ondragend="calTimeDragEnd(event)"`;
 }
 
+// Weist zeitlich überlappenden Terminen eines Tages Spalten zu, damit sie
+// nebeneinander (statt deckungsgleich übereinander) dargestellt werden.
+function layoutTimedDayEvents(items) {
+  const sorted = items.slice().sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+  const clusters = [];
+  let cluster = null;
+  let clusterEnd = -Infinity;
+  sorted.forEach(item => {
+    if (!cluster || item.startMin >= clusterEnd) {
+      cluster = { items: [], colEnds: [] };
+      clusters.push(cluster);
+      clusterEnd = item.endMin;
+    } else {
+      clusterEnd = Math.max(clusterEnd, item.endMin);
+    }
+    let col = cluster.colEnds.findIndex(end => end <= item.startMin);
+    if (col === -1) { cluster.colEnds.push(item.endMin); col = cluster.colEnds.length - 1; }
+    else cluster.colEnds[col] = item.endMin;
+    item.col = col;
+    cluster.items.push(item);
+  });
+  clusters.forEach(c => {
+    const colCount = c.colEnds.length;
+    c.items.forEach(item => { item.colCount = colCount; });
+  });
+  return sorted;
+}
+
 function buildCalendarHourWeekHtml(session, weekStart, vis) {
   const days = Array.from({ length: 7 }, (_, i) => {
     const date = new Date(weekStart); date.setDate(weekStart.getDate() + i);
@@ -7369,13 +7398,19 @@ function buildCalendarHourWeekHtml(session, weekStart, vis) {
   }).join('');
 
   const dayCols = days.map((day, idx) => {
-    const events = timed[idx].map(ev => {
+    const withTimes = timed[idx].map(ev => {
       const startMin = minutes(ev.start);
       const endMin = ev.end ? minutes(ev.end) : startMin + 60;
       const heightMin = Math.max(30, endMin > startMin ? endMin - startMin : 60);
+      return { ev, startMin, endMin: startMin + heightMin };
+    });
+    const events = layoutTimedDayEvents(withTimes).map(({ ev, startMin, endMin, col, colCount }) => {
       const top = startMin / 60 * 56;
-      const height = heightMin / 60 * 56;
-      return `<div class="dw-slot chw-event ${ev.cat}" style="top:${top}px;height:${height}px" ${calendarEventDndAttrs(ev, session)} onclick="${ev.click}" title="${escape(ev.title)}">
+      const height = (endMin - startMin) / 60 * 56;
+      const gap = 3;
+      const left = `calc(${gap}px + (100% - ${gap}px) * ${col} / ${colCount})`;
+      const width = `calc((100% - ${gap}px) / ${colCount} - ${gap}px)`;
+      return `<div class="dw-slot chw-event ${ev.cat}" style="top:${top}px;height:${height}px;left:${left};width:${width};right:auto;" ${calendarEventDndAttrs(ev, session)} onclick="${ev.click}" title="${escape(ev.title)}">
         ${escape(ev.title || '—')}<span class="dw-st">${escape(ev.start)} · ${escape(ev.sub)}</span>
       </div>`;
     }).join('');
