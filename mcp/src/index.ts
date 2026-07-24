@@ -27,8 +27,12 @@ function fail(e: unknown) {
   };
 }
 
+// Muss zu den vom Backend akzeptierten Status passen (build_project_params /
+// projects.status-ENUM). 'skript' ist der Legacy-Default; 'gepostet' erfordert
+// die Posting-Erweiterung (PR #300) — bis die deployed ist, weist das Backend
+// 'gepostet' mit 400 ab (wird sauber als Fehler zurückgegeben).
 const STATUS = [
-  "idee", "geplant", "gedreht", "schnitt", "korrektur", "fertig", "freigegeben", "gepostet", "archiviert",
+  "idee", "skript", "geplant", "gedreht", "schnitt", "korrektur", "fertig", "freigegeben", "gepostet", "archiviert",
 ] as const;
 
 // Optionale Projektfelder (camelCase — exakt wie die API sie erwartet).
