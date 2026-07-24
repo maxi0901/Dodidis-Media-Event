@@ -4702,7 +4702,9 @@ window.addEventListener('unhandledrejection', (e) => {
     const url = (args[0] && args[0].url) || args[0] || '';
     try {
       const res = await orig(...args);
-      if (!res.ok) supportPush('HTTP ' + res.status, String(url), '');
+      // Nur echte Fehler erfassen — 3xx (z. B. 304 Not Modified / Caching) sind
+      // kein Fehler. 401 = reines Login-Rauschen, ebenfalls ignorieren.
+      if (res.status >= 400 && res.status !== 401) supportPush('HTTP ' + res.status, String(url), '');
       return res;
     } catch (err) {
       supportPush('Netzwerk', String(url), (err && err.message) || '');
