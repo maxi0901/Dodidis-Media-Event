@@ -52,10 +52,19 @@ function start_app_session(): void
 function require_login(): array
 {
     start_app_session();
+    // Kein Cookie-Login? Dann persönlichen Bearer-Token versuchen (MCP/Automation).
     if (empty($_SESSION['uid']) && empty($_SESSION['cid'])) {
-        json_err(401, 'Nicht angemeldet.');
+        if (!function_exists('try_api_token_auth')) {
+            @require_once __DIR__ . '/token_auth.php';
+        }
+        if (!function_exists('try_api_token_auth') || !try_api_token_auth()) {
+            json_err(401, 'Nicht angemeldet.');
+        }
     }
-    // Aktivität markieren (sliding session)
+    // Aktivität markieren (sliding session) — bei Token-Requests nicht nötig.
+    if (!empty($GLOBALS['__api_token_auth'])) {
+        return current_session();
+    }
     $_SESSION['last_seen'] = time();
     return current_session();
 }
@@ -111,6 +120,10 @@ function require_csrf(): void
 {
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     if (!in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+        return;
+    }
+    // Bearer-Token-Requests (MCP/Automation) tragen kein Cookie → kein CSRF-Risiko.
+    if (!empty($GLOBALS['__api_token_auth'])) {
         return;
     }
     $sent = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';

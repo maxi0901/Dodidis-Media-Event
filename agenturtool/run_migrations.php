@@ -196,6 +196,19 @@ if (!tableExists($pdo, 'contract_comments')) {
 // Sprachnachricht-MIME persistieren (iOS liefert mp4 statt webm)
 addCol($pdo, 'contract_comments', 'mime', "ALTER TABLE contract_comments ADD COLUMN mime VARCHAR(96) NULL", $results);
 
+// ── api_tokens (persönliche API-Zugriffstoken für MCP/Automatisierung) ────────
+if (!tableExists($pdo, 'api_tokens')) {
+    step($pdo, "api_tokens: Tabelle anlegen",
+        "CREATE TABLE api_tokens (
+           id VARCHAR(40) NOT NULL, user_id VARCHAR(64) NOT NULL,
+           token_hash CHAR(64) NOT NULL, label VARCHAR(120) NOT NULL DEFAULT '',
+           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           last_used_at DATETIME NULL, revoked_at DATETIME NULL,
+           PRIMARY KEY (id), UNIQUE KEY uq_token_hash (token_hash), KEY idx_user (user_id)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        $results);
+}
+
 // ── 7. notifications ──────────────────────────────────────────────────────────
 if (!tableExists($pdo, 'notifications')) {
     step($pdo, "notifications: Tabelle anlegen",
