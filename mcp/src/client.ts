@@ -51,6 +51,9 @@ export async function apiCall(
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${cfg.token}`,
+    // Eigener Header zusätzlich — Apache/Plesk strippt „Authorization" auf
+    // Shared-Hosting oft; X-Header kommen zuverlässig bei PHP an.
+    "X-Dodidis-Token": cfg.token,
     Accept: "application/json",
   };
   let bodyStr: string | undefined;

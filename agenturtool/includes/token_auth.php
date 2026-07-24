@@ -18,6 +18,17 @@ declare(strict_types=1);
 /** Liest den Bearer-Token aus dem Authorization-Header (leer, wenn keiner). */
 function api_bearer_token(): string
 {
+    // 1) Eigener Header X-Dodidis-Token — von Apache/Plesk NICHT gestrippt
+    //    (Authorization wird auf Shared-Hosting oft entfernt). Bevorzugt.
+    $x = (string)($_SERVER['HTTP_X_DODIDIS_TOKEN'] ?? $_SERVER['REDIRECT_HTTP_X_DODIDIS_TOKEN'] ?? '');
+    if ($x === '' && function_exists('apache_request_headers')) {
+        foreach (apache_request_headers() as $k => $v) {
+            if (strcasecmp((string)$k, 'X-Dodidis-Token') === 0) { $x = (string)$v; break; }
+        }
+    }
+    if ($x !== '') return trim($x);
+
+    // 2) Standard: Authorization: Bearer <token>
     $h = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
     if ($h === '' && function_exists('apache_request_headers')) {
         foreach (apache_request_headers() as $k => $v) {
