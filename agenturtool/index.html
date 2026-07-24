@@ -1025,6 +1025,37 @@
   .form-hint-auto { font-size:11.5px; color:var(--accent); opacity:0.8; margin-top:3px; display:flex; align-items:center; gap:4px; }
 
   .badge-role-admin { color: #ff453a; background: rgba(255,69,58,0.1); border-color: rgba(255,69,58,0.2); }
+  .badge-role-support { color: #0a84ff; background: rgba(10,132,255,0.12); border-color: rgba(10,132,255,0.25); }
+
+  /* ── Support-Diagnose (nur Rolle 'support') ───────────────────────────── */
+  /* Inline-Kästchen neben fehleranfälligen Feldern — nur Support sieht das. */
+  .support-inline {
+    margin-top: 6px; padding: 6px 9px; border: 1px dashed rgba(10,132,255,0.5);
+    border-radius: 7px; background: rgba(10,132,255,0.06); font-size: 11.5px;
+    line-height: 1.4; color: var(--text-2); word-break: break-word;
+  }
+  .support-inline-tag { font-weight: 700; color: #0a84ff; margin-right: 6px; }
+  .support-inline-msg { font-family: ui-monospace, monospace; }
+  /* Schwebendes DIAG-Panel unten rechts */
+  .support-panel { position: fixed; right: 14px; bottom: 14px; z-index: 4000; max-width: min(420px, 92vw); }
+  .support-panel-toggle {
+    border: 1px solid rgba(10,132,255,0.4); background: var(--bg-2); color: #0a84ff;
+    font-weight: 700; font-size: 12px; padding: 7px 12px; border-radius: 999px;
+    cursor: pointer; box-shadow: 0 4px 16px -4px rgba(0,0,0,0.4);
+  }
+  .support-panel-body {
+    margin-top: 8px; background: var(--bg-1); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 12px; max-height: 60vh; overflow: auto;
+    box-shadow: 0 12px 40px -8px rgba(0,0,0,0.5);
+  }
+  .support-panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; }
+  .support-panel-head button { font-size: 11px; margin-left: 6px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-2); color: var(--text-2); cursor: pointer; }
+  .support-err { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .support-err:last-child { border-bottom: none; }
+  .support-err-t { color: var(--text-3); font-size: 11px; }
+  .support-err-d { color: var(--text-3); font-family: ui-monospace, monospace; font-size: 11px; word-break: break-all; }
+  .support-err-empty { color: var(--text-3); font-size: 12px; padding: 6px 0; }
+  .support-log { background: var(--bg-3); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 11px; line-height: 1.45; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word; margin: 8px 16px; }
   .badge-role-manager { color: #2dd4bf; background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.25); }
   .badge-role-videograf { color: #a78bfa; background: rgba(167,139,250,0.1); border-color: rgba(167,139,250,0.2); }
   .badge-role-cutter { color: #fbbf24; background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.2); }
@@ -4615,12 +4646,15 @@ const ROLES = {
   VIDEOGRAF: 'videograf',
   CUTTER: 'cutter',
   MITARBEITER: 'mitarbeiter',
-  CONTRACT_UPLOADER: 'contract_uploader'
+  CONTRACT_UPLOADER: 'contract_uploader',
+  // Interne Support-Rolle — NUR per DB setzbar (nicht in der Admin-UI wählbar).
+  SUPPORT: 'support'
 };
 
 // Rollen-Hierarchie: höherer Wert = mehr Rechte
-// Admin > Manager > Videograf > Cutter = Mitarbeiter (gleiche Ebene)
+// Support (Superuser) > Admin > Manager > Videograf > Cutter = Mitarbeiter
 const ROLE_LEVEL = {
+  support: 5,
   admin: 4,
   manager: 3,
   videograf: 2,
@@ -4628,6 +4662,148 @@ const ROLE_LEVEL = {
   mitarbeiter: 1,
   contract_uploader: 1
 };
+
+// True, wenn der (aktuelle) Nutzer die interne Support-Rolle trägt.
+function isSupport(user) {
+  const u = user || (getCurrentUser() && getCurrentUser().user);
+  return !!(u && (u.roles || []).includes('support'));
+}
+
+/* ===================== SUPPORT-DIAGNOSE (nur Rolle 'support') =================
+   Erfasst Client-Fehler (JS, unhandled rejections, fehlgeschlagene fetch-Calls),
+   zeigt sie im schwebenden DIAG-Panel + auf der System-Seite. Alles NUR für die
+   Support-Rolle sichtbar. */
+const supportErrors = []; // Ring-Puffer: { time, type, msg, detail }
+function supportPush(type, msg, detail) {
+  supportErrors.push({
+    time: new Date().toLocaleTimeString('de-DE'),
+    type: String(type || 'Fehler'),
+    msg: String(msg == null ? '' : msg),
+    detail: detail ? String(detail) : ''
+  });
+  if (supportErrors.length > 50) supportErrors.splice(0, supportErrors.length - 50);
+  try { renderSupportPanel(); } catch {}
+}
+// Globale Fehler-Listener (installieren einmalig beim Laden — schreiben nur in
+// den Ring; das Panel prüft selbst, ob Support aktiv ist).
+window.addEventListener('error', (e) => {
+  supportPush('JS', (e && e.message) || 'Fehler', e && e.filename ? (e.filename + ':' + e.lineno) : '');
+});
+window.addEventListener('unhandledrejection', (e) => {
+  const r = e && e.reason;
+  supportPush('Promise', (r && r.message) || r || 'Unhandled rejection',
+    (r && r.stack) ? String(r.stack).split('\n').slice(0, 3).join(' ') : '');
+});
+// fetch-Wrapper: HTTP>=400 und Netzwerkfehler mitschneiden (verändert nichts am Verhalten).
+(function () {
+  if (window.__supportFetchWrapped) return; window.__supportFetchWrapped = true;
+  const orig = window.fetch.bind(window);
+  window.fetch = async function (...args) {
+    const url = (args[0] && args[0].url) || args[0] || '';
+    try {
+      const res = await orig(...args);
+      if (!res.ok) supportPush('HTTP ' + res.status, String(url), '');
+      return res;
+    } catch (err) {
+      supportPush('Netzwerk', String(url), (err && err.message) || '');
+      throw err;
+    }
+  };
+})();
+
+// Kleines Inline-Diagnose-Kästchen neben einem fehleranfälligen Feld.
+// Gibt NUR für Support HTML aus, sonst leeren String (kein Platzverbrauch).
+function supportBox(detail, label) {
+  if (!detail || !isSupport()) return '';
+  return `<div class="support-inline" title="Nur für Support sichtbar">`
+    + `<span class="support-inline-tag">🛟 ${escape(label || 'Diagnose')}</span>`
+    + `<span class="support-inline-msg">${escape(String(detail))}</span></div>`;
+}
+
+// Schwebendes DIAG-Panel unten rechts (nur Support).
+function renderSupportPanel() {
+  let el = document.getElementById('support-panel');
+  if (!isSupport()) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'support-panel';
+    el.setAttribute('data-open', '0');
+    document.body.appendChild(el);
+  }
+  const open = el.getAttribute('data-open') === '1';
+  el.className = 'support-panel' + (open ? ' open' : '');
+  const errs = supportErrors.slice(-12).reverse();
+  el.innerHTML =
+    `<button class="support-panel-toggle" onclick="toggleSupportPanel()">🛟 DIAG${supportErrors.length ? ' · ' + supportErrors.length : ''}</button>`
+    + (open ? `<div class="support-panel-body">
+      <div class="support-panel-head"><strong>Letzte Fehler (Client)</strong>
+        <span><button onclick="supportErrors.length=0;renderSupportPanel()">Leeren</button><button onclick="navigateTo('support-diag')">System</button></span></div>
+      ${errs.length ? errs.map(e => `<div class="support-err"><span class="support-err-t">${escape(e.time)} · ${escape(e.type)}</span><div>${escape(e.msg)}</div>${e.detail ? `<div class="support-err-d">${escape(e.detail)}</div>` : ''}</div>`).join('') : '<div class="support-err-empty">Noch keine Fehler erfasst.</div>'}
+    </div>` : '');
+}
+function toggleSupportPanel() {
+  const el = document.getElementById('support-panel'); if (!el) return;
+  el.setAttribute('data-open', el.getAttribute('data-open') === '1' ? '0' : '1');
+  renderSupportPanel();
+}
+
+// System-/PHP-Analyse-Seite (nur Support).
+async function renderSupportDiag(session) {
+  $('#page-title').textContent = 'System-Diagnose';
+  if ($('#page-subtitle')) $('#page-subtitle').textContent = '';
+  $('#topbar-actions').innerHTML = `<button class="btn btn-secondary" onclick="renderSupportDiag(getCurrentUser())">↻ Aktualisieren</button>`;
+  const c = $('#content');
+  if (!isSupport()) { c.innerHTML = `<div class="card"><div class="empty-state">Nur für Support.</div></div>`; return; }
+  c.innerHTML = `<div class="card"><div class="text-muted" style="padding:18px;">Lade Analyse…</div></div>`;
+  let d;
+  try {
+    const res = await fetch(`${API_BASE}/support_diag.php`, { credentials: 'same-origin', headers: { 'X-CSRF-Token': CSRF } });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok || !j.ok) throw new Error((j && j.error) || ('HTTP ' + res.status));
+    d = j.data;
+  } catch (e) {
+    c.innerHTML = `<div class="card"><div class="empty-state">Analyse nicht verfügbar: ${escape(e.message || 'Fehler')}</div></div>`;
+    return;
+  }
+  const yn = b => b ? '<span class="md-ok">✓</span>' : '<span class="md-err">✗</span>';
+  const row = (k, v) => `<div class="md-row"><div class="md-k">${escape(k)}</div><div class="md-v">${v}</div></div>`;
+  const php = d.php || {}, db = d.db || {}, disk = d.disk || {}, log = d.phpLog || {};
+  const exts = Object.entries(php.extensions || {}).map(([k, v]) => `${yn(v)} ${escape(k)}`).join(' &nbsp; ');
+  const limits = Object.entries(php.limits || {}).map(([k, v]) => row(k, escape(String(v)))).join('');
+  const tables = Object.entries(db.tables || {}).map(([t, info]) => row(t, info.exists ? `${yn(true)} ${info.rows ?? 0} Zeilen` : `${yn(false)} fehlt`)).join('');
+  const cfg = Object.entries(d.config || {}).map(([k, v]) => row(k, yn(v))).join('');
+  const errItem = e => `<div class="support-err"><span class="support-err-t">${escape(e.time || '')} · HTTP ${escape(String(e.code || ''))} · ${escape(e.method || '')}</span><div>${escape(e.msg || '')}</div>${e.uri ? `<div class="support-err-d">${escape(e.uri)}</div>` : ''}</div>`;
+  const srvErrs = (d.serverErrors || []).map(errItem).join('') || '<div class="support-err-empty">Keine.</div>';
+  const cliErrs = supportErrors.length ? supportErrors.slice().reverse().map(e => `<div class="support-err"><span class="support-err-t">${escape(e.time)} · ${escape(e.type)}</span><div>${escape(e.msg)}</div>${e.detail ? `<div class="support-err-d">${escape(e.detail)}</div>` : ''}</div>`).join('') : '<div class="support-err-empty">Keine.</div>';
+  c.innerHTML = `
+    <style>
+      .md-row { display:flex; gap:10px; align-items:flex-start; padding:9px 16px; border-bottom:1px solid var(--border); font-size:13px; }
+      .md-row:last-child { border-bottom:none; }
+      .md-k { color:var(--text-2); min-width:190px; flex-shrink:0; }
+      .md-v { flex:1; min-width:0; word-break:break-word; }
+      .md-ok { color:var(--success); } .md-err { color:var(--danger); }
+    </style>
+    <div class="text-sm text-muted" style="margin-bottom:10px;">Stand: ${escape(d.time || '')}</div>
+    <div class="card" style="padding:0;overflow:hidden;"><div style="padding:12px 16px;font-weight:600;border-bottom:1px solid var(--border);">PHP</div>
+      ${row('Version', escape(php.version || '?') + ' · ' + escape(php.sapi || ''))}
+      ${row('Extensions', exts)}
+      ${limits}
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;margin-top:14px;"><div style="padding:12px 16px;font-weight:600;border-bottom:1px solid var(--border);">Datenbank</div>
+      ${row('Verbindung', `${yn(db.connected)} ${escape(db.serverVersion || '')}`)}
+      ${tables || row('Tabellen', '—')}
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;margin-top:14px;"><div style="padding:12px 16px;font-weight:600;border-bottom:1px solid var(--border);">Konfiguration & Speicher</div>
+      ${cfg}
+      ${row('Speicher frei', `${disk.freeBytes != null ? nasFmtBytes(disk.freeBytes) : '?'} / ${disk.totalBytes != null ? nasFmtBytes(disk.totalBytes) : '?'}${disk.usedPct != null ? ' · ' + disk.usedPct + '% belegt' : ''}`)}
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;margin-top:14px;"><div style="padding:12px 16px;font-weight:600;border-bottom:1px solid var(--border);">Letzte fehlgeschlagene Requests (Server)</div><div style="padding:6px 16px;">${srvErrs}</div></div>
+    <div class="card" style="padding:0;overflow:hidden;margin-top:14px;"><div style="padding:12px 16px;font-weight:600;border-bottom:1px solid var(--border);">Client-Fehler (Live)</div><div style="padding:6px 16px;">${cliErrs}</div></div>
+    <div class="card" style="padding:0;overflow:hidden;margin-top:14px;"><div style="padding:12px 16px;font-weight:600;border-bottom:1px solid var(--border);">PHP-Fehler-Log</div>
+      ${row('Pfad', escape(log.path || '?') + ' ' + yn(!!log.readable))}
+      ${log.readable ? `<pre class="support-log">${escape(log.tail || '')}</pre>` : '<div class="text-muted" style="padding:10px 16px;">Log nicht lesbar (auf Shared-Hosting oft normal).</div>'}
+    </div>`;
+}
 
 // Höchstes Rollen-Level eines Users (oder 0 falls keine bekannte Rolle)
 function getRoleLevel(user) {
@@ -4788,7 +4964,8 @@ const ROLE_LABELS = {
   videograf: 'Videograf',
   cutter: 'Cutter',
   mitarbeiter: 'Mitarbeiter',
-  contract_uploader: 'Vertrags-Upload'
+  contract_uploader: 'Vertrags-Upload',
+  support: 'Support'
 };
 
 const CUSTOMER_STATUS = {
@@ -4863,6 +5040,9 @@ function userRoles(user) {
 
 function hasRole(user, ...roles) {
   const r = userRoles(user);
+  // Supportmitarbeiter = interner Superuser: besteht jede Rollenprüfung (außer
+  // der reinen Kunden-Prüfung, die über den Session-Typ läuft).
+  if (r.includes('support') && !roles.includes('customer')) return true;
   return roles.some(role => r.includes(role));
 }
 
@@ -5518,6 +5698,11 @@ function getNavItemsForUser(session) {
   if (hasRole(user, ROLES.ADMIN)) {
     items.push({ id: 'admin', label: 'Admin', icon: 'shield', group: 'Team' });
   }
+  // Support-only: System-/Fehleranalyse (isSupport, NICHT hasRole — hasRole ist
+  // für Support immer true).
+  if (isSupport(user)) {
+    items.push({ id: 'support-diag', label: 'System', icon: 'chart', group: 'Team' });
+  }
   const unseenNotifs = (store.notifications || []).filter(n => !n.seen_at).length;
   if (unseenNotifs > 0) {
     const dashIdx = items.findIndex(i => i.id === 'dashboard');
@@ -5756,6 +5941,7 @@ function renderPage() {
     'crm-requests': renderCrmRequests,
     kommunikation: renderKommunikation,
     admin: renderAdmin,
+    'support-diag': renderSupportDiag,
     'customer-overview': renderCustomerOverview
   };
 
@@ -5779,9 +5965,14 @@ function renderPage() {
   if (currentPage === 'crm-requests' && (session.type !== 'staff' || !hasRole(session.user, ROLES.ADMIN))) {
     currentPage = 'dashboard';
   }
+  // System-Diagnose nur für die Support-Rolle (isSupport, nicht hasRole).
+  if (currentPage === 'support-diag' && !isSupport(session.user)) {
+    currentPage = 'dashboard';
+  }
 
   refreshCustomerFilterBar(session);
   renderUploadDock(); // globales Upload-Dock seitenübergreifend aktuell halten
+  renderSupportPanel(); // schwebendes DIAG-Panel (nur Support)
 
   const render = pages[currentPage] || renderDashboard;
   render(session);
@@ -11424,7 +11615,7 @@ function renderNasMedia() {
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escape(u.name)}</div>
         ${u.error
-          ? `<div style="font-size:11px;color:#ff453a;">${escape(u.error)}</div>`
+          ? `<div style="font-size:11px;color:#ff453a;">${escape(u.error)}</div>${supportBox((u.errorDetail || u.error) + (u.key ? ' · key=' + u.key : ''), 'Upload-Fehler')}`
           : `<div class="nas-up-bar-wrap"><div class="nas-up-bar" id="nas-up-bar-${u.key}" style="width:${u.pct}%;"></div></div>
              <div id="nas-up-info-${u.key}" style="font-size:11px;color:var(--text-3);margin-top:2px;">${escape(nasUpStatusText(u))}</div>`}
       </div>

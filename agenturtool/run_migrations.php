@@ -82,9 +82,9 @@ step($pdo, "user_roles: leere Einträge löschen",
     "DELETE FROM user_roles WHERE role_name = ''", $results);
 
 // ── 2. user_roles ENUM erweitern ─────────────────────────────────────────────
-step($pdo, "user_roles: ENUM contract_uploader ergänzen",
+step($pdo, "user_roles: ENUM contract_uploader + support ergänzen",
     "ALTER TABLE user_roles MODIFY COLUMN role_name
-     ENUM('admin','manager','videograf','cutter','mitarbeiter','contract_uploader') NOT NULL",
+     ENUM('admin','manager','videograf','cutter','mitarbeiter','contract_uploader','support') NOT NULL",
     $results);
 
 // ── 3. customer_files: fehlende Spalten ──────────────────────────────────────
