@@ -49,6 +49,70 @@ claude mcp add dodidis-media \
 
 Claude danach neu starten. Die Tools erscheinen unter „dodidis-media".
 
+## 4. Remote-Betrieb (vServer) — für den claude.ai/Desktop *Connector*
+Damit du den Server über **„Benutzerdefinierten Connector hinzufügen → Remote MCP
+Server URL"** (auch mobil/claude.ai) nutzen kannst, läuft er als HTTP-Dienst auf
+dem vServer. Absicherung: ein **geheimes URL-Segment** (`MCP_URL_SECRET`) — das
+Connector-Fenster erlaubt keine eigenen Header, daher ist die unratbare URL der
+Schlüssel (analog zu den Kalender-Abo-Links), geschützt über HTTPS.
+
+### a) Secret erzeugen
+```bash
+openssl rand -hex 24
+```
+
+### b) Auf dem vServer bereitstellen
+```bash
+# Repo (nur den mcp-Ordner) auf den vServer bringen, dann:
+cd /opt/dodidis-mcp        # z. B.
+npm install
+npm run build
+```
+
+### c) systemd-Service `/etc/systemd/system/dodidis-mcp.service`
+```ini
+[Unit]
+Description=Dodidis MCP (HTTP)
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/dodidis-mcp
+ExecStart=/usr/bin/node dist/http.js
+Environment=PORT=8787
+Environment=DODIDIS_API_BASE=https://dodidis-media.de/agenturtool/api
+Environment=DODIDIS_API_TOKEN=dm_DEIN_TOKEN
+Environment=MCP_URL_SECRET=DEIN_OPENSSL_SECRET
+Restart=always
+User=www-data
+
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+sudo systemctl daemon-reload && sudo systemctl enable --now dodidis-mcp
+sudo systemctl status dodidis-mcp   # sollte "active (running)" sein
+```
+
+### d) Caddy-Route (eigene Subdomain, TLS automatisch)
+Im Caddyfile ergänzen:
+```caddy
+mcp.dodidis-media.de {
+    reverse_proxy 127.0.0.1:8787
+}
+```
+Caddy neu laden. DNS: `mcp.dodidis-media.de` auf den vServer zeigen lassen.
+
+### e) In claude.ai eintragen
+**Benutzerdefinierten Connector hinzufügen** → *Remote MCP Server URL*:
+```
+https://mcp.dodidis-media.de/mcp/DEIN_OPENSSL_SECRET
+```
+OAuth-Felder **leer** lassen. Fertig — die Tools erscheinen als Connector.
+
+> Der HTTP-Server nutzt den in der Service-Env hinterlegten `DODIDIS_API_TOKEN` —
+> handelt also als **dieser** Nutzer. Für einen anderen Nutzer einen eigenen
+> Dienst mit dessen Token + eigenem Secret betreiben.
+
 ## Tools
 **Lesen:** `projekte_auflisten`, `projekt_lesen`, `kunden_auflisten`,
 `mitarbeiter_auflisten`, `drehtage_auflisten`, `posting_kalender_lesen`,
