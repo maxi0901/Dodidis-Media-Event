@@ -144,8 +144,16 @@ switch ($method) {
         }
 
         if (array_key_exists('roles', $b) && $isAdmin) {
+            // Die interne Support-Rolle ist NUR per DB setzbar — nie über die API.
+            // Sie wird daher vor dem Neuschreiben gesichert und danach wieder
+            // hergestellt (kein Admin kann sie über die UI vergeben ODER entziehen).
+            $hadSupport = db_one("SELECT 1 AS x FROM user_roles WHERE user_id = ? AND role_name = 'support'", [$id]);
             db_exec("DELETE FROM user_roles WHERE user_id = ?", [$id]);
             insert_roles($id, (array)$b['roles']);
+            if ($hadSupport) {
+                try { db_exec("INSERT INTO user_roles (user_id, role_name) VALUES (?, 'support')", [$id]); }
+                catch (\Throwable $e) { /* ENUM evtl. noch ohne 'support' — Migration nachziehen */ }
+            }
             // Wenn der bearbeitete User die eigene Session ist, Roles in Session aktualisieren
             if ($isSelf) {
                 $rolesRows = db_all("SELECT role_name FROM user_roles WHERE user_id = ?", [$id]);

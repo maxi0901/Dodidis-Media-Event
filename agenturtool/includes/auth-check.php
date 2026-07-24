@@ -86,6 +86,11 @@ function has_role(string ...$roles): bool
         return in_array('customer', $roles, true);
     }
     $mine = $_SESSION['roles'] ?? [];
+    // Supportmitarbeiter = interner Superuser: besteht jede Mitarbeiter-Rollen-
+    // prüfung (Vollzugriff für Fehleranalyse). Kunden-Checks bleiben ausgenommen.
+    if (in_array('support', $mine, true) && !in_array('customer', $roles, true)) {
+        return true;
+    }
     foreach ($roles as $r) {
         if (in_array($r, $mine, true)) return true;
     }

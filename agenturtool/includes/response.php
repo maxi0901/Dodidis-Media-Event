@@ -98,6 +98,7 @@ function json_ok($data = [], int $code = 200): void
 
 function json_err(int $code, string $msg, $extra = null): void
 {
+    record_server_error($code, $msg);
     http_response_code($code);
     json_headers();
     $payload = ['ok' => false, 'success' => false, 'error' => $msg];
@@ -106,4 +107,37 @@ function json_err(int $code, string $msg, $extra = null): void
     }
     echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
+}
+
+/**
+ * Hält die letzten fehlgeschlagenen API-Antworten (>=400) für die Support-
+ * Diagnose fest — Ring-Puffer in app_config (max. 30 Einträge, kein Wachstum).
+ * Best-effort: schlägt still fehl, wenn die DB noch nicht verfügbar ist.
+ */
+function record_server_error(int $code, string $msg): void
+{
+    if ($code < 400 || $code === 401) return;              // 401 = reines Login-Rauschen
+    if (!function_exists('db_exec') || !function_exists('db_one')) return;
+    try {
+        $entry = [
+            'time'   => date('Y-m-d H:i:s'),
+            'code'   => $code,
+            'msg'    => mb_substr($msg, 0, 300),
+            'method' => (string)($_SERVER['REQUEST_METHOD'] ?? ''),
+            'uri'    => mb_substr((string)($_SERVER['REQUEST_URI'] ?? ''), 0, 300),
+        ];
+        $row = db_one("SELECT value FROM app_config WHERE `key` = 'support_errors'");
+        $arr = [];
+        if ($row && !empty($row['value'])) {
+            $d = json_decode((string)$row['value'], true);
+            if (is_array($d)) $arr = $d;
+        }
+        $arr[] = $entry;
+        if (count($arr) > 30) $arr = array_slice($arr, -30);
+        db_exec(
+            "INSERT INTO app_config (`key`, value) VALUES ('support_errors', ?)
+             ON DUPLICATE KEY UPDATE value = VALUES(value)",
+            [json_encode($arr, JSON_UNESCAPED_UNICODE)]
+        );
+    } catch (\Throwable $e) { /* Diagnose ist best-effort */ }
 }
