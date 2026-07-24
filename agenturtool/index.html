@@ -15286,7 +15286,7 @@ function openUserModal(userId = null) {
 
             <div class="section-title">Rollen (Mehrfachauswahl möglich)</div>
             <div>
-              ${Object.entries(ROLE_LABELS).map(([k, v]) => `
+              ${Object.entries(ROLE_LABELS).filter(([k]) => k !== 'support').map(([k, v]) => `
                 <label class="checkbox-row" for="role-${k}">
                   <input type="checkbox" id="role-${k}" name="role_${k}" ${currentRoles.includes(k) ? 'checked' : ''} />
                   <div class="checkbox-content">
@@ -15770,8 +15770,9 @@ async function saveUser(e, userId) {
     return;
   }
 
-  // Collect roles from checkboxes
-  const roles = Object.keys(ROLE_LABELS).filter(k => form.querySelector(`#role-${k}`)?.checked);
+  // Collect roles from checkboxes. 'support' ist eine reine DB-Rolle und wird
+  // hier NIE gesammelt/gesendet (kein Picker, kein optimistisches Setzen).
+  const roles = Object.keys(ROLE_LABELS).filter(k => k !== 'support' && form.querySelector(`#role-${k}`)?.checked);
   if (roles.length === 0) {
     alert('Bitte mindestens eine Rolle auswählen.');
     return;
