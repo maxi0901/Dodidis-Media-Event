@@ -61,6 +61,37 @@ export function buildServer(): McpServer {
   server.tool("drehtage_auflisten", "Drehtage auflisten.", {}, async () => {
     try { return ok(await apiCall("GET", "shootdays.php")); } catch (e) { return fail(e); }
   });
+  server.tool(
+    "drehtag_anlegen",
+    "Neuen Drehtag anlegen. Nur 'date' ist Pflicht.",
+    {
+      date: z.string().describe("Datum YYYY-MM-DD"),
+      startTime: z.string().optional().describe("Startzeit HH:MM"),
+      endTime: z.string().optional().describe("Endzeit HH:MM"),
+      videografId: z.string().optional().describe("User-ID des Videografen"),
+      customerId: z.string().optional().describe("Kunden-ID"),
+      note: z.string().optional(),
+    },
+    async (args) => {
+      try { return ok(await apiCall("POST", "shootdays.php", { body: args })); } catch (e) { return fail(e); }
+    }
+  );
+  server.tool(
+    "drehtag_aendern",
+    "Drehtag ändern — insbesondere VERSCHIEBEN (neues 'date'), sowie Zeiten/Videograf/Kunde/Notiz. Nur übergebene Felder werden geändert; verknüpfte Projekt-Drehdaten werden serverseitig mit verschoben.",
+    {
+      id: z.string().describe("ID des Drehtags (siehe drehtage_auflisten)"),
+      date: z.string().optional().describe("neues Datum YYYY-MM-DD (= verschieben)"),
+      startTime: z.string().optional().describe("HH:MM"),
+      endTime: z.string().optional().describe("HH:MM"),
+      videografId: z.string().optional(),
+      customerId: z.string().optional(),
+      note: z.string().optional(),
+    },
+    async ({ id, ...fields }) => {
+      try { return ok(await apiCall("PUT", "shootdays.php", { query: { id }, body: fields })); } catch (e) { return fail(e); }
+    }
+  );
   server.tool("posting_kalender_lesen", "Geplante & veröffentlichte Postings (Kalender) lesen.", {}, async () => {
     try { return ok(await apiCall("GET", "content_plan.php", { query: { action: "scheduled" } })); } catch (e) { return fail(e); }
   });
