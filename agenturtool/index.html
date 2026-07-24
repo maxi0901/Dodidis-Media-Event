@@ -2139,6 +2139,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
+    min-width: 0;
   }
   .ical-cat-label > span:not(.ical-cat-icon) { display: none; }
   .ical-cat-label .ical-cat-icon {
@@ -14393,7 +14395,6 @@ function renderCategoryWeekView(elementId, session, mini = false) {
             const labelHtml = sidebarWidth > 0 ? `
               <div class="ical-cat-label ${c.cls}" style="${labelRowSpan}" title="${escape(c.label)}">
                 ${iconHtml}
-                <span>${escape(c.label)}</span>
               </div>` : '';
             return `
               ${labelHtml}
